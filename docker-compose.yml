@@ -1,0 +1,20 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./server
+    environment:
+      - PORT=3001
+      - CORS_ORIGIN=https://rufat-server.com
+    expose:
+      - "3001"
+    restart: unless-stopped

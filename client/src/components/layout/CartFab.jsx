@@ -33,7 +33,7 @@ export default function CartFab() {
         <span style={{
           position: 'absolute', top: -3, right: -3,
           minWidth: 20, height: 20, borderRadius: '50%',
-          background: 'var(--accent)', color: '#0c0a09',
+          background: 'var(--accent)', color: '#F5F0E8',
           fontSize: '0.6rem', fontWeight: 800,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           border: '2px solid var(--bg)', padding: '0 3px',

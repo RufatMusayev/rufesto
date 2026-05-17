@@ -1,45 +1,71 @@
 import { Router } from 'express'
+import { createClient } from '@supabase/supabase-js'
 
 const router = Router()
 
-const dishes = [
-  { id: 1, restaurantSlug: 'bella-roma', name: 'Margherita Pizza',    price: 18.00, rating: 4.7, reviews: 89,  available: true,  category: 'Pizza',    emoji: '🍕' },
-  { id: 2, restaurantSlug: 'bella-roma', name: 'Spaghetti Carbonara', price: 22.00, rating: 4.9, reviews: 134, available: true,  category: 'Pasta',    emoji: '🍝' },
-  { id: 3, restaurantSlug: 'bella-roma', name: 'Truffle Risotto',     price: 34.00, rating: 4.8, reviews: 56,  available: false, category: 'Mains',    emoji: '🍄' },
-  { id: 4, restaurantSlug: 'bella-roma', name: 'Bistecca Fiorentina', price: 48.00, rating: 4.6, reviews: 41,  available: true,  category: 'Mains',    emoji: '🥩' },
-  { id: 5, restaurantSlug: 'bella-roma', name: 'Caesar Salad',        price: 14.00, rating: 4.5, reviews: 72,  available: true,  category: 'Mains',    emoji: '🥗' },
-  { id: 6, restaurantSlug: 'bella-roma', name: 'Tiramisu',            price: 12.00, rating: 4.9, reviews: 98,  available: true,  category: 'Desserts', emoji: '🍮' },
+/* ── Supabase client ─────── */
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
-  { id: 7,  restaurantSlug: 'seda-ocagi', name: 'Lamb Piti',       price: 18.00, rating: 4.9, reviews: 210, available: true,  category: 'Mains',     emoji: '🥩' },
-  { id: 8,  restaurantSlug: 'seda-ocagi', name: 'Dushbara',        price: 12.00, rating: 4.8, reviews: 145, available: true,  category: 'Soups',     emoji: '🍲' },
-  { id: 9,  restaurantSlug: 'seda-ocagi', name: 'Shah Plov',       price: 24.00, rating: 4.9, reviews: 189, available: true,  category: 'Mains',     emoji: '🍚' },
-  { id: 10, restaurantSlug: 'seda-ocagi', name: 'Qutab',           price: 8.00,  rating: 4.7, reviews: 92,  available: true,  category: 'Starters',  emoji: '🫓' },
+/**
+ * Auth middleware — verifies the Supabase JWT from the Authorization header.
+ * Attaches `req.user` on success, returns 401 on failure.
+ */
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header' })
+  }
+  const token = authHeader.slice(7)
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+  if (error || !user) {
+    return res.status(401).json({ error: 'Invalid or expired token' })
+  }
+  req.user = user
+  next()
+}
 
-  { id: 11, restaurantSlug: 'sakura-house', name: 'Salmon Nigiri',     price: 16.00, rating: 4.8, reviews: 76,  available: true,  category: 'Sushi',  emoji: '🍣' },
-  { id: 12, restaurantSlug: 'sakura-house', name: 'Tonkotsu Ramen',    price: 22.00, rating: 4.9, reviews: 112, available: true,  category: 'Mains',  emoji: '🍜' },
-  { id: 13, restaurantSlug: 'sakura-house', name: 'Dragon Roll',       price: 28.00, rating: 4.7, reviews: 88,  available: false, category: 'Rolls',  emoji: '🌯' },
-  { id: 14, restaurantSlug: 'sakura-house', name: 'Mochi Ice Cream',   price: 10.00, rating: 4.6, reviews: 54,  available: true,  category: 'Desserts', emoji: '🍡' },
-]
-
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { restaurant, category } = req.query
-  let result = dishes
-  if (restaurant) result = result.filter(d => d.restaurantSlug === restaurant)
-  if (category)   result = result.filter(d => d.category === category)
-  res.json(result)
+  if (restaurant && typeof restaurant !== 'string') return res.status(400).json({ error: 'Invalid restaurant filter' })
+  if (category && typeof category !== 'string') return res.status(400).json({ error: 'Invalid category filter' })
+  let query = supabase.from('dishes').select('*, restaurants!inner(slug)')
+  if (restaurant) query = query.eq('restaurants.slug', restaurant)
+  if (category) query = query.eq('category', category)
+  const { data, error } = await query
+  if (error) return res.status(500).json({ error: error.message })
+  res.json(data)
 })
 
-router.get('/:id', (req, res) => {
-  const dish = dishes.find(d => d.id === parseInt(req.params.id))
-  if (!dish) return res.status(404).json({ error: 'Dish not found' })
-  res.json(dish)
+router.get('/:id', async (req, res) => {
+  const { data, error } = await supabase
+    .from('dishes')
+    .select('*')
+    .eq('id', req.params.id)
+    .single()
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500
+    return res.status(status).json({ error: status === 404 ? 'Dish not found' : error.message })
+  }
+  res.json(data)
 })
 
-router.patch('/:id/toggle', (req, res) => {
-  const dish = dishes.find(d => d.id === parseInt(req.params.id))
-  if (!dish) return res.status(404).json({ error: 'Dish not found' })
-  dish.available = !dish.available
-  res.json({ id: dish.id, available: dish.available })
+/* Protected — only authenticated staff can toggle dish availability */
+router.patch('/:id/toggle', requireAuth, async (req, res) => {
+  const { data: dish, error: fetchError } = await supabase
+    .from('dishes')
+    .select('id, available')
+    .eq('id', req.params.id)
+    .single()
+  if (fetchError || !dish) return res.status(404).json({ error: 'Dish not found' })
+
+  const { data: updated, error: updateError } = await supabase
+    .from('dishes')
+    .update({ available: !dish.available })
+    .eq('id', req.params.id)
+    .select('id, available')
+    .single()
+  if (updateError) return res.status(500).json({ error: updateError.message })
+  res.json(updated)
 })
 
 export default router

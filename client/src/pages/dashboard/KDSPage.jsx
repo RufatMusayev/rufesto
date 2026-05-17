@@ -1,19 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { timeAgo, formatPrice } from '../../lib/helpers'
 
 const STATUS_ORDER = ['new', 'preparing', 'ready']
-const STATUS_META  = {
-  new:       { label: 'NEW',       color: 'var(--accent)', bg: 'rgba(245,158,11,0.1)',  next: 'preparing', action: 'Start' },
-  preparing: { label: 'PREPARING', color: 'var(--blue)',   bg: 'rgba(59,130,246,0.1)',  next: 'ready',     action: 'Ready' },
-  ready:     { label: 'READY ✓',   color: 'var(--green)',  bg: 'rgba(34,197,94,0.1)',   next: 'done',      action: 'Done'  },
+const STATUS_META = {
+  new:       { label: 'NEW',       color: '#F59E0B', bg: 'rgba(245,158,11,0.1)',  next: 'preparing', action: 'Start Preparing' },
+  preparing: { label: 'PREP',      color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  next: 'ready',     action: 'Mark Ready' },
+  ready:     { label: 'READY',     color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   next: 'done',      action: 'Done' },
+}
+
+function ticketUrgency(minutesElapsed) {
+  if (minutesElapsed < 5)  return { level: 'fresh',   color: '#3B6D11', glow: 'none' }
+  if (minutesElapsed < 12) return { level: 'normal',  color: '#BA7517', glow: 'none' }
+  if (minutesElapsed < 20) return { level: 'late',    color: '#F59E0B', glow: '0 0 0 1px rgba(245,158,11,0.3)' }
+  return { level: 'overdue', color: '#A32D2D', glow: '0 0 0 2px rgba(163,45,45,0.3)' }
 }
 
 export default function KDSPage() {
   const { restaurantId } = useAuth()
   const [tickets, setTickets] = useState([])
-  const [filter,  setFilter]  = useState('all') // all | new | preparing | ready
+  const [filter, setFilter] = useState('all')
+  const now = useNow(10000)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -21,27 +28,21 @@ export default function KDSPage() {
 
     const channel = supabase
       .channel('kds-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` },
-        () => loadTickets())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` },
-        () => loadTickets())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
       .subscribe()
 
-    const interval = setInterval(loadTickets, 15000)
-    return () => { supabase.removeChannel(channel); clearInterval(interval) }
+    return () => supabase.removeChannel(channel)
   }, [restaurantId])
 
   async function loadTickets() {
     const { data } = await supabase
       .from('kds_tickets')
-      .select(`
-        *,
-        order_items!order_item_id(
-          id, quantity, special_request,
-          dishes(name, category),
-          orders(id, placed_at, tables(table_number))
-        )
-      `)
+      .select(`*, order_items!order_item_id(
+        id, quantity, special_request,
+        dishes(name, category),
+        orders(id, placed_at, tables(table_number))
+      )`)
       .eq('restaurant_id', restaurantId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('priority', { ascending: false })
@@ -55,7 +56,7 @@ export default function KDSPage() {
 
     const update = { status: next }
     if (next === 'preparing') update.started_at = new Date().toISOString()
-    if (next === 'done')      update.completed_at = new Date().toISOString()
+    if (next === 'done') update.completed_at = new Date().toISOString()
 
     await supabase.from('kds_tickets').update(update).eq('id', ticket.id)
     setTickets(prev => next === 'done'
@@ -65,104 +66,164 @@ export default function KDSPage() {
   }
 
   const filtered = filter === 'all' ? tickets : tickets.filter(t => t.status === filter)
-
   const counts = {
-    new:       tickets.filter(t => t.status === 'new').length,
+    all: tickets.length,
+    new: tickets.filter(t => t.status === 'new').length,
     preparing: tickets.filter(t => t.status === 'preparing').length,
-    ready:     tickets.filter(t => t.status === 'ready').length,
+    ready: tickets.filter(t => t.status === 'ready').length,
   }
 
   return (
-    <div style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-        <h1 className="page-title">Kitchen Display</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--green)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-          Live
+    <div style={{ padding: '1.25rem', minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: '1rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h1 className="page-title">Kitchen Display</h1>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px', borderRadius: 100,
+            background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
+          }}>
+            <span className="dash-live-dot" />
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--green)' }}>LIVE</span>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--t2)', fontFamily: 'monospace' }}>
+          {tickets.length} active
         </div>
       </div>
 
-      {/* Status filter tabs */}
-      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        {[['all', 'All', tickets.length], ...STATUS_ORDER.map(s => [s, STATUS_META[s].label, counts[s]])].map(([id, label, cnt]) => (
-          <button key={id} onClick={() => setFilter(id)}
-            className={`chip${filter === id ? ' active' : ''}`}>
-            {label} {cnt > 0 && <span style={{ marginLeft: 4, background: 'var(--s4)', borderRadius: '50%', padding: '1px 6px', fontSize: '0.72rem' }}>{cnt}</span>}
+      {/* Column headers / filter */}
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        {[['all', 'All'], ...STATUS_ORDER.map(s => [s, STATUS_META[s].label])].map(([id, label]) => (
+          <button key={id} onClick={() => setFilter(id)} style={{
+            padding: '0.4rem 1rem', borderRadius: 8,
+            background: filter === id ? (id === 'all' ? 'var(--t1)' : STATUS_META[id]?.bg || 'var(--s3)') : 'var(--s2)',
+            color: filter === id ? (id === 'all' ? 'var(--bg)' : STATUS_META[id]?.color || 'var(--t1)') : 'var(--t2)',
+            border: `1px solid ${filter === id ? 'transparent' : 'var(--border)'}`,
+            fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            transition: 'all 0.15s',
+          }}>
+            {label}
+            <span style={{
+              marginLeft: 6, fontSize: '0.72rem', fontWeight: 800,
+              background: filter === id ? 'rgba(0,0,0,0.15)' : 'var(--s3)',
+              padding: '1px 7px', borderRadius: 100,
+            }}>
+              {counts[id]}
+            </span>
           </button>
         ))}
       </div>
 
+      {/* Tickets grid */}
       {filtered.length === 0 ? (
-        <div className="empty"><div className="empty-icon">🧑‍🍳</div>No active tickets</div>
+        <div className="empty" style={{ paddingTop: '4rem' }}>
+          <div className="empty-icon" style={{ fontSize: '3.5rem' }}>🧑‍🍳</div>
+          <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: 4 }}>Kitchen is clear</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--t3)', marginTop: 4 }}>No active tickets right now</div>
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '1rem' }}>
-          {filtered.map(t => <KDSTicket key={t.id} ticket={t} onAdvance={() => advance(t)} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '0.85rem' }}>
+          {filtered.map(t => (
+            <KDSTicket key={t.id} ticket={t} now={now} onAdvance={() => advance(t)} />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-function KDSTicket({ ticket, onAdvance }) {
-  const meta    = STATUS_META[ticket.status]
-  const item    = ticket.order_items   // single object (many-to-one FK)
-  const table   = item?.orders?.tables?.table_number || '?'
-  const since   = item?.orders?.placed_at
-  const elapsed = since ? Math.floor((Date.now() - new Date(since)) / 60000) : 0
-  const urgent  = elapsed > 15
+function KDSTicket({ ticket, now, onAdvance }) {
+  const meta = STATUS_META[ticket.status]
+  const item = ticket.order_items
+  const table = item?.orders?.tables?.table_number || '?'
+  const since = item?.orders?.placed_at
+  const elapsed = since ? Math.floor((now - new Date(since)) / 60000) : 0
+  const urgency = ticketUrgency(elapsed)
 
   return (
     <div style={{
-      background: 'var(--s2)', borderRadius: 18,
-      border: `1px solid ${urgent ? 'rgba(239,68,68,0.35)' : 'var(--border)'}`,
-      overflow: 'hidden',
-      boxShadow: urgent ? '0 0 0 1px rgba(239,68,68,0.2)' : 'none',
+      background: 'var(--s2)', borderRadius: 16, overflow: 'hidden',
+      border: `1.5px solid ${urgency.level === 'overdue' ? 'rgba(163,45,45,0.4)' : urgency.level === 'late' ? 'rgba(245,158,11,0.3)' : 'var(--border)'}`,
+      boxShadow: urgency.glow,
+      transition: 'border-color 0.3s, box-shadow 0.3s',
     }}>
       {/* Header */}
       <div style={{
-        padding: '0.875rem 1rem',
-        background: 'var(--s3)',
+        padding: '0.75rem 1rem', background: 'var(--s3)',
         borderBottom: '1px solid var(--border)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: '1rem' }}>Table {table}</div>
-          <div style={{ fontSize: '0.72rem', color: urgent ? 'var(--red)' : 'var(--t3)' }}>
-            {urgent ? `⚠ ${elapsed}m — overdue!` : `${elapsed}m ago`}
+          <div style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: -0.3 }}>
+            Table {table}
+          </div>
+          <div style={{
+            fontSize: '0.75rem', fontWeight: 600,
+            color: urgency.color,
+            fontFamily: 'monospace',
+            marginTop: 2,
+          }}>
+            {urgency.level === 'overdue' ? `⚠ ${elapsed}m — OVERDUE` :
+             urgency.level === 'late' ? `⏱ ${elapsed}m — getting late` :
+             `${elapsed}m ago`}
           </div>
         </div>
+
         <span style={{
-          fontSize: '0.7rem', fontWeight: 700,
-          padding: '0.22rem 0.65rem', borderRadius: 100,
+          fontSize: '0.68rem', fontWeight: 800, letterSpacing: 0.8,
+          padding: '4px 10px', borderRadius: 6,
           background: meta.bg, color: meta.color,
-        }}>{meta.label}</span>
+          border: `1px solid ${meta.color}33`,
+        }}>
+          {meta.label}
+        </span>
       </div>
 
       {/* Item */}
-      <div style={{ padding: '0.875rem 1rem' }}>
+      <div style={{ padding: '0.85rem 1rem' }}>
         {item ? (
-          <div style={{ fontSize: '0.9rem' }}>
-            <span style={{ fontWeight: 700 }}>{item.quantity}×</span>{' '}
-            <span>{item.dishes?.name || 'Unknown dish'}</span>
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{
+                fontSize: '1.35rem', fontWeight: 900, color: 'var(--t1)',
+                fontFamily: 'monospace', lineHeight: 1,
+              }}>
+                {item.quantity}×
+              </span>
+              <span style={{ fontSize: '1rem', fontWeight: 700 }}>
+                {item.dishes?.name || 'Unknown dish'}
+              </span>
+            </div>
             {item.special_request && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: 4 }}>
+              <div style={{
+                marginTop: 8, padding: '6px 10px', borderRadius: 6,
+                background: 'rgba(139,45,66,0.08)', border: '1px solid rgba(139,45,66,0.15)',
+                fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 500,
+              }}>
                 📝 {item.special_request}
               </div>
             )}
-          </div>
+          </>
         ) : (
-          <div style={{ fontSize: '0.82rem', color: 'var(--t3)' }}>Loading…</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--t3)' }}>Loading…</div>
         )}
       </div>
 
-      {/* Action */}
+      {/* Action button */}
       {meta.next && (
         <div style={{ padding: '0 1rem 1rem' }}>
-          <button className="btn" onClick={onAdvance} style={{
-            width: '100%',
-            background: meta.bg, color: meta.color,
-            border: `1px solid ${meta.color}40`,
-            fontWeight: 700,
+          <button onClick={onAdvance} style={{
+            width: '100%', padding: '0.6rem 0', borderRadius: 10,
+            background: meta.color, color: '#fff', border: 'none',
+            fontWeight: 700, fontSize: '0.85rem',
+            cursor: 'pointer', transition: 'opacity 0.15s',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
           }}>
             {meta.action} →
           </button>
@@ -170,4 +231,14 @@ function KDSTicket({ ticket, onAdvance }) {
       )}
     </div>
   )
+}
+
+function useNow(interval = 10000) {
+  const [now, setNow] = useState(Date.now())
+  const ref = useRef()
+  useEffect(() => {
+    ref.current = setInterval(() => setNow(Date.now()), interval)
+    return () => clearInterval(ref.current)
+  }, [interval])
+  return now
 }

@@ -1,15 +1,18 @@
 {
-  "name": "dining-baku-server",
+  "name": "rufesto-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev":   "node --watch index.js"
+    "dev": "node --watch index.js"
   },
   "dependencies": {
-    "cors":    "^2.8.5",
-    "express": "^4.19.2"
+    "@supabase/supabase-js": "^2.105.4",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.1.0"
   }
 }

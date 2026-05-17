@@ -1,58 +1,30 @@
 import { Router } from 'express'
+import { createClient } from '@supabase/supabase-js'
 
 const router = Router()
 
-const restaurants = [
-  {
-    id:      '10000000-0000-0000-0000-000000000001',
-    slug:    'bella-roma',
-    name:    'Trattoria Bella Roma',
-    cuisine: 'Italian',
-    address: 'Nizami Street 42, Baku',
-    rating:  4.8,
-    reviews: 312,
-    open:    true,
-    closes:  '23:00',
-    emoji:   '🍝',
-    tables:  6,
-    activeDishes: 24,
-  },
-  {
-    id:      '10000000-0000-0000-0000-000000000002',
-    slug:    'seda-ocagi',
-    name:    'Səda Ocağı',
-    cuisine: 'Azerbaijani',
-    address: 'İçərişəhər, Baku',
-    rating:  4.9,
-    reviews: 287,
-    open:    true,
-    closes:  '22:30',
-    emoji:   '🫕',
-    tables:  6,
-    activeDishes: 18,
-  },
-  {
-    id:      '10000000-0000-0000-0000-000000000003',
-    slug:    'sakura-house',
-    name:    'Sakura House',
-    cuisine: 'Japanese',
-    address: 'Tbilisi Avenue 8, Baku',
-    rating:  4.7,
-    reviews: 198,
-    open:    true,
-    closes:  '23:30',
-    emoji:   '🍣',
-    tables:  6,
-    activeDishes: 22,
-  },
-]
+/* ── Supabase client ─────── */
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
-router.get('/', (_req, res) => res.json(restaurants))
+router.get('/', async (_req, res) => {
+  const { data, error } = await supabase
+    .from('restaurants')
+    .select('*')
+  if (error) return res.status(500).json({ error: error.message })
+  res.json(data)
+})
 
-router.get('/:slug', (req, res) => {
-  const r = restaurants.find(r => r.slug === req.params.slug)
-  if (!r) return res.status(404).json({ error: 'Restaurant not found' })
-  res.json(r)
+router.get('/:slug', async (req, res) => {
+  const { data, error } = await supabase
+    .from('restaurants')
+    .select('*')
+    .eq('slug', req.params.slug)
+    .single()
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500
+    return res.status(status).json({ error: status === 404 ? 'Restaurant not found' : error.message })
+  }
+  res.json(data)
 })
 
 export default router

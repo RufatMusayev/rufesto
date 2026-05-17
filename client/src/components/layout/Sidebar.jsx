@@ -25,17 +25,17 @@ export default function Sidebar() {
         marginBottom: '2rem',
         fontFamily: "'Playfair Display', Georgia, serif",
         fontSize: '1.1rem', fontWeight: 700,
-        fontStyle: 'italic', color: 'var(--t1)',
+        fontStyle: 'italic', color: 'var(--accent)',
         letterSpacing: -0.5,
         writingMode: 'horizontal-tb',
       }}>
-        DB
+        R
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
         <SideItem to="/" label="Home" Icon={HomeIcon} />
         <SideItem to="/explore" label="Explore" Icon={SearchIcon} />
-        <SideItem to="/notifications" label="Activity" Icon={HeartIcon} />
+        <SideItem to="/map" label="Map" Icon={MapIcon} />
         <SideItem to="/profile" label="Profile" Icon={ProfileIcon} />
         {tableId && <SideItem to="/table" label="Table" Icon={TableIcon} />}
         {isStaff && <SideItem to="/dashboard" label="Dashboard" Icon={DashIcon} />}
@@ -117,12 +117,11 @@ function SearchIcon({ filled }) {
   )
 }
 
-function HeartIcon({ filled }) {
+function BellIcon({ filled }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-        fill={filled ? 'currentColor' : 'none'}
-      />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={filled ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" fill={filled ? 'currentColor' : 'none'} />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   )
 }
@@ -133,6 +132,15 @@ function ProfileIcon({ filled }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632z"
         fill={filled ? 'currentColor' : 'none'}
       />
+    </svg>
+  )
+}
+
+function MapIcon({ filled }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={filled ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill={filled ? 'currentColor' : 'none'} />
+      <circle cx="12" cy="10" r="3" fill="none" />
     </svg>
   )
 }

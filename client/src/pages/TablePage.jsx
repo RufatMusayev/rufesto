@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
+import AuthModal from '../components/AuthModal'
+import PaymentSheet from '../components/PaymentSheet'
 
 export default function TablePage() {
   const { tableId, restaurantId, setTable, clearTable } = useCart()
@@ -14,11 +16,27 @@ export default function TablePage() {
   const [loading, setLoading] = useState(true)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState('')
+  const [paymentState, setPaymentState] = useState(null)
+  const [showPayment, setShowPayment] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  function refetchOrders() {
+    if (!session || !tableId) return
+    supabase
+      .from('orders')
+      .select('*, order_items(*, dishes(name, category, price))')
+      .eq('table_id', tableId)
+      .eq('user_id', session.user.id)
+      .order('placed_at', { ascending: true })
+      .then(({ data }) => setOrders(data || []))
+  }
 
   useEffect(() => {
     if (!tableId) { setLoading(false); return }
 
     let orderChannel
+    let kdsChannel
+    let tableChannel
 
     async function load() {
       setLoading(true)
@@ -29,7 +47,10 @@ export default function TablePage() {
         .eq('id', tableId)
         .single()
 
-      if (table) setTableInfo(table)
+      if (table) {
+        setTableInfo(table)
+        if (table.state === 'awaiting_payment') setPaymentState('requested')
+      }
 
       if (session) {
         const { data } = await supabase
@@ -48,25 +69,45 @@ export default function TablePage() {
         .on('postgres_changes', {
           event: '*', schema: 'public', table: 'orders',
           filter: `table_id=eq.${tableId}`,
-        }, () => {
-          if (session) {
-            supabase
-              .from('orders')
-              .select('*, order_items(*, dishes(name, category, price))')
-              .eq('table_id', tableId)
-              .eq('user_id', session.user.id)
-              .order('placed_at', { ascending: true })
-              .then(({ data }) => setOrders(data || []))
+        }, () => refetchOrders())
+        .subscribe()
+
+      kdsChannel = supabase
+        .channel(`kds-updates-${tableId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'kds_tickets',
+        }, () => refetchOrders())
+        .subscribe()
+
+      tableChannel = supabase
+        .channel(`table-state-${tableId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'tables',
+          filter: `id=eq.${tableId}`,
+        }, (payload) => {
+          setTableInfo(prev => prev ? { ...prev, ...payload.new } : prev)
+          if (payload.new.state === 'free' || payload.new.state === 'cleared') {
+            clearTable()
+            setTableInfo(null)
+            setOrders([])
           }
         })
         .subscribe()
     }
 
     load()
-    return () => { if (orderChannel) supabase.removeChannel(orderChannel) }
+    return () => {
+      if (orderChannel) supabase.removeChannel(orderChannel)
+      if (kdsChannel) supabase.removeChannel(kdsChannel)
+      if (tableChannel) supabase.removeChannel(tableChannel)
+    }
   }, [tableId, session])
 
   async function startDemo() {
+    if (!session) {
+      setShowAuthModal(true)
+      return
+    }
     setDemoLoading(true)
     setDemoError('')
 
@@ -95,16 +136,27 @@ export default function TablePage() {
     clearTable()
     setTableInfo(null)
     setOrders([])
+    setPaymentState(null)
   }
 
+
   if (loading) return <TableSkeleton />
-  if (!tableId) return <EmptyTableState onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError} />
+  if (!tableId) return (
+    <>
+      <EmptyTableState onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError} />
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+    </>
+  )
 
   const allItems = orders.flatMap(o => o.order_items || [])
   const sessionSubtotal = orders.reduce((s, o) => s + (o.subtotal || 0), 0)
   const sessionTax = orders.reduce((s, o) => s + (o.tax_amount || 0), 0)
   const sessionService = orders.reduce((s, o) => s + (o.service_charge || 0), 0)
   const sessionTotal = orders.reduce((s, o) => s + (o.total_amount || 0), 0)
+
+  const allServed = orders.length > 0 && orders.every(o =>
+    o.status === 'served' || o.status === 'done' || o.status === 'ready'
+  )
 
   const emoji = tableInfo?.restaurants ? cuisineEmoji(tableInfo.restaurants.cuisine_type) : '🍽️'
   const bgGrad = tableInfo?.restaurants ? cuisineBackground(tableInfo.restaurants.cuisine_type) : 'var(--s3)'
@@ -136,7 +188,7 @@ export default function TablePage() {
             background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             border: 'none', borderRadius: '50%',
-            width: 34, height: 34, color: '#f5f5f5',
+            width: 34, height: 34, color: 'var(--t1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
           }}>
@@ -158,8 +210,8 @@ export default function TablePage() {
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{
-                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-                fontSize: '1.15rem', fontWeight: 800, color: '#f5f5f5',
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontSize: '1.15rem', fontWeight: 800, color: '#F5F0E8',
                 lineHeight: 1.2,
               }}>
                 Table {tableInfo?.table_number || '—'}
@@ -203,7 +255,7 @@ export default function TablePage() {
               <div key={s.label}>
                 <div style={{
                   fontSize: '1.15rem', fontWeight: 800,
-                  color: s.accent ? 'var(--accent)' : '#f5f5f5',
+                  color: s.accent ? 'var(--accent)' : '#F5F0E8',
                 }}>
                   {s.val}
                 </div>
@@ -220,11 +272,11 @@ export default function TablePage() {
       <div style={{ maxWidth: 470, margin: '0 auto', padding: '16px 16px 40px' }}>
 
         {/* Browse menu CTA */}
-        {tableInfo?.restaurants?.slug && (
+        {tableInfo?.restaurants?.slug && !paymentState && (
           <Link to={`/restaurant/${tableInfo.restaurants.slug}`} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             width: '100%', padding: '11px 0', marginBottom: 20,
-            background: '#0095f6', color: '#fff', fontWeight: 700,
+            background: 'var(--accent)', color: 'var(--t1)', fontWeight: 700,
             fontSize: '0.88rem', borderRadius: 8,
             textDecoration: 'none', transition: 'background 0.15s',
           }}>
@@ -296,28 +348,54 @@ export default function TablePage() {
           </div>
         )}
 
+        {/* Payment section */}
+        {allServed && !paymentState && orders.length > 0 && (
+          <button className="btn btn-primary payment-pulse" style={{
+            width: '100%', marginTop: 16, padding: '14px 0', fontSize: '0.92rem',
+          }} onClick={() => setShowPayment(true)}>
+            💳 Request Bill · {formatPrice(sessionTotal)}
+          </button>
+        )}
+
+
         {/* End session */}
         <button onClick={handleEndSession} style={{
           width: '100%', marginTop: 20, padding: '10px 0',
           background: 'rgba(239,68,68,0.06)', color: 'var(--red)',
           border: '1px solid rgba(239,68,68,0.18)', borderRadius: 8,
           fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
           transition: 'background 0.15s',
         }}>
           End Session
         </button>
       </div>
+
+      {showPayment && orders.length > 0 && (
+        <PaymentSheet
+          order={{ id: orders[0].id, total_amount: sessionTotal }}
+          allOrderIds={orders.map(o => o.id)}
+          onClose={() => setShowPayment(false)}
+          onComplete={() => {
+            setShowPayment(false)
+            setPaymentState('completed')
+            clearTable()
+            setTableInfo(null)
+            setOrders([])
+          }}
+        />
+      )}
     </div>
   )
 }
 
 const STATUS_CONFIG = {
-  open:      { label: 'Placed',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)' },
-  preparing: { label: 'Preparing', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)' },
-  ready:     { label: 'Ready',     color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)' },
-  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)' },
-  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.18)',  accent: 'rgba(239,68,68,0.5)' },
+  open:      { label: 'Placed',        color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)',  dot: 'status-dot-pulse-blue' },
+  preparing: { label: 'Preparing',     color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)',  dot: 'status-dot-shimmer' },
+  ready:     { label: 'Ready',         color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-pulse-green' },
+  served:    { label: 'Served',        color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-check' },
+  done:      { label: 'Served',        color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-check' },
+  cancelled: { label: 'Cancelled',     color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)',   dot: '' },
 }
 
 function OrderCard({ order, index, number }) {
@@ -361,15 +439,18 @@ function OrderCard({ order, index, number }) {
           </div>
         </div>
 
-        <span style={{
-          padding: '3px 9px', borderRadius: 100,
-          fontSize: '0.6rem', fontWeight: 700,
-          background: s.bg, color: s.color,
-          border: `1px solid ${s.border}`,
-          textTransform: 'uppercase', letterSpacing: 0.6,
-        }}>
-          {s.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <StatusDot status={status} color={s.color} />
+          <span style={{
+            padding: '3px 9px', borderRadius: 100,
+            fontSize: '0.6rem', fontWeight: 700,
+            background: s.bg, color: s.color,
+            border: `1px solid ${s.border}`,
+            textTransform: 'uppercase', letterSpacing: 0.6,
+          }}>
+            {s.label}
+          </span>
+        </div>
       </div>
 
       {/* Items list */}
@@ -395,13 +476,13 @@ function OrderCard({ order, index, number }) {
                 {item.dishes?.name || 'Dish'}
               </div>
               <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>
-                {item.quantity}× {formatPrice(item.unit_price)}
+                {item.quantity}x {formatPrice(item.unit_price)}
               </div>
             </div>
             <span style={{
               fontSize: '0.82rem', color: 'var(--t1)', fontWeight: 600, flexShrink: 0,
             }}>
-              {formatPrice(item.line_total)}
+              {formatPrice(item.unit_price * item.quantity)}
             </span>
           </div>
         ))}
@@ -418,6 +499,49 @@ function OrderCard({ order, index, number }) {
       </div>
     </div>
   )
+}
+
+function StatusDot({ status, color }) {
+  if (status === 'served' || status === 'done') {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    )
+  }
+  if (status === 'preparing') {
+    return (
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+        animation: 'statusShimmer 1.2s ease-in-out infinite alternate',
+      }} />
+    )
+  }
+  if (status === 'ready') {
+    return (
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+        animation: 'statusPulse 1.5s ease-in-out infinite',
+        boxShadow: `0 0 6px ${color}`,
+      }} />
+    )
+  }
+  if (status === 'open') {
+    return (
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+        animation: 'statusPulse 2s ease-in-out infinite',
+        boxShadow: `0 0 6px ${color}`,
+      }} />
+    )
+  }
+  return null
 }
 
 function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
@@ -445,7 +569,7 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
       </div>
 
       <h2 style={{
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
         fontSize: '1.2rem', fontWeight: 800, marginBottom: 6,
       }}>
         No Active Table
@@ -460,9 +584,9 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
       <button onClick={onStartDemo} disabled={demoLoading}
         style={{
           padding: '11px 32px', fontSize: '0.88rem',
-          background: '#0095f6', color: '#fff', fontWeight: 700,
+          background: 'var(--accent)', color: 'var(--t1)', fontWeight: 700,
           border: 'none', borderRadius: 8, cursor: 'pointer',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
           display: 'flex', alignItems: 'center', gap: 8,
           transition: 'background 0.15s',
           opacity: demoLoading ? 0.6 : 1,

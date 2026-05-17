@@ -55,34 +55,34 @@ export default function BottomNav() {
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: tableId
-                ? '0 4px 15px rgba(34,197,94,0.4)'
-                : '0 4px 15px rgba(245,158,11,0.4)',
+                ? '0 4px 15px rgba(59,109,17,0.4)'
+                : '0 4px 15px rgba(139,45,66,0.4)',
               transition: 'transform 0.15s',
             }}
             onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             {tableId ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0c0a09" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2"/>
                 <rect x="6" y="8" width="12" height="8" rx="1"/>
               </svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0c0a09" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1210" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="7" height="7" rx="1"/>
                 <rect x="14" y="3" width="7" height="7" rx="1"/>
                 <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="5" y="5" width="3" height="3" fill="#0c0a09" stroke="none"/>
-                <rect x="16" y="5" width="3" height="3" fill="#0c0a09" stroke="none"/>
-                <rect x="5" y="16" width="3" height="3" fill="#0c0a09" stroke="none"/>
+                <rect x="5" y="5" width="3" height="3" fill="#1A1210" stroke="none"/>
+                <rect x="16" y="5" width="3" height="3" fill="#1A1210" stroke="none"/>
+                <rect x="5" y="16" width="3" height="3" fill="#1A1210" stroke="none"/>
                 <path d="M14 14h2v2h-2zM18 14h3M18 18v3M14 18h2v2"/>
               </svg>
             )}
           </button>
         </div>
 
-        <NavItem to="/notifications" label="Activity">
-          {a => <HeartIcon filled={a} />}
+        <NavItem to="/map" label="Map">
+          {a => <MapIcon filled={a} />}
         </NavItem>
 
         <NavLink
@@ -130,10 +130,11 @@ function SearchIcon({ filled }) {
   )
 }
 
-function HeartIcon({ filled }) {
+function MapIcon({ filled }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? 'var(--red)' : 'none'} stroke={filled ? 'var(--red)' : 'var(--t3)'} strokeWidth="1.8" style={{ transition: 'all 0.15s' }}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? 'var(--t1)' : 'var(--t3)'} strokeWidth={filled ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'stroke 0.15s' }}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill={filled ? 'currentColor' : 'none'} />
+      <circle cx="12" cy="10" r="3" stroke={filled ? 'var(--bg)' : 'var(--t3)'} fill="none" />
     </svg>
   )
 }

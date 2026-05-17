@@ -5,26 +5,28 @@ import { formatPrice } from '../lib/helpers'
 import AuthModal from './AuthModal'
 
 export default function CartSheet() {
-  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, restaurantId, tableId } = useCart()
+  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, restaurantId, tableId, activeBookingId } = useCart()
   const { session } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [ordered,  setOrdered]  = useState(false)
   const [error,    setError]    = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   if (!open) return null
 
   async function handlePlace() {
     if (!session) { setShowAuth(true); return }
     if (!tableId) { setError('No table selected — scan a QR code first.'); return }
+    if (submitted) return
+    setSubmitted(true)
     setError('')
-    const { error: err, order } = await placeOrder(restaurantId, tableId)
+    const { error: err, order } = await placeOrder(restaurantId, tableId, activeBookingId)
+    setSubmitted(false)
     if (err) { setError(err); return }
     if (order) setOrdered(true)
   }
 
-  const tax     = total * 0.18
-  const service = total * 0.10
-  const grand   = total + tax + service
+  const grand   = total
 
   if (ordered) return (
     <div className="overlay" onClick={() => { setOrdered(false); setOpen(false) }}>
@@ -81,7 +83,7 @@ export default function CartSheet() {
                         <button onClick={() => addDish(dish)} style={{
                           width: 26, height: 26, borderRadius: '50%',
                           background: 'var(--accent)', border: 'none',
-                          color: '#0c0a09', fontSize: '0.95rem',
+                          color: '#F5F0E8', fontSize: '0.95rem',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>+</button>
                         <button onClick={() => remove(dish.id)} style={{
@@ -94,14 +96,9 @@ export default function CartSheet() {
                   ))}
                 </div>
 
-                {/* Totals */}
+                {/* Total */}
                 <div style={{ background: 'var(--s2)', borderRadius: 10, padding: '0.85rem', border: '1px solid var(--border)', marginBottom: '1rem' }}>
-                  {[['Subtotal', total], ['VAT (18%)', tax], ['Service (10%)', service]].map(([l, v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontSize: '0.82rem', color: 'var(--t2)' }}>
-                      <span>{l}</span><span>{formatPrice(v)}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.4rem', borderTop: '1px solid var(--border)', fontWeight: 800, fontSize: '0.95rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '0.95rem' }}>
                     <span>Total</span><span>{formatPrice(grand)}</span>
                   </div>
                 </div>

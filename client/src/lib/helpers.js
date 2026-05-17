@@ -35,7 +35,7 @@ export function isRestaurantOpen(hours = []) {
   if (!row) return false
   const [oh, om] = (row.open_time  || '00:00').split(':').map(Number)
   const [ch, cm] = (row.close_time || '23:59').split(':').map(Number)
-  return mins >= oh * 60 + om && mins <= ch * 60 + cm
+  return mins >= oh * 60 + om && mins < ch * 60 + cm
 }
 
 export function getTodayHours(hours = []) {

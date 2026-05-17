@@ -1,19 +1,34 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours } from '../lib/helpers'
+import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo } from '../lib/helpers'
+import { useAuth } from '../contexts/AuthContext'
+import DishDetailSheet from '../components/DishDetailSheet'
 
 export default function HomePage() {
   const [restaurants, setRestaurants] = useState([])
+  const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [dishDetail, setDishDetail] = useState(null)
 
   useEffect(() => {
-    supabase
-      .from('restaurants')
-      .select('*, operating_hours(*)')
-      .eq('status', 'active')
-      .order('name')
-      .then(({ data }) => { setRestaurants(data || []); setLoading(false) })
+    Promise.all([
+      supabase
+        .from('restaurants')
+        .select('*, operating_hours(*)')
+        .eq('status', 'active')
+        .order('name'),
+      supabase
+        .from('reviews')
+        .select('*, dishes(name, category, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
+        .eq('is_flagged', false)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ]).then(([{ data: restData }, { data: revData }]) => {
+      setRestaurants(restData || [])
+      setReviews(revData || [])
+      setLoading(false)
+    })
   }, [])
 
   return (
@@ -27,11 +42,18 @@ export default function HomePage() {
         <>
           <StoriesBar restaurants={restaurants} />
           <div style={{ maxWidth: 470, margin: '0 auto' }}>
-            {restaurants.map((r, i) => (
-              <FeedPost key={r.id} restaurant={r} index={i} />
-            ))}
+            {/* Interleaved feed: review posts + restaurant promo cards */}
+            {buildFeed(reviews, restaurants).map((item, i) =>
+              item._type === 'review'
+                ? <ReviewPostCard key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail} />
+                : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} />
+            )}
           </div>
         </>
+      )}
+
+      {dishDetail && (
+        <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />
       )}
     </div>
   )
@@ -193,61 +215,71 @@ function FeedPost({ restaurant: r, index }) {
           )}
         </div>
 
-        {/* Double-tap heart animation */}
+        {/* Double-tap perfetto animation */}
         {showHeart && (
-          <svg viewBox="0 0 24 24" fill="#fff" style={{
+          <span style={{
             position: 'absolute', top: '50%', left: '50%',
-            width: 80, height: 80,
-            animation: 'heartBurst 0.9s ease forwards',
+            fontSize: '5rem',
+            animation: 'perfettoBurst 0.9s ease forwards',
             filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
             pointerEvents: 'none',
           }}>
-            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-          </svg>
+            👌
+          </span>
         )}
       </div>
 
-      {/* Action bar */}
+      {/* Action bar — Rufesto unique icons */}
       <div style={{
         display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 14,
       }}>
+        {/* Perfetto — 👌 OK hand like */}
         <button className="icon-btn" onClick={() => setLiked(!liked)}
           style={{ width: 28, height: 28 }}>
           <svg viewBox="0 0 24 24" style={{
             width: 24, height: 24,
-            fill: liked ? '#ef4444' : 'none',
-            stroke: liked ? '#ef4444' : 'var(--t1)',
+            fill: liked ? 'var(--accent)' : 'none',
+            stroke: liked ? 'var(--accent)' : 'var(--t1)',
             strokeWidth: 1.8,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
             transition: 'all 0.15s',
           }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+            <path d="M8 14c-1.5-1-2.5-2.8-2-4.5.5-1.8 2-2.5 3.5-2s2.5 2 2 3.8c-.3 1-1 1.7-1.8 2" />
+            <path d="M9.7 13.3c.8-.3 1.8-.2 2.8.5" />
+            <path d="M12.5 13.8c.5-2.5 1.2-5 2-6.5.6-1 1.8-1.2 2.5-.5s.5 2-.2 3.5" />
+            <path d="M14 14.5c.8-2 1.5-4 2.2-5.2.5-.8 1.5-1 2.2-.3s.3 1.8-.3 3.2" />
+            <path d="M15.2 15c.6-1.5 1.2-3 1.8-4 .4-.7 1.3-.8 1.8-.2s.2 1.5-.3 2.8" />
+            <path d="M7.5 15c-.5.8-.8 2-.5 3 .5 1.5 2 2.5 4 2.8s4-.2 5.5-1.5c1-1 1.5-2.5 1.5-4" />
           </svg>
         </button>
 
+        {/* Fork + knife — food-native comment */}
         <Link to={`/restaurant/${r.slug}`} className="icon-btn" style={{ width: 28, height: 28 }}>
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" style={{ width: 24, height: 24, stroke: 'var(--t1)' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" style={{ width: 24, height: 24, stroke: 'var(--t1)' }}>
+            <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 2v20" strokeLinecap="round" />
+            <path d="M17 2v6c0 1.1.9 2 2 2h0c0 1.1-.9 2-2 2v10" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
 
-        <button className="icon-btn" style={{ width: 28, height: 28, color: 'var(--t1)' }}>
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" style={{ width: 24, height: 24, stroke: 'currentColor' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-          </svg>
-        </button>
-
         <div style={{ flex: 1 }} />
 
+        {/* Plate + pin — save to taste later */}
         <button className="icon-btn" onClick={() => setSaved(!saved)}
           style={{ width: 28, height: 28, color: 'var(--t1)' }}>
           <svg viewBox="0 0 24 24" style={{
             width: 24, height: 24,
-            fill: saved ? 'var(--t1)' : 'none',
-            stroke: 'var(--t1)',
+            fill: saved ? 'none' : 'none',
+            stroke: saved ? 'var(--accent)' : 'var(--t1)',
             strokeWidth: 1.8,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
             transition: 'all 0.15s',
           }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0z" />
+            <ellipse cx="12" cy="14" rx="8" ry="4" fill={saved ? 'var(--accent)' : 'none'} />
+            <path d="M12 3v7" />
+            <circle cx="12" cy="3" r="1.5" fill="currentColor" />
           </svg>
         </button>
       </div>
@@ -288,6 +320,244 @@ function FeedPost({ restaurant: r, index }) {
         )}
       </div>
     </article>
+  )
+}
+
+/** Interleave reviews and restaurants: review, restaurant, review, restaurant... */
+function buildFeed(reviews, restaurants) {
+  const feed = []
+  const ri = [...restaurants]
+  const rv = [...reviews]
+  let rIdx = 0, vIdx = 0
+  while (vIdx < rv.length || rIdx < ri.length) {
+    if (vIdx < rv.length) feed.push({ ...rv[vIdx++], _type: 'review' })
+    if (rIdx < ri.length) feed.push({ ...ri[rIdx++], _type: 'restaurant' })
+  }
+  return feed
+}
+
+function ReviewPostCard({ review: rev, index, onDishClick }) {
+  const dish = rev.dishes
+  const restaurant = dish?.restaurants
+  const emoji = categoryEmoji(dish?.category)
+  const { session } = useAuth()
+  const [liked, setLiked] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [showThread, setShowThread] = useState(false)
+  const [replies, setReplies] = useState([])
+  const [loadingReplies, setLoadingReplies] = useState(false)
+
+  useEffect(() => {
+    if (session && dish) {
+      supabase
+        .from('saved_dishes')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('dish_id', dish.id || rev.dish_id)
+        .maybeSingle()
+        .then(({ data }) => setSaved(!!data))
+    }
+  }, [session?.user?.id, dish?.id])
+
+  async function handleToggleSave() {
+    if (!dish) return
+    const next = !saved
+    setSaved(next)
+    if (!session) return
+    const dishId = dish.id || rev.dish_id
+    try {
+      if (next) {
+        const { error } = await supabase.from('saved_dishes').upsert(
+          { user_id: session.user.id, dish_id: dishId },
+          { onConflict: 'user_id,dish_id' }
+        )
+        if (error) { console.error('Save failed:', error.message); setSaved(false) }
+      } else {
+        const { error } = await supabase.from('saved_dishes').delete().eq('user_id', session.user.id).eq('dish_id', dishId)
+        if (error) { console.error('Unsave failed:', error.message); setSaved(true) }
+      }
+    } catch (err) {
+      console.error('Save error:', err)
+      setSaved(!next)
+    }
+  }
+
+  async function toggleThread() {
+    if (showThread) { setShowThread(false); return }
+    if (replies.length === 0) {
+      setLoadingReplies(true)
+      const { data } = await supabase
+        .from('reviews')
+        .select('*, users(name, profile_photo)')
+        .eq('dish_id', rev.dish_id)
+        .neq('id', rev.id)
+        .eq('is_flagged', false)
+        .order('created_at', { ascending: true })
+        .limit(10)
+      setReplies(data || [])
+      setLoadingReplies(false)
+    }
+    setShowThread(true)
+  }
+
+  return (
+    <article className="menu-card feed-post" style={{ animationDelay: `${index * 0.08}s` }}>
+      {/* Post header — reviewer info */}
+      <div style={{
+        display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 10,
+      }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: 'var(--s4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.7rem', fontWeight: 700, color: 'var(--t2)', flexShrink: 0,
+        }}>
+          {(rev.users?.name || 'A')[0].toUpperCase()}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--t1)' }}>
+            {rev.users?.name || 'Anonymous'}
+          </span>
+          <div style={{ fontSize: '0.7rem', color: 'var(--t3)' }}>
+            <Link to={`/restaurant/${restaurant?.slug}`} style={{ color: 'var(--t3)' }}>
+              {dish?.name} at {restaurant?.name}
+            </Link>
+          </div>
+        </div>
+        <span style={{ color: 'var(--gold)', fontSize: '0.72rem', letterSpacing: 0.5 }}>
+          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
+        </span>
+      </div>
+
+      {/* Dish photo area — tap opens dish detail */}
+      <div onClick={() => dish && onDishClick(dish)} style={{
+        width: '100%', aspectRatio: '4/3',
+        background: dishBackground(dish?.category),
+        position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '5rem', overflow: 'hidden',
+        cursor: 'pointer',
+      }}>
+        <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
+          {emoji}
+        </span>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.3) 100%)',
+          pointerEvents: 'none',
+        }} />
+      </div>
+
+      {/* Action bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 14,
+      }}>
+        <button className="icon-btn" onClick={() => setLiked(!liked)}
+          style={{ width: 28, height: 28 }}>
+          <svg viewBox="0 0 24 24" style={{
+            width: 24, height: 24,
+            fill: liked ? 'var(--accent)' : 'none',
+            stroke: liked ? 'var(--accent)' : 'var(--t1)',
+            strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+            transition: 'all 0.15s',
+          }}>
+            <path d="M8 14c-1.5-1-2.5-2.8-2-4.5.5-1.8 2-2.5 3.5-2s2.5 2 2 3.8c-.3 1-1 1.7-1.8 2" />
+            <path d="M9.7 13.3c.8-.3 1.8-.2 2.8.5" />
+            <path d="M12.5 13.8c.5-2.5 1.2-5 2-6.5.6-1 1.8-1.2 2.5-.5s.5 2-.2 3.5" />
+            <path d="M14 14.5c.8-2 1.5-4 2.2-5.2.5-.8 1.5-1 2.2-.3s.3 1.8-.3 3.2" />
+            <path d="M15.2 15c.6-1.5 1.2-3 1.8-4 .4-.7 1.3-.8 1.8-.2s.2 1.5-.3 2.8" />
+            <path d="M7.5 15c-.5.8-.8 2-.5 3 .5 1.5 2 2.5 4 2.8s4-.2 5.5-1.5c1-1 1.5-2.5 1.5-4" />
+          </svg>
+        </button>
+
+        {/* Fork + knife — food-native comment */}
+        <button className="icon-btn" onClick={toggleThread}
+          style={{ width: 28, height: 28 }}>
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" style={{ width: 24, height: 24, stroke: 'var(--t1)' }}>
+            <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 2v20" strokeLinecap="round" />
+            <path d="M17 2v6c0 1.1.9 2 2 2h0c0 1.1-.9 2-2 2v10" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        <div style={{ flex: 1 }} />
+
+        <button className="icon-btn" onClick={handleToggleSave}
+          style={{ width: 28, height: 28, color: 'var(--t1)' }}>
+          <svg viewBox="0 0 24 24" style={{
+            width: 24, height: 24, fill: saved ? 'none' : 'none',
+            stroke: saved ? 'var(--accent)' : 'var(--t1)',
+            strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+            transition: 'all 0.15s',
+          }}>
+            <ellipse cx="12" cy="14" rx="8" ry="4" fill={saved ? 'var(--accent)' : 'none'} />
+            <path d="M12 3v7" />
+            <circle cx="12" cy="3" r="1.5" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Review body */}
+      <div style={{ padding: '0 14px 10px' }}>
+        <p style={{ fontSize: '0.84rem', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 700, color: 'var(--t1)' }}>
+            {rev.users?.name || 'Anonymous'}
+          </span>
+          {' '}
+          <span style={{ color: 'var(--t2)', fontWeight: 400 }}>
+            {rev.body || `Rated ${dish?.name} ${rev.rating}/5`}
+          </span>
+        </p>
+        <span style={{ fontSize: '0.68rem', color: 'var(--t4)' }}>{timeAgo(rev.created_at)}</span>
+      </div>
+
+      {/* Thread toggle */}
+      <button onClick={toggleThread} style={{
+        background: 'none', border: 'none', cursor: 'pointer', padding: '0 14px 10px',
+        fontSize: '0.78rem', color: 'var(--t3)', display: 'block',
+      }}>
+        {loadingReplies ? 'Loading...' :
+         showThread ? 'Hide replies' :
+         `View replies for this dish`}
+      </button>
+
+      {/* Comment thread */}
+      {showThread && replies.length > 0 && (
+        <CommentThread comments={replies} />
+      )}
+    </article>
+  )
+}
+
+function CommentThread({ comments }) {
+  return (
+    <div style={{ padding: '0 14px 12px' }}>
+      {comments.map((c, i) => (
+        <div key={c.id} style={{ display: 'flex', gap: 10, paddingLeft: 8 }}>
+          {/* Thread line */}
+          <div style={{
+            width: 2, background: 'var(--border)',
+            marginTop: 4, marginBottom: i === comments.length - 1 ? 0 : -4,
+            flexShrink: 0,
+          }} />
+          {/* Comment */}
+          <div style={{ paddingBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--t1)' }}>
+                {c.users?.name || 'Anonymous'}
+              </span>
+              <span style={{ color: 'var(--gold)', fontSize: '0.65rem' }}>
+                {'★'.repeat(c.rating)}
+              </span>
+              <span style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{timeAgo(c.created_at)}</span>
+            </div>
+            {c.body && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--t2)', lineHeight: 1.4 }}>{c.body}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

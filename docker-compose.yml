@@ -1,12 +1,16 @@
 services:
   web:
     build:
-      context: .
-      dockerfile: Dockerfile.web
+      context: ./client
+      dockerfile: ../Dockerfile.web
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     ports:
       - "80:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   api:
@@ -14,7 +18,15 @@ services:
       context: ./server
     environment:
       - PORT=3001
-      - CORS_ORIGIN=https://rufat-server.com
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://rufat-server.com}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
     expose:
       - "3001"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

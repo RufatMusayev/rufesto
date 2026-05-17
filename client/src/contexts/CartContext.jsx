@@ -6,17 +6,17 @@ const CartContext = createContext(null)
 
 function loadSession() {
   try {
-    const raw = sessionStorage.getItem('dine_table_session')
+    const raw = sessionStorage.getItem('rufesto_table_session')
     return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null }
   } catch { return { tableId: null, restaurantId: null, activeBookingId: null } }
 }
 
 function saveSession(tableId, restaurantId, activeBookingId) {
-  sessionStorage.setItem('dine_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId }))
+  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId }))
 }
 
 function clearSession() {
-  sessionStorage.removeItem('dine_table_session')
+  sessionStorage.removeItem('rufesto_table_session')
 }
 
 const savedSession = loadSession()
@@ -65,7 +65,7 @@ export function CartProvider({ children }) {
   const [placing, setPlacing] = useState(false)
   const { session }           = useAuth()
 
-  const total    = state.items.reduce((s, i) => s + i.dish.price * i.qty, 0)
+  const total    = state.items.reduce((s, i) => s + (Number(i.dish.price) || 0) * i.qty, 0)
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
 
   function addDish(dish) {
@@ -87,10 +87,7 @@ export function CartProvider({ children }) {
     if (!session || state.items.length === 0) return { error: 'Not ready' }
     setPlacing(true)
 
-    const subtotal       = total
-    const tax_amount     = +(subtotal * 0.18).toFixed(2)
-    const service_charge = +(subtotal * 0.10).toFixed(2)
-    const total_amount   = +(subtotal + tax_amount + service_charge).toFixed(2)
+    const subtotal = total
 
     const { data: order, error: orderErr } = await supabase
       .from('orders')
@@ -101,9 +98,9 @@ export function CartProvider({ children }) {
         booking_id:    bookingId,
         status:        'open',
         subtotal,
-        tax_amount,
-        service_charge,
-        total_amount,
+        tax_amount:     0,
+        service_charge: 0,
+        total_amount:   subtotal,
         placed_at:     new Date().toISOString(),
       })
       .select()
@@ -119,9 +116,14 @@ export function CartProvider({ children }) {
     }))
 
     const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-    setPlacing(false)
 
-    if (itemsErr) return { error: itemsErr.message }
+    if (itemsErr) {
+      await supabase.from('orders').delete().eq('id', order.id)
+      setPlacing(false)
+      return { error: itemsErr.message }
+    }
+
+    setPlacing(false)
     dispatch({ type: 'CLEAR' })
     setOpen(false)
     return { order }

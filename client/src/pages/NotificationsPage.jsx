@@ -94,47 +94,85 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div>
-          {notifs.map(n => (
-            <div
-              key={n.id}
-              onClick={() => !n.read && markRead(n.id)}
-              style={{
-                display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
-                padding: '0.85rem 1rem',
-                borderBottom: '1px solid var(--border)',
-                background: n.read ? 'transparent' : 'var(--s2)',
-                cursor: n.read ? 'default' : 'pointer',
-                transition: 'background 0.15s',
-              }}
-            >
+          {groupByDate(notifs).map(group => (
+            <div key={group.label}>
               <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'var(--s3)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.15rem', flexShrink: 0,
+                padding: '10px 1rem 6px',
+                fontSize: '0.72rem', fontWeight: 600,
+                color: 'var(--t3)', textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                background: 'var(--bg)',
+                position: 'sticky', top: 0, zIndex: 5,
               }}>
-                {TYPE_ICON[n.type] || '🔔'}
+                {group.label}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '0.88rem', lineHeight: 1.45, color: 'var(--t1)' }}>
-                  {n.payload || formatType(n.type)}
-                </p>
-                <span style={{ fontSize: '0.72rem', color: 'var(--t3)' }}>
-                  {timeAgo(n.sent_at)}
-                </span>
-              </div>
-              {!n.read && (
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--blue)', flexShrink: 0, marginTop: 6,
-                }} />
-              )}
+              {group.items.map(n => (
+                <div
+                  key={n.id}
+                  onClick={() => !n.read && markRead(n.id)}
+                  style={{
+                    display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
+                    padding: '0.85rem 1rem',
+                    borderBottom: '1px solid var(--border)',
+                    background: n.read ? 'transparent' : 'var(--s2)',
+                    cursor: n.read ? 'default' : 'pointer',
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: 'var(--s3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.15rem', flexShrink: 0,
+                  }}>
+                    {TYPE_ICON[n.type] || '🔔'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '0.88rem', lineHeight: 1.45, color: 'var(--t1)' }}>
+                      {n.payload || formatType(n.type)}
+                    </p>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--t3)' }}>
+                      {timeAgo(n.sent_at)}
+                    </span>
+                  </div>
+                  {!n.read && (
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: 'var(--blue)', flexShrink: 0, marginTop: 6,
+                    }} />
+                  )}
+                </div>
+              ))}
             </div>
           ))}
         </div>
       )}
     </div>
   )
+}
+
+function groupByDate(notifs) {
+  const groups = []
+  const map = {}
+  const now = new Date()
+  const today = now.toDateString()
+  const yesterday = new Date(now - 86400000).toDateString()
+
+  notifs.forEach(n => {
+    const d = new Date(n.sent_at)
+    const ds = d.toDateString()
+    let label
+    if (ds === today) label = 'Today'
+    else if (ds === yesterday) label = 'Yesterday'
+    else label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
+    if (!map[label]) {
+      map[label] = { label, items: [] }
+      groups.push(map[label])
+    }
+    map[label].items.push(n)
+  })
+  return groups
 }
 
 function formatType(type) {

@@ -35,15 +35,27 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }
 
-  async function signUp(email, password, name, phone, age) {
-    return supabase.auth.signUp({
-      email, password,
-      options: { data: { name, phone: phone || null, age: age ? Number(age) : null } },
+  /** Send a magic-link / OTP code to the user's email */
+  async function sendOtp(email) {
+    return supabase.auth.signInWithOtp({ email })
+  }
+
+  /** Verify the 6-digit OTP code the user received via email */
+  async function verifyOtp(email, token) {
+    return supabase.auth.verifyOtp({ email, token, type: 'email' })
+  }
+
+  /** OAuth sign-in (Google or Apple) — redirects to provider */
+  async function signInWithOAuth(provider) {
+    return supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
     })
   }
 
-  async function signIn(email, password) {
-    return supabase.auth.signInWithPassword({ email, password })
+  /** Update user metadata (name, phone, age) after first sign-in */
+  async function updateUserMeta(meta) {
+    return supabase.auth.updateUser({ data: meta })
   }
 
   async function signOut() {
@@ -68,7 +80,8 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       session, profile, staffRow, loading,
       isStaff, isKitchen, restaurantId,
-      signUp, signIn, signOut, updateProfile,
+      sendOtp, verifyOtp, signInWithOAuth, updateUserMeta,
+      signOut, updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

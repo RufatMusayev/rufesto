@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
+import DishDetailSheet from '../components/DishDetailSheet'
 
 const FILTERS = [
   { id: 'all',         label: 'All'          },
@@ -17,6 +17,7 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [dishDetail, setDishDetail] = useState(null)
 
   useEffect(() => {
     supabase
@@ -25,11 +26,23 @@ export default function ExplorePage() {
       .order('review_count', { ascending: false })
       .limit(100)
       .then(({ data }) => { setDishes(data || []); setLoading(false) })
+
+    const channel = supabase
+      .channel('explore-dishes-realtime')
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'dishes' },
+        (payload) => {
+          setDishes(prev => prev.map(d => d.id === payload.new.id ? { ...d, ...payload.new } : d))
+        }
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [])
 
   const filtered = dishes.filter(d => {
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) &&
-        !d.restaurants?.name.toLowerCase().includes(search.toLowerCase())) return false
+        !(d.restaurants?.name || '').toLowerCase().includes(search.toLowerCase())) return false
     if (filter === 'vegan' && !d.is_vegan) return false
     if (filter === 'vegetarian' && !d.is_vegetarian) return false
     if (filter === 'gluten_free' && !d.is_gluten_free) return false
@@ -100,14 +113,18 @@ export default function ExplorePage() {
             <p style={{ fontSize: '0.82rem', color: 'var(--t3)' }}>No dishes found</p>
           </div>
         ) : (
-          <ExploreGrid dishes={filtered} />
+          <ExploreGrid dishes={filtered} onDishClick={setDishDetail} />
         )}
       </div>
+
+      {dishDetail && (
+        <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />
+      )}
     </div>
   )
 }
 
-function ExploreGrid({ dishes }) {
+function ExploreGrid({ dishes, onDishClick }) {
   const cells = []
   let i = 0
 
@@ -115,32 +132,32 @@ function ExploreGrid({ dishes }) {
     const batch = dishes.slice(i, i + 9)
 
     if (batch.length >= 3) {
-      cells.push(<SmallTile key={batch[0].id} dish={batch[0]} />)
-      cells.push(<SmallTile key={batch[1].id} dish={batch[1]} />)
+      cells.push(<SmallTile key={batch[0].id} dish={batch[0]} onClick={onDishClick} />)
+      cells.push(<SmallTile key={batch[1].id} dish={batch[1]} onClick={onDishClick} />)
       cells.push(
-        <LargeTile key={batch[2].id} dish={batch[2]} spanRow />
+        <LargeTile key={batch[2].id} dish={batch[2]} spanRow onClick={onDishClick} />
       )
     }
 
     if (batch.length >= 6) {
-      cells.push(<SmallTile key={batch[3].id} dish={batch[3]} />)
-      cells.push(<SmallTile key={batch[4].id} dish={batch[4]} />)
-      cells.push(<SmallTile key={batch[5].id} dish={batch[5]} />)
+      cells.push(<SmallTile key={batch[3].id} dish={batch[3]} onClick={onDishClick} />)
+      cells.push(<SmallTile key={batch[4].id} dish={batch[4]} onClick={onDishClick} />)
+      cells.push(<SmallTile key={batch[5].id} dish={batch[5]} onClick={onDishClick} />)
     } else {
       for (let j = 3; j < batch.length; j++) {
-        cells.push(<SmallTile key={batch[j].id} dish={batch[j]} />)
+        cells.push(<SmallTile key={batch[j].id} dish={batch[j]} onClick={onDishClick} />)
       }
     }
 
     if (batch.length >= 9) {
       cells.push(
-        <LargeTile key={batch[6].id} dish={batch[6]} spanRow />
+        <LargeTile key={batch[6].id} dish={batch[6]} spanRow onClick={onDishClick} />
       )
-      cells.push(<SmallTile key={batch[7].id} dish={batch[7]} />)
-      cells.push(<SmallTile key={batch[8].id} dish={batch[8]} />)
+      cells.push(<SmallTile key={batch[7].id} dish={batch[7]} onClick={onDishClick} />)
+      cells.push(<SmallTile key={batch[8].id} dish={batch[8]} onClick={onDishClick} />)
     } else {
       for (let j = 6; j < batch.length; j++) {
-        cells.push(<SmallTile key={batch[j].id} dish={batch[j]} />)
+        cells.push(<SmallTile key={batch[j].id} dish={batch[j]} onClick={onDishClick} />)
       }
     }
 
@@ -158,9 +175,9 @@ function ExploreGrid({ dishes }) {
   )
 }
 
-function SmallTile({ dish }) {
+function SmallTile({ dish, onClick }) {
   return (
-    <Link to={`/restaurant/${dish.restaurants?.slug}`}>
+    <div onClick={() => onClick(dish)} style={{ cursor: 'pointer' }}>
       <div className="ig-grid-tile" style={{
         aspectRatio: '1',
         background: dishBackground(dish.category),
@@ -204,19 +221,20 @@ function SmallTile({ dish }) {
           }}>
             {dish.name}
           </div>
-          <div style={{ fontSize: '0.5rem', color: 'var(--accent)', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.5rem', color: 'var(--gold)', fontWeight: 600 }}>
             {formatPrice(dish.price)}
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
-function LargeTile({ dish, spanRow }) {
+function LargeTile({ dish, spanRow, onClick }) {
   return (
-    <Link to={`/restaurant/${dish.restaurants?.slug}`} style={{
+    <div onClick={() => onClick(dish)} style={{
       gridRow: spanRow ? 'span 2' : undefined,
+      cursor: 'pointer',
     }}>
       <div className="ig-grid-tile" style={{
         aspectRatio: '1/2',
@@ -261,6 +279,6 @@ function LargeTile({ dish, spanRow }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }

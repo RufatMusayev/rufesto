@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 const router = Router()
 
-/* ── Supabase client ─────── */
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-  realtime: { autoConnect: false },
+  realtime: { transport: ws },
 })
 
 /**

@@ -3,8 +3,8 @@ name: rufesto
 services:
   web:
     build:
-      context: ./client
-      dockerfile: ../Dockerfile.web
+      context: .
+      dockerfile: Dockerfile.web
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}

@@ -4,6 +4,7 @@ import { CartProvider }   from './contexts/CartContext'
 import { ThemeProvider }  from './contexts/ThemeContext'
 
 import AppLayout          from './components/layout/AppLayout'
+import AuthCallback       from './components/AuthCallback'
 import HomePage           from './pages/HomePage'
 import RestaurantPage     from './pages/RestaurantPage'
 import ExplorePage        from './pages/ExplorePage'
@@ -11,13 +12,6 @@ import ProfilePage        from './pages/ProfilePage'
 import NotificationsPage  from './pages/NotificationsPage'
 import MapPage            from './pages/MapPage'
 import TablePage          from './pages/TablePage'
-import DashboardLayout    from './pages/dashboard/DashboardLayout'
-import DashboardHome      from './pages/dashboard/DashboardHome'
-import OrdersPage         from './pages/dashboard/OrdersPage'
-import KDSPage            from './pages/dashboard/KDSPage'
-import TablesPage         from './pages/dashboard/TablesPage'
-import MenuTogglePage     from './pages/dashboard/MenuTogglePage'
-import BookingsPage       from './pages/dashboard/BookingsPage'
 
 export default function App() {
   return (
@@ -26,6 +20,7 @@ export default function App() {
         <AuthProvider>
           <CartProvider>
             <Routes>
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route element={<AppLayout />}>
                 <Route path="/"                 element={<HomePage />}          />
                 <Route path="/restaurant/:slug" element={<RestaurantPage />}    />
@@ -34,15 +29,6 @@ export default function App() {
                 <Route path="/profile"          element={<ProfilePage />}       />
                 <Route path="/notifications"    element={<NotificationsPage />} />
                 <Route path="/table"            element={<TablePage />}          />
-              </Route>
-
-              <Route path="/dashboard" element={<DashboardLayout />}>
-                <Route index              element={<DashboardHome />}  />
-                <Route path="orders"      element={<OrdersPage />}     />
-                <Route path="kds"         element={<KDSPage />}        />
-                <Route path="tables"      element={<TablesPage />}     />
-                <Route path="menu"        element={<MenuTogglePage />} />
-                <Route path="bookings"    element={<BookingsPage />}   />
               </Route>
             </Routes>
           </CartProvider>

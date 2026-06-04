@@ -139,7 +139,6 @@ export default function TablePage() {
     setPaymentState(null)
   }
 
-
   if (loading) return <TableSkeleton />
   if (!tableId) return (
     <>
@@ -176,7 +175,6 @@ export default function TablePage() {
         }}>
           {emoji}
         </div>
-
         <div style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(to bottom, transparent 10%, rgba(0,0,0,0.9) 100%)',
@@ -188,7 +186,7 @@ export default function TablePage() {
             background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             border: 'none', borderRadius: '50%',
-            width: 34, height: 34, color: 'var(--t1)',
+            width: 34, height: 34, color: '#F5F0E8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
           }}>
@@ -210,15 +208,19 @@ export default function TablePage() {
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                fontSize: '1.15rem', fontWeight: 800, color: '#F5F0E8',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.25rem', fontWeight: 700, color: '#F5F0E8',
                 lineHeight: 1.2,
               }}>
-                Table {tableInfo?.table_number || '—'}
+                Your Table
               </h1>
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
-                {tableInfo?.restaurants?.name || 'Restaurant'}
-                {tableInfo?.sections?.name && <> · {tableInfo.sections.name}</>}
+              <div style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', marginTop: 2,
+              }}>
+                #{tableInfo?.table_number || '—'}
+                {tableInfo?.restaurants?.name && ` · ${tableInfo.restaurants.name}`}
+                {tableInfo?.sections?.name && ` · ${tableInfo.sections.name}`}
               </div>
             </div>
 
@@ -231,8 +233,7 @@ export default function TablePage() {
             }}>
               <span className="table-pulse" style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: '#22C55E',
-                boxShadow: '0 0 8px #22C55E',
+                background: '#22C55E', boxShadow: '0 0 8px #22C55E',
               }} />
               <span style={{
                 fontSize: '0.62rem', fontWeight: 700, color: '#22C55E',
@@ -243,6 +244,7 @@ export default function TablePage() {
             </div>
           </div>
 
+          {/* Stats row */}
           <div style={{
             display: 'flex', gap: 24, marginTop: 20,
             paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -254,6 +256,7 @@ export default function TablePage() {
             ].map(s => (
               <div key={s.label}>
                 <div style={{
+                  fontFamily: "'DM Mono', monospace",
                   fontSize: '1.15rem', fontWeight: 800,
                   color: s.accent ? 'var(--accent)' : '#F5F0E8',
                 }}>
@@ -287,7 +290,7 @@ export default function TablePage() {
           </Link>
         )}
 
-        {/* Orders timeline */}
+        {/* Orders */}
         {orders.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '3rem 1.5rem',
@@ -295,7 +298,7 @@ export default function TablePage() {
             border: '1px solid var(--border)',
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.35 }}>📋</div>
-            <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
               No orders yet
             </p>
             <p style={{ fontSize: '0.8rem', color: 'var(--t3)', lineHeight: 1.5 }}>
@@ -334,7 +337,7 @@ export default function TablePage() {
                 fontSize: '0.82rem', color: 'var(--t2)', marginBottom: 5,
               }}>
                 <span>{label}</span>
-                <span>{formatPrice(val)}</span>
+                <span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(val)}</span>
               </div>
             ))}
             <div style={{
@@ -343,30 +346,26 @@ export default function TablePage() {
               fontWeight: 800, fontSize: '1.05rem',
             }}>
               <span>Total</span>
-              <span style={{ color: 'var(--accent)' }}>{formatPrice(sessionTotal)}</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>
+                {formatPrice(sessionTotal)}
+              </span>
             </div>
           </div>
         )}
 
         {/* Payment section */}
         {allServed && !paymentState && orders.length > 0 && (
-          <button className="btn btn-primary payment-pulse" style={{
-            width: '100%', marginTop: 16, padding: '14px 0', fontSize: '0.92rem',
-          }} onClick={() => setShowPayment(true)}>
-            💳 Request Bill · {formatPrice(sessionTotal)}
+          <button
+            className="btn btn-primary payment-pulse"
+            style={{ width: '100%', marginTop: 16, padding: '14px 0', fontSize: '0.92rem' }}
+            onClick={() => setShowPayment(true)}
+          >
+            Request Bill · {formatPrice(sessionTotal)}
           </button>
         )}
 
-
         {/* End session */}
-        <button onClick={handleEndSession} style={{
-          width: '100%', marginTop: 20, padding: '10px 0',
-          background: 'rgba(239,68,68,0.06)', color: 'var(--red)',
-          border: '1px solid rgba(239,68,68,0.18)', borderRadius: 8,
-          fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-          transition: 'background 0.15s',
-        }}>
+        <button onClick={handleEndSession} className="btn btn-danger" style={{ width: '100%', marginTop: 12 }}>
           End Session
         </button>
       </div>
@@ -390,12 +389,12 @@ export default function TablePage() {
 }
 
 const STATUS_CONFIG = {
-  open:      { label: 'Placed',        color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)',  dot: 'status-dot-pulse-blue' },
-  preparing: { label: 'Preparing',     color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)',  dot: 'status-dot-shimmer' },
-  ready:     { label: 'Ready',         color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-pulse-green' },
-  served:    { label: 'Served',        color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-check' },
-  done:      { label: 'Served',        color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)',   dot: 'status-dot-check' },
-  cancelled: { label: 'Cancelled',     color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)',   dot: '' },
+  open:      { label: 'Placed',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)'  },
+  preparing: { label: 'Preparing', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)'  },
+  ready:     { label: 'Ready',     color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+  done:      { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)'   },
 }
 
 function OrderCard({ order, index, number }) {
@@ -407,7 +406,7 @@ function OrderCard({ order, index, number }) {
     : ''
 
   return (
-    <div className="menu-card" style={{
+    <div className="stagger-item" style={{
       background: 'var(--s2)', borderRadius: 12,
       border: '1px solid var(--border)', overflow: 'hidden',
       animationDelay: `${index * 0.08}s`,
@@ -434,8 +433,8 @@ function OrderCard({ order, index, number }) {
             #{number}
           </span>
           <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>Order #{number}</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{time}</div>
+            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--t1)' }}>Order #{number}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t3)' }}>{time}</div>
           </div>
         </div>
 
@@ -470,16 +469,17 @@ function OrderCard({ order, index, number }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontSize: '0.82rem', fontWeight: 500,
+                fontSize: '0.82rem', fontWeight: 500, color: 'var(--t1)',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {item.dishes?.name || 'Dish'}
               </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t3)' }}>
                 {item.quantity}x {formatPrice(item.unit_price)}
               </div>
             </div>
             <span style={{
+              fontFamily: "'DM Mono', monospace",
               fontSize: '0.82rem', color: 'var(--t1)', fontWeight: 600, flexShrink: 0,
             }}>
               {formatPrice(item.unit_price * item.quantity)}
@@ -495,7 +495,9 @@ function OrderCard({ order, index, number }) {
         fontSize: '0.84rem',
       }}>
         <span style={{ color: 'var(--t3)', fontWeight: 600 }}>Order Total</span>
-        <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{formatPrice(order.total_amount)}</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)', fontWeight: 800 }}>
+          {formatPrice(order.total_amount)}
+        </span>
       </div>
     </div>
   )
@@ -513,8 +515,7 @@ function StatusDot({ status, color }) {
     return (
       <span style={{
         width: 8, height: 8, borderRadius: '50%',
-        background: color,
-        display: 'inline-block',
+        background: color, display: 'inline-block',
         animation: 'statusShimmer 1.2s ease-in-out infinite alternate',
       }} />
     )
@@ -523,8 +524,7 @@ function StatusDot({ status, color }) {
     return (
       <span style={{
         width: 8, height: 8, borderRadius: '50%',
-        background: color,
-        display: 'inline-block',
+        background: color, display: 'inline-block',
         animation: 'statusPulse 1.5s ease-in-out infinite',
         boxShadow: `0 0 6px ${color}`,
       }} />
@@ -534,8 +534,7 @@ function StatusDot({ status, color }) {
     return (
       <span style={{
         width: 8, height: 8, borderRadius: '50%',
-        background: color,
-        display: 'inline-block',
+        background: color, display: 'inline-block',
         animation: 'statusPulse 2s ease-in-out infinite',
         boxShadow: `0 0 6px ${color}`,
       }} />
@@ -569,8 +568,8 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
       </div>
 
       <h2 style={{
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        fontSize: '1.2rem', fontWeight: 800, marginBottom: 6,
+        fontFamily: "'Playfair Display', serif",
+        fontSize: '1.3rem', fontWeight: 700, marginBottom: 8, color: 'var(--t1)',
       }}>
         No Active Table
       </h2>
@@ -581,16 +580,19 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
         Scan a QR code at your table to start a dining session and place orders.
       </p>
 
-      <button onClick={onStartDemo} disabled={demoLoading}
+      <button
+        onClick={onStartDemo}
+        disabled={demoLoading}
+        className="btn btn-primary"
         style={{
-          padding: '11px 32px', fontSize: '0.88rem',
-          background: 'var(--accent)', color: 'var(--t1)', fontWeight: 700,
-          border: 'none', borderRadius: 8, cursor: 'pointer',
-          fontFamily: "'DM Sans', system-ui, sans-serif",
+          padding: '12px 32px', fontSize: '0.88rem',
           display: 'flex', alignItems: 'center', gap: 8,
-          transition: 'background 0.15s',
           opacity: demoLoading ? 0.6 : 1,
-        }}>
+        }}
+        onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
         {demoLoading ? (
           <><span className="spinner" style={{ width: 14, height: 14 }} /> Setting up...</>
         ) : (

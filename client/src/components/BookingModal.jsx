@@ -63,13 +63,49 @@ export default function BookingModal({ restaurant, onClose }) {
 
   if (done) return (
     <div className="overlay center" onClick={onClose}>
-      <div className="modal" style={{ padding: '2rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', margin: '0.5rem 0 0.75rem' }}>✓</div>
-        <h2 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: '0.4rem' }}>Booking Confirmed</h2>
-        <p style={{ color: 'var(--t2)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>
-          {restaurant.name} · {date} at {time} · {party} guests
-        </p>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={onClose}>Done</button>
+      <div
+        className="modal"
+        style={{ padding: 0, maxWidth: 360 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          padding: '40px 28px 32px',
+          textAlign: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+        }}>
+          {/* Success icon */}
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'var(--sage-bg)',
+            border: '2px solid var(--sage)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 20,
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.5" style={{ width: 28, height: 28, stroke: 'var(--sage)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <h2 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontWeight: 700, fontSize: '1.3rem',
+            color: 'var(--t1)', marginBottom: 8, lineHeight: 1.2,
+          }}>
+            Booking Confirmed
+          </h2>
+          <p style={{ color: 'var(--t2)', fontSize: '0.84rem', lineHeight: 1.55, marginBottom: 24 }}>
+            {restaurant.name}<br />
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--t3)' }}>
+              {date} at {time} · {party} {party === 1 ? 'guest' : 'guests'}
+            </span>
+          </p>
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', padding: '11px 0', borderRadius: 12, fontWeight: 700 }}
+            onClick={onClose}
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -80,55 +116,208 @@ export default function BookingModal({ restaurant, onClose }) {
 
   return (
     <div className="overlay center" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div style={{ padding: '1.25rem 1.25rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="modal" style={{ padding: 0, maxWidth: 400, width: '92vw' }}>
+
+        {/* Modal header */}
+        <div style={{
+          padding: '20px 20px 16px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        }}>
           <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Reserve a Table</h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--t2)' }}>{restaurant.name}</p>
+            <h2 style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
+              lineHeight: 1.2, marginBottom: 4,
+            }}>
+              Reserve a Table
+            </h2>
+            <p style={{ fontSize: '0.76rem', color: 'var(--t3)', fontWeight: 500 }}>
+              {restaurant.name}
+            </p>
           </div>
-          <button onClick={onClose} className="icon-btn">✕</button>
+          <button
+            onClick={onClose}
+            className="icon-btn"
+            style={{ width: 30, height: 30, color: 'var(--t2)', marginTop: 2 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ width: 16, height: 16 }}>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
-        <form onSubmit={handleBook} style={{ padding: '1rem 1.25rem 1.5rem' }}>
+        <form onSubmit={handleBook} style={{ padding: '18px 20px 20px' }}>
+
           {/* Party size */}
-          <label style={{ fontSize: '0.78rem', color: 'var(--t2)', display: 'block', marginBottom: '0.35rem' }}>Guests</label>
-          <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1rem' }}>
-            {[1,2,3,4,5,6,8].map(n => (
-              <button key={n} type="button" onClick={() => setParty(n)}
-                className={`chip${party === n ? ' active' : ''}`}
-                style={{ flex: 1, justifyContent: 'center', padding: '0.5rem 0' }}>
-                {n}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{
+              fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)',
+              display: 'block', marginBottom: 10,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Guests
+            </label>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              background: 'var(--s2)', borderRadius: 12,
+              border: '1px solid var(--border)',
+              padding: '10px 16px',
+            }}>
+              <button
+                type="button"
+                onClick={() => setParty(p => Math.max(1, p - 1))}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: party <= 1 ? 'var(--s3)' : 'var(--s4)',
+                  border: '1px solid var(--border)',
+                  color: party <= 1 ? 'var(--t4)' : 'var(--t1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: party <= 1 ? 'default' : 'pointer',
+                  fontSize: '1.1rem', fontWeight: 700, flexShrink: 0,
+                  transition: 'all 150ms var(--ease-out)',
+                }}
+              >
+                −
               </button>
-            ))}
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <span style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: '1.3rem', fontWeight: 700, color: 'var(--t1)',
+                }}>
+                  {party}
+                </span>
+                <div style={{ fontSize: '0.65rem', color: 'var(--t3)', marginTop: 1 }}>
+                  {party === 1 ? 'guest' : 'guests'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setParty(p => Math.min(12, p + 1))}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: party >= 12 ? 'var(--s3)' : 'var(--s4)',
+                  border: '1px solid var(--border)',
+                  color: party >= 12 ? 'var(--t4)' : 'var(--t1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: party >= 12 ? 'default' : 'pointer',
+                  fontSize: '1.1rem', fontWeight: 700, flexShrink: 0,
+                  transition: 'all 150ms var(--ease-out)',
+                }}
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Date */}
-          <label style={{ fontSize: '0.78rem', color: 'var(--t2)', display: 'block', marginBottom: '0.35rem' }}>Date</label>
-          <input type="date" className="input" style={{ marginBottom: '1rem' }}
-            min={today} max={maxDate} value={date} onChange={e => setDate(e.target.value)} required />
-
-          {/* Time */}
-          <label style={{ fontSize: '0.78rem', color: 'var(--t2)', display: 'block', marginBottom: '0.35rem' }}>Time</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '0.3rem', marginBottom: '1rem' }}>
-            {TIME_SLOTS.map(t => (
-              <button key={t} type="button" onClick={() => setTime(t)}
-                className={`chip${time === t ? ' active' : ''}`}
-                style={{ justifyContent: 'center', padding: '0.4rem 0' }}>
-                {t}
-              </button>
-            ))}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{
+              fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)',
+              display: 'block', marginBottom: 8,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Date
+            </label>
+            <input
+              type="date"
+              className="input"
+              min={today}
+              max={maxDate}
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              required
+              style={{ borderRadius: 10 }}
+            />
           </div>
 
-          {/* Note */}
-          <textarea className="input" placeholder="Special requests (optional)" rows={2}
-            value={note} onChange={e => setNote(e.target.value)}
-            style={{ resize: 'none', marginBottom: '1rem' }} />
+          {/* Time slots */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{
+              fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)',
+              display: 'block', marginBottom: 8,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Time
+            </label>
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6,
+            }}>
+              {TIME_SLOTS.map(t => {
+                const active = time === t
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTime(t)}
+                    style={{
+                      padding: '7px 0', borderRadius: 9,
+                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      background: active ? 'var(--accent)' : 'var(--s2)',
+                      color: active ? '#F5F0E8' : 'var(--t2)',
+                      fontFamily: "'DM Mono', monospace",
+                      fontSize: '0.72rem', fontWeight: active ? 700 : 500,
+                      cursor: 'pointer', textAlign: 'center',
+                      transition: 'all 150ms var(--ease-out)',
+                    }}
+                  >
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-          {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginBottom: '0.65rem' }}>{error}</p>}
+          {/* Special requests */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{
+              fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)',
+              display: 'block', marginBottom: 8,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Special Requests
+              <span style={{ textTransform: 'none', fontWeight: 400, marginLeft: 5, color: 'var(--t4)' }}>
+                (optional)
+              </span>
+            </label>
+            <textarea
+              className="input"
+              placeholder="Allergies, special occasions, seating preferences..."
+              rows={2}
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              style={{ resize: 'none', borderRadius: 10 }}
+            />
+          </div>
 
-          <button className="btn btn-primary" style={{ width: '100%' }}
-            disabled={loading || !date || !time}>
-            {loading ? <><span className="spinner" />Booking…</> : 'Confirm Booking'}
+          {/* Error */}
+          {error && (
+            <div style={{
+              marginBottom: 14, padding: '9px 12px',
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              borderRadius: 9,
+            }}>
+              <p style={{ color: 'var(--red)', fontSize: '0.78rem', lineHeight: 1.4 }}>
+                {error}
+              </p>
+            </div>
+          )}
+
+          <button
+            className="btn btn-primary"
+            style={{
+              width: '100%', padding: '11px 0',
+              fontSize: '0.88rem', fontWeight: 700, borderRadius: 12,
+            }}
+            disabled={loading || !date || !time}
+          >
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span className="spinner" />
+                Booking...
+              </span>
+            ) : 'Confirm Booking'}
           </button>
         </form>
       </div>

@@ -6,7 +6,7 @@ import AuthModal from '../AuthModal'
 import QRSheet from '../QRSheet'
 
 export default function BottomNav() {
-  const { session, isStaff } = useAuth()
+  const { session } = useAuth()
   const { tableId } = useCart()
   const navigate = useNavigate()
   const [sheet, setSheet] = useState(null)
@@ -27,8 +27,8 @@ export default function BottomNav() {
         position: 'fixed', bottom: 0, left: 0, right: 0,
         height: 'var(--bottom-h)',
         background: 'var(--bg)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid var(--border)',
         display: 'flex', alignItems: 'center',
         zIndex: 90,
@@ -44,23 +44,26 @@ export default function BottomNav() {
         </NavItem>
 
         {/* QR / Table center button */}
-        <div style={{ flex: '0 0 56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: '0 0 60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <button
             onClick={handleQRPress}
             aria-label={tableId ? 'Active table' : 'Scan QR'}
             style={{
-              position: 'relative', top: -16,
-              width: 52, height: 52, borderRadius: '50%',
-              background: tableId ? 'var(--green)' : 'var(--accent)',
+              position: 'relative', top: -18,
+              width: 54, height: 54, borderRadius: '50%',
+              background: tableId ? 'var(--sage)' : 'var(--accent)',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: tableId
-                ? '0 4px 15px rgba(59,109,17,0.4)'
-                : '0 4px 15px rgba(139,45,66,0.4)',
-              transition: 'transform 0.15s',
+                ? '0 4px 16px rgba(77,124,63,0.45)'
+                : '0 4px 16px rgba(139,45,66,0.45)',
+              transition: 'transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 200ms ease',
+              touchAction: 'manipulation',
             }}
-            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
-            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            onPointerDown={e => e.currentTarget.style.transform = 'scale(0.93)'}
+            onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            onPointerCancel={e => e.currentTarget.style.transform = 'scale(1)'}
+            onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             {tableId ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -86,13 +89,16 @@ export default function BottomNav() {
         </NavItem>
 
         <NavLink
-          to={isStaff ? '/dashboard' : '/profile'}
+          to="/profile"
           onClick={handleProfilePress}
           end={false}
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.4rem 0' }}
         >
           {({ isActive }) => (
-            <ProfileIcon filled={isActive && !!session} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <ProfileIcon filled={isActive && !!session} />
+              <div className={`nav-dot${isActive ? ' active' : ''}`} />
+            </div>
           )}
         </NavLink>
       </nav>
@@ -106,15 +112,20 @@ export default function BottomNav() {
 function NavItem({ to, label, children }) {
   return (
     <NavLink to={to} end={to === '/'} aria-label={label}
-      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}>
-      {({ isActive }) => children(isActive)}
+      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.4rem 0' }}>
+      {({ isActive }) => (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          {children(isActive)}
+          <div className={`nav-dot${isActive ? ' active' : ''}`} />
+        </div>
+      )}
     </NavLink>
   )
 }
 
 function HomeIcon({ filled }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: filled ? 'var(--t1)' : 'var(--t3)', transition: 'color 0.15s' }}>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: filled ? 'var(--t1)' : 'var(--t3)', transition: 'color 150ms' }}>
       <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689z" fill="currentColor"/>
       <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432z" fill={filled ? 'currentColor' : 'none'} stroke={filled ? 'none' : 'currentColor'} strokeWidth="1.5"/>
     </svg>

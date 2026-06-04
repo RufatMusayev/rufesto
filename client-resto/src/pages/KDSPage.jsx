@@ -1,13 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { KDS_STATUS } from '@shared/constants'
 
 const STATUS_ORDER = ['new', 'preparing', 'ready']
-const STATUS_META = {
-  new:       { label: 'NEW',       color: '#F59E0B', bg: 'rgba(245,158,11,0.1)',  next: 'preparing', action: 'Start Preparing' },
-  preparing: { label: 'PREP',      color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  next: 'ready',     action: 'Mark Ready' },
-  ready:     { label: 'READY',     color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   next: 'done',      action: 'Done' },
-}
 
 function ticketUrgency(minutesElapsed) {
   if (minutesElapsed < 5)  return { level: 'fresh',   color: '#3B6D11', glow: 'none' }
@@ -27,7 +23,7 @@ export default function KDSPage() {
     loadTickets()
 
     const channel = supabase
-      .channel('kds-live')
+      .channel(`kds-live-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
       .subscribe()
@@ -51,7 +47,7 @@ export default function KDSPage() {
   }
 
   async function advance(ticket) {
-    const next = STATUS_META[ticket.status]?.next
+    const next = KDS_STATUS[ticket.status]?.next
     if (!next) return
 
     const update = { status: next }
@@ -75,7 +71,6 @@ export default function KDSPage() {
 
   return (
     <div style={{ padding: '1.25rem', minHeight: '100vh' }}>
-      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: '1rem',
@@ -96,13 +91,12 @@ export default function KDSPage() {
         </div>
       </div>
 
-      {/* Column headers / filter */}
       <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        {[['all', 'All'], ...STATUS_ORDER.map(s => [s, STATUS_META[s].label])].map(([id, label]) => (
+        {[['all', 'All'], ...STATUS_ORDER.map(s => [s, KDS_STATUS[s].label])].map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id)} style={{
             padding: '0.4rem 1rem', borderRadius: 8,
-            background: filter === id ? (id === 'all' ? 'var(--t1)' : STATUS_META[id]?.bg || 'var(--s3)') : 'var(--s2)',
-            color: filter === id ? (id === 'all' ? 'var(--bg)' : STATUS_META[id]?.color || 'var(--t1)') : 'var(--t2)',
+            background: filter === id ? (id === 'all' ? 'var(--t1)' : KDS_STATUS[id]?.bg || 'var(--s3)') : 'var(--s2)',
+            color: filter === id ? (id === 'all' ? 'var(--bg)' : KDS_STATUS[id]?.color || 'var(--t1)') : 'var(--t2)',
             border: `1px solid ${filter === id ? 'transparent' : 'var(--border)'}`,
             fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
             fontFamily: "'DM Sans', system-ui, sans-serif",
@@ -120,7 +114,6 @@ export default function KDSPage() {
         ))}
       </div>
 
-      {/* Tickets grid */}
       {filtered.length === 0 ? (
         <div className="empty" style={{ paddingTop: '4rem' }}>
           <div className="empty-icon" style={{ fontSize: '3.5rem' }}>🧑‍🍳</div>
@@ -139,7 +132,7 @@ export default function KDSPage() {
 }
 
 function KDSTicket({ ticket, now, onAdvance }) {
-  const meta = STATUS_META[ticket.status]
+  const meta = KDS_STATUS[ticket.status]
   const item = ticket.order_items
   const table = item?.orders?.tables?.table_number || '?'
   const since = item?.orders?.placed_at
@@ -153,7 +146,6 @@ function KDSTicket({ ticket, now, onAdvance }) {
       boxShadow: urgency.glow,
       transition: 'border-color 0.3s, box-shadow 0.3s',
     }}>
-      {/* Header */}
       <div style={{
         padding: '0.75rem 1rem', background: 'var(--s3)',
         borderBottom: '1px solid var(--border)',
@@ -185,7 +177,6 @@ function KDSTicket({ ticket, now, onAdvance }) {
         </span>
       </div>
 
-      {/* Item */}
       <div style={{ padding: '0.85rem 1rem' }}>
         {item ? (
           <>
@@ -215,7 +206,6 @@ function KDSTicket({ ticket, now, onAdvance }) {
         )}
       </div>
 
-      {/* Action button */}
       {meta.next && (
         <div style={{ padding: '0 1rem 1rem' }}>
           <button onClick={onAdvance} style={{

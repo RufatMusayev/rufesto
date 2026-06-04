@@ -1,25 +1,8 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../contexts/AuthContext'
-import { formatPrice, timeAgo } from '../../lib/helpers'
-
-const STATES = {
-  free:              { label: 'Free',       color: '#3B6D11', bg: 'rgba(59,109,17,0.1)',   border: 'rgba(59,109,17,0.22)' },
-  reserved:          { label: 'Reserved',   color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.22)' },
-  occupied:          { label: 'Occupied',   color: '#8B2D42', bg: 'rgba(139,45,66,0.1)',   border: 'rgba(139,45,66,0.22)' },
-  ordering:          { label: 'Ordering',   color: '#BA7517', bg: 'rgba(186,117,23,0.1)',  border: 'rgba(186,117,23,0.22)' },
-  awaiting_payment:  { label: 'Awaiting Pay', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.22)' },
-  cleared:           { label: 'Cleared',    color: '#6B5E56', bg: 'rgba(107,94,86,0.08)',  border: 'rgba(107,94,86,0.15)' },
-}
-
-const STATE_TRANSITIONS = {
-  free:              ['reserved', 'occupied'],
-  reserved:          ['occupied', 'free'],
-  occupied:          ['ordering', 'free'],
-  ordering:          ['awaiting_payment', 'occupied'],
-  awaiting_payment:  ['cleared'],
-  cleared:           ['free'],
-}
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { formatPrice, timeAgo } from '@shared/helpers'
+import { TABLE_COLORS, TABLE_STATE_TRANSITIONS } from '@shared/constants'
 
 export default function TablesPage() {
   const { restaurantId } = useAuth()
@@ -37,7 +20,7 @@ export default function TablesPage() {
     loadAll()
 
     const ch = supabase
-      .channel('dash-tables-live')
+      .channel(`dash-tables-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
       .subscribe()
@@ -92,7 +75,6 @@ export default function TablesPage() {
         </div>
       </div>
 
-      {/* Section filter */}
       {sections.length > 1 && (
         <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '0.75rem' }} className="no-scrollbar">
           <button className={`chip${!activeSection ? ' active' : ''}`} onClick={() => setActiveSection(null)}>
@@ -108,12 +90,11 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* State filter */}
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         <button className={`chip${stateFilter === 'all' ? ' active' : ''}`} onClick={() => setStateFilter('all')}>
           All ({tables.length})
         </button>
-        {Object.entries(STATES).map(([key, s]) => {
+        {Object.entries(TABLE_COLORS).map(([key, s]) => {
           const cnt = stateCounts[key] || 0
           if (cnt === 0) return null
           return (
@@ -142,13 +123,12 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* Summary bar */}
       <div style={{
         display: 'flex', gap: '1.25rem', marginTop: '1.5rem', padding: '0.85rem 1rem',
         background: 'var(--s2)', borderRadius: 10, border: '1px solid var(--border)',
         flexWrap: 'wrap',
       }}>
-        {Object.entries(STATES).map(([key, s]) => (
+        {Object.entries(TABLE_COLORS).map(([key, s]) => (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
             <span style={{ fontSize: '0.75rem', color: 'var(--t2)' }}>{s.label}</span>
@@ -161,8 +141,8 @@ export default function TablesPage() {
 }
 
 function TableCard({ table, orders, expanded, onToggle, onChangeState, updating }) {
-  const s = STATES[table.state] || STATES.free
-  const transitions = STATE_TRANSITIONS[table.state] || []
+  const s = TABLE_COLORS[table.state] || TABLE_COLORS.free
+  const transitions = TABLE_STATE_TRANSITIONS[table.state] || []
   const totalSpend = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
 
   return (
@@ -171,7 +151,6 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
       border: `1.5px solid ${s.border}`,
       transition: 'border-color 0.2s',
     }}>
-      {/* Header */}
       <div onClick={onToggle} style={{
         padding: '0.85rem 1rem', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -199,20 +178,17 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
         }}>{s.label}</span>
       </div>
 
-      {/* Order info (if occupied/ordering) */}
       {orders.length > 0 && (
         <div style={{ padding: '0 1rem 0.6rem', fontSize: '0.75rem', color: 'var(--t2)' }}>
           {orders.length} active order{orders.length > 1 ? 's' : ''} · {formatPrice(totalSpend)}
         </div>
       )}
 
-      {/* Expanded details */}
       {expanded && (
         <div style={{
           padding: '0.75rem 1rem', borderTop: '1px solid var(--border)',
           animation: 'fadeSlideUp 0.2s ease',
         }}>
-          {/* Active orders */}
           {orders.length > 0 && (
             <div style={{ marginBottom: '0.75rem' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
@@ -235,11 +211,10 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
             </div>
           )}
 
-          {/* State transitions */}
           {transitions.length > 0 && (
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
               {transitions.map(next => {
-                const ns = STATES[next] || STATES.free
+                const ns = TABLE_COLORS[next] || TABLE_COLORS.free
                 return (
                   <button key={next} onClick={() => onChangeState(table.id, next)}
                     disabled={updating}

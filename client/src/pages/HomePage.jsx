@@ -10,26 +10,49 @@ export default function HomePage() {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [dishDetail, setDishDetail] = useState(null)
+  const [followedIds, setFollowedIds] = useState([])
+  const { session } = useAuth()
 
   useEffect(() => {
-    Promise.all([
-      supabase
-        .from('restaurants')
-        .select('*, operating_hours(*)')
-        .eq('status', 'active')
-        .order('name'),
-      supabase
-        .from('reviews')
-        .select('*, dishes(name, category, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
-        .eq('is_flagged', false)
-        .order('created_at', { ascending: false })
-        .limit(10),
-    ]).then(([{ data: restData }, { data: revData }]) => {
-      setRestaurants(restData || [])
-      setReviews(revData || [])
+    async function loadFeed() {
+      let followIds = []
+      if (session) {
+        const { data: follows } = await supabase
+          .from('user_follows')
+          .select('restaurant_id')
+          .eq('user_id', session.user.id)
+        followIds = (follows || []).map(f => f.restaurant_id)
+        setFollowedIds(followIds)
+      }
+
+      const [{ data: restData }, { data: revData }] = await Promise.all([
+        supabase
+          .from('restaurants')
+          .select('*, operating_hours(*)')
+          .eq('status', 'active')
+          .order('name'),
+        supabase
+          .from('reviews')
+          .select('*, dishes(name, category, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
+          .eq('is_flagged', false)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ])
+
+      const allRest = restData || []
+      const followed = allRest.filter(r => followIds.includes(r.id))
+      const rest = allRest.filter(r => !followIds.includes(r.id))
+      setRestaurants([...followed, ...rest])
+
+      const allRevs = revData || []
+      const followedRevs = allRevs.filter(r => followIds.includes(r.dishes?.restaurant_id))
+      const otherRevs = allRevs.filter(r => !followIds.includes(r.dishes?.restaurant_id))
+      setReviews([...followedRevs, ...otherRevs])
+
       setLoading(false)
-    })
-  }, [])
+    }
+    loadFeed()
+  }, [session?.user?.id])
 
   return (
     <div>
@@ -40,14 +63,14 @@ export default function HomePage() {
         </>
       ) : (
         <>
-          <StoriesBar restaurants={restaurants} />
+          <StoriesBar restaurants={restaurants} followedIds={followedIds} />
           <div style={{ maxWidth: 470, margin: '0 auto' }}>
-            {/* Interleaved feed: review posts + restaurant promo cards */}
             {buildFeed(reviews, restaurants).map((item, i) =>
               item._type === 'review'
                 ? <ReviewPostCard key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail} />
-                : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} />
+                : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds} />
             )}
+            <div style={{ height: 80 }} />
           </div>
         </>
       )}
@@ -59,38 +82,54 @@ export default function HomePage() {
   )
 }
 
-function StoriesBar({ restaurants }) {
+function StoriesBar({ restaurants, followedIds = [] }) {
   return (
     <div className="no-scrollbar" style={{
-      display: 'flex', gap: 18, padding: '14px 16px',
+      display: 'flex', gap: 12, padding: '16px',
       overflowX: 'auto',
       borderBottom: '1px solid var(--border)',
-      maxWidth: 470, margin: '0 auto',
     }}>
-      {restaurants.map(r => {
+      {restaurants.map((r, i) => {
         const open = isRestaurantOpen(r.operating_hours)
+        const isFollowed = followedIds.includes(r.id)
         return (
           <Link key={r.id} to={`/restaurant/${r.slug}`} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
             flexShrink: 0, textDecoration: 'none',
+            animation: 'feedItemIn 400ms cubic-bezier(0.23,1,0.32,1) both',
+            animationDelay: `${Math.min(i, 8) * 50}ms`,
           }}>
-            <div className={`ig-story-ring${open ? '' : ' seen'}`}>
-              <div style={{
-                width: 56, height: 56, borderRadius: '50%',
-                border: '3px solid var(--bg)',
-                background: cuisineBackground(r.cuisine_type),
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.5rem',
-              }}>
+            {/* Square editorial card */}
+            <div style={{
+              width: 64, height: 72, borderRadius: 12,
+              background: cuisineBackground(r.cuisine_type),
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 4,
+              position: 'relative',
+              border: isFollowed
+                ? '2px solid var(--gold)'
+                : `2px solid ${open ? 'rgba(77,124,63,0.45)' : 'var(--border)'}`,
+              transition: 'border-color 200ms',
+              overflow: 'hidden',
+            }}>
+              <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>
                 {cuisineEmoji(r.cuisine_type)}
-              </div>
+              </span>
+              {/* Open status bar */}
+              {open && (
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  height: 4, background: 'var(--sage)',
+                }} />
+              )}
             </div>
             <span style={{
-              fontSize: '0.68rem', color: 'var(--t2)', fontWeight: 400,
+              fontSize: '0.67rem', color: 'var(--t2)', fontWeight: 500,
               width: 64, textAlign: 'center',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
-              {r.slug === 'seda-ocagi' ? 'Səda' : r.name.split(' ').pop()}
+              {r.slug === 'seda-ocagi' ? 'Səda' : r.name.split(' ').slice(-1)[0]}
             </span>
           </Link>
         )
@@ -99,15 +138,60 @@ function StoriesBar({ restaurants }) {
   )
 }
 
-function FeedPost({ restaurant: r, index }) {
+function FeedPost({ restaurant: r, index, followedIds = [] }) {
   const open = isRestaurantOpen(r.operating_hours)
   const today = getTodayHours(r.operating_hours)
   const emoji = cuisineEmoji(r.cuisine_type)
+  const { session } = useAuth()
   const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [showHeart, setShowHeart] = useState(false)
+  const [likeAnimating, setLikeAnimating] = useState(false)
   const tapTimer = useRef(null)
   const tapCount = useRef(0)
+
+  useEffect(() => {
+    supabase
+      .from('likes')
+      .select('id', { count: 'exact', head: true })
+      .eq('target_type', 'restaurant')
+      .eq('target_id', r.id)
+      .then(({ count }) => setLikeCount(count || 0))
+
+    if (session) {
+      supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('target_type', 'restaurant')
+        .eq('target_id', r.id)
+        .maybeSingle()
+        .then(({ data }) => setLiked(!!data))
+    }
+  }, [r.id, session?.user?.id])
+
+  async function toggleLike() {
+    const next = !liked
+    setLiked(next)
+    setLikeCount(c => c + (next ? 1 : -1))
+    if (next) { setLikeAnimating(true); setTimeout(() => setLikeAnimating(false), 350) }
+    if (!session) return
+    try {
+      if (next) {
+        const { error } = await supabase.from('likes').insert({
+          user_id: session.user.id, target_type: 'restaurant', target_id: r.id,
+        })
+        if (error) { setLiked(false); setLikeCount(c => c - 1) }
+      } else {
+        const { error } = await supabase.from('likes').delete()
+          .eq('user_id', session.user.id)
+          .eq('target_type', 'restaurant')
+          .eq('target_id', r.id)
+        if (error) { setLiked(true); setLikeCount(c => c + 1) }
+      }
+    } catch { setLiked(!next); setLikeCount(c => c + (next ? -1 : 1)) }
+  }
 
   function handleDoubleTap() {
     tapCount.current++
@@ -116,38 +200,39 @@ function FeedPost({ restaurant: r, index }) {
     } else if (tapCount.current === 2) {
       clearTimeout(tapTimer.current)
       tapCount.current = 0
-      if (!liked) setLiked(true)
+      if (!liked) toggleLike()
       setShowHeart(true)
       setTimeout(() => setShowHeart(false), 900)
     }
   }
 
+  const isFollowed = followedIds.includes(r.id)
+
   return (
-    <article className="menu-card feed-post" style={{ animationDelay: `${index * 0.08}s` }}>
+    <article className={`menu-card feed-post stagger-item${isFollowed ? ' followed-post' : ''}`} style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       {/* Post header */}
       <div style={{
-        display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 10,
+        display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 10,
       }}>
-        <Link to={`/restaurant/${r.slug}`}>
+        <Link to={`/restaurant/${r.slug}`} style={{ flexShrink: 0 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%',
+            width: 36, height: 36, borderRadius: 10,
             background: cuisineBackground(r.cuisine_type),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.85rem', flexShrink: 0,
+            fontSize: '1rem', border: '1.5px solid var(--border)',
           }}>
             {emoji}
           </div>
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Link to={`/restaurant/${r.slug}`} style={{ display: 'block' }}>
-            <span style={{
-              fontWeight: 700, fontSize: '0.82rem', color: 'var(--t1)',
-            }}>{r.name}</span>
+            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>{r.name}</span>
           </Link>
-          <div style={{ fontSize: '0.7rem', color: 'var(--t3)' }}>
+          <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
             {r.address}, {r.city}
           </div>
         </div>
+        {open && <span className="open-indicator">Open</span>}
         <button className="icon-btn" style={{ width: 28, height: 28, color: 'var(--t1)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="5" r="1.5" />
@@ -183,34 +268,20 @@ function FeedPost({ restaurant: r, index }) {
           pointerEvents: 'none',
         }} />
 
-        {/* Open badge */}
-        {open && (
-          <div style={{
-            position: 'absolute', top: 14, right: 14,
-            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            borderRadius: 100, padding: '4px 10px',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%', background: '#22C55E',
-              boxShadow: '0 0 6px #22C55E',
-            }} />
-            <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#f5f5f5' }}>Open</span>
-          </div>
-        )}
-
-        {/* Cuisine badge */}
+        {/* Cuisine + hours badge */}
         <div style={{
-          position: 'absolute', bottom: 16, left: 16,
-          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          borderRadius: 8, padding: '6px 12px',
+          position: 'absolute', bottom: 14, left: 14,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRadius: 10, padding: '6px 12px',
         }}>
           <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f5f5f5' }}>{r.cuisine_type}</div>
           {today && (
-            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
-              {open ? `Open until ${today.close}` : `Opens ${today.open}`}
+            <div style={{
+              fontSize: '0.64rem', color: 'rgba(255,255,255,0.75)', marginTop: 2,
+              fontFamily: "'DM Mono', monospace",
+            }}>
+              {open ? `Until ${today.close}` : `Opens ${today.open}`}
             </div>
           )}
         </div>
@@ -234,17 +305,17 @@ function FeedPost({ restaurant: r, index }) {
         display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 14,
       }}>
         {/* Perfetto — 👌 OK hand like */}
-        <button className="icon-btn" onClick={() => setLiked(!liked)}
-          style={{ width: 28, height: 28 }}>
-          <svg viewBox="0 0 24 24" style={{
-            width: 24, height: 24,
-            fill: liked ? 'var(--accent)' : 'none',
-            stroke: liked ? 'var(--accent)' : 'var(--t1)',
-            strokeWidth: 1.8,
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round',
-            transition: 'all 0.15s',
-          }}>
+        <button className="icon-btn" onClick={toggleLike}
+          style={{ width: 36, height: 36 }}>
+          <svg viewBox="0 0 24 24"
+            className={likeAnimating ? 'like-btn-active' : ''}
+            style={{
+              width: 26, height: 26,
+              fill: liked ? 'var(--accent)' : 'none',
+              stroke: liked ? 'var(--accent)' : 'var(--t1)',
+              strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+              transition: 'fill 120ms, stroke 120ms',
+            }}>
             <path d="M8 14c-1.5-1-2.5-2.8-2-4.5.5-1.8 2-2.5 3.5-2s2.5 2 2 3.8c-.3 1-1 1.7-1.8 2" />
             <path d="M9.7 13.3c.8-.3 1.8-.2 2.8.5" />
             <path d="M12.5 13.8c.5-2.5 1.2-5 2-6.5.6-1 1.8-1.2 2.5-.5s.5 2-.2 3.5" />
@@ -285,39 +356,47 @@ function FeedPost({ restaurant: r, index }) {
       </div>
 
       {/* Likes */}
-      {liked && (
-        <div style={{ padding: '0 14px 4px', fontSize: '0.82rem', fontWeight: 700 }}>
-          1 like
+      {likeCount > 0 && (
+        <div style={{
+          padding: '0 16px 4px', fontSize: '0.82rem', fontWeight: 700,
+          fontFamily: "'DM Mono', monospace",
+        }}>
+          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
         </div>
       )}
 
       {/* Caption */}
-      <div style={{ padding: '0 14px 10px' }}>
-        <p style={{ fontSize: '0.84rem', lineHeight: 1.5 }}>
-          <Link to={`/restaurant/${r.slug}`} style={{ fontWeight: 700, color: 'var(--t1)' }}>
+      <div style={{ padding: '2px 16px 14px' }}>
+        <p style={{ fontSize: '0.86rem', lineHeight: 1.55 }}>
+          <Link to={`/restaurant/${r.slug}`} style={{
+            fontWeight: 700, color: 'var(--t1)',
+            fontFamily: "'Playfair Display', serif",
+          }}>
             {r.name}
           </Link>
           {' '}
           <span style={{ color: 'var(--t2)', fontWeight: 400 }}>
-            {r.description && (r.description.length > 100
-              ? r.description.slice(0, 100) + '…'
-              : r.description
-            )}
+            {r.description && (r.description.length > 120
+              ? r.description.slice(0, 120) + '…'
+              : r.description)}
           </span>
         </p>
-
-        <Link to={`/restaurant/${r.slug}`} style={{
-          display: 'block', fontSize: '0.82rem', color: 'var(--t3)',
-          marginTop: 4,
-        }}>
-          View all dishes
-        </Link>
-
-        {r.seating_capacity && (
-          <div style={{ fontSize: '0.68rem', color: 'var(--t4)', marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            {r.seating_capacity} seats
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          <Link to={`/restaurant/${r.slug}`} style={{
+            fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600,
+          }}>
+            View menu →
+          </Link>
+          {r.seating_capacity && (
+            <span style={{
+              fontSize: '0.65rem', color: 'var(--t4)',
+              fontFamily: "'DM Mono', monospace",
+              textTransform: 'uppercase', letterSpacing: 0.8,
+            }}>
+              {r.seating_capacity} seats
+            </span>
+          )}
+        </div>
       </div>
     </article>
   )
@@ -342,10 +421,32 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
   const emoji = categoryEmoji(dish?.category)
   const { session } = useAuth()
   const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [showThread, setShowThread] = useState(false)
   const [replies, setReplies] = useState([])
   const [loadingReplies, setLoadingReplies] = useState(false)
+  const [likeAnimating, setLikeAnimating] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('likes')
+      .select('id', { count: 'exact', head: true })
+      .eq('target_type', 'review')
+      .eq('target_id', rev.id)
+      .then(({ count }) => setLikeCount(count || 0))
+
+    if (session) {
+      supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('target_type', 'review')
+        .eq('target_id', rev.id)
+        .maybeSingle()
+        .then(({ data }) => setLiked(!!data))
+    }
+  }, [rev.id, session?.user?.id])
 
   useEffect(() => {
     if (session && dish) {
@@ -358,6 +459,28 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         .then(({ data }) => setSaved(!!data))
     }
   }, [session?.user?.id, dish?.id])
+
+  async function toggleLike() {
+    const next = !liked
+    setLiked(next)
+    setLikeCount(c => c + (next ? 1 : -1))
+    if (next) { setLikeAnimating(true); setTimeout(() => setLikeAnimating(false), 350) }
+    if (!session) return
+    try {
+      if (next) {
+        const { error } = await supabase.from('likes').insert({
+          user_id: session.user.id, target_type: 'review', target_id: rev.id,
+        })
+        if (error) { setLiked(false); setLikeCount(c => c - 1) }
+      } else {
+        const { error } = await supabase.from('likes').delete()
+          .eq('user_id', session.user.id)
+          .eq('target_type', 'review')
+          .eq('target_id', rev.id)
+        if (error) { setLiked(true); setLikeCount(c => c + 1) }
+      }
+    } catch { setLiked(!next); setLikeCount(c => c + (next ? -1 : 1)) }
+  }
 
   async function handleToggleSave() {
     if (!dish) return
@@ -401,30 +524,34 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
   }
 
   return (
-    <article className="menu-card feed-post" style={{ animationDelay: `${index * 0.08}s` }}>
+    <article className="menu-card feed-post stagger-item" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       {/* Post header — reviewer info */}
       <div style={{
-        display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 10,
+        display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 10,
       }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: 'var(--s4)',
+          width: 34, height: 34, borderRadius: '50%',
+          background: 'var(--s3)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.7rem', fontWeight: 700, color: 'var(--t2)', flexShrink: 0,
+          fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+          border: '1.5px solid var(--border)',
         }}>
           {(rev.users?.name || 'A')[0].toUpperCase()}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--t1)' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>
             {rev.users?.name || 'Anonymous'}
           </span>
-          <div style={{ fontSize: '0.7rem', color: 'var(--t3)' }}>
+          <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
             <Link to={`/restaurant/${restaurant?.slug}`} style={{ color: 'var(--t3)' }}>
               {dish?.name} at {restaurant?.name}
             </Link>
           </div>
         </div>
-        <span style={{ color: 'var(--gold)', fontSize: '0.72rem', letterSpacing: 0.5 }}>
+        <span style={{
+          color: 'var(--gold)', fontSize: '0.78rem', letterSpacing: 1,
+          fontFamily: "'DM Mono', monospace",
+        }}>
           {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
         </span>
       </div>
@@ -432,15 +559,19 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
       {/* Dish photo area — tap opens dish detail */}
       <div onClick={() => dish && onDishClick(dish)} style={{
         width: '100%', aspectRatio: '4/3',
-        background: dishBackground(dish?.category),
+        background: dish?.photo ? '#000' : dishBackground(dish?.category),
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '5rem', overflow: 'hidden',
         cursor: 'pointer',
       }}>
-        <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
-          {emoji}
-        </span>
+        {dish?.photo ? (
+          <img src={dish.photo} alt={dish.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+        ) : (
+          <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
+            {emoji}
+          </span>
+        )}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.3) 100%)',
@@ -450,17 +581,18 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
 
       {/* Action bar */}
       <div style={{
-        display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 14,
+        display: 'flex', alignItems: 'center', padding: '8px 14px', gap: 14,
       }}>
-        <button className="icon-btn" onClick={() => setLiked(!liked)}
-          style={{ width: 28, height: 28 }}>
-          <svg viewBox="0 0 24 24" style={{
-            width: 24, height: 24,
-            fill: liked ? 'var(--accent)' : 'none',
-            stroke: liked ? 'var(--accent)' : 'var(--t1)',
-            strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
-            transition: 'all 0.15s',
-          }}>
+        <button className="icon-btn" onClick={toggleLike} style={{ width: 36, height: 36 }}>
+          <svg viewBox="0 0 24 24"
+            className={likeAnimating ? 'like-btn-active' : ''}
+            style={{
+              width: 26, height: 26,
+              fill: liked ? 'var(--accent)' : 'none',
+              stroke: liked ? 'var(--accent)' : 'var(--t1)',
+              strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+              transition: 'fill 120ms, stroke 120ms',
+            }}>
             <path d="M8 14c-1.5-1-2.5-2.8-2-4.5.5-1.8 2-2.5 3.5-2s2.5 2 2 3.8c-.3 1-1 1.7-1.8 2" />
             <path d="M9.7 13.3c.8-.3 1.8-.2 2.8.5" />
             <path d="M12.5 13.8c.5-2.5 1.2-5 2-6.5.6-1 1.8-1.2 2.5-.5s.5 2-.2 3.5" />
@@ -470,9 +602,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
           </svg>
         </button>
 
-        {/* Fork + knife — food-native comment */}
-        <button className="icon-btn" onClick={toggleThread}
-          style={{ width: 28, height: 28 }}>
+        <button className="icon-btn" onClick={toggleThread} style={{ width: 36, height: 36 }}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" style={{ width: 24, height: 24, stroke: 'var(--t1)' }}>
             <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M10 2v20" strokeLinecap="round" />
@@ -482,13 +612,12 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
 
         <div style={{ flex: 1 }} />
 
-        <button className="icon-btn" onClick={handleToggleSave}
-          style={{ width: 28, height: 28, color: 'var(--t1)' }}>
+        <button className="icon-btn" onClick={handleToggleSave} style={{ width: 36, height: 36, color: 'var(--t1)' }}>
           <svg viewBox="0 0 24 24" style={{
-            width: 24, height: 24, fill: saved ? 'none' : 'none',
+            width: 26, height: 26,
             stroke: saved ? 'var(--accent)' : 'var(--t1)',
             strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
-            transition: 'all 0.15s',
+            transition: 'stroke 150ms',
           }}>
             <ellipse cx="12" cy="14" rx="8" ry="4" fill={saved ? 'var(--accent)' : 'none'} />
             <path d="M12 3v7" />
@@ -497,9 +626,19 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         </button>
       </div>
 
+      {/* Like count */}
+      {likeCount > 0 && (
+        <div style={{
+          padding: '0 16px 4px', fontSize: '0.82rem', fontWeight: 700,
+          fontFamily: "'DM Mono', monospace",
+        }}>
+          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+        </div>
+      )}
+
       {/* Review body */}
-      <div style={{ padding: '0 14px 10px' }}>
-        <p style={{ fontSize: '0.84rem', lineHeight: 1.5 }}>
+      <div style={{ padding: '0 16px 10px' }}>
+        <p style={{ fontSize: '0.86rem', lineHeight: 1.55 }}>
           <span style={{ fontWeight: 700, color: 'var(--t1)' }}>
             {rev.users?.name || 'Anonymous'}
           </span>
@@ -508,17 +647,26 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
             {rev.body || `Rated ${dish?.name} ${rev.rating}/5`}
           </span>
         </p>
-        <span style={{ fontSize: '0.68rem', color: 'var(--t4)' }}>{timeAgo(rev.created_at)}</span>
+        <span style={{
+          fontSize: '0.68rem', color: 'var(--t4)',
+          fontFamily: "'DM Mono', monospace",
+        }}>{timeAgo(rev.created_at)}</span>
       </div>
 
       {/* Thread toggle */}
       <button onClick={toggleThread} style={{
-        background: 'none', border: 'none', cursor: 'pointer', padding: '0 14px 10px',
-        fontSize: '0.78rem', color: 'var(--t3)', display: 'block',
+        background: 'none', border: 'none', cursor: 'pointer',
+        padding: '0 16px 12px',
+        fontSize: '0.76rem', color: 'var(--t3)',
+        display: 'flex', alignItems: 'center', gap: 5,
+        transition: 'color 150ms',
       }}>
-        {loadingReplies ? 'Loading...' :
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        {loadingReplies ? 'Loading…' :
          showThread ? 'Hide replies' :
-         `View replies for this dish`}
+         'View replies'}
       </button>
 
       {/* Comment thread */}
@@ -564,14 +712,13 @@ function CommentThread({ comments }) {
 function StoriesBarSkeleton() {
   return (
     <div style={{
-      display: 'flex', gap: 18, padding: '14px 16px',
+      display: 'flex', gap: 12, padding: '16px',
       borderBottom: '1px solid var(--border)',
-      maxWidth: 470, margin: '0 auto',
     }}>
-      {[1, 2, 3].map(i => (
+      {[1, 2, 3, 4].map(i => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="skeleton" style={{ width: 62, height: 62, borderRadius: '50%' }} />
-          <div className="skeleton" style={{ width: 40, height: 10 }} />
+          <div className="skeleton" style={{ width: 64, height: 72, borderRadius: 12 }} />
+          <div className="skeleton" style={{ width: 44, height: 9, borderRadius: 4 }} />
         </div>
       ))}
     </div>
@@ -580,18 +727,18 @@ function StoriesBarSkeleton() {
 
 function PostSkeleton() {
   return (
-    <div className="feed-post" style={{ maxWidth: 470, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-        <div className="skeleton" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+    <div style={{ maxWidth: 470, margin: '0 auto', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px' }}>
+        <div className="skeleton" style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
-          <div className="skeleton" style={{ height: 12, width: '40%', marginBottom: 4 }} />
-          <div className="skeleton" style={{ height: 10, width: '55%' }} />
+          <div className="skeleton" style={{ height: 12, width: '38%', marginBottom: 5 }} />
+          <div className="skeleton" style={{ height: 9, width: '52%' }} />
         </div>
       </div>
       <div className="skeleton" style={{ width: '100%', aspectRatio: '4/5', borderRadius: 0 }} />
-      <div style={{ padding: '10px 14px' }}>
-        <div className="skeleton" style={{ height: 12, width: '85%', marginBottom: 6 }} />
-        <div className="skeleton" style={{ height: 12, width: '60%' }} />
+      <div style={{ padding: '12px 16px' }}>
+        <div className="skeleton" style={{ height: 11, width: '80%', marginBottom: 7 }} />
+        <div className="skeleton" style={{ height: 11, width: '55%' }} />
       </div>
     </div>
   )

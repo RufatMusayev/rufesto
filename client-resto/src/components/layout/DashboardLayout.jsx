@@ -1,30 +1,23 @@
-import { NavLink, Outlet, Navigate, Link } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 
 const NAV = [
-  { to: '/dashboard',          label: 'Overview', end: true, icon: OverviewIcon },
-  { to: '/dashboard/orders',   label: 'Orders',              icon: OrdersIcon },
-  { to: '/dashboard/kds',      label: 'Kitchen',             icon: KitchenIcon },
-  { to: '/dashboard/tables',   label: 'Tables',              icon: TablesIcon },
-  { to: '/dashboard/menu',     label: 'Menu',                icon: MenuIcon },
-  { to: '/dashboard/bookings', label: 'Bookings',            icon: BookingsIcon },
+  { to: '/',         label: 'Overview', end: true, icon: OverviewIcon },
+  { to: '/orders',   label: 'Orders',              icon: OrdersIcon },
+  { to: '/kds',      label: 'Kitchen',             icon: KitchenIcon },
+  { to: '/tables',   label: 'Tables',              icon: TablesIcon },
+  { to: '/menu',     label: 'Menu',                icon: MenuIcon },
+  { to: '/bookings', label: 'Bookings',            icon: BookingsIcon },
 ]
 
 export default function DashboardLayout() {
-  const { isStaff, staffRow, loading } = useAuth()
-
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
-      <span className="spinner" style={{ width: 24, height: 24 }} />
-    </div>
-  )
-  if (!isStaff) return <Navigate to="/" replace />
-
+  const { staffRow, signOut } = useAuth()
+  const { theme, toggle } = useTheme()
   const initial = staffRow?.restaurants?.name?.[0] || 'R'
 
   return (
     <div className="dash-layout">
-      {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="dash-sidebar-head">
           <div className="dash-resto-badge">{initial}</div>
@@ -45,14 +38,17 @@ export default function DashboardLayout() {
         </nav>
 
         <div className="dash-sidebar-foot">
-          <Link to="/" className="dash-nav-item">
+          <button onClick={toggle} className="dash-nav-item" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t2)' }}>
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            <span className="dash-nav-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+          <button onClick={signOut} className="dash-nav-item" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t2)' }}>
             <ExitIcon />
-            <span className="dash-nav-label">Back to App</span>
-          </Link>
+            <span className="dash-nav-label">Sign Out</span>
+          </button>
         </div>
       </aside>
 
-      {/* Mobile header */}
       <div className="dash-mobile-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="dash-resto-badge" style={{ width: 28, height: 28, fontSize: '0.72rem' }}>{initial}</div>
@@ -63,7 +59,6 @@ export default function DashboardLayout() {
         </div>
       </div>
 
-      {/* Mobile bottom nav */}
       <nav className="dash-mobile-nav">
         {NAV.map(n => (
           <NavLink key={n.to} to={n.to} end={n.end}
@@ -81,7 +76,6 @@ export default function DashboardLayout() {
   )
 }
 
-/* ── Icons ── */
 function OverviewIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
 }
@@ -102,4 +96,10 @@ function BookingsIcon() {
 }
 function ExitIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+}
+function SunIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+}
+function MoonIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" /></svg>
 }

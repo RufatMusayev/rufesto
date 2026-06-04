@@ -1,26 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../contexts/AuthContext'
-import { formatPrice, timeAgo, categoryEmoji } from '../../lib/helpers'
-
-const TABLE_COLORS = {
-  free:              { color: '#3B6D11', bg: 'rgba(59,109,17,0.12)',  border: 'rgba(59,109,17,0.25)' },
-  reserved:          { color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.25)' },
-  occupied:          { color: '#8B2D42', bg: 'rgba(139,45,66,0.12)',  border: 'rgba(139,45,66,0.25)' },
-  ordering:          { color: '#BA7517', bg: 'rgba(186,117,23,0.12)', border: 'rgba(186,117,23,0.25)' },
-  awaiting_payment:  { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)' },
-  cleared:           { color: '#6B5E56', bg: 'rgba(107,94,86,0.08)',  border: 'rgba(107,94,86,0.15)' },
-}
-
-const ORDER_STATUS = {
-  open:      { label: 'Open',      color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
-  preparing: { label: 'Preparing', color: '#BA7517', bg: 'rgba(186,117,23,0.08)' },
-  ready:     { label: 'Ready',     color: '#3B6D11', bg: 'rgba(59,109,17,0.08)' },
-  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
-  done:      { label: 'Done',      color: '#6B5E56', bg: 'var(--s3)' },
-  cancelled: { label: 'Cancelled', color: '#A32D2D', bg: 'rgba(239,68,68,0.08)' },
-}
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
+import { TABLE_COLORS, ORDER_STATUS } from '@shared/constants'
 
 export default function DashboardHome() {
   const { restaurantId } = useAuth()
@@ -34,7 +17,7 @@ export default function DashboardHome() {
     loadAll()
 
     const ch = supabase
-      .channel('dash-home-live')
+      .channel(`dash-home-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
@@ -93,7 +76,6 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(155px,1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
         {[
           { icon: '₼', label: "Today's Revenue", value: formatPrice(stats.revenue), color: 'var(--accent)' },
@@ -109,29 +91,26 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* Alert badges */}
       {(stats.kdsActive > 0 || pendingBookings > 0) && (
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
           {stats.kdsActive > 0 && (
-            <Link to="/dashboard/kds" style={alertStyle('#F59E0B')}>
+            <Link to="/kds" style={alertStyle('#F59E0B')}>
               🔥 {stats.kdsActive} in kitchen →
             </Link>
           )}
           {pendingBookings > 0 && (
-            <Link to="/dashboard/bookings" style={alertStyle('#3b82f6')}>
+            <Link to="/bookings" style={alertStyle('#3b82f6')}>
               📅 {pendingBookings} pending booking{pendingBookings > 1 ? 's' : ''} →
             </Link>
           )}
         </div>
       )}
 
-      {/* Two-column grid */}
       <div className="dash-grid">
-        {/* Left: recent orders */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div className="dash-section-title">Recent Orders</div>
-            <Link to="/dashboard/orders" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>View all →</Link>
+            <Link to="/orders" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>View all →</Link>
           </div>
 
           {recentOrders.length === 0 ? (
@@ -145,11 +124,10 @@ export default function DashboardHome() {
           )}
         </div>
 
-        {/* Right: table overview + quick actions */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div className="dash-section-title">Tables</div>
-            <Link to="/dashboard/tables" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>Manage →</Link>
+            <Link to="/tables" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>Manage →</Link>
           </div>
 
           <div style={{ background: 'var(--s2)', borderRadius: 10, padding: '0.85rem', border: '1px solid var(--border)', marginBottom: '1rem' }}>
@@ -183,9 +161,9 @@ export default function DashboardHome() {
           <div className="dash-section-title" style={{ marginBottom: '0.6rem' }}>Quick Actions</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
             {[
-              { to: '/dashboard/kds', icon: '🧑‍🍳', label: 'Open Kitchen Display' },
-              { to: '/dashboard/menu', icon: '📋', label: 'Toggle Menu Items' },
-              { to: '/dashboard/bookings', icon: '📅', label: 'Manage Bookings' },
+              { to: '/kds', icon: '🧑‍🍳', label: 'Open Kitchen Display' },
+              { to: '/menu', icon: '📋', label: 'Toggle Menu Items' },
+              { to: '/bookings', icon: '📅', label: 'Manage Bookings' },
             ].map(a => (
               <Link key={a.to} to={a.to} style={{
                 display: 'flex', alignItems: 'center', gap: 10,

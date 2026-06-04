@@ -1,5 +1,6 @@
-FROM node:20-alpine AS build
+FROM node:20-alpine AS build-client
 WORKDIR /app
+COPY shared/ /shared/
 COPY client/package.json client/package-lock.json ./
 RUN npm ci
 ARG VITE_SUPABASE_URL
@@ -9,7 +10,20 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 COPY client/ .
 RUN npm run build
 
+FROM node:20-alpine AS build-resto
+WORKDIR /app
+COPY shared/ /shared/
+COPY client-resto/package.json client-resto/package-lock.json ./
+RUN npm ci
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+COPY client-resto/ .
+RUN npm run build
+
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build-client /app/dist /usr/share/nginx/html/client
+COPY --from=build-resto /app/dist /usr/share/nginx/html/resto
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

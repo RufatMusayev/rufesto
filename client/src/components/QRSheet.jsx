@@ -145,16 +145,32 @@ export default function QRSheet({ onClose }) {
   const isMyBooking = !!tableData?.userBooking
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ alignItems: 'flex-end' }}>
+    <div
+      className="overlay"
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ alignItems: 'flex-end' }}
+    >
       <div className="sheet">
         <div className="sheet-handle" />
         <div style={{ padding: '1rem 1.5rem 2.5rem' }}>
 
           {!tableData ? (
             <>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 900, marginBottom: '0.4rem' }}>Scan Table QR</h2>
-              <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+              {/* Title */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
+                }}>
+                  Scan Table QR
+                </h2>
+                <button className="icon-btn" onClick={onClose}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <p style={{ color: 'var(--t3)', fontSize: '0.84rem', marginBottom: '1.25rem' }}>
                 Point your camera at the QR code on your table.
               </p>
 
@@ -177,7 +193,7 @@ export default function QRSheet({ onClose }) {
                       fontSize: '0.72rem', fontWeight: 600, color: '#F5F0E8',
                       whiteSpace: 'nowrap', zIndex: 10,
                     }}>
-                      Scanning...
+                      Scanning…
                     </div>
                   )}
                 </div>
@@ -186,7 +202,7 @@ export default function QRSheet({ onClose }) {
               {/* Camera error state */}
               {camError && !manualMode && (
                 <div style={{
-                  width: 200, height: 160, margin: '0 auto 1rem',
+                  width: '100%', maxWidth: 300, height: 160, margin: '0 auto 1rem',
                   border: '2px dashed var(--border)', borderRadius: 16,
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -203,7 +219,7 @@ export default function QRSheet({ onClose }) {
                 </div>
               )}
 
-              {/* Manual mode hidden QR reader target (needed for html5-qrcode) */}
+              {/* Manual mode hidden QR reader target */}
               {manualMode && <div id="qr-reader" style={{ display: 'none' }} />}
 
               {/* Toggle buttons */}
@@ -224,34 +240,54 @@ export default function QRSheet({ onClose }) {
                 )}
               </div>
 
-              {/* Manual token input (always visible as fallback, prominent in manual mode) */}
+              {/* Manual token input */}
               <form onSubmit={handleLookup}>
-                <input className="input" placeholder="Paste table token (UUID)"
-                  value={token} onChange={e => setToken(e.target.value)}
-                  style={{ marginBottom: '0.75rem' }} required />
+                <input
+                  className="input"
+                  placeholder="Paste table token (UUID)"
+                  value={token}
+                  onChange={e => setToken(e.target.value)}
+                  style={{ marginBottom: '0.75rem' }}
+                  required
+                />
                 {error && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{error}</p>}
                 <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || !token.trim()}>
-                  {loading ? <><span className="spinner" />Looking up...</> : 'Find Table'}
+                  {loading ? <><span className="spinner" /> Looking up…</> : 'Find Table'}
                 </button>
               </form>
-              <button className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }} onClick={onClose}>Cancel</button>
+              <button className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }} onClick={onClose}>
+                Cancel
+              </button>
             </>
           ) : done === 'seated' ? (
-            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✅</div>
-              <h2 style={{ fontWeight: 900 }}>You're seated!</h2>
-              <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginTop: '0.4rem' }}>
+            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'var(--sage-bg)', border: '1px solid var(--sage)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>
+                You're seated!
+              </h2>
+              <p style={{ color: 'var(--t2)', fontSize: '0.85rem' }}>
                 Add items to your order from the menu.
               </p>
             </div>
           ) : (
             <>
               <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ fontWeight: 900, fontSize: '1.15rem' }}>{tableData.restaurant.name}</div>
-                <div style={{ color: 'var(--t2)', fontSize: '0.85rem', marginTop: 2 }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.15rem', color: 'var(--t1)' }}>
+                  {tableData.restaurant.name}
+                </div>
+                <div style={{ color: 'var(--t3)', fontSize: '0.84rem', marginTop: 3 }}>
                   {tableData.restaurant.cuisine_type} · Table {tableData.table.table_number}
                 </div>
-                <div style={{ marginTop: '0.5rem' }}>
+                <div style={{ marginTop: '0.6rem' }}>
                   <StateChip state={state} />
                 </div>
               </div>
@@ -260,34 +296,34 @@ export default function QRSheet({ onClose }) {
 
               {state === 'free' && (
                 <>
-                  <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                  <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5 }}>
                     This table is available. Book it now for an instant walk-in.
                   </p>
                   <button className="btn btn-primary" style={{ width: '100%' }} disabled={booking} onClick={handleBook}>
-                    {booking ? <><span className="spinner" />Booking...</> : 'Book This Table'}
+                    {booking ? <><span className="spinner" /> Booking…</> : 'Book This Table'}
                   </button>
                 </>
               )}
 
-              {(state === 'reserved') && isMyBooking && (
+              {state === 'reserved' && isMyBooking && (
                 <>
-                  <p style={{ color: 'var(--green)', fontSize: '0.88rem', fontWeight: 700, marginBottom: '1rem' }}>
+                  <p style={{ color: 'var(--sage)', fontSize: '0.88rem', fontWeight: 700, marginBottom: '1rem' }}>
                     ✓ This is your table
                   </p>
                   <button className="btn btn-primary" style={{ width: '100%' }} disabled={confirming} onClick={handleConfirmArrival}>
-                    {confirming ? <><span className="spinner" />Confirming...</> : 'Confirm Arrival & Start Order'}
+                    {confirming ? <><span className="spinner" /> Confirming…</> : 'Confirm Arrival & Start Order'}
                   </button>
                 </>
               )}
 
-              {(state === 'reserved') && !isMyBooking && (
-                <p style={{ color: 'var(--t2)', fontSize: '0.85rem' }}>
+              {state === 'reserved' && !isMyBooking && (
+                <p style={{ color: 'var(--t2)', fontSize: '0.85rem', lineHeight: 1.5 }}>
                   This table is reserved by someone else. Please ask staff for assistance.
                 </p>
               )}
 
               {(state === 'occupied' || state === 'ordering' || state === 'awaiting_payment') && (
-                <p style={{ color: 'var(--t2)', fontSize: '0.85rem' }}>
+                <p style={{ color: 'var(--t2)', fontSize: '0.85rem', lineHeight: 1.5 }}>
                   This table is currently occupied.
                 </p>
               )}
@@ -305,18 +341,21 @@ export default function QRSheet({ onClose }) {
 
 function StateChip({ state }) {
   const MAP = {
-    free:             { label: 'Available',  color: 'var(--green)', bg: 'rgba(34,197,94,0.12)' },
-    reserved:         { label: 'Reserved',   color: 'var(--accent)', bg: 'rgba(245,158,11,0.1)' },
-    occupied:         { label: 'Occupied',   color: 'var(--red)',   bg: 'rgba(239,68,68,0.12)' },
-    ordering:         { label: 'Occupied',   color: 'var(--red)',   bg: 'rgba(239,68,68,0.12)' },
-    awaiting_payment: { label: 'Occupied',   color: 'var(--red)',   bg: 'rgba(239,68,68,0.12)' },
-    cleared:          { label: 'Available',  color: 'var(--green)', bg: 'rgba(34,197,94,0.12)' },
+    free:             { label: 'Available',  color: 'var(--sage)',   bg: 'var(--sage-bg)'             },
+    reserved:         { label: 'Reserved',   color: 'var(--accent)', bg: 'rgba(245,158,11,0.1)'       },
+    occupied:         { label: 'Occupied',   color: 'var(--red)',    bg: 'rgba(239,68,68,0.12)'       },
+    ordering:         { label: 'Occupied',   color: 'var(--red)',    bg: 'rgba(239,68,68,0.12)'       },
+    awaiting_payment: { label: 'Occupied',   color: 'var(--red)',    bg: 'rgba(239,68,68,0.12)'       },
+    cleared:          { label: 'Available',  color: 'var(--sage)',   bg: 'var(--sage-bg)'             },
   }
   const s = MAP[state] || { label: state, color: 'var(--t2)', bg: 'var(--s3)' }
   return (
     <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: 100,
+      display: 'inline-block', padding: '3px 10px', borderRadius: 100,
       fontSize: '0.72rem', fontWeight: 700, background: s.bg, color: s.color,
-    }}>{s.label}</span>
+      border: `1px solid ${s.color}22`,
+    }}>
+      {s.label}
+    </span>
   )
 }

@@ -3,36 +3,67 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+const VALID_OAUTH_PROVIDERS = ['google', 'apple']
+
 export function AuthProvider({ children }) {
   const [session, setSession]   = useState(null)
   const [profile, setProfile]   = useState(null)
-  const [staffRow, setStaffRow] = useState(null)
   const [loading, setLoading]   = useState(true)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
+    let mounted = true
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
       setSession(session)
-      if (session) fetchProfile(session.user.id)
-      else setLoading(false)
+      if (session) {
+        fetchProfile(session.user.id).finally(() => {
+          if (mounted) setLoading(false)
+        })
+      } else {
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (mounted) setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!mounted) return
       setSession(session)
-      if (session) fetchProfile(session.user.id)
-      else { setProfile(null); setStaffRow(null); setLoading(false) }
+      if (session) {
+        fetchProfile(session.user.id).finally(() => {
+          if (mounted) setLoading(false)
+        })
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function fetchProfile(userId) {
-    const [{ data: user }, { data: staff }] = await Promise.all([
-      supabase.from('users').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('staff').select('*, restaurants(id,name,slug)').eq('user_id', userId).eq('is_active', true).maybeSingle(),
-    ])
-    setProfile(user)
-    setStaffRow(staff)
-    setLoading(false)
+    setAuthError(null)
+    try {
+      const { data, error } = await supabase
+        .from('users').select('*').eq('id', userId).maybeSingle()
+
+      if (error) {
+        console.warn('Could not fetch user profile:', error.message)
+        setProfile(null)
+      } else {
+        setProfile(data)
+      }
+    } catch (err) {
+      console.warn('Profile fetch failed:', err.message)
+      setAuthError('Could not load profile data')
+      setProfile(null)
+    }
   }
 
   /** Send a magic-link / OTP code to the user's email */
@@ -45,11 +76,19 @@ export function AuthProvider({ children }) {
     return supabase.auth.verifyOtp({ email, token, type: 'email' })
   }
 
+  /** Dev-only email + password sign-in (testing without live OTP email). Gated in UI by import.meta.env.DEV. */
+  async function signInWithPassword(email, password) {
+    return supabase.auth.signInWithPassword({ email, password })
+  }
+
   /** OAuth sign-in (Google or Apple) — redirects to provider */
   async function signInWithOAuth(provider) {
+    if (!VALID_OAUTH_PROVIDERS.includes(provider)) {
+      return { error: { message: `Unsupported OAuth provider: ${provider}. Use 'google' or 'apple'.` } }
+    }
     return supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
   }
 
@@ -59,6 +98,13 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    // Clean up sessionStorage (cart, table session data)
+    sessionStorage.removeItem('rufesto_table_session')
+    sessionStorage.removeItem('rufesto_cart')
+
+    // Remove all realtime subscriptions
+    supabase.removeAllChannels()
+
     await supabase.auth.signOut()
   }
 
@@ -72,15 +118,10 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  const isStaff = !!staffRow
-  const isKitchen = staffRow?.role === 'kitchen'
-  const restaurantId = staffRow?.restaurant_id || staffRow?.restaurants?.id
-
   return (
     <AuthContext.Provider value={{
-      session, profile, staffRow, loading,
-      isStaff, isKitchen, restaurantId,
-      sendOtp, verifyOtp, signInWithOAuth, updateUserMeta,
+      session, profile, loading, authError,
+      sendOtp, verifyOtp, signInWithOAuth, signInWithPassword, updateUserMeta,
       signOut, updateProfile,
     }}>
       {children}

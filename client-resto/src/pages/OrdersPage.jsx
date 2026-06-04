@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../contexts/AuthContext'
-import { formatPrice, timeAgo, categoryEmoji } from '../../lib/helpers'
-
-const STATUS_META = {
-  open:      { label: 'Open',      color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)' },
-  preparing: { label: 'Preparing', color: '#BA7517', bg: 'rgba(186,117,23,0.08)',  border: 'rgba(186,117,23,0.18)' },
-  ready:     { label: 'Ready',     color: '#3B6D11', bg: 'rgba(59,109,17,0.08)',   border: 'rgba(59,109,17,0.18)' },
-  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)' },
-  done:      { label: 'Done',      color: '#6B5E56', bg: 'var(--s3)',              border: 'var(--border)' },
-  cancelled: { label: 'Cancelled', color: '#A32D2D', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.18)' },
-}
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
+import { ORDER_STATUS } from '@shared/constants'
 
 const FILTERS = ['all', 'open', 'preparing', 'ready', 'served', 'done', 'cancelled']
 
@@ -27,7 +19,7 @@ export default function OrdersPage() {
     loadOrders()
 
     const ch = supabase
-      .channel('dash-orders-live')
+      .channel(`dash-orders-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadOrders())
       .subscribe()
 
@@ -82,11 +74,10 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Status filter */}
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         {FILTERS.map(f => {
           const cnt = f === 'all' ? orders.length : (statusCounts[f] || 0)
-          const sm = f !== 'all' ? STATUS_META[f] : null
+          const sm = f !== 'all' ? ORDER_STATUS[f] : null
           return (
             <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {sm && <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, display: 'inline-block', marginRight: 4 }} />}
@@ -119,7 +110,7 @@ export default function OrdersPage() {
 }
 
 function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
-  const s = STATUS_META[order.status] || STATUS_META.open
+  const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
   const items = order.order_items || []
   const time = order.placed_at
     ? new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -130,15 +121,12 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
       background: 'var(--s2)', borderRadius: 14,
       border: `1px solid var(--border)`, overflow: 'hidden',
     }}>
-      {/* Status accent bar */}
       <div style={{ height: 2, background: s.color, opacity: 0.5 }} />
 
-      {/* Header row */}
       <div onClick={onToggle} style={{
         padding: '0.75rem 1rem', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
       }}>
-        {/* Table badge */}
         <div style={{
           width: 38, height: 38, borderRadius: 10,
           background: 'var(--s3)', border: '1px solid var(--border)',
@@ -148,7 +136,6 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
           T{order.tables?.table_number || '?'}
         </div>
 
-        {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
@@ -163,7 +150,6 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
           </div>
         </div>
 
-        {/* Total + status */}
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>{formatPrice(order.total_amount)}</div>
           <span style={{
@@ -173,20 +159,17 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
           }}>{s.label}</span>
         </div>
 
-        {/* Expand indicator */}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
           style={{ flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </div>
 
-      {/* Expanded items */}
       {expanded && (
         <div style={{
           borderTop: '1px solid var(--border)', padding: '0.65rem 1rem 0.85rem',
           animation: 'fadeSlideUp 0.2s ease',
         }}>
-          {/* Items list */}
           {items.map(item => (
             <div key={item.id} style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -210,7 +193,6 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
             </div>
           ))}
 
-          {/* Order totals */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0 0.1rem',
             fontSize: '0.78rem', color: 'var(--t2)',
@@ -235,7 +217,6 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
             <span>Total</span><span style={{ color: 'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
           </div>
 
-          {/* Actions */}
           <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.75rem' }}>
             {order.status === 'ready' && (
               <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem' }}

@@ -1,12 +1,44 @@
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useCart } from '../../contexts/CartContext'
+import { supabase } from '../../lib/supabase'
 
 export default function Sidebar() {
-  const { isStaff } = useAuth()
+  const { session } = useAuth()
   const { theme, toggle } = useTheme()
   const { tableId } = useCart()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!session) { setUnreadCount(0); return }
+    const userId = session.user.id
+
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .then(({ count }) => setUnreadCount(count || 0))
+
+    const channel = supabase
+      .channel('sidebar-notif-badge')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      }, () => {
+        supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .then(({ count }) => setUnreadCount(count || 0))
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [session?.user?.id])
 
   return (
     <aside style={{
@@ -24,10 +56,11 @@ export default function Sidebar() {
       <div style={{
         marginBottom: '2rem',
         fontFamily: "'Playfair Display', Georgia, serif",
-        fontSize: '1.1rem', fontWeight: 700,
-        fontStyle: 'italic', color: 'var(--accent)',
-        letterSpacing: -0.5,
-        writingMode: 'horizontal-tb',
+        fontSize: '1.15rem', fontWeight: 700,
+        fontStyle: 'italic', letterSpacing: -0.5,
+        background: 'linear-gradient(135deg, var(--t1) 0%, var(--gold) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
       }}>
         R
       </div>
@@ -36,9 +69,9 @@ export default function Sidebar() {
         <SideItem to="/" label="Home" Icon={HomeIcon} />
         <SideItem to="/explore" label="Explore" Icon={SearchIcon} />
         <SideItem to="/map" label="Map" Icon={MapIcon} />
+        <SideItem to="/notifications" label="Notifications" Icon={BellIcon} badge={unreadCount} />
         <SideItem to="/profile" label="Profile" Icon={ProfileIcon} />
         {tableId && <SideItem to="/table" label="Table" Icon={TableIcon} />}
-        {isStaff && <SideItem to="/dashboard" label="Dashboard" Icon={DashIcon} />}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -50,8 +83,11 @@ export default function Sidebar() {
             background: 'none', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--t3)', cursor: 'pointer',
-            transition: 'all 0.2s',
+            transition: 'background-color 0.2s ease, color 0.2s ease, transform 120ms cubic-bezier(0.23,1,0.32,1)',
           }}
+          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
+          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          onPointerCancel={e => e.currentTarget.style.transform = 'scale(1)'}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.color = 'var(--t1)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)' }}
         >
@@ -65,8 +101,11 @@ export default function Sidebar() {
             background: 'none', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--t3)', cursor: 'pointer',
-            transition: 'all 0.2s',
+            transition: 'background-color 0.2s ease, color 0.2s ease, transform 120ms cubic-bezier(0.23,1,0.32,1)',
           }}
+          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
+          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          onPointerCancel={e => e.currentTarget.style.transform = 'scale(1)'}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.color = 'var(--t1)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)' }}
         >
@@ -81,19 +120,38 @@ export default function Sidebar() {
   )
 }
 
-function SideItem({ to, label, Icon }) {
+function SideItem({ to, label, Icon, badge = 0 }) {
   return (
     <NavLink to={to} end={to === '/'} title={label} style={({ isActive }) => ({
       width: 44, height: 44, borderRadius: 12,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: isActive ? 'var(--t1)' : 'var(--t3)',
-      transition: 'all 0.2s',
+      color: isActive ? 'var(--accent)' : 'var(--t3)',
+      transition: 'color 150ms, background 150ms',
       background: 'transparent',
+      position: 'relative',
+      borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
     })}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--s3)'}
-      onMouseLeave={e => e.currentTarget.style.background = ''}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--s2)'; e.currentTarget.style.color = 'var(--t2)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = '' }}
     >
-      {({ isActive }) => <Icon filled={isActive} />}
+      {({ isActive }) => (
+        <>
+          <Icon filled={isActive} />
+          {badge > 0 && (
+            <span style={{
+              position: 'absolute', top: 4, right: 4,
+              minWidth: 14, height: 14, borderRadius: 100,
+              background: 'var(--accent)', color: '#F5F0E8',
+              fontSize: '0.55rem', fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 3px',
+              border: '2px solid var(--bg)',
+            }}>
+              {badge > 9 ? '9+' : badge}
+            </span>
+          )}
+        </>
+      )}
     </NavLink>
   )
 }
@@ -141,17 +199,6 @@ function MapIcon({ filled }) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={filled ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill={filled ? 'currentColor' : 'none'} />
       <circle cx="12" cy="10" r="3" fill="none" />
-    </svg>
-  )
-}
-
-function DashIcon({ filled }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={filled ? 2.5 : 1.8} />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={filled ? 2.5 : 1.8} />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={filled ? 2.5 : 1.8} />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={filled ? 2.5 : 1.8} />
     </svg>
   )
 }

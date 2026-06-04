@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../contexts/AuthContext'
-import { timeAgo } from '../../lib/helpers'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { timeAgo } from '@shared/helpers'
+import { BOOKING_STATUS_STYLE } from '@shared/constants'
 
 const STATUSES = ['all', 'pending', 'confirmed', 'seated', 'completed', 'cancelled']
 
@@ -16,7 +17,7 @@ export default function BookingsPage() {
     load()
 
     const channel = supabase
-      .channel('dash-bookings')
+      .channel(`dash-bookings-${restaurantId}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'bookings',
         filter: `restaurant_id=eq.${restaurantId}`,
@@ -44,14 +45,6 @@ export default function BookingsPage() {
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter)
 
-  const STATUS_STYLE = {
-    pending:   { bg: 'rgba(245,158,11,0.08)', color: 'var(--accent)' },
-    confirmed: { bg: 'rgba(34,197,94,0.08)',  color: 'var(--green)' },
-    seated:    { bg: 'rgba(59,130,246,0.08)', color: 'var(--blue)' },
-    completed: { bg: 'var(--s3)',             color: 'var(--t3)' },
-    cancelled: { bg: 'rgba(239,68,68,0.08)', color: 'var(--red)' },
-  }
-
   return (
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -61,7 +54,6 @@ export default function BookingsPage() {
         </span>
       </div>
 
-      {/* Filter chips */}
       <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
         {STATUSES.map(s => (
           <button key={s} className={`chip${filter === s ? ' active' : ''}`}
@@ -78,14 +70,13 @@ export default function BookingsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(b => {
-            const sc = STATUS_STYLE[b.status] || STATUS_STYLE.pending
+            const sc = BOOKING_STATUS_STYLE[b.status] || BOOKING_STATUS_STYLE.pending
             const dt = new Date(b.reserved_from)
             return (
               <div key={b.id} style={{
                 background: 'var(--s2)', borderRadius: 12, padding: '1rem',
                 border: '1px solid var(--border)',
               }}>
-                {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>
@@ -101,7 +92,6 @@ export default function BookingsPage() {
                   }}>{b.status}</span>
                 </div>
 
-                {/* Details */}
                 <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--t2)', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <span>{dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
                   <span>{dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -115,7 +105,6 @@ export default function BookingsPage() {
                   </p>
                 )}
 
-                {/* Actions */}
                 {b.status === 'pending' && (
                   <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
                     <button className="btn btn-primary" style={{ flex: 1, padding: '0.45rem', fontSize: '0.78rem' }}

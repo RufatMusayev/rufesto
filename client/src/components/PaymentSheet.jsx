@@ -5,11 +5,11 @@ import { supabase } from '../lib/supabase'
 import { formatPrice } from '../lib/helpers'
 
 const METHODS = [
-  { id: 'card', label: 'Credit / Debit Card', icon: CardIcon, digital: true },
-  { id: 'apple', label: 'Apple Pay', icon: ApplePayIcon, digital: true },
-  { id: 'google', label: 'Google Pay', icon: GooglePayIcon, digital: true },
-  { id: 'cash', label: 'Pay Cash', icon: CashIcon, digital: false },
-  { id: 'reception', label: 'Pay at Reception', icon: ReceptionIcon, digital: false },
+  { id: 'card',      label: 'Credit / Debit Card', icon: CardIcon,      digital: true  },
+  { id: 'apple',     label: 'Apple Pay',            icon: ApplePayIcon,  digital: true  },
+  { id: 'google',    label: 'Google Pay',            icon: GooglePayIcon, digital: true  },
+  { id: 'cash',      label: 'Pay Cash',              icon: CashIcon,      digital: false },
+  { id: 'reception', label: 'Pay at Reception',      icon: ReceptionIcon, digital: false },
 ]
 
 export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }) {
@@ -28,7 +28,6 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
     setError('')
 
     const method = METHODS.find(m => m.id === selected)
-
     const orderIds = allOrderIds?.length ? allOrderIds : [order.id]
 
     if (method.digital) {
@@ -93,47 +92,49 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
 
         {success === 'digital' ? (
           <>
-            <div style={{ fontSize: '3rem', margin: '1.5rem 0 0.75rem' }}>✓</div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '1.5rem auto 1rem',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
               Payment Complete
             </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-              {formatPrice(total)} paid successfully.
+            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span> paid successfully.
             </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>
-              Thank you for dining with us!
-            </p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Thank you for dining with us!</p>
           </>
         ) : success === 'cash' ? (
           <>
-            <div style={{ fontSize: '3rem', margin: '1.5rem 0 0.75rem' }}>💵</div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+            <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>💵</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
               Waiter Notified
             </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-              A waiter is coming to collect {formatPrice(total)} in cash.
+            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
+              A waiter is coming to collect <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span> in cash.
             </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>
-              Please have the amount ready.
-            </p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Please have the amount ready.</p>
           </>
         ) : (
           <>
-            <div style={{ fontSize: '3rem', margin: '1.5rem 0 0.75rem' }}>🧾</div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+            <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>🧾</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
               Pay at Reception
             </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-              Please proceed to the reception to pay {formatPrice(total)}.
+            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
+              Please proceed to the reception to pay <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span>.
             </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>
-              The staff has been notified.
-            </p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>The staff has been notified.</p>
           </>
         )}
 
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}
-          onClick={handleDone}>
+        <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }} onClick={handleDone}>
           Done
         </button>
       </div>
@@ -148,39 +149,56 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Pay Bill</h2>
-            <button onClick={onClose} className="icon-btn" style={{ width: 28, height: 28 }}>✕</button>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.15rem', fontWeight: 700, color: 'var(--t1)' }}>
+              How would you like to pay?
+            </h2>
+            <button onClick={onClose} className="icon-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
 
-          {/* Amount */}
+          {/* Total display */}
           <div style={{
-            textAlign: 'center', padding: '1.25rem', marginBottom: '1.25rem',
+            textAlign: 'center', padding: '16px', marginBottom: '1.25rem',
             background: 'var(--s3)', borderRadius: 12,
             border: '1px solid var(--border)',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--t3)', fontWeight: 600, marginBottom: 4 }}>
-              TOTAL AMOUNT
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
+              Total Amount
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--t1)' }}>
+            <div style={{
+              fontFamily: "'DM Mono', monospace",
+              fontSize: '2rem', fontWeight: 900, color: 'var(--t1)',
+            }}>
               {formatPrice(total)}
             </div>
           </div>
 
-          {/* Payment methods */}
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+          {/* Payment method label */}
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: '0.6rem' }}>
             Select Payment Method
           </div>
 
+          {/* Methods */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: '1.25rem' }}>
             {METHODS.map(m => (
-              <button key={m.id} onClick={() => setSelected(m.id)} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 14px', borderRadius: 10,
-                background: selected === m.id ? 'rgba(139,45,66,0.08)' : 'var(--s2)',
-                border: `1.5px solid ${selected === m.id ? 'var(--accent)' : 'var(--border)'}`,
-                cursor: 'pointer', transition: 'all 0.15s',
-                textAlign: 'left', width: '100%',
-              }}>
+              <button
+                key={m.id}
+                onClick={() => setSelected(m.id)}
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: 12,
+                  border: `1.5px solid ${selected === m.id ? 'var(--accent)' : 'var(--border)'}`,
+                  background: selected === m.id ? 'rgba(139,45,66,0.08)' : 'var(--s2)',
+                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                  transition: 'all 150ms var(--ease-out)',
+                  textAlign: 'left',
+                }}
+                onPointerDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
                 <div style={{
                   width: 38, height: 38, borderRadius: 8,
                   background: 'var(--s3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -195,7 +213,8 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
                   width: 18, height: 18, borderRadius: '50%',
                   border: `2px solid ${selected === m.id ? 'var(--accent)' : 'var(--s4)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.15s',
+                  transition: 'border-color 150ms',
+                  flexShrink: 0,
                 }}>
                   {selected === m.id && (
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />
@@ -205,11 +224,29 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
             ))}
           </div>
 
-          {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginBottom: '0.75rem' }}>{error}</p>}
+          {error && (
+            <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginBottom: '0.75rem' }}>{error}</p>
+          )}
+
+          {/* Note for cash/reception */}
+          {(selected === 'cash' || selected === 'reception') && (
+            <p style={{ fontSize: '0.72rem', color: 'var(--t3)', textAlign: 'center', marginBottom: 10 }}>
+              {selected === 'cash'
+                ? 'A waiter will come to your table to collect payment.'
+                : 'Please proceed to the reception desk after confirmation.'}
+            </p>
+          )}
 
           {/* Pay button */}
-          <button className="btn btn-primary" style={{ width: '100%', padding: '12px 0', fontSize: '0.92rem' }}
-            onClick={handlePay} disabled={!selected || processing}>
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', padding: '13px 0', fontSize: '0.92rem' }}
+            onClick={handlePay}
+            disabled={!selected || processing}
+            onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+            onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
             {processing ? (
               <><span className="spinner" /> Processing…</>
             ) : selected === 'cash' ? (
@@ -220,15 +257,6 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               `Pay ${formatPrice(total)}`
             )}
           </button>
-
-          {/* Note for cash/reception */}
-          {(selected === 'cash' || selected === 'reception') && (
-            <p style={{ fontSize: '0.72rem', color: 'var(--t3)', textAlign: 'center', marginTop: 8 }}>
-              {selected === 'cash'
-                ? 'A waiter will come to your table to collect payment.'
-                : 'Please proceed to the reception desk after confirmation.'}
-            </p>
-          )}
         </div>
       </div>
     </div>

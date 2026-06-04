@@ -37,9 +37,18 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
   }
 
   if (fbDone) return (
-    <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>&#10003;</div>
-      <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>Thanks for your feedback!</div>
+    <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'rgba(77,124,63,0.12)', border: '1px solid var(--sage)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 12px',
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>Thanks for the feedback!</div>
       <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>We appreciate you taking the time.</p>
       <button className="btn btn-ghost" onClick={() => setFbDone(false)}>Send another</button>
     </div>
@@ -83,6 +92,8 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
   )
 }
 
+const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
+
 export default function ProfilePage() {
   const { session, profile, signOut, updateProfile } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
@@ -90,40 +101,52 @@ export default function ProfilePage() {
   const [tab,      setTab]      = useState('profile')
   const [editing,  setEditing]  = useState(false)
   const [name,     setName]     = useState(profile?.name || '')
+  const [editPhone, setEditPhone] = useState(profile?.phone || '')
+  const [editError, setEditError] = useState('')
   const [saving,   setSaving]   = useState(false)
 
   async function handleSave() {
+    if (!name.trim()) { setEditError('Name is required'); return }
+    const trimmedPhone = editPhone.trim()
+    if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+      setEditError('Please enter a valid phone number (e.g. +994 50 123 4567)')
+      return
+    }
+    setEditError('')
     setSaving(true)
-    await updateProfile({ name })
+    await updateProfile({ name: name.trim(), phone: trimmedPhone || null })
     setSaving(false)
     setEditing(false)
   }
 
   if (!session) return (
-    <div style={{ padding: '3rem 14px', textAlign: 'center', maxWidth: 470, margin: '0 auto' }}>
-      <div style={{
-        width: 72, height: 72, borderRadius: '50%',
-        background: 'var(--s3)', margin: '0 auto 1.25rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5" style={{ width: 32, height: 32 }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-        </svg>
-      </div>
-      <h2 style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '1.25rem' }}>Sign in to Rufesto</h2>
-      <p style={{ color: 'var(--t3)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-        Book tables, place orders, and leave dish reviews.
-      </p>
-      <button className="btn btn-primary" onClick={() => setShowAuth(true)}>Sign In / Register</button>
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-
-      <div className="card" style={{ padding: '1.5rem', marginTop: '2rem', textAlign: 'left' }}>
-        <h3 style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Share Feedback</h3>
-        <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-          Tell us what you think — no account needed.
+    <div style={{ maxWidth: 470, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+        <div style={{ fontSize: '3rem', marginBottom: 16 }}>🍽️</div>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, marginBottom: 8, color: 'var(--t1)' }}>
+          Welcome to Rufesto
+        </h2>
+        <p style={{ fontSize: '0.86rem', color: 'var(--t2)', lineHeight: 1.6, marginBottom: 24 }}>
+          Sign in to discover restaurants, save dishes, and join the conversation.
         </p>
-        <FeedbackForm />
+        <button onClick={() => setShowAuth(true)} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '0.9rem' }}>
+          Sign in
+        </button>
       </div>
+
+      <div style={{ margin: '0 16px 24px' }}>
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
+            Share Feedback
+          </h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
+            Tell us what you think — no account needed.
+          </p>
+          <FeedbackForm />
+        </div>
+      </div>
+
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   )
 
@@ -136,107 +159,184 @@ export default function ProfilePage() {
   ]
 
   return (
-    <div style={{ padding: '14px', maxWidth: 470, margin: '0 auto' }}>
-      <h1 className="page-title" style={{ marginBottom: '1.25rem' }}>Profile</h1>
+    <div style={{ maxWidth: 470, margin: '0 auto', paddingBottom: 80 }}>
+      {/* Profile header */}
+      <div style={{ padding: '24px 16px 16px', textAlign: 'center' }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'var(--s4)', margin: '0 auto 12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.8rem', fontWeight: 700, color: 'var(--accent)',
+          border: '2px solid var(--border-strong)',
+          overflow: 'hidden',
+        }}>
+          {profile?.profile_photo ? (
+            <img src={profile.profile_photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            (profile?.name || session.user?.email || 'U')[0].toUpperCase()
+          )}
+        </div>
+        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
+          {profile?.name || 'Your Profile'}
+        </h1>
+        <p style={{ fontSize: '0.78rem', color: 'var(--t3)' }}>{profile?.email || session.user?.email}</p>
 
-      <div className="no-scrollbar" style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', overflowX: 'auto' }}>
+        <PointsBadge userId={session.user.id} />
+      </div>
+
+      {/* Tab navigation */}
+      <div className="no-scrollbar" style={{
+        display: 'flex', gap: 0,
+        borderBottom: '1px solid var(--border)',
+        padding: '0 16px', overflowX: 'auto',
+      }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`chip${tab === t.id ? ' active' : ''}`}
-            style={{ flex: '0 0 auto', justifyContent: 'center' }}>
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flexShrink: 0, padding: '10px 16px',
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              fontSize: '0.8rem', fontWeight: tab === t.id ? 700 : 500,
+              color: tab === t.id ? 'var(--t1)' : 'var(--t3)',
+              borderBottom: `2px solid ${tab === t.id ? 'var(--accent)' : 'transparent'}`,
+              transition: 'color 150ms, border-color 150ms',
+              whiteSpace: 'nowrap',
+              marginBottom: -1,
+            }}
+          >
             {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'profile' && (
-        <div>
-          <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+      <div style={{ padding: '16px' }}>
+        {tab === 'profile' && (
+          <div>
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+              {/* Email (always shown, read-only) */}
+              <div style={{ marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Email</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--t2)' }}>{profile?.email || session.user.email}</div>
+              </div>
+
+              {/* Phone display (when not editing) */}
+              {!editing && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Phone</div>
+                  <div style={{ fontSize: '0.85rem', color: profile?.phone ? 'var(--t2)' : 'var(--t4)' }}>
+                    {profile?.phone || 'Not set'}
+                  </div>
+                </div>
+              )}
+
+              {editing ? (
+                <div>
+                  <label className="label" style={{ fontSize: '0.72rem' }}>Name</label>
+                  <input className="input" placeholder="Your name" value={name}
+                    onChange={e => setName(e.target.value)} style={{ marginBottom: '0.75rem' }} />
+                  <label className="label" style={{ fontSize: '0.72rem' }}>Phone</label>
+                  <input className="input" type="tel" placeholder="+994 50 123 4567" value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)} style={{ marginBottom: '0.75rem' }} />
+                  {editError && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{editError}</p>}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
+                      {saving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button className="btn btn-ghost" onClick={() => { setEditing(false); setEditError('') }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="btn btn-ghost" style={{ width: '100%' }}
+                  onClick={() => { setEditing(true); setName(profile?.name || ''); setEditPhone(profile?.phone || ''); setEditError('') }}>
+                  Edit Profile
+                </button>
+              )}
+            </div>
+
+            <PointsCard userId={session.user.id} />
+
+            {/* Settings */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
+              {/* Theme toggle row */}
               <div style={{
-                width: 60, height: 60, borderRadius: '50%',
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.4rem', fontWeight: 800, color: '#F5F0E8', flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 0', borderBottom: '1px solid var(--border)',
               }}>
-                {(profile?.name || '?')[0].toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{profile?.name || 'No name set'}</div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--t3)', marginTop: 2 }}>{profile?.email || session.user.email}</div>
-              </div>
-            </div>
-
-            {editing ? (
-              <div>
-                <input className="input" placeholder="Your name" value={name}
-                  onChange={e => setName(e.target.value)} style={{ marginBottom: '0.75rem' }} />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                  <button className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
-                </div>
-              </div>
-            ) : (
-              <button className="btn btn-ghost" style={{ width: '100%' }}
-                onClick={() => { setEditing(true); setName(profile?.name || '') }}>
-                Edit Profile
-              </button>
-            )}
-          </div>
-
-          {/* Settings */}
-          <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Appearance</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--t3)', marginTop: 2 }}>
+                <span style={{ fontSize: '0.86rem', color: 'var(--t1)', fontWeight: 500 }}>
                   {theme === 'dark' ? 'Dark mode' : 'Light mode'}
-                </div>
-              </div>
-              <button onClick={toggleTheme} style={{
-                width: 48, height: 28, borderRadius: 14,
-                background: theme === 'dark' ? 'var(--accent)' : 'var(--s4)',
-                border: 'none', cursor: 'pointer', position: 'relative',
-                transition: 'background 0.2s',
-              }}>
-                <div style={{
-                  width: 22, height: 22, borderRadius: '50%',
-                  background: 'var(--bg)',
-                  position: 'absolute', top: 3,
-                  left: theme === 'dark' ? 23 : 3,
-                  transition: 'left 0.2s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.65rem',
+                </span>
+                <button onClick={toggleTheme} style={{
+                  width: 48, height: 28, borderRadius: 14,
+                  background: theme === 'dark' ? 'var(--accent)' : 'var(--s4)',
+                  border: 'none', cursor: 'pointer', position: 'relative',
+                  transition: 'background 0.2s',
                 }}>
-                  {theme === 'dark' ? '🌙' : '☀️'}
-                </div>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: 'var(--bg)',
+                    position: 'absolute', top: 3,
+                    left: theme === 'dark' ? 23 : 3,
+                    transition: 'left 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.65rem',
+                  }}>
+                    {theme === 'dark' ? '🌙' : '☀️'}
+                  </div>
+                </button>
+              </div>
+
+              <button className="btn btn-danger" style={{ width: '100%', marginTop: 16 }} onClick={signOut}>
+                Sign out
               </button>
             </div>
+
+            <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
+                Share Feedback
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
+                Tell us what you think — suggestions, issues, or compliments.
+              </p>
+              <FeedbackForm userId={session.user.id} defaultName={profile?.name} defaultEmail={profile?.email} />
+            </div>
           </div>
+        )}
 
-          <PointsCard userId={session.user.id} />
+        {tab === 'reviews'  && <ReviewsTab  userId={session.user.id} />}
+        {tab === 'orders'   && <OrdersTab   userId={session.user.id} />}
+        {tab === 'bookings' && <BookingsTab userId={session.user.id} />}
+        {tab === 'saved'    && <SavedTab    userId={session.user.id} />}
+      </div>
+    </div>
+  )
+}
 
-          <button className="btn btn-danger" style={{ width: '100%', marginTop: '1rem' }} onClick={signOut}>
-            Sign Out
-          </button>
+function PointsBadge({ userId }) {
+  const [points, setPoints] = useState(null)
 
-          <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Share Feedback</h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-              Tell us what you think — suggestions, issues, or compliments.
-            </p>
-            <FeedbackForm userId={session.user.id} defaultName={profile?.name} defaultEmail={profile?.email} />
-          </div>
-        </div>
-      )}
+  useEffect(() => {
+    supabase
+      .from('loyalty_accounts')
+      .select('points_balance, tier')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data }) => { if (data) setPoints(data) })
+      .catch(() => {})
+  }, [userId])
 
-      {tab === 'reviews'  && <ReviewsTab  userId={session.user.id} />}
-      {tab === 'orders'   && <OrdersTab   userId={session.user.id} />}
-      {tab === 'bookings' && <BookingsTab userId={session.user.id} />}
-      {tab === 'saved'    && <SavedTab    userId={session.user.id} />}
+  if (!points || !points.points_balance) return null
+
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      marginTop: 10, padding: '5px 14px', borderRadius: 100,
+      background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
+    }}>
+      <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>
+      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
+        {points.points_balance} points
+      </span>
     </div>
   )
 }
@@ -255,22 +355,26 @@ function BookingsTab({ userId }) {
       .then(({ data }) => { setBookings(data || []); setLoading(false) })
   }, [userId])
 
-  if (loading) return <div style={{ color: 'var(--t3)', padding: '1rem 0' }}>Loading bookings…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+      {[1,2,3].map(i => (
+        <div key={i} className="skeleton" style={{ height: 90, borderRadius: 12 }} />
+      ))}
+    </div>
+  )
 
   if (!bookings.length) return (
-    <div className="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: 40, height: 40, margin: '0 auto 0.75rem', opacity: 0.4 }}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-      </svg>
-      No bookings yet.
-      <div style={{ fontSize: '0.82rem', color: 'var(--t4)', marginTop: 4 }}>Book a table from any restaurant page.</div>
+    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>📅</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No bookings yet</div>
+      <div style={{ fontSize: '0.82rem' }}>Book a table from any restaurant page.</div>
     </div>
   )
 
   const STATUS_COLOR = {
     pending:   { color: 'var(--accent)', bg: 'rgba(245,158,11,0.08)' },
-    confirmed: { color: 'var(--green)',  bg: 'rgba(34,197,94,0.08)'  },
-    seated:    { color: 'var(--blue)',   bg: 'rgba(59,130,246,0.08)' },
+    confirmed: { color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
+    seated:    { color: '#3b82f6',       bg: 'rgba(59,130,246,0.08)' },
     completed: { color: 'var(--t3)',     bg: 'var(--s3)'             },
     cancelled: { color: 'var(--red)',    bg: 'rgba(239,68,68,0.08)'  },
   }
@@ -281,20 +385,20 @@ function BookingsTab({ userId }) {
         const sc = STATUS_COLOR[b.status] || STATUS_COLOR.pending
         const dt = new Date(b.reserved_from)
         return (
-          <div key={b.id} className="card" style={{ padding: '1rem' }}>
+          <div key={b.id} className="card stagger-item" style={{ padding: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{b.restaurants?.name}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--t1)' }}>{b.restaurants?.name}</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--t3)', marginTop: 2 }}>
                   {b.restaurants?.cuisine_type} · {b.restaurants?.address}
                 </div>
               </div>
               <span style={{
-                fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 100,
+                fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
                 background: sc.bg, color: sc.color, flexShrink: 0, marginLeft: 8,
               }}>{b.status.toUpperCase()}</span>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem', color: 'var(--t2)' }}>
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem', color: 'var(--t2)', fontFamily: "'DM Mono', monospace" }}>
               <span>{dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               <span>{dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
               <span>{b.party_size} guests</span>
@@ -339,22 +443,26 @@ function OrdersTab({ userId }) {
     })
   }
 
-  if (loading) return <div style={{ color: 'var(--t3)', padding: '1rem 0' }}>Loading orders…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+      {[1,2,3].map(i => (
+        <div key={i} className="skeleton" style={{ height: 72, borderRadius: 12 }} />
+      ))}
+    </div>
+  )
 
   if (!orders.length) return (
-    <div className="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: 40, height: 40, margin: '0 auto 0.75rem', opacity: 0.4 }}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z" />
-      </svg>
-      No orders yet.
-      <div style={{ fontSize: '0.82rem', color: 'var(--t4)', marginTop: 4 }}>Add items to cart from a restaurant.</div>
+    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🧾</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No orders yet</div>
+      <div style={{ fontSize: '0.82rem' }}>Add items to cart from a restaurant.</div>
     </div>
   )
 
   const STATUS_COLOR = {
     open:      { color: 'var(--accent)', bg: 'rgba(245,158,11,0.08)' },
-    submitted: { color: 'var(--blue)',   bg: 'rgba(59,130,246,0.08)' },
-    completed: { color: 'var(--green)',  bg: 'rgba(34,197,94,0.08)'  },
+    submitted: { color: '#3b82f6',       bg: 'rgba(59,130,246,0.08)' },
+    completed: { color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
     cancelled: { color: 'var(--red)',    bg: 'rgba(239,68,68,0.08)'  },
   }
 
@@ -364,21 +472,23 @@ function OrdersTab({ userId }) {
         const sc   = STATUS_COLOR[o.status] || STATUS_COLOR.open
         const open = expanded.has(o.id)
         return (
-          <div key={o.id} className="card" style={{ padding: '1rem', cursor: 'pointer' }}
+          <div key={o.id} className="card stagger-item" style={{ padding: '1rem', cursor: 'pointer' }}
             onClick={() => toggleExpand(o.id)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--t1)' }}>
                 {o.order_items?.length || 0} item{o.order_items?.length !== 1 ? 's' : ''}
-                {o.tables?.table_number && <span style={{ color: 'var(--t3)', fontWeight: 400 }}> · Table {o.tables.table_number}</span>}
+                {o.tables?.table_number && (
+                  <span style={{ color: 'var(--t3)', fontWeight: 400 }}> · Table {o.tables.table_number}</span>
+                )}
               </div>
               <span style={{
-                fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 100,
+                fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
                 background: sc.bg, color: sc.color,
               }}>{o.status.toUpperCase()}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--t3)' }}>
-              <span>{timeAgo(o.placed_at)}</span>
-              <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
+              <span style={{ fontFamily: "'DM Mono', monospace" }}>{timeAgo(o.placed_at)}</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
             </div>
 
             {open && o.order_items?.length > 0 && (
@@ -386,26 +496,27 @@ function OrdersTab({ userId }) {
                 {o.order_items.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '0.3rem' }}>
                     <span style={{ color: 'var(--t1)' }}>{item.quantity}× {item.dishes?.name}</span>
-                    <span style={{ color: 'var(--t3)' }}>{formatPrice(item.unit_price * item.quantity)}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--t3)' }}>{formatPrice(item.unit_price * item.quantity)}</span>
                   </div>
                 ))}
                 <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Subtotal</span><span>{formatPrice(o.subtotal)}</span>
+                    <span>Subtotal</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.subtotal)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Tax (18%)</span><span>{formatPrice(o.tax_amount)}</span>
+                    <span>Tax (18%)</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Service (10%)</span><span>{formatPrice(o.service_charge)}</span>
+                    <span>Service (10%)</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, marginTop: 4 }}>
-                    <span>Total</span><span style={{ color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
+                    <span>Total</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
                   </div>
                 </div>
               </div>
             )}
-            <div style={{ textAlign: 'right', fontSize: '0.7rem', color: 'var(--t4)', marginTop: 4 }}>
+            <div style={{ textAlign: 'right', fontSize: '0.7rem', color: 'var(--t4)', marginTop: 6 }}>
               {open ? '▲ collapse' : '▼ details'}
             </div>
           </div>
@@ -417,6 +528,7 @@ function OrdersTab({ userId }) {
 
 function PointsCard({ userId }) {
   const [points, setPoints] = useState(null)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     supabase
@@ -424,7 +536,18 @@ function PointsCard({ userId }) {
       .select('points_balance, lifetime_points, tier')
       .eq('user_id', userId)
       .single()
-      .then(({ data }) => setPoints(data))
+      .then(({ data, error }) => {
+        if (error) {
+          setLoadError(true)
+          setPoints(null)
+        } else {
+          setPoints(data)
+        }
+      })
+      .catch(() => {
+        setLoadError(true)
+        setPoints(null)
+      })
   }, [userId])
 
   if (!points) return null
@@ -437,11 +560,11 @@ function PointsCard({ userId }) {
   const tc = TIER_COLORS[points.tier] || TIER_COLORS.bronze
 
   return (
-    <div className="card" style={{ padding: '1rem', marginBottom: '1rem', marginTop: '1rem' }}>
+    <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '1.3rem' }}>🪙</span>
-          <span style={{ fontWeight: 700, fontSize: '0.92rem' }}>Resto-Credits</span>
+          <span style={{ fontSize: '1.2rem' }}>🪙</span>
+          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--t1)' }}>Resto-Credits</span>
         </div>
         <span style={{
           fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
@@ -450,15 +573,15 @@ function PointsCard({ userId }) {
           {points.tier}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 20 }}>
+      <div style={{ display: 'flex', gap: 24 }}>
         <div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--gold)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--gold)' }}>
             {points.points_balance}
           </div>
           <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Available</div>
         </div>
         <div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--t2)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--t2)' }}>
             {points.lifetime_points}
           </div>
           <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Lifetime</div>
@@ -486,26 +609,26 @@ function ReviewsTab({ userId }) {
       .then(({ data }) => { setReviews(data || []); setLoading(false) })
   }, [userId])
 
-  if (loading) return <div style={{ color: 'var(--t3)', padding: '1rem 0' }}>Loading reviews…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+      {[1,2,3].map(i => (
+        <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />
+      ))}
+    </div>
+  )
 
   if (!reviews.length) return (
-    <div className="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: 40, height: 40, margin: '0 auto 0.75rem', opacity: 0.4 }}>
-        <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M10 2v20" strokeLinecap="round" />
-        <path d="M17 2v6c0 1.1.9 2 2 2h0c0 1.1-.9 2-2 2v10" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      No reviews yet.
-      <div style={{ fontSize: '0.82rem', color: 'var(--t4)', marginTop: 4 }}>
-        Review dishes after dining to earn Resto-Credits.
-      </div>
+    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>⭐</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No reviews yet</div>
+      <div style={{ fontSize: '0.82rem' }}>Review dishes after dining to earn Resto-Credits.</div>
     </div>
   )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {reviews.map(r => (
-        <div key={r.id} className="card" style={{ padding: '12px', cursor: 'pointer' }}
+        <div key={r.id} className="card stagger-item" style={{ padding: '12px', cursor: 'pointer' }}
           onClick={() => r.dishes?.restaurants?.slug && navigate(`/restaurant/${r.dishes.restaurants.slug}`)}>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{
@@ -518,17 +641,14 @@ function ReviewsTab({ userId }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{
-                  fontWeight: 700, fontSize: '0.88rem',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t1)' }}>
                   {r.dishes?.name || 'Dish'}
                 </div>
                 <span style={{ color: 'var(--gold)', fontSize: '0.78rem', flexShrink: 0, marginLeft: 8 }}>
                   {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
                 </span>
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--t3)', marginTop: 1 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.72rem', color: 'var(--t3)', marginTop: 1 }}>
                 {r.dishes?.restaurants?.name} · {timeAgo(r.created_at)}
               </div>
               {r.body && (
@@ -563,19 +683,19 @@ function SavedTab({ userId }) {
     await supabase.from('saved_dishes').delete().eq('id', id)
   }
 
-  if (loading) return <div style={{ color: 'var(--t3)', padding: '1rem 0' }}>Loading saved…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+      {[1,2,3].map(i => (
+        <div key={i} className="skeleton" style={{ height: 64, borderRadius: 12 }} />
+      ))}
+    </div>
+  )
 
   if (!saved.length) return (
-    <div className="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: 40, height: 40, margin: '0 auto 0.75rem', opacity: 0.4 }}>
-        <ellipse cx="12" cy="14" rx="8" ry="4" />
-        <path d="M12 3v7" strokeLinecap="round" />
-        <circle cx="12" cy="3" r="1.5" />
-      </svg>
-      No saved dishes yet.
-      <div style={{ fontSize: '0.82rem', color: 'var(--t4)', marginTop: 4 }}>
-        Tap the plate icon on any dish to save it for later.
-      </div>
+    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🍽️</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No saved dishes yet</div>
+      <div style={{ fontSize: '0.82rem' }}>Tap the plate icon on any dish to save it for later.</div>
     </div>
   )
 
@@ -585,7 +705,7 @@ function SavedTab({ userId }) {
         const dish = s.dishes
         if (!dish) return null
         return (
-          <div key={s.id} className="card" style={{
+          <div key={s.id} className="card stagger-item" style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
             cursor: 'pointer',
           }} onClick={() => dish.restaurants?.slug && navigate(`/restaurant/${dish.restaurants.slug}`)}>
@@ -599,27 +719,24 @@ function SavedTab({ userId }) {
               {categoryEmoji(dish.category)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontWeight: 600, fontSize: '0.88rem',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t1)' }}>
                 {dish.name}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
                   {dish.restaurants?.name}
                 </span>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent)' }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent)' }}>
                   {formatPrice(dish.price)}
                 </span>
                 {!dish.available && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--red)' }}>SOLD OUT</span>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase' }}>Sold Out</span>
                 )}
               </div>
             </div>
             <button onClick={e => { e.stopPropagation(); handleRemove(s.id) }} style={{
               background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: 4,
+              padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

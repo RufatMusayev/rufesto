@@ -9,6 +9,7 @@ import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import BookingModal from '../components/BookingModal'
 import DishDetailSheet from '../components/DishDetailSheet'
+import FloorPlanSheet from '../components/FloorPlanSheet'
 
 export default function RestaurantPage() {
   const { slug } = useParams()
@@ -20,6 +21,8 @@ export default function RestaurantPage() {
   const [activeSection, setActiveSection] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showBook, setShowBook] = useState(false)
+  const [showFloor, setShowFloor] = useState(false)
+  const [pickedTable, setPickedTable] = useState(null)
   const [dishDetail, setDishDetail] = useState(null)
   const [viewMode, setViewMode] = useState('grid')
   const [seatsFree, setSeatsFree] = useState(0)
@@ -318,10 +321,28 @@ export default function RestaurantPage() {
         <div style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
           <button
             className="btn btn-primary"
-            onClick={() => setShowBook(true)}
+            onClick={() => { setPickedTable(null); setShowBook(true) }}
             style={{ flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10 }}
           >
             Reserve a Table
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setShowFloor(true)}
+            aria-label="Floor plan"
+            title="Floor plan"
+            style={{
+              width: 38, padding: '8px 0', borderRadius: 10, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 17, height: 17 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="12" x2="12" y2="12" />
+              <line x1="12" y1="3" x2="12" y2="21" />
+              <circle cx="7.5" cy="7.5" r="1.6" />
+              <circle cx="17" cy="16" r="2.2" />
+            </svg>
           </button>
           <button
             className={isFollowing ? 'btn btn-ghost' : 'btn btn-follow'}
@@ -443,7 +464,24 @@ export default function RestaurantPage() {
         <div style={{ height: 48 }} />
       </div>
 
-      {showBook && <BookingModal restaurant={restaurant} onClose={() => setShowBook(false)} />}
+      {showBook && (
+        <BookingModal
+          restaurant={restaurant}
+          preselectedTable={pickedTable}
+          onClose={() => { setShowBook(false); setPickedTable(null) }}
+        />
+      )}
+      {showFloor && (
+        <FloorPlanSheet
+          restaurant={restaurant}
+          onClose={() => setShowFloor(false)}
+          onReserve={table => {
+            setShowFloor(false)
+            setPickedTable(table)
+            setShowBook(true)
+          }}
+        />
+      )}
       {dishDetail && <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />}
     </div>
   )

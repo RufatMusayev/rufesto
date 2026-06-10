@@ -3,12 +3,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import AuthModal from './AuthModal'
 
-export default function BookingModal({ restaurant, onClose }) {
+export default function BookingModal({ restaurant, onClose, preselectedTable = null }) {
   const { session } = useAuth()
   const [step,    setStep]    = useState(session ? 'form' : 'auth')
   const [date,    setDate]    = useState('')
   const [time,    setTime]    = useState('')
-  const [party,   setParty]   = useState(2)
+  const [party,   setParty]   = useState(preselectedTable ? Math.min(2, preselectedTable.capacity) : 2)
   const [note,    setNote]    = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
@@ -20,6 +20,8 @@ export default function BookingModal({ restaurant, onClose }) {
   const TIME_SLOTS = ['12:00','12:30','13:00','13:30','14:00','14:30',
     '18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00']
 
+  const maxParty = preselectedTable ? preselectedTable.capacity : 12
+
   async function handleBook(e) {
     e.preventDefault()
     setError('')
@@ -28,26 +30,37 @@ export default function BookingModal({ restaurant, onClose }) {
     const from  = new Date(`${date}T${time}`)
     const until = new Date(from.getTime() + 90 * 60000)
 
-    const { data: tables, error: tErr } = await supabase
-      .from('tables')
-      .select('id, table_number, capacity, state')
-      .eq('restaurant_id', restaurant.id)
-      .eq('is_active', true)
-      .gte('capacity', party)
-      .eq('state', 'free')
-      .order('capacity')
-      .limit(1)
+    let tableId
+    if (preselectedTable) {
+      if (party > preselectedTable.capacity) {
+        setError(`Table ${preselectedTable.table_number} seats up to ${preselectedTable.capacity} guests.`)
+        setLoading(false)
+        return
+      }
+      tableId = preselectedTable.id
+    } else {
+      const { data: tables, error: tErr } = await supabase
+        .from('tables')
+        .select('id, table_number, capacity, state')
+        .eq('restaurant_id', restaurant.id)
+        .eq('is_active', true)
+        .gte('capacity', party)
+        .eq('state', 'free')
+        .order('capacity')
+        .limit(1)
 
-    if (tErr || !tables?.length) {
-      setError('No available tables for this party size and time.')
-      setLoading(false)
-      return
+      if (tErr || !tables?.length) {
+        setError('No available tables for this party size and time.')
+        setLoading(false)
+        return
+      }
+      tableId = tables[0].id
     }
 
     const { error: bErr } = await supabase.from('bookings').insert({
       restaurant_id:    restaurant.id,
       user_id:          session.user.id,
-      table_id:         tables[0].id,
+      table_id:         tableId,
       reserved_from:    from.toISOString(),
       reserved_until:   until.toISOString(),
       party_size:       party,
@@ -135,6 +148,20 @@ export default function BookingModal({ restaurant, onClose }) {
             <p style={{ fontSize: '0.76rem', color: 'var(--t3)', fontWeight: 500 }}>
               {restaurant.name}
             </p>
+            {preselectedTable && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                marginTop: 7, padding: '3px 10px', borderRadius: 20,
+                background: 'var(--gold-bg, rgba(196,154,44,0.12))',
+                border: '1px solid var(--gold)',
+                fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)',
+              }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ width: 11, height: 11 }}>
+                  <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" />
+                </svg>
+                Table {preselectedTable.table_number} · {preselectedTable.sections?.name || 'Floor'} · up to {preselectedTable.capacity}
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -193,14 +220,14 @@ export default function BookingModal({ restaurant, onClose }) {
               </div>
               <button
                 type="button"
-                onClick={() => setParty(p => Math.min(12, p + 1))}
+                onClick={() => setParty(p => Math.min(maxParty, p + 1))}
                 style={{
                   width: 32, height: 32, borderRadius: '50%',
-                  background: party >= 12 ? 'var(--s3)' : 'var(--s4)',
+                  background: party >= maxParty ? 'var(--s3)' : 'var(--s4)',
                   border: '1px solid var(--border)',
-                  color: party >= 12 ? 'var(--t4)' : 'var(--t1)',
+                  color: party >= maxParty ? 'var(--t4)' : 'var(--t1)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: party >= 12 ? 'default' : 'pointer',
+                  cursor: party >= maxParty ? 'default' : 'pointer',
                   fontSize: '1.1rem', fontWeight: 700, flexShrink: 0,
                   transition: 'all 150ms var(--ease-out)',
                 }}

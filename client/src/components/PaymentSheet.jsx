@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -19,16 +19,59 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(null)
   const [error, setError] = useState('')
+  const [credits, setCredits] = useState(0)
+  const [useCredits, setUseCredits] = useState(false)
+  const [creditError, setCreditError] = useState('')
+  const [appliedDiscount, setAppliedDiscount] = useState(0)
 
   const total = order?.total_amount || 0
+
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('loyalty_accounts')
+      .select('points')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => setCredits(data?.points || 0))
+      .catch(() => {})
+  }, [session?.user?.id])
+
+  // Usable credits: capped by order total, rounded down to nearest 100 (100 credits = ₼1)
+  const usablePoints = Math.floor(Math.min(credits, Math.round(total * 100)) / 100) * 100
+  const creditDiscount = usablePoints / 100
+  const creditsOn = useCredits && usablePoints >= 100
+  const payable = creditsOn ? Math.max(total - creditDiscount, 0) : total
+  const paidTotal = Math.max(total - appliedDiscount, 0)
 
   async function handlePay() {
     if (!selected) return
     setProcessing(true)
     setError('')
+    setCreditError('')
 
     const method = METHODS.find(m => m.id === selected)
     const orderIds = allOrderIds?.length ? allOrderIds : [order.id]
+
+    // Redeem Resto-Credits first — never finalize payment if redemption fails
+    let discountApplied = 0
+    if (creditsOn) {
+      try {
+        const { error: redeemErr } = await supabase.rpc('redeem_credits', {
+          p_points: usablePoints,
+          p_order_id: order?.id ?? null,
+        })
+        if (redeemErr) throw redeemErr
+        discountApplied = creditDiscount
+        setAppliedDiscount(discountApplied)
+      } catch {
+        setUseCredits(false)
+        setCreditError('Could not apply Resto-Credits. You can pay the full amount instead.')
+        setProcessing(false)
+        return
+      }
+    }
+    const amountDue = Math.max(total - discountApplied, 0)
 
     if (method.digital) {
       await new Promise(r => setTimeout(r, 1800))
@@ -36,7 +79,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
       const paymentRows = orderIds.map(oid => ({
         order_id: oid,
         user_id: session.user.id,
-        amount: total,
+        amount: amountDue,
         method: selected,
         status: 'completed',
         paid_at: new Date().toISOString(),
@@ -51,7 +94,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
       const paymentRows = orderIds.map(oid => ({
         order_id: oid,
         user_id: session.user.id,
-        amount: total,
+        amount: amountDue,
         method: selected,
         status: 'pending',
       }))
@@ -63,11 +106,11 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
         restaurant_id: restaurantId,
         type: selected === 'cash' ? 'cash_payment_request' : 'reception_payment_request',
         title: selected === 'cash' ? 'Cash Payment Requested' : 'Reception Payment Requested',
-        body: `Table requires ${selected === 'cash' ? 'cash collection' : 'reception payment'}. Amount: ${formatPrice(total)}`,
+        body: `Table requires ${selected === 'cash' ? 'cash collection' : 'reception payment'}. Amount: ${formatPrice(amountDue)}`,
         metadata: JSON.stringify({
           table_id: tableId,
           order_id: order.id,
-          amount: total,
+          amount: amountDue,
           user_id: session.user.id,
         }),
       })
@@ -106,8 +149,13 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               Payment Complete
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span> paid successfully.
+              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span> paid successfully.
             </p>
+            {appliedDiscount > 0 && (
+              <p style={{ color: 'var(--gold)', fontSize: '0.78rem', marginBottom: 4 }}>
+                Resto-Credits saved you {formatPrice(appliedDiscount)}.
+              </p>
+            )}
             <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Thank you for dining with us!</p>
           </>
         ) : success === 'cash' ? (
@@ -117,7 +165,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               Waiter Notified
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              A waiter is coming to collect <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span> in cash.
+              A waiter is coming to collect <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span> in cash.
             </p>
             <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Please have the amount ready.</p>
           </>
@@ -128,7 +176,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               Pay at Reception
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              Please proceed to the reception to pay <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(total)}</span>.
+              Please proceed to the reception to pay <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span>.
             </p>
             <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>The staff has been notified.</p>
           </>
@@ -172,9 +220,58 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               fontFamily: "'DM Mono', monospace",
               fontSize: '2rem', fontWeight: 900, color: 'var(--t1)',
             }}>
-              {formatPrice(total)}
+              {formatPrice(payable)}
             </div>
+            {creditsOn && (
+              <div style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: '0.72rem', color: 'var(--gold)', marginTop: 4,
+              }}>
+                {formatPrice(total)} − {formatPrice(creditDiscount)} Resto-Credits
+              </div>
+            )}
           </div>
+
+          {/* Resto-Credits toggle */}
+          {credits >= 100 && total > 0 && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 14px', borderRadius: 12,
+                background: useCredits ? 'rgba(196,154,44,0.08)' : 'var(--s2)',
+                border: `1.5px solid ${useCredits ? 'var(--gold)' : 'var(--border)'}`,
+                transition: 'all 150ms var(--ease-out)',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>🪙</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--t1)' }}>
+                    Use Resto-Credits
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace", marginTop: 1 }}>
+                    {credits} credits{useCredits ? ` · −${formatPrice(creditDiscount)}` : ''}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setUseCredits(v => !v); setCreditError('') }}
+                  style={{
+                    width: 44, height: 26, borderRadius: 13, flexShrink: 0,
+                    background: useCredits ? 'var(--gold)' : 'var(--s4)',
+                    border: 'none', cursor: 'pointer', position: 'relative',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', background: 'var(--bg)',
+                    position: 'absolute', top: 3, left: useCredits ? 21 : 3,
+                    transition: 'left 0.2s',
+                  }} />
+                </button>
+              </div>
+              {creditError && (
+                <p style={{ color: 'var(--red)', fontSize: '0.74rem', marginTop: 6 }}>{creditError}</p>
+              )}
+            </div>
+          )}
 
           {/* Payment method label */}
           <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: '0.6rem' }}>
@@ -254,7 +351,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
             ) : selected === 'reception' ? (
               'Confirm'
             ) : (
-              `Pay ${formatPrice(total)}`
+              `Pay ${formatPrice(payable)}`
             )}
           </button>
         </div>

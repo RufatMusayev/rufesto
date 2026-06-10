@@ -4,14 +4,17 @@ import { supabase } from '../lib/supabase'
 import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo } from '../lib/helpers'
 import { useAuth } from '../contexts/AuthContext'
 import DishDetailSheet from '../components/DishDetailSheet'
+import PromoCard from '../components/PromoCard'
 
 export default function HomePage() {
   const [restaurants, setRestaurants] = useState([])
   const [reviews, setReviews] = useState([])
+  const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
   const [dishDetail, setDishDetail] = useState(null)
   const [followedIds, setFollowedIds] = useState([])
   const { session } = useAuth()
+  const trackedImpressions = useRef(new Set())
 
   useEffect(() => {
     async function loadFeed() {
@@ -25,7 +28,7 @@ export default function HomePage() {
         setFollowedIds(followIds)
       }
 
-      const [{ data: restData }, { data: revData }] = await Promise.all([
+      const [{ data: restData }, { data: revData }, { data: campData }] = await Promise.all([
         supabase
           .from('restaurants')
           .select('*, operating_hours(*)')
@@ -33,10 +36,14 @@ export default function HomePage() {
           .order('name'),
         supabase
           .from('reviews')
-          .select('*, dishes(name, category, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
+          .select('*, dishes(id, name, price, photo, category, available, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
           .eq('is_flagged', false)
           .order('created_at', { ascending: false })
           .limit(20),
+        // RLS only exposes active campaigns within their run window
+        supabase
+          .from('ad_campaigns')
+          .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, avg_rating, review_count)'),
       ])
 
       const allRest = restData || []
@@ -48,6 +55,19 @@ export default function HomePage() {
       const followedRevs = allRevs.filter(r => followIds.includes(r.dishes?.restaurant_id))
       const otherRevs = allRevs.filter(r => !followIds.includes(r.dishes?.restaurant_id))
       setReviews([...followedRevs, ...otherRevs])
+
+      const allCamps = campData || []
+      setCampaigns(allCamps)
+      // Fire-and-forget impression tracking — once per campaign per feed load
+      allCamps.forEach(c => {
+        if (trackedImpressions.current.has(c.id)) return
+        trackedImpressions.current.add(c.id)
+        try {
+          supabase
+            .rpc('track_campaign', { p_campaign_id: c.id, p_event: 'impression' })
+            .then(() => {}, () => {})
+        } catch { /* ignore */ }
+      })
 
       setLoading(false)
     }
@@ -65,10 +85,12 @@ export default function HomePage() {
         <>
           <StoriesBar restaurants={restaurants} followedIds={followedIds} />
           <div style={{ maxWidth: 470, margin: '0 auto' }}>
-            {buildFeed(reviews, restaurants).map((item, i) =>
+            {buildFeed(reviews, restaurants, campaigns).map((item, i) =>
               item._type === 'review'
                 ? <ReviewPostCard key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail} />
-                : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds} />
+                : item._type === 'promo'
+                  ? <PromoCard key={`promo-${item.id}`} campaign={item} index={i} onDishClick={setDishDetail} />
+                  : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds} />
             )}
             <div style={{ height: 80 }} />
           </div>
@@ -402,8 +424,9 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
   )
 }
 
-/** Interleave reviews and restaurants: review, restaurant, review, restaurant... */
-function buildFeed(reviews, restaurants) {
+/** Interleave reviews and restaurants: review, restaurant, review, restaurant...
+ *  then slot a promoted campaign in as roughly every 4th item. */
+function buildFeed(reviews, restaurants, campaigns = []) {
   const feed = []
   const ri = [...restaurants]
   const rv = [...reviews]
@@ -412,7 +435,17 @@ function buildFeed(reviews, restaurants) {
     if (vIdx < rv.length) feed.push({ ...rv[vIdx++], _type: 'review' })
     if (rIdx < ri.length) feed.push({ ...ri[rIdx++], _type: 'restaurant' })
   }
-  return feed
+  if (!campaigns.length) return feed
+
+  const withPromos = []
+  let pIdx = 0
+  feed.forEach(item => {
+    withPromos.push(item)
+    if (pIdx < campaigns.length && withPromos.length % 4 === 3) {
+      withPromos.push({ ...campaigns[pIdx++], _type: 'promo' })
+    }
+  })
+  return withPromos
 }
 
 function ReviewPostCard({ review: rev, index, onDishClick }) {

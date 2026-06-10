@@ -8,6 +8,7 @@ const NAV = [
   { to: '/kds',      label: 'Kitchen',             icon: KitchenIcon },
   { to: '/tables',   label: 'Tables',              icon: TablesIcon },
   { to: '/menu',     label: 'Menu',                icon: MenuIcon },
+  { to: '/promos',   label: 'Promos',              icon: PromosIcon },
   { to: '/bookings', label: 'Bookings',            icon: BookingsIcon },
 ]
 
@@ -90,6 +91,9 @@ function TablesIcon() {
 }
 function MenuIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="4" y1="12" x2="14" y2="12" /><line x1="4" y1="18" x2="14" y2="18" /><circle cx="19" cy="6" r="2" /><circle cx="19" cy="12" r="2" /><circle cx="19" cy="18" r="2" /></svg>
+}
+function PromosIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l18-7v18l-18-7v-4z" /><path d="M7 14.5V18a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-2" /></svg>
 }
 function BookingsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /></svg>

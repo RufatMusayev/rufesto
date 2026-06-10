@@ -21,6 +21,9 @@ export default function DishDetailSheet({ dish, onClose }) {
   const [myBody, setMyBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [reviewError, setReviewError] = useState('')
+  const [myPhoto, setMyPhoto] = useState(null)
+  const [myPhotoPreview, setMyPhotoPreview] = useState(null)
+  const photoInputRef = useRef(null)
   const tapTimer = useRef(null)
   const tapCount = useRef(0)
 
@@ -77,11 +80,20 @@ export default function DishDetailSheet({ dish, onClose }) {
     if (!myRating) { setReviewError('Select a rating'); return }
     setReviewError('')
     setSubmitting(true)
+    let photoUrl = null
+    if (myPhoto) {
+      const ext = (myPhoto.name.split('.').pop() || 'jpg').toLowerCase()
+      const path = `reviews/${session.user.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('dish-photos').upload(path, myPhoto)
+      if (upErr) { setSubmitting(false); setReviewError(`Photo upload failed: ${upErr.message}`); return }
+      photoUrl = supabase.storage.from('dish-photos').getPublicUrl(path).data.publicUrl
+    }
     const { data, error } = await supabase.from('reviews').insert({
       dish_id: dish.id,
       user_id: session.user.id,
       rating: myRating,
       body: myBody || null,
+      photo: photoUrl,
     }).select('*, users(name, profile_photo)').single()
     setSubmitting(false)
     if (error) { setReviewError(error.message); return }
@@ -89,6 +101,9 @@ export default function DishDetailSheet({ dish, onClose }) {
     setShowReviewForm(false)
     setMyRating(0)
     setMyBody('')
+    if (myPhotoPreview) URL.revokeObjectURL(myPhotoPreview)
+    setMyPhoto(null)
+    setMyPhotoPreview(null)
   }
 
   async function handleToggleSave() {
@@ -541,6 +556,12 @@ export default function DishDetailSheet({ dish, onClose }) {
                         {r.body}
                       </p>
                     )}
+                    {r.photo && (
+                      <img src={r.photo} alt="Review photo" loading="lazy" style={{
+                        marginTop: 6, width: '100%', maxWidth: 220, borderRadius: 10,
+                        border: '1px solid var(--border)', display: 'block',
+                      }} />
+                    )}
                   </div>
                 </div>
               ))}
@@ -597,6 +618,34 @@ export default function DishDetailSheet({ dish, onClose }) {
                     onChange={e => setMyBody(e.target.value)}
                     style={{ flex: 1, fontSize: '0.82rem', padding: '9px 13px', borderRadius: 20 }}
                   />
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      if (myPhotoPreview) URL.revokeObjectURL(myPhotoPreview)
+                      setMyPhoto(f)
+                      setMyPhotoPreview(URL.createObjectURL(f))
+                      e.target.value = ''
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    aria-label="Add photo"
+                    style={{
+                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                      background: myPhoto ? 'var(--gold)' : 'var(--s2)',
+                      border: '1px solid var(--border)', cursor: 'pointer',
+                      fontSize: '0.95rem', lineHeight: 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    📷
+                  </button>
                   <button
                     className="btn btn-primary"
                     style={{ padding: '8px 18px', fontSize: '0.82rem', borderRadius: 20, flexShrink: 0 }}
@@ -605,6 +654,33 @@ export default function DishDetailSheet({ dish, onClose }) {
                     {submitting ? '...' : 'Post'}
                   </button>
                 </div>
+                {myPhotoPreview && (
+                  <div style={{ position: 'relative', display: 'inline-block', marginTop: 8 }}>
+                    <img src={myPhotoPreview} alt="Preview" style={{
+                      width: 72, height: 72, objectFit: 'cover', borderRadius: 10,
+                      border: '1px solid var(--border)', display: 'block',
+                    }} />
+                    <button
+                      type="button"
+                      aria-label="Remove photo"
+                      onClick={() => {
+                        URL.revokeObjectURL(myPhotoPreview)
+                        setMyPhoto(null)
+                        setMyPhotoPreview(null)
+                      }}
+                      style={{
+                        position: 'absolute', top: -6, right: -6,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: 'var(--t1)', color: 'var(--s1)',
+                        border: 'none', cursor: 'pointer', fontSize: '0.7rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        lineHeight: 1, padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
                 {reviewError && (
                   <p style={{ color: 'var(--red)', fontSize: '0.72rem', marginTop: 5 }}>
                     {reviewError}

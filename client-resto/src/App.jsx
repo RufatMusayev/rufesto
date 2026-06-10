@@ -10,6 +10,7 @@ import OrdersPage      from './pages/OrdersPage'
 import KDSPage         from './pages/KDSPage'
 import TablesPage      from './pages/TablesPage'
 import MenuPage        from './pages/MenuPage'
+import PromosPage      from './pages/PromosPage'
 import BookingsPage    from './pages/BookingsPage'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="/kds"      element={<KDSPage />} />
                 <Route path="/tables"   element={<TablesPage />} />
                 <Route path="/menu"     element={<MenuPage />} />
+                <Route path="/promos"   element={<PromosPage />} />
                 <Route path="/bookings" element={<BookingsPage />} />
               </Route>
             </Route>

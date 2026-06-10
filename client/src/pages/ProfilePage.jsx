@@ -318,14 +318,14 @@ function PointsBadge({ userId }) {
   useEffect(() => {
     supabase
       .from('loyalty_accounts')
-      .select('points_balance, tier')
+      .select('points, tier')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => { if (data) setPoints(data) })
       .catch(() => {})
   }, [userId])
 
-  if (!points || !points.points_balance) return null
+  if (!points || !points.points) return null
 
   return (
     <div style={{
@@ -335,7 +335,7 @@ function PointsBadge({ userId }) {
     }}>
       <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>
       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
-        {points.points_balance} points
+        {points.points} credits
       </span>
     </div>
   )
@@ -526,38 +526,50 @@ function OrdersTab({ userId }) {
   )
 }
 
+const TX_REASON_LABELS = {
+  review_posted: 'Review posted',
+  redeemed: 'Redeemed at checkout',
+}
+
+function txReasonLabel(reason) {
+  if (TX_REASON_LABELS[reason]) return TX_REASON_LABELS[reason]
+  if (!reason) return 'Adjustment'
+  const label = reason.replace(/_/g, ' ')
+  return label[0].toUpperCase() + label.slice(1)
+}
+
 function PointsCard({ userId }) {
-  const [points, setPoints] = useState(null)
-  const [loadError, setLoadError] = useState(false)
+  const [account, setAccount] = useState(null)
+  const [transactions, setTransactions] = useState([])
 
   useEffect(() => {
     supabase
       .from('loyalty_accounts')
-      .select('points_balance, lifetime_points, tier')
+      .select('points, tier, points_earned, points_spent')
       .eq('user_id', userId)
-      .single()
-      .then(({ data, error }) => {
-        if (error) {
-          setLoadError(true)
-          setPoints(null)
-        } else {
-          setPoints(data)
-        }
-      })
-      .catch(() => {
-        setLoadError(true)
-        setPoints(null)
-      })
+      .maybeSingle()
+      .then(({ data }) => setAccount(data || { points: 0, tier: 'bronze', points_earned: 0, points_spent: 0 }))
+      .catch(() => setAccount({ points: 0, tier: 'bronze', points_earned: 0, points_spent: 0 }))
+
+    supabase
+      .from('loyalty_transactions')
+      .select('id, delta, reason, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setTransactions(data || []))
+      .catch(() => {})
   }, [userId])
 
-  if (!points) return null
+  if (!account) return null
 
   const TIER_COLORS = {
-    bronze: { color: '#CD7F32', bg: 'rgba(205,127,50,0.08)' },
-    silver: { color: '#A0A0A0', bg: 'rgba(160,160,160,0.08)' },
-    gold:   { color: 'var(--gold)', bg: 'rgba(196,154,44,0.08)' },
+    bronze:   { color: '#CD7F32', bg: 'rgba(205,127,50,0.08)' },
+    silver:   { color: '#A0A0A0', bg: 'rgba(160,160,160,0.08)' },
+    gold:     { color: 'var(--gold)', bg: 'rgba(196,154,44,0.08)' },
+    platinum: { color: '#8FA8B8', bg: 'rgba(143,168,184,0.08)' },
   }
-  const tc = TIER_COLORS[points.tier] || TIER_COLORS.bronze
+  const tc = TIER_COLORS[account.tier] || TIER_COLORS.bronze
 
   return (
     <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
@@ -570,26 +582,58 @@ function PointsCard({ userId }) {
           fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
           background: tc.bg, color: tc.color, textTransform: 'uppercase', letterSpacing: 0.5,
         }}>
-          {points.tier}
+          {account.tier}
         </span>
       </div>
       <div style={{ display: 'flex', gap: 24 }}>
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--gold)' }}>
-            {points.points_balance}
+            {account.points}
           </div>
           <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Available</div>
         </div>
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--t2)' }}>
-            {points.lifetime_points}
+            {account.points_earned}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Lifetime</div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Earned</div>
         </div>
       </div>
       <p style={{ fontSize: '0.72rem', color: 'var(--t4)', marginTop: 10 }}>
-        Earn credits by posting dish reviews. Redeem for discounts.
+        Earn 10 credits per review · 100 credits = ₼1
       </p>
+
+      {transactions.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
+          <div style={{
+            fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)',
+            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+          }}>
+            Recent activity
+          </div>
+          {transactions.map(t => (
+            <div key={t.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '5px 0',
+            }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--t1)', fontWeight: 500 }}>
+                  {txReasonLabel(t.reason)}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--t4)', fontFamily: "'DM Mono', monospace" }}>
+                  {timeAgo(t.created_at)}
+                </div>
+              </div>
+              <span style={{
+                fontFamily: "'DM Mono', monospace", fontSize: '0.82rem', fontWeight: 700,
+                color: t.delta >= 0 ? 'var(--sage)' : 'var(--red)',
+              }}>
+                {t.delta >= 0 ? `+${t.delta}` : t.delta}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

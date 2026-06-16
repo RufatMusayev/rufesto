@@ -460,10 +460,14 @@ function OrdersTab({ userId }) {
   )
 
   const STATUS_COLOR = {
-    open:      { color: 'var(--accent)', bg: 'rgba(245,158,11,0.08)' },
-    submitted: { color: '#3b82f6',       bg: 'rgba(59,130,246,0.08)' },
-    completed: { color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
-    cancelled: { color: 'var(--red)',    bg: 'rgba(239,68,68,0.08)'  },
+    open:      { color: 'var(--accent)',  bg: 'rgba(245,158,11,0.08)' },
+    submitted: { color: '#3b82f6',        bg: 'rgba(59,130,246,0.08)' },
+    preparing: { color: 'var(--warning)', bg: 'rgba(186,117,23,0.08)' },
+    ready:     { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
+    served:    { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
+    done:      { color: 'var(--t3)',      bg: 'var(--s3)'             },
+    completed: { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
+    cancelled: { color: 'var(--red)',     bg: 'rgba(239,68,68,0.08)'  },
   }
 
   return (

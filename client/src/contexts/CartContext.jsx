@@ -63,22 +63,50 @@ export function CartProvider({ children }) {
   })
   const [open, setOpen]       = useState(false)
   const [placing, setPlacing] = useState(false)
+  const [cartError, setCartError] = useState('')
   const { session }           = useAuth()
 
   const total    = state.items.reduce((s, i) => s + (Number(i.dish.price) || 0) * i.qty, 0)
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
 
   function addDish(dish) {
+    // Block cross-restaurant adds when a table session is active
+    if (
+      state.tableId &&
+      dish.restaurant_id &&
+      state.restaurantId &&
+      dish.restaurant_id !== state.restaurantId
+    ) {
+      setCartError('This table is at a different restaurant. You can only order from the restaurant your table belongs to.')
+      return
+    }
+    setCartError('')
     dispatch({ type: 'ADD', dish })
     setOpen(true)
+  }
+
+  function clearCartError() {
+    setCartError('')
   }
 
   function setTable(tableId, restaurantId, activeBookingId = null) {
     dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId })
     saveSession(tableId, restaurantId, activeBookingId)
+    // Reflect the live session on the restaurant dashboard: free/reserved -> occupied.
+    supabase.from('tables').update({ state: 'occupied' })
+      .eq('id', tableId).in('state', ['free', 'reserved'])
+      .then(() => {})
   }
 
-  function clearTable() {
+  function clearTable(release = false) {
+    const tid = state.tableId
+    // On an explicit end (not when staff already freed the table), mark it cleared
+    // so the dashboard stops showing the guest as seated.
+    if (release && tid) {
+      supabase.from('tables').update({ state: 'cleared' })
+        .eq('id', tid).neq('state', 'free')
+        .then(() => {})
+    }
     dispatch({ type: 'CLEAR_TABLE' })
     clearSession()
   }
@@ -135,6 +163,7 @@ export function CartProvider({ children }) {
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
       open, setOpen,
       placing,
+      cartError, clearCartError,
       addDish,
       remove:    (dishId) => dispatch({ type: 'REMOVE', dishId }),
       decrement: (dishId) => dispatch({ type: 'DEC',    dishId }),

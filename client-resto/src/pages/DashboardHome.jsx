@@ -76,30 +76,49 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(155px,1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-        {[
-          { icon: '₼', label: "Today's Revenue", value: formatPrice(stats.revenue), color: 'var(--accent)' },
-          { icon: '📋', label: 'Orders Today', value: stats.orderCount, color: 'var(--blue)' },
-          { icon: '🪑', label: 'Active Tables', value: `${stats.activeTables}/${stats.totalTables}`, color: 'var(--green)' },
-          { icon: '🍽', label: 'Dishes Available', value: `${stats.availDishes}/${stats.totalDishes}`, color: 'var(--t1)' },
-        ].map(s => (
-          <div key={s.label} className="dash-stat">
-            <div style={{ fontSize: '1.15rem' }}>{s.icon}</div>
-            <div className="dash-stat-value" style={{ color: s.color }}>{s.value}</div>
-            <div className="dash-stat-label">{s.label}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:'0.75rem', marginBottom:'1.25rem' }}>
+        <div className="stat-card" style={{ '--card-accent': 'var(--gold)' }}>
+          <span className="stat-sub">Today</span>
+          <div className="stat-value">{formatPrice(stats.revenue)}</div>
+          <div className="stat-label">Revenue</div>
+        </div>
+        <div className="stat-card" style={{ '--card-accent': 'var(--blue)' }}>
+          <div className="stat-value">{stats.orderCount}</div>
+          <div className="stat-label">Orders Today</div>
+        </div>
+        <div className="stat-card" style={{ '--card-accent': 'var(--green)' }}>
+          <div className="stat-value">
+            {stats.activeTables}
+            <span style={{ fontSize:'1rem', fontWeight:500, color:'var(--t3)' }}>/{stats.totalTables}</span>
           </div>
-        ))}
+          <div className="stat-label">Active Tables</div>
+        </div>
+        <div className="stat-card" style={{ '--card-accent': 'var(--t2)' }}>
+          <div className="stat-value">
+            {stats.availDishes}
+            <span style={{ fontSize:'1rem', fontWeight:500, color:'var(--t3)' }}>/{stats.totalDishes}</span>
+          </div>
+          <div className="stat-label">Menu Available</div>
+        </div>
       </div>
 
       {(stats.kdsActive > 0 || pendingBookings > 0) && (
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <div style={{ display:'flex', gap:'0.5rem', marginBottom:'1.25rem', flexWrap:'wrap' }}>
           {stats.kdsActive > 0 && (
-            <Link to="/kds" style={alertStyle('#F59E0B')}>
+            <Link to="/kds" className="alert-banner" style={{
+              '--alert-bg': 'rgba(186,117,23,0.08)',
+              '--alert-border': 'rgba(186,117,23,0.28)',
+              '--alert-color': '#BA7517',
+            }}>
               🔥 {stats.kdsActive} in kitchen →
             </Link>
           )}
           {pendingBookings > 0 && (
-            <Link to="/bookings" style={alertStyle('#3b82f6')}>
+            <Link to="/bookings" className="alert-banner" style={{
+              '--alert-bg': 'rgba(59,130,246,0.08)',
+              '--alert-border': 'rgba(59,130,246,0.25)',
+              '--alert-color': 'var(--blue)',
+            }}>
               📅 {pendingBookings} pending booking{pendingBookings > 1 ? 's' : ''} →
             </Link>
           )}
@@ -218,14 +237,4 @@ function OrderRow({ order }) {
       </div>
     </div>
   )
-}
-
-function alertStyle(color) {
-  return {
-    display: 'flex', alignItems: 'center', gap: 6,
-    padding: '0.45rem 0.8rem', borderRadius: 8,
-    background: `${color}14`, border: `1px solid ${color}33`,
-    fontSize: '0.76rem', fontWeight: 600, color,
-    textDecoration: 'none', transition: 'background 0.15s',
-  }
 }

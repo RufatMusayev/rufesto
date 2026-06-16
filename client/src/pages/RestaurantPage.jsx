@@ -14,7 +14,7 @@ import FloorPlanSheet from '../components/FloorPlanSheet'
 export default function RestaurantPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const { tableId, restaurantId: cartRestaurantId, addDish } = useCart()
+  const { tableId, restaurantId: cartRestaurantId, addDish, cartError, clearCartError } = useCart()
   const [restaurant, setRestaurant] = useState(null)
   const [sections, setSections] = useState([])
   const [dishes, setDishes] = useState([])
@@ -183,6 +183,38 @@ export default function RestaurantPage() {
 
   return (
     <div>
+      {/* Cross-restaurant cart error banner */}
+      {cartError && (
+        <div style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, maxWidth: 420, width: 'calc(100% - 32px)',
+          background: 'rgba(30,10,10,0.92)', backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(239,68,68,0.35)', borderRadius: 10,
+          padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span style={{ flex: 1, fontSize: '0.78rem', color: '#fca5a5', lineHeight: 1.45 }}>
+            {cartError}
+          </span>
+          <button
+            onClick={clearCartError}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(252,165,165,0.6)', padding: 0, flexShrink: 0,
+              fontSize: '1rem', lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Back button */}
       <button onClick={() => navigate(-1)} style={{
         position: 'absolute', top: 'calc(var(--nav-h, 0px) + 14px)', left: 14, zIndex: 20,
@@ -203,17 +235,32 @@ export default function RestaurantPage() {
         height: 230, position: 'relative', overflow: 'hidden',
         background: cuisineBackground(restaurant.cuisine_type),
       }}>
+        {restaurant.cover_photo ? (
+          <img
+            src={restaurant.cover_photo}
+            alt={restaurant.name}
+            style={{
+              width: '100%', height: '100%',
+              objectFit: 'cover', objectPosition: 'center',
+              position: 'absolute', inset: 0,
+              imageRendering: 'auto',
+            }}
+          />
+        ) : (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '10rem', opacity: 0.18,
+            filter: 'blur(3px)',
+          }}>
+            {emoji}
+          </div>
+        )}
+        {/* Bottom-to-top gradient fade into page background */}
         <div style={{
           position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '10rem', opacity: 0.18,
-          filter: 'blur(3px)',
-        }}>
-          {emoji}
-        </div>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, transparent 40%, var(--bg) 100%)',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 35%, rgba(0,0,0,0.45) 75%, var(--bg) 100%)',
+          pointerEvents: 'none',
         }} />
       </div>
 
@@ -230,9 +277,19 @@ export default function RestaurantPage() {
             background: cuisineBackground(restaurant.cuisine_type),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '2.5rem', flexShrink: 0,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+            overflow: 'hidden',
+            position: 'relative',
           }}>
-            {emoji}
+            {restaurant.logo_photo ? (
+              <img
+                src={restaurant.logo_photo}
+                alt={restaurant.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+              />
+            ) : (
+              <span style={{ position: 'relative', zIndex: 1 }}>{emoji}</span>
+            )}
           </div>
 
           {/* Stats */}
@@ -345,12 +402,20 @@ export default function RestaurantPage() {
             </svg>
           </button>
           <button
-            className={isFollowing ? 'btn btn-ghost' : 'btn btn-follow'}
             onClick={handleFollow}
             disabled={followLoading}
-            style={{ flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10 }}
+            style={{
+              flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10,
+              border: `1.5px solid ${isFollowing ? 'var(--sage)' : 'var(--accent)'}`,
+              background: isFollowing ? 'rgba(77,124,63,0.08)' : 'transparent',
+              color: isFollowing ? 'var(--sage)' : 'var(--accent)',
+              cursor: 'pointer',
+              transition: 'background 150ms var(--ease-out), color 150ms, border-color 150ms',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              fontFamily: 'inherit',
+            }}
           >
-            {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
+            {followLoading ? '...' : isFollowing ? '✓ Following' : 'Follow'}
           </button>
         </div>
       </div>
@@ -572,19 +637,21 @@ function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
         }}>
           <span style={{
             fontSize: '0.55rem', color: '#F5F0E8', fontWeight: 700,
-            letterSpacing: 1.4, textTransform: 'uppercase',
-            background: 'rgba(0,0,0,0.6)', padding: '3px 8px', borderRadius: 100,
+            letterSpacing: 1, textTransform: 'uppercase',
+            background: 'rgba(163,45,45,0.85)', padding: '3px 8px', borderRadius: 100,
           }}>Sold Out</span>
         </div>
       )}
 
       {dish.available && !isSeatedHere && (
-        <div style={{
-          position: 'absolute', top: 6, right: 6,
-          width: 7, height: 7, borderRadius: '50%',
-          background: 'var(--sage)',
-          boxShadow: '0 0 6px rgba(77,124,63,0.7)',
-        }} />
+        <div style={{ position: 'absolute', top: 5, right: 5 }}>
+          <span style={{
+            fontSize: '0.52rem', color: '#F5F0E8', fontWeight: 700,
+            letterSpacing: 0.8, textTransform: 'uppercase',
+            background: 'rgba(77,124,63,0.85)', padding: '2px 6px', borderRadius: 100,
+            display: 'block',
+          }}>Available</span>
+        </div>
       )}
 
       {dish.available && isSeatedHere && (

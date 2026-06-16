@@ -68,9 +68,9 @@ export default function TablesPage() {
 
   return (
     <div style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <h1 className="page-title">Tables</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', color: 'var(--green)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
           <span className="dash-live-dot" /> Live
         </div>
       </div>
@@ -124,15 +124,16 @@ export default function TablesPage() {
       )}
 
       <div style={{
-        display: 'flex', gap: '1.25rem', marginTop: '1.5rem', padding: '0.85rem 1rem',
-        background: 'var(--s2)', borderRadius: 10, border: '1px solid var(--border)',
-        flexWrap: 'wrap',
+        display:'flex', gap:'1.25rem', marginTop:'1.5rem', padding:'0.85rem 1rem',
+        background:'var(--s2)', borderRadius:12, border:'1px solid var(--border)',
+        flexWrap:'wrap', alignItems:'center',
       }}>
+        <span className="dash-section-title">Legend</span>
         {Object.entries(TABLE_COLORS).map(([key, s]) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--t2)' }}>{s.label}</span>
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--t1)' }}>{stateCounts[key] || 0}</span>
+          <div key={key} style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background: s.color, display:'inline-block' }} />
+            <span style={{ fontSize:'0.75rem', color:'var(--t2)' }}>{s.label}</span>
+            <span style={{ fontSize:'0.75rem', fontWeight:800, color:'var(--t1)' }}>{stateCounts[key] || 0}</span>
           </div>
         ))}
       </div>
@@ -147,63 +148,69 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
 
   return (
     <div style={{
-      background: 'var(--s2)', borderRadius: 14, overflow: 'hidden',
-      border: `1.5px solid ${s.border}`,
-      transition: 'border-color 0.2s',
-    }}>
+      background:'var(--s2)', borderRadius:14, overflow:'hidden',
+      border:`1.5px solid ${s.border}`,
+      transition:'border-color 0.2s, transform 0.15s',
+    }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+    >
+      {/* Top accent bar */}
+      <div style={{ height:2, background: s.color, opacity: 0.6 }} />
+
       <div onClick={onToggle} style={{
-        padding: '0.85rem 1rem', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding:'0.85rem 1rem', cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: s.bg, border: `1px solid ${s.border}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: '0.85rem', color: s.color,
+            width:42, height:42, borderRadius:10,
+            background: s.bg, border:`1.5px solid ${s.border}`,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontWeight:900, fontSize:'0.9rem', color: s.color,
+            fontFamily:"'Playfair Display', Georgia, serif",
           }}>
             {table.table_number}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>Table {table.table_number}</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>
+            <div style={{ fontWeight:700, fontSize:'0.88rem' }}>Table {table.table_number}</div>
+            <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:1 }}>
               {table.sections?.name || '—'} · {table.capacity} seats
+              {orders.length > 0 && (
+                <span style={{ color:'var(--t2)', marginLeft:4 }}>· {formatPrice(totalSpend)}</span>
+              )}
             </div>
           </div>
         </div>
-        <span style={{
-          fontSize: '0.6rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
-          background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-          textTransform: 'uppercase', letterSpacing: 0.5,
-        }}>{s.label}</span>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{
+            fontSize:'0.6rem', fontWeight:700, padding:'3px 8px', borderRadius:100,
+            background: s.bg, color: s.color, border:`1px solid ${s.border}`,
+            textTransform:'uppercase', letterSpacing:0.5,
+          }}>{s.label}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
+            style={{ transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
       </div>
 
-      {orders.length > 0 && (
-        <div style={{ padding: '0 1rem 0.6rem', fontSize: '0.75rem', color: 'var(--t2)' }}>
-          {orders.length} active order{orders.length > 1 ? 's' : ''} · {formatPrice(totalSpend)}
-        </div>
-      )}
-
       {expanded && (
-        <div style={{
-          padding: '0.75rem 1rem', borderTop: '1px solid var(--border)',
-          animation: 'fadeSlideUp 0.2s ease',
-        }}>
+        <div style={{ borderTop:'1px solid var(--border)', padding:'0.75rem 1rem 0.85rem', animation:'fadeSlideUp 0.18s ease' }}>
           {orders.length > 0 && (
-            <div style={{ marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                Orders
-              </div>
+            <div style={{ marginBottom:'0.75rem' }}>
+              <div className="dash-section-title" style={{ marginBottom:'0.4rem' }}>Active Orders</div>
               {orders.map(o => (
                 <div key={o.id} style={{
-                  padding: '0.45rem 0.6rem', borderRadius: 6,
-                  background: 'var(--s3)', marginBottom: 4, fontSize: '0.75rem',
+                  padding:'0.45rem 0.65rem', borderRadius:8,
+                  background:'var(--s3)', marginBottom:4, fontSize:'0.75rem',
+                  border:'1px solid var(--border)',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--t2)' }}>{timeAgo(o.placed_at)}</span>
-                    <span style={{ fontWeight: 700 }}>{formatPrice(o.total_amount)}</span>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{ color:'var(--t2)' }}>{timeAgo(o.placed_at)}</span>
+                    <span style={{ fontWeight:700, color:'var(--t1)' }}>{formatPrice(o.total_amount)}</span>
                   </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 2 }}>
+                  <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>
                     {(o.order_items || []).map(i => `${i.quantity}× ${i.dishes?.name || 'item'}`).join(', ')}
                   </div>
                 </div>
@@ -212,21 +219,27 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
           )}
 
           {transitions.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <div style={{ display:'flex', gap:'0.35rem', flexWrap:'wrap' }}>
               {transitions.map(next => {
                 const ns = TABLE_COLORS[next] || TABLE_COLORS.free
                 return (
                   <button key={next} onClick={() => onChangeState(table.id, next)}
                     disabled={updating}
                     style={{
-                      flex: 1, padding: '0.4rem 0.5rem', borderRadius: 6,
-                      background: ns.bg, border: `1px solid ${ns.border}`,
-                      color: ns.color, fontSize: '0.72rem', fontWeight: 600,
+                      flex:1, padding:'0.45rem 0.5rem', borderRadius:8,
+                      background: ns.bg, border:`1px solid ${ns.border}`,
+                      color: ns.color, fontSize:'0.72rem', fontWeight:600,
                       cursor: updating ? 'wait' : 'pointer',
                       opacity: updating ? 0.5 : 1,
-                      fontFamily: "'DM Sans', system-ui, sans-serif",
-                      transition: 'opacity 0.15s',
-                    }}>
+                      fontFamily:"'DM Sans', system-ui, sans-serif",
+                      transition:'opacity 0.15s, transform 160ms',
+                      minWidth:80,
+                    }}
+                    onMouseEnter={e => !updating && (e.currentTarget.style.transform='scale(1.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.transform='scale(1)')}
+                    onMouseDown={e => (e.currentTarget.style.transform='scale(0.97)')}
+                    onMouseUp={e => (e.currentTarget.style.transform='scale(1)')}
+                  >
                     → {ns.label}
                   </button>
                 )

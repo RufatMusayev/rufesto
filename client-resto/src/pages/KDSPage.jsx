@@ -3,57 +3,51 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { KDS_STATUS } from '@shared/constants'
 
-const STATUS_ORDER = ['new', 'preparing', 'ready']
+const COLUMNS = [
+  { status: 'new',       label: 'New',       color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  textColor: '#fff' },
+  { status: 'preparing', label: 'Preparing', color: '#BA7517', bg: 'rgba(186,117,23,0.1)',  textColor: '#1A1210' },
+  { status: 'ready',     label: 'Ready',     color: '#2D7A1A', bg: 'rgba(45,122,26,0.1)',   textColor: '#fff' },
+]
 
 function ticketUrgency(minutesElapsed) {
-  if (minutesElapsed < 5)  return { level: 'fresh',   color: '#3B6D11', glow: 'none' }
-  if (minutesElapsed < 12) return { level: 'normal',  color: '#BA7517', glow: 'none' }
-  if (minutesElapsed < 20) return { level: 'late',    color: '#F59E0B', glow: '0 0 0 1px rgba(245,158,11,0.3)' }
-  return { level: 'overdue', color: '#A32D2D', glow: '0 0 0 2px rgba(163,45,45,0.3)' }
+  if (minutesElapsed < 5)  return { level: 'fresh',   color: 'var(--green)' }
+  if (minutesElapsed < 12) return { level: 'normal',  color: 'var(--warning)' }
+  if (minutesElapsed < 20) return { level: 'late',    color: '#F59E0B' }
+  return { level: 'overdue', color: 'var(--red)' }
 }
 
 export default function KDSPage() {
   const { restaurantId } = useAuth()
   const [tickets, setTickets] = useState([])
-  const [filter, setFilter] = useState('all')
   const now = useNow(10000)
 
   useEffect(() => {
     if (!restaurantId) return
     loadTickets()
-
     const channel = supabase
       .channel(`kds-live-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
       .subscribe()
-
     return () => supabase.removeChannel(channel)
   }, [restaurantId])
 
   async function loadTickets() {
     const { data } = await supabase
       .from('kds_tickets')
-      .select(`*, order_items!order_item_id(
-        id, quantity, special_request,
-        dishes(name, category),
-        orders(id, placed_at, tables(table_number))
-      )`)
+      .select(`*, order_items!order_item_id(id, quantity, special_request, dishes(name, category), orders(id, placed_at, tables(table_number)))`)
       .eq('restaurant_id', restaurantId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('priority', { ascending: false })
-
     setTickets(data || [])
   }
 
   async function advance(ticket) {
     const next = KDS_STATUS[ticket.status]?.next
     if (!next) return
-
     const update = { status: next }
     if (next === 'preparing') update.started_at = new Date().toISOString()
     if (next === 'done') update.completed_at = new Date().toISOString()
-
     await supabase.from('kds_tickets').update(update).eq('id', ticket.id)
     setTickets(prev => next === 'done'
       ? prev.filter(t => t.id !== ticket.id)
@@ -61,160 +55,95 @@ export default function KDSPage() {
     )
   }
 
-  const filtered = filter === 'all' ? tickets : tickets.filter(t => t.status === filter)
-  const counts = {
-    all: tickets.length,
-    new: tickets.filter(t => t.status === 'new').length,
-    preparing: tickets.filter(t => t.status === 'preparing').length,
-    ready: tickets.filter(t => t.status === 'ready').length,
-  }
+  const allEmpty = tickets.length === 0
 
   return (
     <div style={{ padding: '1.25rem', minHeight: '100vh' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: '1rem',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h1 className="page-title">Kitchen Display</h1>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '3px 10px', borderRadius: 100,
-            background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
-          }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <h1 className="page-title">Kitchen</h1>
+          <div style={{ display:'flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:100, background:'rgba(45,122,26,0.1)', border:'1px solid rgba(45,122,26,0.2)' }}>
             <span className="dash-live-dot" />
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--green)' }}>LIVE</span>
+            <span style={{ fontSize:'0.68rem', fontWeight:700, color:'var(--green)' }}>LIVE</span>
           </div>
         </div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--t2)', fontFamily: 'monospace' }}>
+        <span style={{ fontFamily:"'JetBrains Mono','Courier New',monospace", fontSize:'0.78rem', color:'var(--t2)' }}>
           {tickets.length} active
-        </div>
+        </span>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        {[['all', 'All'], ...STATUS_ORDER.map(s => [s, KDS_STATUS[s].label])].map(([id, label]) => (
-          <button key={id} onClick={() => setFilter(id)} style={{
-            padding: '0.4rem 1rem', borderRadius: 8,
-            background: filter === id ? (id === 'all' ? 'var(--t1)' : KDS_STATUS[id]?.bg || 'var(--s3)') : 'var(--s2)',
-            color: filter === id ? (id === 'all' ? 'var(--bg)' : KDS_STATUS[id]?.color || 'var(--t1)') : 'var(--t2)',
-            border: `1px solid ${filter === id ? 'transparent' : 'var(--border)'}`,
-            fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            transition: 'all 0.15s',
-          }}>
-            {label}
-            <span style={{
-              marginLeft: 6, fontSize: '0.72rem', fontWeight: 800,
-              background: filter === id ? 'rgba(0,0,0,0.15)' : 'var(--s3)',
-              padding: '1px 7px', borderRadius: 100,
-            }}>
-              {counts[id]}
-            </span>
-          </button>
-        ))}
+      <div className="kds-board">
+        {allEmpty ? (
+          <div className="empty" style={{ paddingTop:'4rem', gridColumn:'1/-1' }}>
+            <div className="empty-icon" style={{ fontSize:'3.5rem' }}>🧑‍🍳</div>
+            <div style={{ fontSize:'1rem', fontWeight:700, marginTop:4 }}>Kitchen is clear</div>
+            <div style={{ fontSize:'0.82rem', color:'var(--t3)', marginTop:4 }}>No active tickets right now</div>
+          </div>
+        ) : COLUMNS.map((col) => {
+          const colTickets = tickets.filter(t => t.status === col.status)
+          return (
+            <div className="kds-col" key={col.status}>
+              <div className="kds-col-head">
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <div className="kds-col-indicator" style={{ background: col.color }} />
+                  <span className="kds-col-title" style={{ color: col.color }}>{col.label}</span>
+                </div>
+                <span className="kds-col-count" style={{ background: col.bg, color: col.color }}>
+                  {colTickets.length}
+                </span>
+              </div>
+              <div className="kds-tickets">
+                {colTickets.length === 0
+                  ? <div className="kds-empty-col">All clear</div>
+                  : colTickets.map(t => (
+                      <KDSTicket key={t.id} ticket={t} now={now} col={col} onAdvance={() => advance(t)} />
+                    ))
+                }
+              </div>
+            </div>
+          )
+        })}
       </div>
-
-      {filtered.length === 0 ? (
-        <div className="empty" style={{ paddingTop: '4rem' }}>
-          <div className="empty-icon" style={{ fontSize: '3.5rem' }}>🧑‍🍳</div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: 4 }}>Kitchen is clear</div>
-          <div style={{ fontSize: '0.82rem', color: 'var(--t3)', marginTop: 4 }}>No active tickets right now</div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '0.85rem' }}>
-          {filtered.map(t => (
-            <KDSTicket key={t.id} ticket={t} now={now} onAdvance={() => advance(t)} />
-          ))}
-        </div>
-      )}
     </div>
   )
 }
 
-function KDSTicket({ ticket, now, onAdvance }) {
+function KDSTicket({ ticket, now, onAdvance, col }) {
   const meta = KDS_STATUS[ticket.status]
   const item = ticket.order_items
   const table = item?.orders?.tables?.table_number || '?'
   const since = item?.orders?.placed_at
   const elapsed = since ? Math.floor((now - new Date(since)) / 60000) : 0
   const urgency = ticketUrgency(elapsed)
+  const urgencyClass = urgency.level === 'overdue' ? 'urgency-overdue' : urgency.level === 'late' ? 'urgency-late' : ''
 
   return (
-    <div style={{
-      background: 'var(--s2)', borderRadius: 16, overflow: 'hidden',
-      border: `1.5px solid ${urgency.level === 'overdue' ? 'rgba(163,45,45,0.4)' : urgency.level === 'late' ? 'rgba(245,158,11,0.3)' : 'var(--border)'}`,
-      boxShadow: urgency.glow,
-      transition: 'border-color 0.3s, box-shadow 0.3s',
-    }}>
-      <div style={{
-        padding: '0.75rem 1rem', background: 'var(--s3)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: -0.3 }}>
-            Table {table}
-          </div>
-          <div style={{
-            fontSize: '0.75rem', fontWeight: 600,
-            color: urgency.color,
-            fontFamily: 'monospace',
-            marginTop: 2,
-          }}>
-            {urgency.level === 'overdue' ? `⚠ ${elapsed}m — OVERDUE` :
-             urgency.level === 'late' ? `⏱ ${elapsed}m — getting late` :
-             `${elapsed}m ago`}
-          </div>
+    <div className={`kds-ticket ${urgencyClass}`}>
+      <div className="kds-ticket-head">
+        <div className="kds-table-num">T{table}</div>
+        <div className="kds-elapsed" style={{ color: urgency.color }}>
+          {urgency.level === 'overdue' ? `⚠ ${elapsed}m` : `${elapsed}m`}
         </div>
-
-        <span style={{
-          fontSize: '0.68rem', fontWeight: 800, letterSpacing: 0.8,
-          padding: '4px 10px', borderRadius: 6,
-          background: meta.bg, color: meta.color,
-          border: `1px solid ${meta.color}33`,
-        }}>
-          {meta.label}
-        </span>
       </div>
-
-      <div style={{ padding: '0.85rem 1rem' }}>
+      <div className="kds-ticket-body">
         {item ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{
-                fontSize: '1.35rem', fontWeight: 900, color: 'var(--t1)',
-                fontFamily: 'monospace', lineHeight: 1,
-              }}>
-                {item.quantity}×
-              </span>
-              <span style={{ fontSize: '1rem', fontWeight: 700 }}>
-                {item.dishes?.name || 'Unknown dish'}
-              </span>
+            <div className="kds-item-row">
+              <span className="kds-qty">{item.quantity}×</span>
+              <span className="kds-dish-name">{item.dishes?.name || 'Unknown dish'}</span>
             </div>
             {item.special_request && (
-              <div style={{
-                marginTop: 8, padding: '6px 10px', borderRadius: 6,
-                background: 'rgba(139,45,66,0.08)', border: '1px solid rgba(139,45,66,0.15)',
-                fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 500,
-              }}>
-                📝 {item.special_request}
-              </div>
+              <div className="kds-special">📝 {item.special_request}</div>
             )}
           </>
         ) : (
-          <div style={{ fontSize: '0.85rem', color: 'var(--t3)' }}>Loading…</div>
+          <div style={{ fontSize:'0.82rem', color:'var(--t3)' }}>Loading…</div>
         )}
       </div>
-
-      {meta.next && (
-        <div style={{ padding: '0 1rem 1rem' }}>
-          <button onClick={onAdvance} style={{
-            width: '100%', padding: '0.6rem 0', borderRadius: 10,
-            background: meta.color, color: '#fff', border: 'none',
-            fontWeight: 700, fontSize: '0.85rem',
-            cursor: 'pointer', transition: 'opacity 0.15s',
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-          }}>
+      {meta?.next && (
+        <div className="kds-ticket-footer">
+          <button className="kds-advance-btn" onClick={onAdvance}
+            style={{ background: col.color, color: col.textColor }}>
             {meta.action} →
           </button>
         </div>

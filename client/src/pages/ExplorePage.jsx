@@ -175,21 +175,31 @@ export default function ExplorePage() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <span style={{
-                      fontSize: '0.6rem', fontWeight: 700, color: 'var(--t3)',
-                      background: 'rgba(26,18,16,0.8)', padding: '2px 8px',
-                      borderRadius: 100, textTransform: 'uppercase', letterSpacing: 0.5,
+                      fontSize: '0.58rem', fontWeight: 700,
+                      color: '#F5F0E8',
+                      background: 'rgba(163,45,45,0.85)',
+                      padding: '2px 8px',
+                      borderRadius: 100, textTransform: 'uppercase', letterSpacing: 0.6,
                     }}>
-                      Unavailable
+                      Sold Out
                     </span>
                   </div>
                 )}
                 {dish.available && (
                   <div style={{
                     position: 'absolute', top: 6, right: 6,
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: 'var(--sage)',
-                    boxShadow: '0 0 5px var(--sage)',
-                  }} />
+                  }}>
+                    <span style={{
+                      fontSize: '0.58rem', fontWeight: 700,
+                      color: '#F5F0E8',
+                      background: 'rgba(77,124,63,0.85)',
+                      padding: '2px 7px',
+                      borderRadius: 100, textTransform: 'uppercase', letterSpacing: 0.6,
+                      display: 'block',
+                    }}>
+                      Available
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -217,7 +227,7 @@ export default function ExplorePage() {
                       fontFamily: "'DM Mono', monospace",
                       fontSize: '0.65rem', color: 'var(--gold)',
                     }}>
-                      ★{(dish.rating_avg || 0).toFixed(1)}
+                      ★{(dish.avg_rating || 0).toFixed(1)}
                     </span>
                   )}
                 </div>

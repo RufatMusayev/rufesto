@@ -51,13 +51,15 @@ export default function BottomNav() {
             style={{
               position: 'relative', top: -18,
               width: 54, height: 54, borderRadius: '50%',
-              background: tableId ? 'var(--sage)' : 'var(--accent)',
+              background: tableId
+                ? 'var(--sage)'
+                : 'linear-gradient(145deg, #8B2D42 0%, #6B1F30 100%)',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: tableId
                 ? '0 4px 16px rgba(77,124,63,0.45)'
-                : '0 4px 16px rgba(139,45,66,0.45)',
-              transition: 'transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 200ms ease',
+                : '0 4px 20px rgba(107,31,48,0.55)',
+              transition: 'transform 120ms cubic-bezier(0.23,1,0.32,1), background 200ms ease',
               touchAction: 'manipulation',
             }}
             onPointerDown={e => e.currentTarget.style.transform = 'scale(0.93)'}
@@ -71,13 +73,13 @@ export default function BottomNav() {
                 <rect x="6" y="8" width="12" height="8" rx="1"/>
               </svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1210" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="7" height="7" rx="1"/>
                 <rect x="14" y="3" width="7" height="7" rx="1"/>
                 <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="5" y="5" width="3" height="3" fill="#1A1210" stroke="none"/>
-                <rect x="16" y="5" width="3" height="3" fill="#1A1210" stroke="none"/>
-                <rect x="5" y="16" width="3" height="3" fill="#1A1210" stroke="none"/>
+                <rect x="5" y="5" width="3" height="3" fill="#F5F0E8" stroke="none"/>
+                <rect x="16" y="5" width="3" height="3" fill="#F5F0E8" stroke="none"/>
+                <rect x="5" y="16" width="3" height="3" fill="#F5F0E8" stroke="none"/>
                 <path d="M14 14h2v2h-2zM18 14h3M18 18v3M14 18h2v2"/>
               </svg>
             )}

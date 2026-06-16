@@ -23,6 +23,7 @@ const CUISINE_COLORS = {
 export default function MapPage() {
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
+  const markersRef = useRef({})
   const [restaurants, setRestaurants] = useState([])
   const [selected, setSelected] = useState(null)
   const navigate = useNavigate()
@@ -63,8 +64,8 @@ export default function MapPage() {
     const map = mapInstance.current
 
     restaurants.forEach(r => {
-      const lat = r.latitude || BAKU_CENTER[0] + (Math.random() - 0.5) * 0.02
-      const lng = r.longitude || BAKU_CENTER[1] + (Math.random() - 0.5) * 0.02
+      const lat = r.latitude != null ? r.latitude : BAKU_CENTER[0] + (Math.random() - 0.5) * 0.02
+      const lng = r.longitude != null ? r.longitude : BAKU_CENTER[1] + (Math.random() - 0.5) * 0.02
       const color = CUISINE_COLORS[r.cuisine_type?.toLowerCase()] || '#8B2D42'
 
       const icon = window.L.divIcon({
@@ -81,7 +82,7 @@ export default function MapPage() {
         iconAnchor: [18, 18],
       })
 
-      window.L.marker([lat, lng], { icon })
+      const marker = window.L.marker([lat, lng], { icon })
         .addTo(map)
         .bindPopup(`
           <div style="font-family:'DM Sans',system-ui;text-align:center;min-width:140px;padding:4px 0;">
@@ -95,6 +96,7 @@ export default function MapPage() {
             ">View Menu</a>
           </div>
         `)
+      markersRef.current[r.id] = marker
     })
   }, [restaurants, navigate])
 
@@ -149,8 +151,13 @@ export default function MapPage() {
               <button
                 key={r.id}
                 onClick={() => {
-                  setSelected(isSelected ? null : r.id)
-                  navigate(`/restaurant/${r.slug}`)
+                  const lat = r.latitude != null ? r.latitude : BAKU_CENTER[0]
+                  const lng = r.longitude != null ? r.longitude : BAKU_CENTER[1]
+                  setSelected(r.id)
+                  if (mapInstance.current) {
+                    mapInstance.current.setView([lat, lng], 16)
+                    markersRef.current[r.id]?.openPopup()
+                  }
                 }}
                 style={{
                   flex: '0 0 auto',

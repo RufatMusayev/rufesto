@@ -98,17 +98,15 @@ export default function PromosPage() {
   return (
     <div style={{ padding: '1.25rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <div>
           <h1 className="page-title">Promos</h1>
-          <span style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
+          <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
             {statusCounts.active || 0} active · {campaigns.length} total
           </span>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ gap: '0.35rem' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
           New Campaign
         </button>
       </div>
@@ -180,9 +178,13 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
 
   return (
     <div style={{
-      background: 'var(--s2)', borderRadius: 14,
-      border: '1px solid var(--border)', overflow: 'hidden',
-    }}>
+      background:'var(--s2)', borderRadius:14,
+      border:'1px solid var(--border)', overflow:'hidden',
+      transition:'transform 0.15s, border-color 0.2s',
+    }}
+      onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
+      onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+    >
       <div style={{ height: 2, background: s.color, opacity: 0.5 }} />
 
       <div style={{ padding: '0.85rem 1rem' }}>
@@ -220,13 +222,19 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
         </div>
 
         {/* Budget bar */}
-        <div style={{ marginTop: '0.6rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--t2)', marginBottom: 3 }}>
+        <div style={{ marginTop:'0.65rem' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.7rem', color:'var(--t2)', marginBottom:4 }}>
             <span>{formatPrice(spent)} spent</span>
-            <span>{formatPrice(budget)} budget{c.daily_limit ? ` · ${formatPrice(c.daily_limit)}/day` : ''}</span>
+            <span style={{ color: pct >= 90 ? 'var(--red)' : 'var(--t2)' }}>
+              {formatPrice(budget)} budget{c.daily_limit ? ` · ${formatPrice(c.daily_limit)}/day` : ''}
+            </span>
           </div>
-          <div style={{ height: 4, borderRadius: 100, background: 'var(--s3)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${pct}%`, borderRadius: 100, background: s.color, opacity: 0.7, transition: 'width 0.3s' }} />
+          <div style={{ height:5, borderRadius:100, background:'var(--s3)', overflow:'hidden' }}>
+            <div style={{
+              height:'100%', width:`${pct}%`, borderRadius:100,
+              background: pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--warning)' : s.color,
+              opacity:0.75, transition:'width 0.4s',
+            }} />
           </div>
         </div>
 

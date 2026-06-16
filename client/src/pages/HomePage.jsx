@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo } from '../lib/helpers'
+import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useAuth } from '../contexts/AuthContext'
 import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
@@ -43,7 +43,7 @@ export default function HomePage() {
         // RLS only exposes active campaigns within their run window
         supabase
           .from('ad_campaigns')
-          .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, avg_rating, review_count)'),
+          .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, restaurants(name, slug, cuisine_type))'),
       ])
 
       const allRest = restData || []
@@ -106,10 +106,11 @@ export default function HomePage() {
 
 function StoriesBar({ restaurants, followedIds = [] }) {
   return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
     <div className="no-scrollbar" style={{
       display: 'flex', gap: 12, padding: '16px',
       overflowX: 'auto',
-      borderBottom: '1px solid var(--border)',
+      maxWidth: 470, margin: '0 auto',
     }}>
       {restaurants.map((r, i) => {
         const open = isRestaurantOpen(r.operating_hours)
@@ -147,15 +148,20 @@ function StoriesBar({ restaurants, followedIds = [] }) {
               )}
             </div>
             <span style={{
-              fontSize: '0.67rem', color: 'var(--t2)', fontWeight: 500,
+              fontSize: '0.62rem', color: 'var(--t2)', fontWeight: 500,
               width: 64, textAlign: 'center',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              lineHeight: 1.25,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
             }}>
-              {r.slug === 'seda-ocagi' ? 'Səda' : r.name.split(' ').slice(-1)[0]}
+              {r.name}
             </span>
           </Link>
         )
       })}
+    </div>
     </div>
   )
 }
@@ -190,6 +196,14 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
         .eq('target_id', r.id)
         .maybeSingle()
         .then(({ data }) => setLiked(!!data))
+
+      supabase
+        .from('user_follows')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('restaurant_id', r.id)
+        .maybeSingle()
+        .then(({ data }) => setSaved(!!data))
     }
   }, [r.id, session?.user?.id])
 
@@ -226,6 +240,21 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
       setShowHeart(true)
       setTimeout(() => setShowHeart(false), 900)
     }
+  }
+
+  async function handleSave() {
+    const next = !saved
+    setSaved(next)
+    if (!session) return
+    try {
+      if (next) {
+        await supabase.from('user_follows').insert({ user_id: session.user.id, restaurant_id: r.id })
+      } else {
+        await supabase.from('user_follows').delete()
+          .eq('user_id', session.user.id)
+          .eq('restaurant_id', r.id)
+      }
+    } catch { setSaved(!next) }
   }
 
   const isFollowed = followedIds.includes(r.id)
@@ -359,7 +388,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
         <div style={{ flex: 1 }} />
 
         {/* Plate + pin — save to taste later */}
-        <button className="icon-btn" onClick={() => setSaved(!saved)}
+        <button className="icon-btn" onClick={handleSave}
           style={{ width: 28, height: 28, color: 'var(--t1)' }}>
           <svg viewBox="0 0 24 24" style={{
             width: 24, height: 24,
@@ -451,15 +480,21 @@ function buildFeed(reviews, restaurants, campaigns = []) {
 function ReviewPostCard({ review: rev, index, onDishClick }) {
   const dish = rev.dishes
   const restaurant = dish?.restaurants
-  const emoji = categoryEmoji(dish?.category)
   const { session } = useAuth()
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [showThread, setShowThread] = useState(false)
   const [replies, setReplies] = useState([])
+  const [replyCount, setReplyCount] = useState(0)
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [likeAnimating, setLikeAnimating] = useState(false)
+  // Composer state
+  const [replyBody, setReplyBody] = useState('')
+  const [replyPhoto, setReplyPhoto] = useState(null)
+  const [replyPhotoPreview, setReplyPhotoPreview] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const photoInputRef = useRef(null)
 
   useEffect(() => {
     supabase
@@ -479,6 +514,9 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         .maybeSingle()
         .then(({ data }) => setLiked(!!data))
     }
+    // Reply count is loaded lazily on first thread open (toggleThread) so we don't
+    // fire a query per card on every feed load — and so an un-migrated review_comments
+    // table can't spam the console with 404s before the migration is applied.
   }, [rev.id, session?.user?.id])
 
   useEffect(() => {
@@ -493,7 +531,8 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
     }
   }, [session?.user?.id, dish?.id])
 
-  async function toggleLike() {
+  async function toggleLike(e) {
+    e.stopPropagation()
     const next = !liked
     setLiked(next)
     setLikeCount(c => c + (next ? 1 : -1))
@@ -515,7 +554,8 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
     } catch { setLiked(!next); setLikeCount(c => c + (next ? -1 : 1)) }
   }
 
-  async function handleToggleSave() {
+  async function handleToggleSave(e) {
+    e.stopPropagation()
     if (!dish) return
     const next = !saved
     setSaved(next)
@@ -527,95 +567,181 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
           { user_id: session.user.id, dish_id: dishId },
           { onConflict: 'user_id,dish_id' }
         )
-        if (error) { console.error('Save failed:', error.message); setSaved(false) }
+        if (error) { setSaved(false) }
       } else {
-        const { error } = await supabase.from('saved_dishes').delete().eq('user_id', session.user.id).eq('dish_id', dishId)
-        if (error) { console.error('Unsave failed:', error.message); setSaved(true) }
+        const { error } = await supabase.from('saved_dishes').delete()
+          .eq('user_id', session.user.id).eq('dish_id', dishId)
+        if (error) { setSaved(true) }
       }
-    } catch (err) {
-      console.error('Save error:', err)
-      setSaved(!next)
-    }
+    } catch { setSaved(!next) }
   }
 
-  async function toggleThread() {
+  async function toggleThread(e) {
+    e.stopPropagation()
     if (showThread) { setShowThread(false); return }
     if (replies.length === 0) {
       setLoadingReplies(true)
-      const { data } = await supabase
-        .from('reviews')
-        .select('*, users(name, profile_photo)')
-        .eq('dish_id', rev.dish_id)
-        .neq('id', rev.id)
-        .eq('is_flagged', false)
-        .order('created_at', { ascending: true })
-        .limit(10)
-      setReplies(data || [])
+      try {
+        const { data, error } = await supabase
+          .from('review_comments')
+          .select('*, users(name, profile_photo)')
+          .eq('review_id', rev.id)
+          .eq('is_flagged', false)
+          .order('created_at', { ascending: true })
+          .limit(50)
+        if (!error) {
+          setReplies(data || [])
+          setReplyCount(data?.length || 0)
+        }
+      } catch { /* table not yet migrated — show empty thread */ }
       setLoadingReplies(false)
     }
     setShowThread(true)
   }
 
+  function handlePhotoSelect(e) {
+    e.stopPropagation()
+    const file = e.target.files?.[0]
+    if (!file) return
+    setReplyPhoto(file)
+    setReplyPhotoPreview(URL.createObjectURL(file))
+  }
+
+  function clearReplyPhoto(e) {
+    e.stopPropagation()
+    setReplyPhoto(null)
+    setReplyPhotoPreview(null)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  async function submitReply(e) {
+    e.stopPropagation()
+    if (!session || submitting) return
+    if (!replyBody.trim() && !replyPhoto) return
+    setSubmitting(true)
+    try {
+      let photoUrl = null
+      if (replyPhoto) {
+        const ext = replyPhoto.name.split('.').pop()
+        const path = `reviews/${session.user.id}/${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('dish-photos')
+          .upload(path, replyPhoto, { upsert: false })
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from('dish-photos').getPublicUrl(path)
+          photoUrl = urlData?.publicUrl || null
+        }
+      }
+      const payload = {
+        review_id: rev.id,
+        user_id: session.user.id,
+        body: replyBody.trim() || null,
+        photo: photoUrl,
+      }
+      const { data: inserted, error } = await supabase
+        .from('review_comments')
+        .insert(payload)
+        .select('*, users(name, profile_photo)')
+        .single()
+      if (!error && inserted) {
+        // Optimistic append
+        setReplies(prev => [...prev, inserted])
+        setReplyCount(c => c + 1)
+        setShowThread(true)
+      }
+      setReplyBody('')
+      setReplyPhoto(null)
+      setReplyPhotoPreview(null)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    } catch { /* ignore */ }
+    setSubmitting(false)
+  }
+
+  function handlePostBodyClick() {
+    if (dish) onDishClick(dish)
+  }
+
+  const authorInitial = (cleanDisplayName(rev.users?.name) || 'A')[0].toUpperCase()
+  const mealChip = dish
+    ? `${categoryEmoji(dish.category)} ${dish.name}${restaurant?.name ? ` · ${restaurant.name}` : ''}`
+    : null
+
   return (
     <article className="menu-card feed-post stagger-item" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
-      {/* Post header — reviewer info */}
-      <div style={{
-        display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 10,
-      }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: 'var(--s3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
-          border: '1.5px solid var(--border)',
-        }}>
-          {(rev.users?.name || 'A')[0].toUpperCase()}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>
-            {rev.users?.name || 'Anonymous'}
-          </span>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
-            <Link to={`/restaurant/${restaurant?.slug}`} style={{ color: 'var(--t3)' }}>
-              {dish?.name} at {restaurant?.name}
-            </Link>
+      {/* Tappable post body — header + text + photo open dish detail */}
+      <div
+        onClick={handlePostBodyClick}
+        style={{ cursor: dish ? 'pointer' : 'default' }}
+      >
+        {/* Header row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 16px 6px', gap: 10 }}>
+          {/* Avatar */}
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'var(--s3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+            border: '1.5px solid var(--border)',
+          }}>
+            {authorInitial}
           </div>
-        </div>
-        <span style={{
-          color: 'var(--gold)', fontSize: '0.78rem', letterSpacing: 1,
-          fontFamily: "'DM Mono', monospace",
-        }}>
-          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
-        </span>
-      </div>
-
-      {/* Dish photo area — tap opens dish detail */}
-      <div onClick={() => dish && onDishClick(dish)} style={{
-        width: '100%', aspectRatio: '4/3',
-        background: dish?.photo ? '#000' : dishBackground(dish?.category),
-        position: 'relative',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '5rem', overflow: 'hidden',
-        cursor: 'pointer',
-      }}>
-        {dish?.photo ? (
-          <img src={dish.photo} alt={dish.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
-        ) : (
-          <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
-            {emoji}
+          {/* Name + timestamp + meal chip */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--t1)', lineHeight: 1.3 }}>
+                {cleanDisplayName(rev.users?.name)}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
+                · {timeAgo(rev.created_at)}
+              </span>
+            </div>
+            {/* Meal chip */}
+            {mealChip && (
+              <span style={{
+                display: 'inline-block', marginTop: 3,
+                fontSize: '0.71rem', color: 'var(--t3)',
+                lineHeight: 1.4,
+              }}>
+                {mealChip}
+              </span>
+            )}
+          </div>
+          {/* Star rating */}
+          <span style={{
+            color: 'var(--gold)', fontSize: '0.75rem', letterSpacing: 1,
+            fontFamily: "'DM Mono', monospace", flexShrink: 0, paddingTop: 2,
+          }}>
+            {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
           </span>
+        </div>
+
+        {/* Review text */}
+        <div style={{ padding: '2px 16px 10px', paddingLeft: 62 }}>
+          <p style={{ fontSize: '0.92rem', lineHeight: 1.5, color: 'var(--t1)', margin: 0 }}>
+            {rev.body || `Rated ${dish?.name || 'this dish'} ${rev.rating}/5`}
+          </p>
+        </div>
+
+        {/* Review photo — only if the review itself has a photo */}
+        {rev.photo && (
+          <div style={{ padding: '0 16px 10px', paddingLeft: 62 }}>
+            <img
+              src={rev.photo}
+              alt="Review photo"
+              loading="lazy"
+              style={{
+                width: '100%', maxHeight: 420, objectFit: 'cover',
+                borderRadius: 14, border: '1px solid var(--border)',
+                display: 'block',
+              }}
+            />
+          </div>
         )}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.3) 100%)',
-          pointerEvents: 'none',
-        }} />
       </div>
 
-      {/* Action bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', padding: '8px 14px', gap: 14,
-      }}>
+      {/* Action bar — stopPropagation on all buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '4px 14px 8px', gap: 14 }}>
+        {/* 👌 Like */}
         <button className="icon-btn" onClick={toggleLike} style={{ width: 36, height: 36 }}>
           <svg viewBox="0 0 24 24"
             className={likeAnimating ? 'like-btn-active' : ''}
@@ -635,7 +761,8 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
           </svg>
         </button>
 
-        <button className="icon-btn" onClick={toggleThread} style={{ width: 36, height: 36 }}>
+        {/* Fork + knife — reply/comment toggle */}
+        <button className="icon-btn" onClick={toggleThread} style={{ width: 36, height: 36, position: 'relative' }}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" style={{ width: 24, height: 24, stroke: 'var(--t1)' }}>
             <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M10 2v20" strokeLinecap="round" />
@@ -643,8 +770,29 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
           </svg>
         </button>
 
+        {/* Like + reply counts */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {likeCount > 0 && (
+            <span style={{
+              fontSize: '0.76rem', color: 'var(--t3)',
+              fontFamily: "'DM Mono', monospace",
+            }}>
+              {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+            </span>
+          )}
+          {replyCount > 0 && (
+            <span style={{
+              fontSize: '0.76rem', color: 'var(--t3)',
+              fontFamily: "'DM Mono', monospace",
+            }}>
+              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+            </span>
+          )}
+        </div>
+
         <div style={{ flex: 1 }} />
 
+        {/* Plate + pin — save dish */}
         <button className="icon-btn" onClick={handleToggleSave} style={{ width: 36, height: 36, color: 'var(--t1)' }}>
           <svg viewBox="0 0 24 24" style={{
             width: 26, height: 26,
@@ -659,81 +807,202 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         </button>
       </div>
 
-      {/* Like count */}
-      {likeCount > 0 && (
-        <div style={{
-          padding: '0 16px 4px', fontSize: '0.82rem', fontWeight: 700,
-          fontFamily: "'DM Mono', monospace",
-        }}>
-          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+      {/* Thread + composer */}
+      {showThread && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            opacity: showThread ? 1 : 0,
+            transform: showThread ? 'translateY(0)' : 'translateY(6px)',
+            transition: 'opacity 220ms cubic-bezier(0.23,1,0.32,1), transform 220ms cubic-bezier(0.23,1,0.32,1)',
+          }}
+        >
+          <CommentThread
+            comments={replies}
+            loading={loadingReplies}
+            replyCount={replyCount}
+            onHide={e => { e.stopPropagation(); setShowThread(false) }}
+          />
+          {/* Reply composer — logged-in only */}
+          {session && (
+            <div style={{
+              padding: '8px 14px 14px',
+              borderTop: '1px solid var(--border)',
+            }}>
+              {/* Photo preview */}
+              {replyPhotoPreview && (
+                <div style={{ position: 'relative', marginBottom: 8, display: 'inline-block' }}>
+                  <img
+                    src={replyPhotoPreview}
+                    alt="Reply photo preview"
+                    style={{
+                      height: 64, borderRadius: 8, border: '1px solid var(--border)',
+                      objectFit: 'cover', display: 'block',
+                    }}
+                  />
+                  <button
+                    onClick={clearReplyPhoto}
+                    style={{
+                      position: 'absolute', top: -6, right: -6,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: 'var(--s2)', border: '1px solid var(--border)',
+                      cursor: 'pointer', fontSize: '0.7rem', color: 'var(--t2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'var(--s3)', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)',
+                  border: '1px solid var(--border)',
+                }}>
+                  {authorInitial}
+                </div>
+                {/* Input */}
+                <input
+                  type="text"
+                  placeholder="Add a reply…"
+                  value={replyBody}
+                  onChange={e => setReplyBody(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) submitReply(e) }}
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    flex: 1, height: 36, borderRadius: 18,
+                    border: '1px solid var(--border)',
+                    background: 'var(--s2)',
+                    padding: '0 14px',
+                    fontSize: '0.83rem', color: 'var(--t1)',
+                    outline: 'none',
+                  }}
+                />
+                {/* Photo button */}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoSelect}
+                />
+                <button
+                  onClick={e => { e.stopPropagation(); photoInputRef.current?.click() }}
+                  className="icon-btn"
+                  style={{ width: 36, height: 36, flexShrink: 0 }}
+                  title="Add photo"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--t2)" strokeWidth="1.6" style={{ width: 20, height: 20 }}>
+                    <rect x="3" y="6" width="18" height="13" rx="2" />
+                    <circle cx="12" cy="13" r="3" />
+                    <path d="M9 6l1.5-2h3L15 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {/* Post button */}
+                <button
+                  onClick={submitReply}
+                  disabled={submitting || (!replyBody.trim() && !replyPhoto)}
+                  style={{
+                    height: 36, borderRadius: 18,
+                    padding: '0 16px',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none', cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: 600,
+                    opacity: (submitting || (!replyBody.trim() && !replyPhoto)) ? 0.45 : 1,
+                    transition: 'opacity 150ms',
+                    flexShrink: 0,
+                  }}
+                >
+                  {submitting ? '…' : 'Post'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Review body */}
-      <div style={{ padding: '0 16px 10px' }}>
-        <p style={{ fontSize: '0.86rem', lineHeight: 1.55 }}>
-          <span style={{ fontWeight: 700, color: 'var(--t1)' }}>
-            {rev.users?.name || 'Anonymous'}
-          </span>
-          {' '}
-          <span style={{ color: 'var(--t2)', fontWeight: 400 }}>
-            {rev.body || `Rated ${dish?.name} ${rev.rating}/5`}
-          </span>
-        </p>
-        <span style={{
-          fontSize: '0.68rem', color: 'var(--t4)',
-          fontFamily: "'DM Mono', monospace",
-        }}>{timeAgo(rev.created_at)}</span>
-      </div>
-
-      {/* Thread toggle */}
-      <button onClick={toggleThread} style={{
-        background: 'none', border: 'none', cursor: 'pointer',
-        padding: '0 16px 12px',
-        fontSize: '0.76rem', color: 'var(--t3)',
-        display: 'flex', alignItems: 'center', gap: 5,
-        transition: 'color 150ms',
-      }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        {loadingReplies ? 'Loading…' :
-         showThread ? 'Hide replies' :
-         'View replies'}
-      </button>
-
-      {/* Comment thread */}
-      {showThread && replies.length > 0 && (
-        <CommentThread comments={replies} />
       )}
     </article>
   )
 }
 
-function CommentThread({ comments }) {
+function CommentThread({ comments, loading, replyCount, onHide }) {
   return (
-    <div style={{ padding: '0 14px 12px' }}>
+    <div style={{ padding: '0 14px 4px' }}>
+      {/* Header row with hide button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0 6px' }}>
+        <span style={{ fontSize: '0.76rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
+          {loading
+            ? 'Loading replies…'
+            : replyCount > 0
+              ? `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`
+              : 'No replies yet'}
+        </span>
+        <button
+          onClick={onHide}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.72rem', color: 'var(--t3)', padding: '4px 0',
+            transition: 'color 150ms',
+          }}
+        >
+          Hide replies
+        </button>
+      </div>
+
+      {/* Reply rows */}
       {comments.map((c, i) => (
-        <div key={c.id} style={{ display: 'flex', gap: 10, paddingLeft: 8 }}>
-          {/* Thread line */}
+        <div key={c.id} style={{ display: 'flex', gap: 10, paddingLeft: 4, marginBottom: 2 }}>
+          {/* Thin connector line */}
           <div style={{
-            width: 2, background: 'var(--border)',
-            marginTop: 4, marginBottom: i === comments.length - 1 ? 0 : -4,
-            flexShrink: 0,
-          }} />
-          {/* Comment */}
-          <div style={{ paddingBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--t1)' }}>
-                {c.users?.name || 'Anonymous'}
+            display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0,
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'var(--s3)', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.65rem', fontWeight: 700, color: 'var(--accent)',
+              border: '1px solid var(--border)',
+            }}>
+              {(cleanDisplayName(c.users?.name) || 'A')[0].toUpperCase()}
+            </div>
+            {i < comments.length - 1 && (
+              <div style={{
+                width: 1.5, flex: 1, background: 'var(--border)',
+                minHeight: 12, marginTop: 3,
+              }} />
+            )}
+          </div>
+          {/* Reply content */}
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: i < comments.length - 1 ? 12 : 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--t1)' }}>
+                {cleanDisplayName(c.users?.name)}
               </span>
-              <span style={{ color: 'var(--gold)', fontSize: '0.65rem' }}>
-                {'★'.repeat(c.rating)}
+              <span style={{ fontSize: '0.68rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
+                {timeAgo(c.created_at)}
               </span>
-              <span style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{timeAgo(c.created_at)}</span>
             </div>
             {c.body && (
-              <p style={{ fontSize: '0.82rem', color: 'var(--t2)', lineHeight: 1.4 }}>{c.body}</p>
+              <p style={{ fontSize: '0.84rem', color: 'var(--t2)', lineHeight: 1.45, margin: 0 }}>
+                {c.body}
+              </p>
+            )}
+            {c.photo && (
+              <img
+                src={c.photo}
+                alt="Reply photo"
+                loading="lazy"
+                style={{
+                  marginTop: 6, maxHeight: 180, borderRadius: 8,
+                  border: '1px solid var(--border)', objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
             )}
           </div>
         </div>
@@ -744,16 +1013,18 @@ function CommentThread({ comments }) {
 
 function StoriesBarSkeleton() {
   return (
-    <div style={{
-      display: 'flex', gap: 12, padding: '16px',
-      borderBottom: '1px solid var(--border)',
-    }}>
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="skeleton" style={{ width: 64, height: 72, borderRadius: 12 }} />
-          <div className="skeleton" style={{ width: 44, height: 9, borderRadius: 4 }} />
-        </div>
-      ))}
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div style={{
+        display: 'flex', gap: 12, padding: '16px',
+        maxWidth: 470, margin: '0 auto',
+      }}>
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div className="skeleton" style={{ width: 64, height: 72, borderRadius: 12 }} />
+            <div className="skeleton" style={{ width: 44, height: 9, borderRadius: 4 }} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

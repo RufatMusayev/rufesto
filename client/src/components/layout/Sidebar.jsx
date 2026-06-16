@@ -71,7 +71,7 @@ export default function Sidebar() {
         <SideItem to="/map" label="Map" Icon={MapIcon} />
         <SideItem to="/notifications" label="Notifications" Icon={BellIcon} badge={unreadCount} />
         <SideItem to="/profile" label="Profile" Icon={ProfileIcon} />
-        {tableId && <SideItem to="/table" label="Table" Icon={TableIcon} />}
+        <SideItem to="/table" label={tableId ? 'Your Table' : 'Enter Table Code'} Icon={QrIcon} dot={!!tableId} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -120,7 +120,7 @@ export default function Sidebar() {
   )
 }
 
-function SideItem({ to, label, Icon, badge = 0 }) {
+function SideItem({ to, label, Icon, badge = 0, dot = false }) {
   return (
     <NavLink to={to} end={to === '/'} title={label} style={({ isActive }) => ({
       width: 44, height: 44, borderRadius: 12,
@@ -149,6 +149,14 @@ function SideItem({ to, label, Icon, badge = 0 }) {
             }}>
               {badge > 9 ? '9+' : badge}
             </span>
+          )}
+          {dot && badge === 0 && (
+            <span style={{
+              position: 'absolute', top: 6, right: 6,
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#22C55E', boxShadow: '0 0 6px #22C55E',
+              border: '2px solid var(--bg)',
+            }} />
           )}
         </>
       )}
@@ -203,11 +211,14 @@ function MapIcon({ filled }) {
   )
 }
 
-function TableIcon({ filled }) {
+function QrIcon({ filled }) {
+  const w = filled ? 2.4 : 1.8
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={filled ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2" />
-      <rect x="6" y="8" width="12" height="8" rx="1" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.2" />
+      <rect x="14" y="3" width="7" height="7" rx="1.2" />
+      <rect x="3" y="14" width="7" height="7" rx="1.2" />
+      <path d="M14 14h3M20 14v0M14 17v4M17 21h4M20.5 17.5v0" />
     </svg>
   )
 }

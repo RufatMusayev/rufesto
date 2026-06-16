@@ -58,6 +58,27 @@ export function timeAgo(ts) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+/** Looks like a raw id slice (hash handle): 5+ lowercase letters/digits, and either
+ *  contains a digit or has no vowels (so real lowercase names aren't dropped).
+ *  e.g. "gffzcfcb", "a1b2c3d4" → true; "marino", "leyla" → false. */
+function isRawIdToken(token) {
+  if (!/^[a-z0-9]{5,}$/.test(token)) return false
+  return /[0-9]/.test(token) || !/[aeiou]/.test(token)
+}
+
+/** Strip raw id hashes from auto-generated usernames like "Anonymous gffzcfcb".
+ *  Handles both the full-string case and a trailing standalone hash token.
+ *  Never renders a raw id in the UI — falls back to "Anonymous". */
+export function cleanDisplayName(name) {
+  if (!name) return 'Anonymous'
+  const parts = String(name).trim().split(/\s+/)
+  if (parts.length > 1 && isRawIdToken(parts[parts.length - 1])) {
+    parts.pop()
+  }
+  const cleaned = parts.join(' ').trim()
+  return cleaned || 'Anonymous'
+}
+
 export function stars(rating, max = 5) {
   const full  = Math.floor(rating)
   const half  = rating - full >= 0.5 ? 1 : 0
@@ -77,9 +98,17 @@ const DISH_BACKGROUNDS = {
 }
 
 const CUISINE_BACKGROUNDS = {
-  italian:     'linear-gradient(145deg, #2D1008 0%, #7A3518 40%, #D86030 80%, #F08848 100%)',
-  azerbaijani: 'linear-gradient(145deg, #1A0E05 0%, #6B4012 40%, #C88025 80%, #E0A840 100%)',
-  japanese:    'linear-gradient(145deg, #080E1A 0%, #1A3558 40%, #2A5888 80%, #3878B0 100%)',
+  italian:       'linear-gradient(145deg, #2D1008 0%, #7A3518 40%, #D86030 80%, #F08848 100%)',
+  azerbaijani:   'linear-gradient(145deg, #1A0E05 0%, #6B4012 40%, #C88025 80%, #E0A840 100%)',
+  japanese:      'linear-gradient(145deg, #1A0A10 0%, #5C1E2E 40%, #8B2D42 80%, #C04060 100%)',
+  turkish:       'linear-gradient(145deg, #1A0D08 0%, #6B2A10 40%, #C44C1C 80%, #E06830 100%)',
+  french:        'linear-gradient(145deg, #1A1208 0%, #6B5010 40%, #C4942C 80%, #E0B040 100%)',
+  american:      'linear-gradient(145deg, #1A0A08 0%, #7A2A10 40%, #C84420 80%, #E06030 100%)',
+  chinese:       'linear-gradient(145deg, #1A0808 0%, #7A1810 40%, #C83018 80%, #E04828 100%)',
+  indian:        'linear-gradient(145deg, #1A0E05 0%, #7A4010 40%, #C87020 80%, #E09030 100%)',
+  mexican:       'linear-gradient(145deg, #1A1205 0%, #6B5010 40%, #C49020 80%, #E0A830 100%)',
+  mediterranean: 'linear-gradient(145deg, #0E1A0A 0%, #3A5A18 40%, #7A9C30 80%, #A0B848 100%)',
+  georgian:      'linear-gradient(145deg, #1A0808 0%, #6B2010 40%, #B83820 80%, #D85030 100%)',
 }
 
 export function dishBackground(category) {

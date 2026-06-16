@@ -67,10 +67,18 @@ export default function OrdersPage() {
 
   return (
     <div style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h1 className="page-title">Orders</h1>
-        <div style={{ fontSize: '0.78rem', color: 'var(--t2)' }}>
-          {orders.length} orders · {formatPrice(todayRevenue)}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
+        <div>
+          <h1 className="page-title">Orders</h1>
+          <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
+            {orders.length} orders today
+          </span>
+        </div>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontSize:'1.35rem', fontWeight:900, color:'var(--gold)', lineHeight:1.1 }}>
+            {formatPrice(todayRevenue)}
+          </div>
+          <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>today's revenue</div>
         </div>
       </div>
 
@@ -113,125 +121,130 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
   const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
   const items = order.order_items || []
   const time = order.placed_at
-    ? new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? new Date(order.placed_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     : ''
 
   return (
     <div style={{
-      background: 'var(--s2)', borderRadius: 14,
-      border: `1px solid var(--border)`, overflow: 'hidden',
-    }}>
-      <div style={{ height: 2, background: s.color, opacity: 0.5 }} />
+      background:'var(--s2)', borderRadius:14,
+      border:'1px solid var(--border)', overflow:'hidden',
+      transition:'border-color 0.2s, transform 0.15s',
+    }}
+      onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
+      onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+    >
+      {/* Status accent bar */}
+      <div style={{ height:2, background: s.color, opacity:0.6 }} />
 
       <div onClick={onToggle} style={{
-        padding: '0.75rem 1rem', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', gap: '0.75rem',
+        padding:'0.75rem 1rem', cursor:'pointer',
+        display:'flex', alignItems:'center', gap:'0.75rem',
       }}>
         <div style={{
-          width: 38, height: 38, borderRadius: 10,
-          background: 'var(--s3)', border: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 800, fontSize: '0.72rem', color: 'var(--t2)', flexShrink: 0,
+          width:40, height:40, borderRadius:10,
+          background:'var(--s3)', border:'1px solid var(--border)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontWeight:900, fontSize:'0.8rem',
+          color: s.color, flexShrink:0,
+          fontFamily:"'Playfair Display', Georgia, serif",
         }}>
           T{order.tables?.table_number || '?'}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ fontWeight:700, fontSize:'0.85rem' }}>
               {items.length} item{items.length !== 1 ? 's' : ''}
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>
+            <span style={{ fontSize:'0.68rem', color:'var(--t3)' }}>
               · {time} · {timeAgo(order.placed_at)}
             </span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--t3)', marginTop: 2 }}>
+          <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:2 }}>
             {order.users?.name || order.users?.email || 'Guest'}
           </div>
         </div>
 
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>{formatPrice(order.total_amount)}</div>
-          <span style={{
-            fontSize: '0.58rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-            background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-            textTransform: 'uppercase', letterSpacing: 0.5,
-          }}>{s.label}</span>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontWeight:900, fontSize:'0.92rem' }}>{formatPrice(order.total_amount)}</div>
+            <span style={{
+              fontSize:'0.58rem', fontWeight:700, padding:'2px 7px', borderRadius:4,
+              background: s.bg, color: s.color, border:`1px solid ${s.border}`,
+              textTransform:'uppercase', letterSpacing:0.5,
+            }}>{s.label}</span>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
+            style={{ flexShrink:0, transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
         </div>
-
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
-          style={{ flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
       </div>
 
       {expanded && (
         <div style={{
-          borderTop: '1px solid var(--border)', padding: '0.65rem 1rem 0.85rem',
-          animation: 'fadeSlideUp 0.2s ease',
+          borderTop:'1px solid var(--border)', padding:'0.65rem 1rem 0.85rem',
+          animation:'fadeSlideUp 0.18s ease',
         }}>
           {items.map(item => (
             <div key={item.id} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '0.4rem 0', borderBottom: '1px solid var(--border)',
+              display:'flex', alignItems:'center', gap:8,
+              padding:'0.4rem 0', borderBottom:'1px solid var(--border)',
             }}>
-              <span style={{ fontSize: '0.92rem', width: 28, textAlign: 'center' }}>
+              <span style={{ fontSize:'0.95rem', width:28, textAlign:'center', flexShrink:0 }}>
                 {categoryEmoji(item.dishes?.category)}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '0.8rem', fontWeight: 500,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{item.dishes?.name || 'Dish'}</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--t3)' }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:'0.8rem', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {item.dishes?.name || 'Dish'}
+                </div>
+                <div style={{ fontSize:'0.65rem', color:'var(--t3)' }}>
                   {item.quantity}× {formatPrice(item.unit_price)}
                 </div>
               </div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, flexShrink: 0 }}>
+              <span style={{ fontSize:'0.8rem', fontWeight:600, flexShrink:0 }}>
                 {formatPrice(item.line_total || item.unit_price * item.quantity)}
               </span>
             </div>
           ))}
 
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0 0.1rem',
-            fontSize: '0.78rem', color: 'var(--t2)',
-          }}>
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'0.55rem 0 0.1rem', fontSize:'0.78rem', color:'var(--t2)' }}>
             <span>Subtotal</span><span>{formatPrice(order.subtotal)}</span>
           </div>
           {(order.tax_amount || 0) > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--t3)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', color:'var(--t3)' }}>
               <span>Tax</span><span>{formatPrice(order.tax_amount)}</span>
             </div>
           )}
           {(order.service_charge || 0) > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--t3)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', color:'var(--t3)' }}>
               <span>Service</span><span>{formatPrice(order.service_charge)}</span>
             </div>
           )}
           <div style={{
-            display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0 0',
-            borderTop: '1px solid var(--border)', marginTop: '0.3rem',
-            fontWeight: 800, fontSize: '0.88rem',
+            display:'flex', justifyContent:'space-between', padding:'0.45rem 0 0',
+            borderTop:'1px solid var(--border)', marginTop:'0.3rem',
+            fontWeight:900, fontSize:'0.9rem',
           }}>
-            <span>Total</span><span style={{ color: 'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
+            <span>Total</span>
+            <span style={{ color:'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.75rem' }}>
+          <div style={{ display:'flex', gap:'0.35rem', marginTop:'0.75rem' }}>
             {order.status === 'ready' && (
-              <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem' }}
+              <button className="btn btn-primary btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'served')} disabled={acting}>
-                {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Mark Served'}
+                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : 'Mark Served'}
               </button>
             )}
             {order.status === 'served' && (
-              <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem' }}
+              <button className="btn btn-ghost btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'done')} disabled={acting}>
-                {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Complete'}
+                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : 'Complete'}
               </button>
             )}
             {['open', 'preparing', 'ready'].includes(order.status) && (
-              <button className="btn btn-danger" style={{ fontSize: '0.78rem', padding: '0.4rem 0.85rem' }}
+              <button className="btn btn-danger btn-sm" style={{ minWidth:80 }}
                 onClick={() => onUpdateStatus(order.id, 'cancelled')} disabled={acting}>
                 Cancel
               </button>

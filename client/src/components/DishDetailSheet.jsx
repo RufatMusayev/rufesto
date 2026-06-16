@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { categoryEmoji, dishBackground, formatPrice, timeAgo } from '../lib/helpers'
+import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function DishDetailSheet({ dish, onClose }) {
-  const { addDish, tableId } = useCart()
+  const { addDish, tableId, cartError, clearCartError } = useCart()
   const { session } = useAuth()
   const [reviews, setReviews] = useState([])
   const [ingredients, setIngredients] = useState([])
@@ -39,13 +39,13 @@ export default function DishDetailSheet({ dish, onClose }) {
 
     supabase
       .from('dish_ingredients')
-      .select('quantity_grams, unit, ingredients(name)')
+      .select('quantity, unit, ingredients(name)')
       .eq('dish_id', dish.id)
       .then(({ data }) => setIngredients(data || []))
 
     supabase
       .from('dish_allergens')
-      .select('allergen_name, severity')
+      .select('allergen')
       .eq('dish_id', dish.id)
       .then(({ data }) => setAllergens(data || []))
 
@@ -57,6 +57,15 @@ export default function DishDetailSheet({ dish, onClose }) {
         .eq('dish_id', dish.id)
         .maybeSingle()
         .then(({ data }) => setSaved(!!data))
+
+      supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('target_type', 'dish')
+        .eq('target_id', dish.id)
+        .maybeSingle()
+        .then(({ data }) => setLiked(!!data))
     }
   }, [dish.id, session?.user?.id])
 
@@ -127,13 +136,12 @@ export default function DishDetailSheet({ dish, onClose }) {
     }
   }
 
+  // Only dietary/lifestyle tags — kcal and prep are shown in the meta line above, not here
   const tags = [
     dish.is_vegan && 'vegan',
     dish.is_vegetarian && 'vegetarian',
     dish.is_gluten_free && 'glutenfree',
     dish.is_spicy && 'spicy',
-    dish.calories && `${dish.calories}kcal`,
-    dish.prep_time_min && `${dish.prep_time_min}min`,
   ].filter(Boolean)
 
   return (
@@ -417,11 +425,12 @@ export default function DishDetailSheet({ dish, onClose }) {
                 <span key={i} style={{
                   fontSize: '0.68rem', fontWeight: 600,
                   padding: '3px 9px', borderRadius: 100,
-                  background: a.severity === 'high' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
-                  color: a.severity === 'high' ? 'var(--red)' : '#D97706',
-                  border: `1px solid ${a.severity === 'high' ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}`,
+                  background: 'rgba(245,158,11,0.1)',
+                  color: '#D97706',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  textTransform: 'capitalize',
                 }}>
-                  {a.allergen_name}
+                  {a.allergen}
                 </span>
               ))}
             </div>
@@ -464,12 +473,12 @@ export default function DishDetailSheet({ dish, onClose }) {
                         background: 'var(--gold)', flexShrink: 0,
                       }} />
                       {ing.ingredients?.name}
-                      {ing.quantity_grams && (
+                      {ing.quantity && (
                         <span style={{
                           fontFamily: "'DM Mono', monospace",
                           color: 'var(--t4)', fontSize: '0.66rem',
                         }}>
-                          {ing.quantity_grams}{ing.unit || 'g'}
+                          {ing.quantity}{ing.unit || 'g'}
                         </span>
                       )}
                     </span>
@@ -489,7 +498,7 @@ export default function DishDetailSheet({ dish, onClose }) {
             <button
               className="btn btn-primary"
               style={{ width: '100%', padding: '11px 0', fontSize: '0.88rem', fontWeight: 700, borderRadius: 12 }}
-              onClick={() => { addDish(dish); onClose() }}
+              onClick={() => { clearCartError(); addDish(dish); onClose() }}
               onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
               onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
               onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -506,7 +515,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               background: 'var(--s2)', borderRadius: 12,
               border: '1px solid var(--border)',
             }}>
-              Scan QR at table to order
+              Enter a table code on the Table tab to order
             </div>
           </div>
         ) : null}
@@ -539,7 +548,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                       display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2,
                     }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--t1)' }}>
-                        {r.users?.name || 'Anonymous'}
+                        {cleanDisplayName(r.users?.name)}
                       </span>
                       <span style={{
                         fontFamily: "'DM Mono', monospace",

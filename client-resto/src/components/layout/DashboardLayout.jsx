@@ -22,9 +22,14 @@ export default function DashboardLayout() {
       <aside className="dash-sidebar">
         <div className="dash-sidebar-head">
           <div className="dash-resto-badge">{initial}</div>
-          <div className="dash-resto-info">
+          <div className="dash-resto-info" style={{ flex: 1, minWidth: 0 }}>
             <div className="dash-resto-name">{staffRow?.restaurants?.name || 'Restaurant'}</div>
-            <div className="dash-resto-role">{staffRow?.role || 'Staff'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <span className="dash-live-dot" style={{ width: 5, height: 5 }} />
+              <span className="dash-resto-role" style={{ marginTop: 0, color: 'var(--green)', fontSize: '0.62rem', fontWeight: 600 }}>
+                {staffRow?.role || 'Staff'}
+              </span>
+            </div>
           </div>
         </div>
 

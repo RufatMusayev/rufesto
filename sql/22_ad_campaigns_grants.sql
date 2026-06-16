@@ -1,0 +1,28 @@
+-- ============================================
+-- 22: Fix ad_campaigns 401 for anonymous feed
+-- Applied to Supabase on 2026-06-15 (migration: ad_campaigns_grants)
+--
+-- Root cause: ad_campaigns_staff_all RLS policy contains a subquery
+--   EXISTS (SELECT 1 FROM staff s WHERE s.user_id = auth.uid() ...)
+-- Postgres evaluates ALL policies on the table for every role, including
+-- anon. Since anon had no SELECT grant on `staff`, the subquery threw
+-- "permission denied for table staff" — surfaced as a 401 on the feed.
+--
+-- staff already has RLS enabled with policy "staff_read_own"
+--   USING (user_id = auth.uid()), so anon will always see zero rows
+--   from staff — the grant is safe (read-only, no data exposure).
+--
+-- ad_campaigns itself already had:
+--   - RLS enabled
+--   - policy "ad_campaigns_public_read" FOR SELECT USING (status = 'active'
+--       AND now() >= starts_at AND now() <= ends_at)   [correct]
+--   - GRANT SELECT ON ad_campaigns TO anon, authenticated            [correct]
+--
+-- Only missing piece: GRANT SELECT ON staff TO anon.
+-- ============================================
+
+-- Allow anon to read the staff table so RLS policy subqueries on
+-- ad_campaigns can evaluate without permission errors.
+-- RLS on staff (staff_read_own: user_id = auth.uid()) ensures anon
+-- will never retrieve actual staff rows.
+GRANT SELECT ON public.staff TO anon;

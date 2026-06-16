@@ -84,17 +84,15 @@ export default function MenuPage() {
   return (
     <div style={{ padding: '1.25rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <div>
           <h1 className="page-title">Menu</h1>
-          <span style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
+          <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
             {availCount}/{filtered.length} available · {dishes.length} total
           </span>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ gap: '0.35rem' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Dish
         </button>
       </div>
@@ -166,75 +164,80 @@ export default function MenuPage() {
 function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: '0.85rem',
-      background: 'var(--s2)', borderRadius: 12, padding: '0.85rem 1rem',
-      border: '1px solid var(--border)',
-      opacity: d.available ? 1 : 0.6, transition: 'opacity 0.2s',
+      display:'flex', alignItems:'center', gap:'0.85rem',
+      background: d.available ? 'var(--s2)' : 'var(--s2)',
+      borderRadius:12, padding:'0.75rem 1rem',
+      border: d.available ? '1px solid var(--border)' : '1px solid var(--border)',
+      opacity: d.available ? 1 : 0.55,
+      transition:'opacity 0.25s, border-color 0.2s',
     }}>
       {/* Photo or emoji */}
       <div style={{
-        width: 42, height: 42, borderRadius: 10,
-        background: 'var(--s3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.4rem', flexShrink: 0, overflow: 'hidden',
+        width:46, height:46, borderRadius:10,
+        background:'var(--s3)', display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:'1.5rem', flexShrink:0, overflow:'hidden',
+        border:'1px solid var(--border)',
       }}>
-        {d.photo ? (
-          <img src={d.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          categoryEmoji(d.category)
-        )}
+        {d.photo
+          ? <img src={d.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : categoryEmoji(d.category)
+        }
       </div>
 
       {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <span style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+          <span style={{ fontWeight:700, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {d.name}
           </span>
           {d.is_featured && (
-            <span style={{ fontSize: '0.6rem', background: 'rgba(196,154,44,0.15)', color: 'var(--gold)', padding: '1px 6px', borderRadius: 100, fontWeight: 600 }}>
-              Featured
+            <span style={{ fontSize:'0.58rem', background:'rgba(196,154,44,0.15)', color:'var(--gold)', padding:'1px 6px', borderRadius:100, fontWeight:700, flexShrink:0 }}>
+              ★ Featured
+            </span>
+          )}
+          {!d.available && (
+            <span style={{ fontSize:'0.58rem', background:'rgba(163,45,45,0.12)', color:'var(--red)', padding:'1px 6px', borderRadius:100, fontWeight:700, flexShrink:0 }}>
+              Off
             </span>
           )}
         </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--t2)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {formatPrice(d.price)}
-          {d.menu_sections?.name && <span style={{ color: 'var(--t3)' }}>· {d.menu_sections.name}</span>}
-          {d.is_vegan && <span style={{ fontSize: '0.7rem' }}>🌱</span>}
-          {d.is_vegetarian && <span style={{ fontSize: '0.7rem' }}>🥬</span>}
-          {d.is_gluten_free && <span style={{ fontSize: '0.7rem' }}>🌾</span>}
-          {d.is_spicy && <span style={{ fontSize: '0.7rem' }}>🌶️</span>}
+        <div style={{ fontSize:'0.75rem', color:'var(--t2)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+          <span style={{ fontWeight:600 }}>{formatPrice(d.price)}</span>
+          {d.menu_sections?.name && <span style={{ color:'var(--t3)' }}>· {d.menu_sections.name}</span>}
+          {d.is_vegan && <span title="Vegan" style={{ fontSize:'0.75rem' }}>🌱</span>}
+          {d.is_vegetarian && !d.is_vegan && <span title="Vegetarian" style={{ fontSize:'0.75rem' }}>🥬</span>}
+          {d.is_gluten_free && <span title="Gluten-free" style={{ fontSize:'0.75rem' }}>🌾</span>}
+          {d.is_spicy && <span title="Spicy" style={{ fontSize:'0.75rem' }}>🌶️</span>}
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:'0.3rem' }}>
         <button onClick={onEdit} title="Edit" style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: 'none', border: 'none', color: 'var(--t3)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'color 0.15s',
+          width:30, height:30, borderRadius:7, background:'none', border:'none',
+          color:'var(--t3)', cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'color 0.15s, background 0.15s',
         }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--t1)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+          onMouseEnter={e => { e.currentTarget.style.color='var(--t1)'; e.currentTarget.style.background='var(--s3)' }}
+          onMouseLeave={e => { e.currentTarget.style.color='var(--t3)'; e.currentTarget.style.background='none' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
         <button onClick={onDelete} title="Delete" style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: 'none', border: 'none', color: 'var(--t3)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'color 0.15s',
+          width:30, height:30, borderRadius:7, background:'none', border:'none',
+          color:'var(--t3)', cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'color 0.15s, background 0.15s',
         }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+          onMouseEnter={e => { e.currentTarget.style.color='var(--red)'; e.currentTarget.style.background='rgba(163,45,45,0.08)' }}
+          onMouseLeave={e => { e.currentTarget.style.color='var(--t3)'; e.currentTarget.style.background='none' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
           </svg>
         </button>
         <Toggle on={d.available} loading={toggling} onToggle={onToggle} />
@@ -245,22 +248,23 @@ function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
 
 function Toggle({ on, loading, onToggle }) {
   return (
-    <button onClick={onToggle} disabled={loading} style={{
-      width: 48, height: 26, borderRadius: 100, flexShrink: 0,
+    <button onClick={onToggle} disabled={loading} title={on ? 'Mark unavailable' : 'Mark available'} style={{
+      width:50, height:28, borderRadius:100, flexShrink:0,
       background: on ? 'var(--green)' : 'var(--s4)',
       border: 'none',
       cursor: loading ? 'wait' : 'pointer',
-      position: 'relative', transition: 'background 0.2s',
+      position:'relative',
+      transition:'background 0.22s',
       opacity: loading ? 0.5 : 1,
     }}>
       <div style={{
-        position: 'absolute',
-        left: on ? 'calc(100% - 22px)' : 3,
-        top: '50%', transform: 'translateY(-50%)',
-        width: 20, height: 20, borderRadius: '50%',
-        background: '#fff',
-        transition: 'left 0.2s',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+        position:'absolute',
+        left: on ? 'calc(100% - 24px)' : 3,
+        top:'50%', transform:'translateY(-50%)',
+        width:22, height:22, borderRadius:'50%',
+        background:'#fff',
+        transition:'left 0.22s cubic-bezier(0.23, 1, 0.32, 1)',
+        boxShadow:'0 1px 4px rgba(0,0,0,0.3)',
       }} />
     </button>
   )

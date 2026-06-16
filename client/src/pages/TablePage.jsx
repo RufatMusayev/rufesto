@@ -16,6 +16,9 @@ export default function TablePage() {
   const [loading, setLoading] = useState(true)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState('')
+  const [codeInput, setCodeInput] = useState('')
+  const [codeLoading, setCodeLoading] = useState(false)
+  const [codeError, setCodeError] = useState('')
   const [paymentState, setPaymentState] = useState(null)
   const [showPayment, setShowPayment] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -50,6 +53,13 @@ export default function TablePage() {
       if (table) {
         setTableInfo(table)
         if (table.state === 'awaiting_payment') setPaymentState('requested')
+        // Self-heal: holding an active session but the table still reads free/reserved
+        // (e.g. session started before this was wired up) — claim it as occupied.
+        if (table.state === 'free' || table.state === 'reserved') {
+          supabase.from('tables').update({ state: 'occupied' })
+            .eq('id', tableId).in('state', ['free', 'reserved'])
+            .then(() => setTableInfo(prev => prev ? { ...prev, state: 'occupied' } : prev))
+        }
       }
 
       if (session) {
@@ -103,6 +113,30 @@ export default function TablePage() {
     }
   }, [tableId, session])
 
+  async function enterCode(e) {
+    e.preventDefault()
+    const code = codeInput.trim().toUpperCase()
+    if (!code) return
+    if (!session) {
+      setShowAuthModal(true)
+      return
+    }
+    setCodeLoading(true)
+    setCodeError('')
+    const { data: table } = await supabase
+      .from('tables')
+      .select('id, restaurant_id, table_number, is_active')
+      .eq('access_code', code)
+      .eq('is_active', true)
+      .maybeSingle()
+    setCodeLoading(false)
+    if (!table) {
+      setCodeError('Invalid table code. Check the code and try again.')
+      return
+    }
+    setTable(table.id, table.restaurant_id)
+  }
+
   async function startDemo() {
     if (!session) {
       setShowAuthModal(true)
@@ -133,7 +167,7 @@ export default function TablePage() {
   }
 
   function handleEndSession() {
-    clearTable()
+    clearTable(true)
     setTableInfo(null)
     setOrders([])
     setPaymentState(null)
@@ -142,7 +176,11 @@ export default function TablePage() {
   if (loading) return <TableSkeleton />
   if (!tableId) return (
     <>
-      <EmptyTableState onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError} />
+      <EmptyTableState
+        onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError}
+        codeInput={codeInput} setCodeInput={setCodeInput}
+        onEnterCode={enterCode} codeLoading={codeLoading} codeError={codeError}
+      />
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </>
   )
@@ -378,7 +416,7 @@ export default function TablePage() {
           onComplete={() => {
             setShowPayment(false)
             setPaymentState('completed')
-            clearTable()
+            clearTable(true)
             setTableInfo(null)
             setOrders([])
           }}
@@ -543,13 +581,17 @@ function StatusDot({ status, color }) {
   return null
 }
 
-function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
+function EmptyTableState({
+  onStartDemo, demoLoading, demoError,
+  codeInput, setCodeInput, onEnterCode, codeLoading, codeError,
+}) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       minHeight: '75vh', padding: '2rem',
       maxWidth: 400, margin: '0 auto',
     }}>
+      {/* Icon */}
       <div style={{
         width: 96, height: 96, borderRadius: '50%',
         background: 'var(--s3)', border: '1px solid var(--border)',
@@ -557,13 +599,10 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
         marginBottom: 24,
       }}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="5" y="5" width="3" height="3" fill="var(--t3)" stroke="none" />
-          <rect x="16" y="5" width="3" height="3" fill="var(--t3)" stroke="none" />
-          <rect x="5" y="16" width="3" height="3" fill="var(--t3)" stroke="none" />
-          <path d="M14 14h2v2h-2zM18 14h3M18 18v3M14 18h2v2" />
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <path d="M8 21h8M12 17v4" />
+          <line x1="7" y1="10" x2="17" y2="10" strokeWidth="1.6" />
+          <line x1="7" y1="13" x2="13" y2="13" strokeWidth="1.6" />
         </svg>
       </div>
 
@@ -577,27 +616,94 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
         fontSize: '0.84rem', color: 'var(--t3)', textAlign: 'center',
         lineHeight: 1.6, maxWidth: 280, marginBottom: 28,
       }}>
-        Scan a QR code at your table to start a dining session and place orders.
+        Enter the table code shown on your table card to start a dining session and place orders.
       </p>
 
+      {/* Code entry form — primary action */}
+      <form
+        onSubmit={onEnterCode}
+        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}
+      >
+        <input
+          className="input"
+          type="text"
+          placeholder="e.g. BELLA-T2"
+          value={codeInput}
+          onChange={e => setCodeInput(e.target.value)}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          style={{
+            width: '100%', textAlign: 'center',
+            fontSize: '1.1rem', fontWeight: 700, letterSpacing: 2,
+            fontFamily: "'DM Mono', monospace",
+            padding: '13px 16px', borderRadius: 10,
+            boxSizing: 'border-box',
+            textTransform: 'uppercase',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={codeLoading || !codeInput.trim()}
+          className="btn btn-primary"
+          style={{
+            width: '100%', padding: '13px 0', fontSize: '0.88rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            opacity: (codeLoading || !codeInput.trim()) ? 0.6 : 1,
+          }}
+          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          {codeLoading ? (
+            <><span className="spinner" style={{ width: 14, height: 14 }} /> Checking...</>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+              Join Table
+            </>
+          )}
+        </button>
+      </form>
+
+      {codeError && (
+        <p style={{ fontSize: '0.78rem', color: 'var(--red)', marginTop: 10, textAlign: 'center' }}>
+          {codeError}
+        </p>
+      )}
+
+      {/* Divider */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        width: '100%', margin: '24px 0 16px',
+      }}>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        <span style={{ fontSize: '0.68rem', color: 'var(--t4)', fontWeight: 500 }}>or</span>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+      </div>
+
+      {/* Demo session — secondary action */}
       <button
         onClick={onStartDemo}
         disabled={demoLoading}
-        className="btn btn-primary"
         style={{
-          padding: '12px 32px', fontSize: '0.88rem',
-          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'none', border: '1px solid var(--border)', borderRadius: 8,
+          padding: '10px 24px', fontSize: '0.82rem', color: 'var(--t3)',
+          cursor: demoLoading ? 'default' : 'pointer',
+          display: 'flex', alignItems: 'center', gap: 7,
           opacity: demoLoading ? 0.6 : 1,
+          transition: 'border-color 150ms, color 150ms',
         }}
-        onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-        onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-        onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        onPointerEnter={e => { e.currentTarget.style.borderColor = 'var(--t3)'; e.currentTarget.style.color = 'var(--t2)' }}
+        onPointerLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t3)' }}
       >
         {demoLoading ? (
-          <><span className="spinner" style={{ width: 14, height: 14 }} /> Setting up...</>
+          <><span className="spinner" style={{ width: 12, height: 12 }} /> Setting up...</>
         ) : (
           <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2" />
               <rect x="6" y="8" width="12" height="8" rx="1" />
             </svg>
@@ -607,10 +713,10 @@ function EmptyTableState({ onStartDemo, demoLoading, demoError }) {
       </button>
 
       {demoError && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--red)', marginTop: 10 }}>{demoError}</p>
+        <p style={{ fontSize: '0.78rem', color: 'var(--red)', marginTop: 8, textAlign: 'center' }}>{demoError}</p>
       )}
 
-      <p style={{ fontSize: '0.65rem', color: 'var(--t4)', marginTop: 12, textAlign: 'center' }}>
+      <p style={{ fontSize: '0.65rem', color: 'var(--t4)', marginTop: 10, textAlign: 'center' }}>
         Demo mode assigns a free table for testing
       </p>
     </div>

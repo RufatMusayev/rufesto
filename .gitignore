@@ -3,6 +3,10 @@ dist/
 .env
 .env.local
 .env.production.local
+.env.preview
+.env.prod
+!.env.preview.example
+!.env.prod.example
 *.log
 .DS_Store
 Thumbs.db

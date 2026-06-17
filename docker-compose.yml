@@ -1,5 +1,7 @@
-name: rufesto
-
+# Project name comes from the deploy command, NOT this file:
+#   real    site (rufesto.com)      -> docker compose -p r_rufesto --env-file .env.prod    up -d --build
+#   preview site (rufat-server.com) -> docker compose -p p_rufesto --env-file .env.preview up -d --build
+# Each stack binds its own host port (WEB_PORT) so the two never collide on :80.
 services:
   web:
     build:
@@ -9,7 +11,7 @@ services:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     ports:
-      - "80:80"
+      - "${WEB_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy
@@ -20,7 +22,8 @@ services:
       context: ./server
     environment:
       - PORT=3001
-      - CORS_ORIGIN=${CORS_ORIGIN:-https://rufat-server.com,https://resto.rufat-server.com}
+      # No default: each env MUST set CORS_ORIGIN so prod never trusts preview origins (or vice-versa).
+      - CORS_ORIGIN=${CORS_ORIGIN}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
     expose:

@@ -51,23 +51,7 @@ router.get('/:id', async (req, res) => {
   res.json(data)
 })
 
-/* Protected — only authenticated staff can toggle dish availability */
-router.patch('/:id/toggle', requireAuth, async (req, res) => {
-  const { data: dish, error: fetchError } = await supabase
-    .from('dishes')
-    .select('id, available')
-    .eq('id', req.params.id)
-    .single()
-  if (fetchError || !dish) return res.status(404).json({ error: 'Dish not found' })
-
-  const { data: updated, error: updateError } = await supabase
-    .from('dishes')
-    .update({ available: !dish.available })
-    .eq('id', req.params.id)
-    .select('id, available')
-    .single()
-  if (updateError) return res.status(500).json({ error: updateError.message })
-  res.json(updated)
-})
+/* Dish availability is toggled by the dashboard through Supabase (RLS: managers only).
+   The old PATCH /:id/toggle used the service key with no staff check and was removed. */
 
 export default router

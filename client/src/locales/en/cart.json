@@ -1,0 +1,12 @@
+{
+  "yourOrder": "Your Order",
+  "cartEmpty": "Your cart is empty",
+  "cartEmptyHint": "Browse the menu and add something delicious.",
+  "placeOrder": "Place Order · {{price}}",
+  "placingOrder": "Placing order…",
+  "orderPlaced": "Order placed!",
+  "orderPlacedHint": "Your kitchen ticket is being prepared. We'll keep you updated.",
+  "noTableError": "No table selected — scan a QR code first.",
+  "openCart": "Open cart",
+  "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to."
+}

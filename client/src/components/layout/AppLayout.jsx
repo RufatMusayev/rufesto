@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import CartSheet from '../CartSheet'
@@ -15,6 +16,7 @@ export default function AppLayout() {
   const { theme, toggle } = useTheme()
   const { session } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation(['nav', 'common'])
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 768)
@@ -83,7 +85,7 @@ export default function AppLayout() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <button
                 onClick={() => navigate('/notifications')}
-                aria-label="Notifications"
+                aria-label={t('nav:notifications')}
                 className="icon-btn"
                 style={{ width: 38, height: 38, color: 'var(--t1)', position: 'relative' }}
               >
@@ -108,7 +110,7 @@ export default function AppLayout() {
 
               <button
                 onClick={toggle}
-                aria-label="Toggle theme"
+                aria-label={t('nav:toggleTheme')}
                 className="icon-btn"
                 style={{ width: 38, height: 38, color: 'var(--t1)' }}
               >

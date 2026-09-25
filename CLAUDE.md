@@ -1,43 +1,35 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+# Rufesto
 
-This project is indexed by GitNexus as **rufesto** (725 symbols, 1133 relationships, 13 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+Restaurant discovery + dine-in platform: consumers discover, book, sit via table code/QR, order, pay; restaurants run orders, KDS, tables, menu, promos, bookings. Real-time via Supabase.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+## Layout
+- `client/` — consumer SPA (React 18 + Vite, :5173)
+- `client-resto/` — restaurant dashboard SPA (:5174)
+- `shared/` — helpers + constants used by both (`@shared` alias)
+- `server/` — legacy Express API (:3001, service-role key); **neither SPA calls it**
+- `sql/` — migrations (`NN_name.sql`) + `_prod_baseline*.sql`
+- `nginx/`, `Dockerfile.web`, `docker-compose.yml` — deploy
 
-## Always Do
+## Commands
+- `npm run install:all` · `npm run dev` (all three) · `npm run build`
+- Local `.env` files point at the **preview** Supabase project.
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+## Environments
+| | Preview | Production |
+|---|---|---|
+| Domains | rufat-server.com, resto.rufat-server.com | rufesto.com, resto.rufesto.com |
+| Docker | `p_rufesto` :8080 | `r_rufesto` :8090 |
+| Supabase | `qqwvtuckljwvwrvyrjbn` | `bjohnoaezfmrgunvjixt` |
+Always ship to preview first, confirm, then promote (`/deploy-rufesto`).
 
-## Never Do
+## Must know
+- Both SPAs talk **directly** to Supabase with the anon key → **RLS + grants + triggers are the only security boundary**. Never trust the browser for prices, statuses, totals or roles.
+- The preview DB also hosts an unrelated project (`rqf_*` tables — Ryan's Quick Fix). Don't touch them.
+- Read `docs/DATABASE.md` §9 before touching auth, tables, orders or RLS. The repo is public: don't commit `docs/` or describe open security issues in commits until they're fixed.
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/rufesto/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/rufesto/clusters` | All functional areas |
-| `gitnexus://repo/rufesto/processes` | All execution flows |
-| `gitnexus://repo/rufesto/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
+## Reference docs (read the relevant one, not all)
+- `docs/ARCHITECTURE.md` — start here: system map, feature flows, top issues
+- `docs/DATABASE.md` — every table, function, trigger, policy, storage, realtime
+- `docs/CLIENT_CONSUMER_APP.md`, `docs/CLIENT_RESTO_DASHBOARD.md` — every page/component/function
+- `docs/SERVER_INFRA_SQL.md` — Express, Docker/nginx, sql files, git history
+- `docs/API_KEYS_AND_SECRETS.md` — key inventory + fix plan

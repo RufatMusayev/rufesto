@@ -1,0 +1,15 @@
+{
+  "home": "Home",
+  "explore": "Explore",
+  "map": "Map",
+  "notifications": "Notifications",
+  "profile": "Profile",
+  "yourTable": "Your Table",
+  "enterTableCode": "Enter Table Code",
+  "more": "More",
+  "lightMode": "Light mode",
+  "darkMode": "Dark mode",
+  "toggleTheme": "Toggle theme",
+  "activeTable": "Active table",
+  "scanQR": "Scan QR"
+}

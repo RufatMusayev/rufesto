@@ -1,14 +1,16 @@
+import { useTranslation } from 'react-i18next'
 import { useCart } from '../../contexts/CartContext'
 
 export default function CartFab() {
   const { itemCount, setOpen, tableId } = useCart()
+  const { t } = useTranslation('cart')
 
   if (!tableId) return null
 
   return (
     <button
       onClick={() => setOpen(true)}
-      aria-label="Open cart"
+      aria-label={t('openCart')}
       className="cart-fab"
       style={{
         position: 'fixed',

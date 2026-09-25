@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -6,14 +7,15 @@ import { formatPrice } from '../lib/helpers'
 import PaymentSheet from './PaymentSheet'
 
 const ORDER_STATUS_META = {
-  open:      { label: 'Placed',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)'  },
-  preparing: { label: 'Preparing', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)'  },
-  ready:     { label: 'Ready',     color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
-  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
-  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.08)'   },
+  open:      { labelKey: 'statusPlaced',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)'  },
+  preparing: { labelKey: 'statusPreparing', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)'  },
+  ready:     { labelKey: 'statusReady',     color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
+  served:    { labelKey: 'statusServed',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
+  cancelled: { labelKey: 'statusCancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.08)'   },
 }
 
 export default function ActiveTableSheet({ onClose, tableInfo }) {
+  const { t } = useTranslation(['table', 'common'])
   const { items, total, clearTable, activeBookingId, restaurantId, tableId } = useCart()
   const { session } = useAuth()
   const [showPayment, setShowPayment] = useState(false)
@@ -69,7 +71,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
                 }}>
-                  {tableInfo?.restaurantName || 'Your Table'}
+                  {tableInfo?.restaurantName || t('table:yourTable')}
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginTop: 3 }}>
                   Table{' '}
@@ -80,7 +82,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                 </p>
               </div>
               <span className="avail-badge on" style={{ fontSize: '0.62rem', letterSpacing: 0.5 }}>
-                SEATED
+                {t('table:seated')}
               </span>
             </div>
 
@@ -96,7 +98,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                   fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)',
                   textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8,
                 }}>
-                  Active Orders
+                  {t('table:activeOrders')}
                 </div>
                 {orders.map(o => {
                   const meta = ORDER_STATUS_META[o.status] || ORDER_STATUS_META.open
@@ -114,7 +116,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                           padding: '2px 8px', borderRadius: 100,
                           background: meta.bg, color: meta.color,
                         }}>
-                          {meta.label}
+                          {t(`table:${(ORDER_STATUS_META[o.status] || ORDER_STATUS_META.open).labelKey}`)}
                         </span>
                         {time && (
                           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t4)' }}>
@@ -135,7 +137,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                   display: 'flex', justifyContent: 'space-between',
                   marginTop: 10, fontWeight: 800, fontSize: '0.92rem',
                 }}>
-                  <span style={{ color: 'var(--t1)' }}>Bill Total</span>
+                  <span style={{ color: 'var(--t1)' }}>{t('table:billTotal')}</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>
                     {formatPrice(billTotal)}
                   </span>
@@ -150,7 +152,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                   fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)',
                   textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8,
                 }}>
-                  In Cart (Not Ordered)
+                  {t('table:inCart')}
                 </div>
                 {items.map(i => (
                   <div key={i.dish.id} style={{
@@ -171,9 +173,9 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                 {/* Cart subtotals */}
                 <div style={{ marginTop: 10 }}>
                   {[
-                    ['Subtotal', subtotal],
-                    ['Tax (18%)', tax_amount],
-                    ['Service (10%)', service_charge],
+                    [t('common:subtotal'), subtotal],
+                    [t('common:taxPct'), tax_amount],
+                    [t('common:servicePct'), service_charge],
                   ].map(([label, val]) => (
                     <div key={label} style={{
                       display: 'flex', justifyContent: 'space-between',
@@ -188,7 +190,7 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                     fontWeight: 800, fontSize: '0.9rem', color: 'var(--t1)', marginTop: 6,
                     paddingTop: 6, borderTop: '1px solid var(--border)',
                   }}>
-                    <span>Total</span>
+                    <span>{t('common:total')}</span>
                     <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>
                       {formatPrice(total_amount)}
                     </span>
@@ -199,9 +201,9 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
 
             {items.length === 0 && !hasBill && (
               <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--t3)', fontSize: '0.85rem' }}>
-                No items ordered yet.
+                {t('table:noItemsOrdered')}
                 <br />
-                <span style={{ fontSize: '0.78rem' }}>Browse the menu to add dishes.</span>
+                <span style={{ fontSize: '0.78rem' }}>{t('table:browseMenuHint')}</span>
               </div>
             )}
 
@@ -212,15 +214,15 @@ export default function ActiveTableSheet({ onClose, tableInfo }) {
                 style={{ width: '100%', marginBottom: '0.6rem', padding: '13px 0', fontSize: '0.9rem' }}
                 onClick={() => setShowPayment(true)}
               >
-                Request Bill · {formatPrice(billTotal)}
+                {t('table:requestBill', { price: formatPrice(billTotal) })}
               </button>
             )}
 
             <button className="btn btn-ghost" style={{ width: '100%', marginBottom: '0.5rem' }} onClick={onClose}>
-              Back to Menu
+              {t('table:backToMenu')}
             </button>
             <button className="btn btn-danger" style={{ width: '100%' }} onClick={handleEndSession}>
-              End Session
+              {t('table:endSession')}
             </button>
           </div>
         </div>

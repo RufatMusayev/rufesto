@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useAuth } from '../contexts/AuthContext'
@@ -18,58 +19,63 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadFeed() {
-      let followIds = []
-      if (session) {
-        const { data: follows } = await supabase
-          .from('user_follows')
-          .select('restaurant_id')
-          .eq('user_id', session.user.id)
-        followIds = (follows || []).map(f => f.restaurant_id)
-        setFollowedIds(followIds)
-      }
+      try {
+        let followIds = []
+        if (session) {
+          const { data: follows } = await supabase
+            .from('user_follows')
+            .select('restaurant_id')
+            .eq('user_id', session.user.id)
+          followIds = (follows || []).map(f => f.restaurant_id)
+          setFollowedIds(followIds)
+        }
 
-      const [{ data: restData }, { data: revData }, { data: campData }] = await Promise.all([
-        supabase
-          .from('restaurants')
-          .select('*, operating_hours(*)')
-          .eq('status', 'active')
-          .order('name'),
-        supabase
-          .from('reviews')
-          .select('*, dishes(id, name, price, photo, category, available, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
-          .eq('is_flagged', false)
-          .order('created_at', { ascending: false })
-          .limit(20),
-        // RLS only exposes active campaigns within their run window
-        supabase
-          .from('ad_campaigns')
-          .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, restaurants(name, slug, cuisine_type))'),
-      ])
-
-      const allRest = restData || []
-      const followed = allRest.filter(r => followIds.includes(r.id))
-      const rest = allRest.filter(r => !followIds.includes(r.id))
-      setRestaurants([...followed, ...rest])
-
-      const allRevs = revData || []
-      const followedRevs = allRevs.filter(r => followIds.includes(r.dishes?.restaurant_id))
-      const otherRevs = allRevs.filter(r => !followIds.includes(r.dishes?.restaurant_id))
-      setReviews([...followedRevs, ...otherRevs])
-
-      const allCamps = campData || []
-      setCampaigns(allCamps)
-      // Fire-and-forget impression tracking — once per campaign per feed load
-      allCamps.forEach(c => {
-        if (trackedImpressions.current.has(c.id)) return
-        trackedImpressions.current.add(c.id)
-        try {
+        const [{ data: restData }, { data: revData }, { data: campData }] = await Promise.all([
           supabase
-            .rpc('track_campaign', { p_campaign_id: c.id, p_event: 'impression' })
-            .then(() => {}, () => {})
-        } catch { /* ignore */ }
-      })
+            .from('restaurants')
+            .select('*, operating_hours(*)')
+            .eq('status', 'active')
+            .order('name'),
+          supabase
+            .from('reviews')
+            .select('*, dishes(id, name, price, photo, category, available, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
+            .eq('is_flagged', false)
+            .order('created_at', { ascending: false })
+            .limit(20),
+          // RLS only exposes active campaigns within their run window
+          supabase
+            .from('ad_campaigns')
+            .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, restaurants(name, slug, cuisine_type))'),
+        ])
 
-      setLoading(false)
+        const allRest = restData || []
+        const followed = allRest.filter(r => followIds.includes(r.id))
+        const rest = allRest.filter(r => !followIds.includes(r.id))
+        setRestaurants([...followed, ...rest])
+
+        const allRevs = revData || []
+        const followedRevs = allRevs.filter(r => followIds.includes(r.dishes?.restaurant_id))
+        const otherRevs = allRevs.filter(r => !followIds.includes(r.dishes?.restaurant_id))
+        setReviews([...followedRevs, ...otherRevs])
+
+        const allCamps = campData || []
+        setCampaigns(allCamps)
+        // Fire-and-forget impression tracking — once per campaign per feed load
+        allCamps.forEach(c => {
+          if (trackedImpressions.current.has(c.id)) return
+          trackedImpressions.current.add(c.id)
+          try {
+            supabase
+              .rpc('track_campaign', { p_campaign_id: c.id, p_event: 'impression' })
+              .then(() => {}, () => {})
+          } catch { /* ignore */ }
+        })
+      } catch (err) {
+        // Never let a feed error leave `loading` stuck true forever.
+        console.error('Feed load failed:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     loadFeed()
   }, [session?.user?.id])
@@ -171,6 +177,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
   const today = getTodayHours(r.operating_hours)
   const emoji = cuisineEmoji(r.cuisine_type)
   const { session } = useAuth()
+  const { t } = useTranslation(['feed', 'common'])
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
@@ -248,11 +255,13 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
     if (!session) return
     try {
       if (next) {
-        await supabase.from('user_follows').insert({ user_id: session.user.id, restaurant_id: r.id })
+        const { error } = await supabase.from('user_follows').insert({ user_id: session.user.id, restaurant_id: r.id })
+        if (error) setSaved(false)
       } else {
-        await supabase.from('user_follows').delete()
+        const { error } = await supabase.from('user_follows').delete()
           .eq('user_id', session.user.id)
           .eq('restaurant_id', r.id)
+        if (error) setSaved(true)
       }
     } catch { setSaved(!next) }
   }
@@ -283,7 +292,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
             {r.address}, {r.city}
           </div>
         </div>
-        {open && <span className="open-indicator">Open</span>}
+        {open && <span className="open-indicator">{t('common:open')}</span>}
         <button className="icon-btn" style={{ width: 28, height: 28, color: 'var(--t1)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="5" r="1.5" />
@@ -332,7 +341,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
               fontSize: '0.64rem', color: 'rgba(255,255,255,0.75)', marginTop: 2,
               fontFamily: "'DM Mono', monospace",
             }}>
-              {open ? `Until ${today.close}` : `Opens ${today.open}`}
+              {open ? t('common:untilTime', { time: today.close }) : t('common:opensTime', { time: today.open })}
             </div>
           )}
         </div>
@@ -412,7 +421,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
           padding: '0 16px 4px', fontSize: '0.82rem', fontWeight: 700,
           fontFamily: "'DM Mono', monospace",
         }}>
-          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+          {t('feed:like', { count: likeCount })}
         </div>
       )}
 
@@ -436,7 +445,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
           <Link to={`/restaurant/${r.slug}`} style={{
             fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600,
           }}>
-            View menu →
+            {t('feed:viewMenuArrow')}
           </Link>
           {r.seating_capacity && (
             <span style={{
@@ -444,7 +453,7 @@ function FeedPost({ restaurant: r, index, followedIds = [] }) {
               fontFamily: "'DM Mono', monospace",
               textTransform: 'uppercase', letterSpacing: 0.8,
             }}>
-              {r.seating_capacity} seats
+              {t('feed:seatsCount', { count: r.seating_capacity })}
             </span>
           )}
         </div>
@@ -480,7 +489,8 @@ function buildFeed(reviews, restaurants, campaigns = []) {
 function ReviewPostCard({ review: rev, index, onDishClick }) {
   const dish = rev.dishes
   const restaurant = dish?.restaurants
-  const { session } = useAuth()
+  const { session, profile } = useAuth()
+  const { t } = useTranslation('feed')
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
@@ -494,6 +504,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
   const [replyPhoto, setReplyPhoto] = useState(null)
   const [replyPhotoPreview, setReplyPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [replyError, setReplyError] = useState('')
   const photoInputRef = useRef(null)
 
   useEffect(() => {
@@ -619,6 +630,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
     if (!session || submitting) return
     if (!replyBody.trim() && !replyPhoto) return
     setSubmitting(true)
+    setReplyError('')
     try {
       let photoUrl = null
       if (replyPhoto) {
@@ -627,10 +639,13 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         const { error: upErr } = await supabase.storage
           .from('dish-photos')
           .upload(path, replyPhoto, { upsert: false })
-        if (!upErr) {
-          const { data: urlData } = supabase.storage.from('dish-photos').getPublicUrl(path)
-          photoUrl = urlData?.publicUrl || null
+        if (upErr) {
+          setReplyError(t('replyPhotoFailed', { message: upErr.message }))
+          setSubmitting(false)
+          return
         }
+        const { data: urlData } = supabase.storage.from('dish-photos').getPublicUrl(path)
+        photoUrl = urlData?.publicUrl || null
       }
       const payload = {
         review_id: rev.id,
@@ -662,6 +677,8 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
   }
 
   const authorInitial = (cleanDisplayName(rev.users?.name) || 'A')[0].toUpperCase()
+  // The reply composer's own avatar is the signed-in user, not the review's author.
+  const myInitial = (profile?.name || session?.user?.email || 'U')[0].toUpperCase()
   const mealChip = dish
     ? `${categoryEmoji(dish.category)} ${dish.name}${restaurant?.name ? ` · ${restaurant.name}` : ''}`
     : null
@@ -718,7 +735,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
         {/* Review text */}
         <div style={{ padding: '2px 16px 10px', paddingLeft: 62 }}>
           <p style={{ fontSize: '0.92rem', lineHeight: 1.5, color: 'var(--t1)', margin: 0 }}>
-            {rev.body || `Rated ${dish?.name || 'this dish'} ${rev.rating}/5`}
+            {rev.body || t('ratedDish', { dish: dish?.name || t('thisDish'), rating: rev.rating })}
           </p>
         </div>
 
@@ -727,7 +744,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
           <div style={{ padding: '0 16px 10px', paddingLeft: 62 }}>
             <img
               src={rev.photo}
-              alt="Review photo"
+              alt={t('reviewPhotoAlt')}
               loading="lazy"
               style={{
                 width: '100%', maxHeight: 420, objectFit: 'cover',
@@ -777,7 +794,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
               fontSize: '0.76rem', color: 'var(--t3)',
               fontFamily: "'DM Mono', monospace",
             }}>
-              {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+              {t('like', { count: likeCount })}
             </span>
           )}
           {replyCount > 0 && (
@@ -785,7 +802,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
               fontSize: '0.76rem', color: 'var(--t3)',
               fontFamily: "'DM Mono', monospace",
             }}>
-              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+              {t('reply', { count: replyCount })}
             </span>
           )}
         </div>
@@ -864,12 +881,12 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
                   fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)',
                   border: '1px solid var(--border)',
                 }}>
-                  {authorInitial}
+                  {myInitial}
                 </div>
                 {/* Input */}
                 <input
                   type="text"
-                  placeholder="Add a reply…"
+                  placeholder={t('addReply')}
                   value={replyBody}
                   onChange={e => setReplyBody(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) submitReply(e) }}
@@ -895,7 +912,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
                   onClick={e => { e.stopPropagation(); photoInputRef.current?.click() }}
                   className="icon-btn"
                   style={{ width: 36, height: 36, flexShrink: 0 }}
-                  title="Add photo"
+                  title={t('addPhoto')}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="var(--t2)" strokeWidth="1.6" style={{ width: 20, height: 20 }}>
                     <rect x="3" y="6" width="18" height="13" rx="2" />
@@ -919,9 +936,12 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
                     flexShrink: 0,
                   }}
                 >
-                  {submitting ? '…' : 'Post'}
+                  {submitting ? '…' : t('post')}
                 </button>
               </div>
+              {replyError && (
+                <p style={{ color: 'var(--red)', fontSize: '0.74rem', marginTop: 6 }}>{replyError}</p>
+              )}
             </div>
           )}
         </div>
@@ -931,16 +951,17 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
 }
 
 function CommentThread({ comments, loading, replyCount, onHide }) {
+  const { t } = useTranslation('feed')
   return (
     <div style={{ padding: '0 14px 4px' }}>
       {/* Header row with hide button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0 6px' }}>
         <span style={{ fontSize: '0.76rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
           {loading
-            ? 'Loading replies…'
+            ? t('loadingReplies')
             : replyCount > 0
-              ? `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`
-              : 'No replies yet'}
+              ? t('reply', { count: replyCount })
+              : t('noRepliesYet')}
         </span>
         <button
           onClick={onHide}
@@ -950,7 +971,7 @@ function CommentThread({ comments, loading, replyCount, onHide }) {
             transition: 'color 150ms',
           }}
         >
-          Hide replies
+          {t('hideReplies')}
         </button>
       </div>
 

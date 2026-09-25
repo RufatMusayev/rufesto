@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { TABLE_COLORS } from '@shared/constants'
 
@@ -33,15 +34,16 @@ function chairPositions(t) {
   ]
 }
 
-function TableShape({ t, selected, onSelect }) {
-  const style = TABLE_COLORS[t.state] || TABLE_COLORS.cleared
-  const isFree = t.state === 'free'
-  const cx = t.pos_x + t.pos_w / 2
-  const cy = t.pos_y + t.pos_h / 2
+function TableShape({ tbl, selected, onSelect }) {
+  const { t } = useTranslation('common')
+  const style = TABLE_COLORS[tbl.state] || TABLE_COLORS.cleared
+  const isFree = tbl.state === 'free'
+  const cx = tbl.pos_x + tbl.pos_w / 2
+  const cy = tbl.pos_y + tbl.pos_h / 2
 
   return (
     <g
-      onClick={() => isFree && onSelect(t)}
+      onClick={() => isFree && onSelect(tbl)}
       style={{
         cursor: isFree ? 'pointer' : 'default',
         opacity: isFree || selected ? 1 : 0.55,
@@ -49,29 +51,29 @@ function TableShape({ t, selected, onSelect }) {
       }}
     >
       {/* chairs */}
-      {chairPositions(t).map((c, i) => (
+      {chairPositions(tbl).map((c, i) => (
         <circle key={i} cx={c.x} cy={c.y} r="0.9" fill="var(--t4)" opacity="0.45" />
       ))}
 
       {/* selection ring */}
       {selected && (
-        t.shape === 'round' ? (
-          <circle cx={cx} cy={cy} r={Math.max(t.pos_w, t.pos_h) / 2 + 1.1}
+        tbl.shape === 'round' ? (
+          <circle cx={cx} cy={cy} r={Math.max(tbl.pos_w, tbl.pos_h) / 2 + 1.1}
             fill="none" stroke="var(--gold)" strokeWidth="0.7" opacity="0.9" />
         ) : (
-          <rect x={t.pos_x - 1.1} y={t.pos_y - 1.1} width={t.pos_w + 2.2} height={t.pos_h + 2.2}
+          <rect x={tbl.pos_x - 1.1} y={tbl.pos_y - 1.1} width={tbl.pos_w + 2.2} height={tbl.pos_h + 2.2}
             rx="2.4" fill="none" stroke="var(--gold)" strokeWidth="0.7" opacity="0.9" />
         )
       )}
 
       {/* table body */}
-      {t.shape === 'round' ? (
-        <circle cx={cx} cy={cy} r={Math.max(t.pos_w, t.pos_h) / 2}
+      {tbl.shape === 'round' ? (
+        <circle cx={cx} cy={cy} r={Math.max(tbl.pos_w, tbl.pos_h) / 2}
           fill={style.bg} stroke={selected ? 'var(--gold)' : style.color}
           strokeWidth={selected ? 0.6 : 0.45} />
       ) : (
-        <rect x={t.pos_x} y={t.pos_y} width={t.pos_w} height={t.pos_h}
-          rx={t.shape === 'rect' ? 2.6 : 1.8}
+        <rect x={tbl.pos_x} y={tbl.pos_y} width={tbl.pos_w} height={tbl.pos_h}
+          rx={tbl.shape === 'rect' ? 2.6 : 1.8}
           fill={style.bg} stroke={selected ? 'var(--gold)' : style.color}
           strokeWidth={selected ? 0.6 : 0.45} />
       )}
@@ -80,18 +82,19 @@ function TableShape({ t, selected, onSelect }) {
       <text x={cx} y={cy - 0.4} textAnchor="middle"
         style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}
         fontSize="2.9" fill={style.color}>
-        {t.table_number}
+        {tbl.table_number}
       </text>
       <text x={cx} y={cy + 2.6} textAnchor="middle"
         style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}
         fontSize="1.9" fill="var(--t3)">
-        {t.capacity} seats
+        {t('seats', { count: tbl.capacity })}
       </text>
     </g>
   )
 }
 
 export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
+  const { t } = useTranslation(['restaurant', 'common'])
   const [tables, setTables] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -100,7 +103,7 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
     let cancelled = false
     supabase
       .from('tables')
-      .select('*, sections(name)')
+      .select('id, table_number, capacity, state, shape, pos_x, pos_y, pos_w, pos_h, restaurant_id, sections(name)')
       .eq('restaurant_id', restaurant.id)
       .eq('is_active', true)
       .not('pos_x', 'is', null)
@@ -114,8 +117,13 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
         event: 'UPDATE', schema: 'public', table: 'tables',
         filter: `restaurant_id=eq.${restaurant.id}`,
       }, payload => {
-        setTables(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } : t))
-        setSelected(prev => prev && prev.id === payload.new.id && payload.new.state !== 'free' ? null : prev)
+        // Realtime broadcasts the whole row regardless of our select() column list, so
+        // merge only the fields we actually render — never access_code/qr_code_token.
+        const { id, table_number, capacity, state, shape, pos_x, pos_y, pos_w, pos_h } = payload.new
+        setTables(prev => prev.map(t => t.id === id
+          ? { ...t, table_number, capacity, state, shape, pos_x, pos_y, pos_w, pos_h }
+          : t))
+        setSelected(prev => prev && prev.id === id && state !== 'free' ? null : prev)
       })
       .subscribe()
 
@@ -159,7 +167,7 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
                 fontFamily: "'Playfair Display', Georgia, serif",
                 fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)', lineHeight: 1.2,
               }}>
-                Floor Plan
+                {t('restaurant:floorPlanTitle')}
               </h2>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <span className="avail-pulse" style={{
@@ -167,12 +175,12 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
                   background: 'var(--sage)', display: 'inline-block',
                 }} />
                 <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--sage)', letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                  Live
+                  {t('common:live')}
                 </span>
               </span>
             </div>
             <p style={{ fontSize: '0.74rem', color: 'var(--t3)', fontWeight: 500, marginTop: 3 }}>
-              {restaurant.name} · tap a free table to reserve
+              {t('restaurant:floorPlanSubtitle', { name: restaurant.name })}
             </p>
           </div>
           <button onClick={onClose} className="icon-btn" style={{ width: 30, height: 30, color: 'var(--t2)' }}>
@@ -217,7 +225,7 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--t3)', fontSize: '0.8rem',
             }}>
-              No floor plan available yet
+              {t('restaurant:noFloorPlan')}
             </div>
           ) : (
             <div style={{
@@ -254,14 +262,14 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
                   <text x="48" y={CANVAS_H - 2.6} textAnchor="middle"
                     style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, letterSpacing: 0.8 }}
                     fontSize="1.8" fill="var(--t3)">
-                    ENTRANCE
+                    {t('restaurant:entrance')}
                   </text>
                 </g>
 
-                {tables.map(t => (
-                  <TableShape key={t.id} t={t}
-                    selected={selected?.id === t.id}
-                    onSelect={tbl => setSelected(prev => prev?.id === tbl.id ? null : tbl)} />
+                {tables.map(tbl => (
+                  <TableShape key={tbl.id} tbl={tbl}
+                    selected={selected?.id === tbl.id}
+                    onSelect={item => setSelected(prev => prev?.id === item.id ? null : item)} />
                 ))}
               </svg>
             </div>
@@ -281,10 +289,10 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
                   fontFamily: "'DM Mono', monospace", fontSize: '0.92rem',
                   fontWeight: 700, color: 'var(--t1)',
                 }}>
-                  Table {selected.table_number}
+                  {t('common:tableLabel', { number: selected.table_number })}
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--t3)', marginTop: 1 }}>
-                  {selected.sections?.name || 'Floor'} · up to {selected.capacity} guests
+                  {t('restaurant:tableUpTo', { section: selected.sections?.name || t('restaurant:floorFallback'), count: selected.capacity })}
                 </div>
               </div>
               <button
@@ -292,12 +300,12 @@ export default function FloorPlanSheet({ restaurant, onClose, onReserve }) {
                 style={{ padding: '9px 18px', fontSize: '0.8rem', fontWeight: 700, borderRadius: 11, flexShrink: 0 }}
                 onClick={() => onReserve(selected)}
               >
-                Reserve this table
+                {t('restaurant:reserveThisTable')}
               </button>
             </div>
           ) : (
             <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--t4)', padding: '6px 0' }}>
-              Green tables are free right now — tap one to pick your spot
+              {t('restaurant:floorTablePrompt')}
             </p>
           )}
         </div>

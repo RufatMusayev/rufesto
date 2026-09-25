@@ -1,26 +1,29 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 
 /**
  * AuthCallback — Handles OAuth redirect after Google/Apple sign-in.
- * Supabase appends tokens to the URL hash; this component lets
- * onAuthStateChange pick them up, then redirects to home.
+ * Supabase appends tokens to the URL hash; the client's `detectSessionInUrl` picks
+ * them up during initialization. `getSession()` awaits that exchange internally, so
+ * we can navigate off its result directly — no arbitrary timeout needed.
  */
 export default function AuthCallback() {
+  const { t } = useTranslation('auth')
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Supabase client auto-detects the hash fragment and exchanges it
-    // for a session. We just need to wait for it, then redirect.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // Give onAuthStateChange a moment to fire, then navigate
-      setTimeout(() => {
+    let cancelled = false
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return
         navigate(session ? '/' : '/profile', { replace: true })
-      }, 100)
-    }).catch(() => {
-      navigate('/profile', { replace: true })
-    })
+      })
+      .catch(() => {
+        if (!cancelled) navigate('/profile', { replace: true })
+      })
+    return () => { cancelled = true }
   }, [navigate])
 
   return (
@@ -30,7 +33,7 @@ export default function AuthCallback() {
     }}>
       <div style={{ textAlign: 'center' }}>
         <span className="spinner" style={{ marginBottom: '1rem', display: 'block' }} />
-        <p style={{ fontSize: '0.88rem' }}>Completing sign in...</p>
+        <p style={{ fontSize: '0.88rem' }}>{t('completingSignIn')}</p>
       </div>
     </div>
   )

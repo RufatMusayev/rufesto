@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 
 export default function LoginPage() {
   const { session, loading, signIn } = useAuth()
   const { theme, toggle } = useTheme()
+  const { t } = useTranslation(['dashboard', 'common'])
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr]           = useState(null)
@@ -23,7 +25,7 @@ export default function LoginPage() {
     e.preventDefault()
     setErr(null)
     if (!email.trim() || !password) {
-      setErr('Email and password are required')
+      setErr(t('dashboard:errCredentialsRequired'))
       return
     }
     setSubmitting(true)
@@ -52,7 +54,7 @@ export default function LoginPage() {
             fontSize: '0.78rem', fontWeight: 600, color: 'var(--t3)',
             marginTop: 4, letterSpacing: 1.5, textTransform: 'uppercase',
           }}>
-            For Business
+            {t('dashboard:forBusiness')}
           </div>
         </div>
 
@@ -67,15 +69,15 @@ export default function LoginPage() {
             fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.5rem',
             textAlign: 'center',
           }}>
-            Sign in to your restaurant
+            {t('dashboard:signInToRestaurant')}
           </h2>
 
           <label style={{ display: 'block', marginBottom: '1rem' }}>
-            <span className="label">Email</span>
+            <span className="label">{t('dashboard:emailLabel')}</span>
             <input
               type="email"
               className="input"
-              placeholder="admin@restaurant.com"
+              placeholder={t('dashboard:emailPlaceholder')}
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
@@ -84,7 +86,7 @@ export default function LoginPage() {
           </label>
 
           <label style={{ display: 'block', marginBottom: '1.25rem' }}>
-            <span className="label">Password</span>
+            <span className="label">{t('dashboard:passwordLabel')}</span>
             <input
               type="password"
               className="input"
@@ -108,7 +110,7 @@ export default function LoginPage() {
           <button type="submit" className="btn btn-primary" disabled={submitting} style={{
             width: '100%', padding: '0.65rem', fontSize: '0.88rem',
           }}>
-            {submitting ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Sign In'}
+            {submitting ? <span className="spinner" style={{ width: 16, height: 16 }} /> : t('dashboard:signIn')}
           </button>
         </form>
 
@@ -118,13 +120,13 @@ export default function LoginPage() {
             background: 'none', border: 'none', color: 'var(--t3)',
             fontSize: '0.75rem', cursor: 'pointer',
           }}>
-            {theme === 'dark' ? '☀ Light mode' : '🌙 Dark mode'}
+            {theme === 'dark' ? t('dashboard:navLight') : t('dashboard:navDark')}
           </button>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.72rem', color: 'var(--t3)' }}>
-          Restaurant accounts are created by Rufesto.
-          <br />Contact us to get started.
+          {t('dashboard:accountsNotice')}
+          <br />{t('dashboard:contactNotice')}
         </p>
       </div>
     </div>

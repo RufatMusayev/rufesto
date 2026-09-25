@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from './AuthModal'
 
 export default function CartSheet() {
+  const { t } = useTranslation(['cart', 'common'])
   const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, restaurantId, tableId, activeBookingId } = useCart()
   const { session } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
@@ -12,12 +14,16 @@ export default function CartSheet() {
   const [error,    setError]    = useState('')
   const [submitted, setSubmitted] = useState(false)
   const { handleProps, sheetStyle } = useSwipeDismiss(() => setOpen(false))
+  // Tracks "place the order as soon as we're signed in" across the AuthModal round trip.
+  // A plain closure passed as AuthModal's onSuccess would capture whatever `session`
+  // was in scope when the modal opened (still null) — by the time verifyOtp resolves,
+  // AuthContext's session update can lag behind, so calling that stale closure just
+  // re-opens the auth modal instead of placing the order. This effect instead reacts
+  // to the *committed* session value once it actually changes.
+  const pendingPlaceRef = useRef(false)
 
-  if (!open) return null
-
-  async function handlePlace() {
-    if (!session) { setShowAuth(true); return }
-    if (!tableId) { setError('No table selected — scan a QR code first.'); return }
+  async function submitOrder() {
+    if (!tableId) { setError(t('cart:noTableError')); return }
     if (submitted) return
     setSubmitted(true)
     setError('')
@@ -25,6 +31,22 @@ export default function CartSheet() {
     setSubmitted(false)
     if (err) { setError(err); return }
     if (order) setOrdered(true)
+  }
+
+  useEffect(() => {
+    if (session && pendingPlaceRef.current) {
+      pendingPlaceRef.current = false
+      setShowAuth(false)
+      submitOrder()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session])
+
+  if (!open) return null
+
+  function handlePlace() {
+    if (!session) { pendingPlaceRef.current = true; setShowAuth(true); return }
+    submitOrder()
   }
 
   const grand = total
@@ -45,15 +67,15 @@ export default function CartSheet() {
             </svg>
           </div>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-            Order placed!
+            {t('cart:orderPlaced')}
           </h2>
           <p style={{ color: 'var(--t2)', fontSize: '0.86rem', lineHeight: 1.5 }}>
-            Your kitchen ticket is being prepared. We'll keep you updated.
+            {t('cart:orderPlacedHint')}
           </p>
         </div>
         <button className="btn btn-primary" style={{ width: '100%' }}
           onClick={() => { setOrdered(false); setOpen(false) }}>
-          Done
+          {t('common:done')}
         </button>
       </div>
     </div>
@@ -71,7 +93,7 @@ export default function CartSheet() {
                 fontFamily: "'Playfair Display', serif",
                 fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
               }}>
-                Your Order
+                {t('cart:yourOrder')}
               </h2>
               <button onClick={() => setOpen(false)} className="icon-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -83,8 +105,8 @@ export default function CartSheet() {
             {items.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2.5rem 0', color: 'var(--t3)' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: 10, opacity: 0.5 }}>🛒</div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>Your cart is empty</div>
-                <div style={{ fontSize: '0.78rem' }}>Browse the menu and add something delicious.</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('cart:cartEmpty')}</div>
+                <div style={{ fontSize: '0.78rem' }}>{t('cart:cartEmptyHint')}</div>
               </div>
             ) : (
               <>
@@ -189,7 +211,7 @@ export default function CartSheet() {
                   marginBottom: '1rem',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--t2)' }}>Total</span>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--t2)' }}>{t('common:total')}</span>
                   <span style={{
                     fontFamily: "'DM Mono', monospace",
                     fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)',
@@ -212,9 +234,9 @@ export default function CartSheet() {
                   onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                 >
                   {placing ? (
-                    <><span className="spinner" /> Placing order…</>
+                    <><span className="spinner" /> {t('cart:placingOrder')}</>
                   ) : (
-                    `Place Order · ${formatPrice(grand)}`
+                    t('cart:placeOrder', { price: formatPrice(grand) })
                   )}
                 </button>
               </>
@@ -223,7 +245,7 @@ export default function CartSheet() {
         </div>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={handlePlace} />}
+      {showAuth && <AuthModal onClose={() => { pendingPlaceRef.current = false; setShowAuth(false) }} onSuccess={() => setShowAuth(false)} />}
     </>
   )
 }

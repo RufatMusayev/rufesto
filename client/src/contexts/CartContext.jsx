@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useState } from 'react'
+import { createContext, useContext, useEffect, useReducer, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 
@@ -64,7 +65,9 @@ export function CartProvider({ children }) {
   const [open, setOpen]       = useState(false)
   const [placing, setPlacing] = useState(false)
   const [cartError, setCartError] = useState('')
-  const { session }           = useAuth()
+  const { session, loading: authLoading } = useAuth()
+  const { t } = useTranslation('cart')
+  const validatedRef = useRef(false)
 
   const total    = state.items.reduce((s, i) => s + (Number(i.dish.price) || 0) * i.qty, 0)
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
@@ -77,7 +80,7 @@ export function CartProvider({ children }) {
       state.restaurantId &&
       dish.restaurant_id !== state.restaurantId
     ) {
-      setCartError('This table is at a different restaurant. You can only order from the restaurant your table belongs to.')
+      setCartError(t('crossRestaurantError'))
       return
     }
     setCartError('')
@@ -89,23 +92,29 @@ export function CartProvider({ children }) {
     setCartError('')
   }
 
+  // Sets the local session only. Table state itself is now owned server-side by the
+  // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
   function setTable(tableId, restaurantId, activeBookingId = null) {
     dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId })
     saveSession(tableId, restaurantId, activeBookingId)
-    // Reflect the live session on the restaurant dashboard: free/reserved -> occupied.
-    supabase.from('tables').update({ state: 'occupied' })
-      .eq('id', tableId).in('state', ['free', 'reserved'])
-      .then(() => {})
   }
 
-  function clearTable(release = false) {
+  // Claims a table by scanned QR token or typed access code via the claim_table RPC,
+  // which also seats the caller's own booking for that table server-side.
+  async function claimTable(code) {
+    const { data, error } = await supabase.rpc('claim_table', { p_code: code })
+    if (error) return { error }
+    setTable(data.table_id, data.restaurant_id, data.booking_id)
+    return { data }
+  }
+
+  async function clearTable(release = false) {
     const tid = state.tableId
-    // On an explicit end (not when staff already freed the table), mark it cleared
-    // so the dashboard stops showing the guest as seated.
+    // On an explicit end (not when staff already freed the table), ask the server to
+    // free the table — never UPDATE `tables` directly from the client.
     if (release && tid) {
-      supabase.from('tables').update({ state: 'cleared' })
-        .eq('id', tid).neq('state', 'free')
-        .then(() => {})
+      // Builder has no .catch(); errors come back as { error } and are ignored here.
+      await supabase.rpc('leave_table', { p_table_id: tid })
     }
     dispatch({ type: 'CLEAR_TABLE' })
     clearSession()
@@ -157,6 +166,32 @@ export function CartProvider({ children }) {
     return { order }
   }
 
+  // On app load, if sessionStorage carried a table session over, confirm it's still
+  // valid server-side (RLS may have expired/released it) and clear it locally if not.
+  useEffect(() => {
+    if (authLoading || validatedRef.current) return
+    validatedRef.current = true
+    if (!state.tableId) return
+    if (!session) {
+      dispatch({ type: 'CLEAR_TABLE' })
+      clearSession()
+      return
+    }
+    let cancelled = false
+    supabase.rpc('my_table_session').then(({ data, error }) => {
+      if (cancelled) return
+      if (error || !data) {
+        dispatch({ type: 'CLEAR_TABLE' })
+        clearSession()
+      } else {
+        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id })
+        saveSession(data.table_id, data.restaurant_id, data.booking_id)
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, session])
+
   return (
     <CartContext.Provider value={{
       items: state.items, total, itemCount,
@@ -168,6 +203,7 @@ export function CartProvider({ children }) {
       remove:    (dishId) => dispatch({ type: 'REMOVE', dishId }),
       decrement: (dishId) => dispatch({ type: 'DEC',    dishId }),
       setTable,
+      claimTable,
       clearTable,
       placeOrder,
       clear: () => dispatch({ type: 'CLEAR' }),

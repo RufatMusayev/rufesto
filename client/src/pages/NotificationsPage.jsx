@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { timeAgo } from '../lib/helpers'
@@ -14,20 +15,7 @@ const TYPE_META = {
   system:            { icon: '🔔', color: 'var(--t3)',         bg: 'var(--s3)'                   },
 }
 
-function formatType(type) {
-  const map = {
-    booking_confirmed: 'Your booking has been confirmed.',
-    booking_cancelled: 'A booking was cancelled.',
-    order_ready:       'Your order is ready!',
-    order_placed:      'Your order has been placed.',
-    review_reply:      'Someone replied to your review.',
-    promotion:         'New promotion available!',
-    system:            'System notification.',
-  }
-  return map[type] || type
-}
-
-function groupByDate(notifs) {
+function groupByDate(notifs, t, locale) {
   const groups = []
   const map = {}
   const now = new Date()
@@ -38,9 +26,9 @@ function groupByDate(notifs) {
     const d = new Date(n.sent_at)
     const ds = d.toDateString()
     let label
-    if (ds === today) label = 'Today'
-    else if (ds === yesterday) label = 'Yesterday'
-    else label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    if (ds === today) label = t('notifications:today')
+    else if (ds === yesterday) label = t('notifications:yesterday')
+    else label = d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
 
     if (!map[label]) {
       map[label] = { label, items: [] }
@@ -52,7 +40,9 @@ function groupByDate(notifs) {
 }
 
 export default function NotificationsPage() {
+  const { t, i18n } = useTranslation(['notifications', 'auth', 'common'])
   const { session } = useAuth()
+  const dateLocale = i18n.language?.startsWith('az') ? 'az-AZ' : 'en-GB'
   const [notifs,    setNotifs]    = useState([])
   const [loading,   setLoading]  = useState(true)
   const [showAuth,  setShowAuth] = useState(false)
@@ -91,11 +81,11 @@ export default function NotificationsPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
         </svg>
       </div>
-      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Notifications</h2>
+      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>{t('notifications:title')}</h2>
       <p style={{ color: 'var(--t3)', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-        Sign in to see your booking updates and order notifications.
+        {t('auth:notificationsSignInPrompt')}
       </p>
-      <button className="btn btn-primary" onClick={() => setShowAuth(true)}>Sign in</button>
+      <button className="btn btn-primary" onClick={() => setShowAuth(true)}>{t('auth:signIn')}</button>
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   )
@@ -112,7 +102,7 @@ export default function NotificationsPage() {
         position: 'sticky', top: 'var(--nav-h)', background: 'var(--bg)', zIndex: 5,
       }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)' }}>
-          Notifications
+          {t('notifications:title')}
           {unreadCount > 0 && (
             <span style={{
               marginLeft: 8, fontSize: '0.65rem', fontWeight: 700,
@@ -130,7 +120,7 @@ export default function NotificationsPage() {
             className="btn btn-ghost"
             style={{ fontSize: '0.76rem', padding: '5px 12px' }}
           >
-            Mark all read
+            {t('notifications:markAllRead')}
           </button>
         )}
       </div>
@@ -159,12 +149,12 @@ export default function NotificationsPage() {
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>You're all caught up</div>
-          <div style={{ fontSize: '0.82rem' }}>Book a table or place an order to start seeing activity here.</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('notifications:allCaughtUp')}</div>
+          <div style={{ fontSize: '0.82rem' }}>{t('notifications:allCaughtUpHint')}</div>
         </div>
       ) : (
         <div>
-          {groupByDate(notifs).map(group => (
+          {groupByDate(notifs, t, dateLocale).map(group => (
             <div key={group.label}>
               {/* Date group label */}
               <div style={{
@@ -215,7 +205,7 @@ export default function NotificationsPage() {
                         fontWeight: n.read ? 400 : 500,
                         marginBottom: 3,
                       }}>
-                        {n.payload || formatType(n.type)}
+                        {n.payload || t(`notifications:${n.type}`, { defaultValue: n.type })}
                       </p>
                       <span style={{
                         fontFamily: "'DM Mono', monospace",

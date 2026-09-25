@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
 
 /** Sponsored campaign card — interleaved into the home feed. */
 export default function PromoCard({ campaign, index, onDishClick }) {
+  const { t } = useTranslation('feed')
   const navigate = useNavigate()
   const dish = campaign.dishes
   const restaurant = campaign.restaurants
@@ -44,7 +46,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
             {restaurant?.name}
           </span>
           <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
-            Sponsored
+            {t('sponsored')}
           </div>
         </div>
         <span style={{
@@ -53,7 +55,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
           padding: '3px 9px', borderRadius: 100, flexShrink: 0,
           background: 'rgba(196,154,44,0.12)', border: '1px solid rgba(196,154,44,0.35)',
         }}>
-          Promoted
+          {t('promoted')}
         </span>
       </div>
 
@@ -122,7 +124,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
           <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600 }}>
-            {dish ? 'View dish →' : 'Visit restaurant →'}
+            {dish ? t('viewDish') : t('visitRestaurant')}
           </span>
           {dish?.review_count > 0 && (
             <span style={{

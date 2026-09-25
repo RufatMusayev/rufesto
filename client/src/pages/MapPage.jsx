@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 
 function useIsMobile() {
@@ -20,7 +21,41 @@ const CUISINE_COLORS = {
   japanese: '#3498db',
 }
 
+// Builds the marker popup as real DOM nodes (never innerHTML) so restaurant-owner-
+// controlled fields (name, cuisine, address) can never inject markup, and wires the
+// "view menu" link through react-router's navigate instead of a plain <a href> that
+// would force a full page reload.
+function buildPopupContent(r, t, navigate) {
+  const wrap = document.createElement('div')
+  wrap.style.cssText = "font-family:'DM Sans',system-ui;text-align:center;min-width:140px;padding:4px 0;"
+
+  const strong = document.createElement('strong')
+  strong.style.cssText = "font-family:'Playfair Display',serif;font-size:14px;color:#1a120e;"
+  strong.textContent = r.name
+  wrap.appendChild(strong)
+  wrap.appendChild(document.createElement('br'))
+
+  const meta = document.createElement('span')
+  meta.style.cssText = 'font-size:11px;color:#8B6B5A;'
+  meta.textContent = `${r.cuisine_type || ''} · ${r.address || 'Baku'}`
+  wrap.appendChild(meta)
+  wrap.appendChild(document.createElement('br'))
+
+  const link = document.createElement('a')
+  link.href = `/restaurant/${r.slug}`
+  link.textContent = t('map:viewMenu')
+  link.style.cssText = "display:inline-block;margin-top:8px;padding:6px 16px;background:#8B2D42;color:#F5F0E8;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;font-family:'DM Sans',system-ui;"
+  link.addEventListener('click', e => {
+    e.preventDefault()
+    navigate(`/restaurant/${r.slug}`)
+  })
+  wrap.appendChild(link)
+
+  return wrap
+}
+
 export default function MapPage() {
+  const { t } = useTranslation(['map', 'common'])
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
   const markersRef = useRef({})
@@ -33,7 +68,14 @@ export default function MapPage() {
     supabase
       .from('restaurants')
       .select('id, name, slug, cuisine_type, address, latitude, longitude')
-      .then(({ data }) => setRestaurants(data || []))
+      .eq('status', 'active')
+      .then(({ data }) => {
+        // Never invent a marker position — restaurants without real coordinates are
+        // left off the map (and out of the chip list, since a chip with no matching
+        // marker would just center on a fake spot).
+        const withCoords = (data || []).filter(r => r.latitude != null && r.longitude != null)
+        setRestaurants(withCoords)
+      })
   }, [])
 
   useEffect(() => {
@@ -59,13 +101,11 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => {
-    if (!mapInstance.current || !restaurants.length) return
+    if (!mapInstance.current) return
 
     const map = mapInstance.current
 
     restaurants.forEach(r => {
-      const lat = r.latitude != null ? r.latitude : BAKU_CENTER[0] + (Math.random() - 0.5) * 0.02
-      const lng = r.longitude != null ? r.longitude : BAKU_CENTER[1] + (Math.random() - 0.5) * 0.02
       const color = CUISINE_COLORS[r.cuisine_type?.toLowerCase()] || '#8B2D42'
 
       const icon = window.L.divIcon({
@@ -82,23 +122,17 @@ export default function MapPage() {
         iconAnchor: [18, 18],
       })
 
-      const marker = window.L.marker([lat, lng], { icon })
+      const marker = window.L.marker([r.latitude, r.longitude], { icon })
         .addTo(map)
-        .bindPopup(`
-          <div style="font-family:'DM Sans',system-ui;text-align:center;min-width:140px;padding:4px 0;">
-            <strong style="font-family:'Playfair Display',serif;font-size:14px;color:#1a120e;">${r.name}</strong><br/>
-            <span style="font-size:11px;color:#8B6B5A;">${r.cuisine_type || ''} · ${r.address || 'Baku'}</span><br/>
-            <a href="/restaurant/${r.slug}" style="
-              display:inline-block;margin-top:8px;padding:6px 16px;
-              background:#8B2D42;color:#F5F0E8;border-radius:8px;
-              font-size:11px;font-weight:700;text-decoration:none;
-              font-family:'DM Sans',system-ui;
-            ">View Menu</a>
-          </div>
-        `)
+        .bindPopup(buildPopupContent(r, t, navigate))
       markersRef.current[r.id] = marker
     })
-  }, [restaurants, navigate])
+
+    return () => {
+      Object.values(markersRef.current).forEach(m => map.removeLayer(m))
+      markersRef.current = {}
+    }
+  }, [restaurants, navigate, t])
 
   return (
     <div style={{
@@ -130,7 +164,7 @@ export default function MapPage() {
             <line x1="16.5" y1="16.5" x2="22" y2="22" strokeLinecap="round" />
           </svg>
           <span style={{ fontSize: '0.86rem', color: 'var(--t3)', fontFamily: "'DM Sans', system-ui" }}>
-            Restaurants near you…
+            {t('map:searchPlaceholder')}
           </span>
         </div>
       </div>
@@ -151,11 +185,9 @@ export default function MapPage() {
               <button
                 key={r.id}
                 onClick={() => {
-                  const lat = r.latitude != null ? r.latitude : BAKU_CENTER[0]
-                  const lng = r.longitude != null ? r.longitude : BAKU_CENTER[1]
                   setSelected(r.id)
                   if (mapInstance.current) {
-                    mapInstance.current.setView([lat, lng], 16)
+                    mapInstance.current.setView([r.latitude, r.longitude], 16)
                     markersRef.current[r.id]?.openPopup()
                   }
                 }}
@@ -188,7 +220,7 @@ export default function MapPage() {
                     {r.name}
                   </div>
                   <div style={{ fontSize: '0.66rem', color: isSelected ? 'rgba(245,240,232,0.7)' : 'var(--t3)', whiteSpace: 'nowrap' }}>
-                    {r.cuisine_type || 'Restaurant'}
+                    {r.cuisine_type || t('map:restaurant')}
                   </div>
                 </div>
               </button>

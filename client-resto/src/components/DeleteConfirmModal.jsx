@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
-export default function DeleteConfirmModal({ dishName, loading, onConfirm, onCancel }) {
+export default function DeleteConfirmModal({ dishName, loading, error, onConfirm, onCancel }) {
+  const { t } = useTranslation('dashboard')
+
   useEffect(() => {
     document.body.classList.add('modal-open')
     return () => document.body.classList.remove('modal-open')
@@ -9,15 +12,15 @@ export default function DeleteConfirmModal({ dishName, loading, onConfirm, onCan
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="modal" style={{ padding: '1.75rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.75rem' }}>Delete Dish</h2>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.75rem' }}>{t('deleteDishTitle')}</h2>
         <p style={{ fontSize: '0.88rem', color: 'var(--t2)', lineHeight: 1.5 }}>
-          Are you sure you want to delete <strong style={{ color: 'var(--t1)' }}>{dishName}</strong>?
-          This action cannot be undone.
+          {t('deleteDishConfirm', { name: dishName })}
         </p>
+        {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginTop: '0.5rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>Cancel</button>
+          <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>{t('cancel')}</button>
           <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? <><span className="spinner" /> Deleting…</> : 'Delete'}
+            {loading ? <><span className="spinner" /> {t('delete')}…</> : t('delete')}
           </button>
         </div>
       </div>

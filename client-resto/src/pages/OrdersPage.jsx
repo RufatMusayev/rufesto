@@ -1,18 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
 import { ORDER_STATUS } from '@shared/constants'
+import { bakuTodayStartISO } from '../lib/time'
 
 const FILTERS = ['all', 'open', 'preparing', 'ready', 'served', 'done', 'cancelled']
 
 export default function OrdersPage() {
   const { restaurantId } = useAuth()
+  const { t } = useTranslation(['dashboard', 'common'])
   const [orders, setOrders] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
   const [acting, setActing] = useState(null)
+  const [actionError, setActionError] = useState('')
+  const orderIdsRef = useRef(new Set())
+
+  useEffect(() => {
+    orderIdsRef.current = new Set(orders.map(o => o.id))
+  }, [orders])
 
   useEffect(() => {
     if (!restaurantId) return
@@ -21,20 +30,24 @@ export default function OrdersPage() {
     const ch = supabase
       .channel(`dash-orders-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadOrders())
+      // order_items has no restaurant_id column, so it can't be filtered
+      // server-side by restaurant — only reload when the changed row belongs
+      // to an order we already know about (cheap local Set check).
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, payload => {
+        const oid = payload.new?.order_id || payload.old?.order_id
+        if (oid && orderIdsRef.current.has(oid)) loadOrders()
+      })
       .subscribe()
 
     return () => supabase.removeChannel(ch)
   }, [restaurantId])
 
   async function loadOrders() {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
     const { data } = await supabase
       .from('orders')
       .select('*, tables(table_number), users(name, email), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
       .eq('restaurant_id', restaurantId)
-      .gte('placed_at', today.toISOString())
+      .gte('placed_at', bakuTodayStartISO())
       .order('placed_at', { ascending: false })
 
     setOrders(data || [])
@@ -43,8 +56,13 @@ export default function OrdersPage() {
 
   async function updateStatus(orderId, status) {
     setActing(orderId)
-    await supabase.from('orders').update({ status }).eq('id', orderId)
+    const prevStatus = orders.find(o => o.id === orderId)?.status
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
+    if (error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: prevStatus } : o))
+      setActionError(t('dashboard:actionFailed'))
+    }
     setActing(null)
   }
 
@@ -69,18 +87,30 @@ export default function OrdersPage() {
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <div>
-          <h1 className="page-title">Orders</h1>
+          <h1 className="page-title">{t('dashboard:ordersTitle')}</h1>
           <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
-            {orders.length} orders today
+            {t('dashboard:ordersToday', { count: orders.length })}
           </span>
         </div>
         <div style={{ textAlign:'right' }}>
           <div style={{ fontSize:'1.35rem', fontWeight:900, color:'var(--gold)', lineHeight:1.1 }}>
             {formatPrice(todayRevenue)}
           </div>
-          <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>today's revenue</div>
+          <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>{t('dashboard:todaysRevenue')}</div>
         </div>
       </div>
+
+      {actionError && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
+          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
+          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
+        }}>
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         {FILTERS.map(f => {
@@ -89,7 +119,7 @@ export default function OrdersPage() {
           return (
             <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {sm && <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, display: 'inline-block', marginRight: 4 }} />}
-              {f === 'all' ? 'All' : sm.label} ({cnt})
+              {f === 'all' ? t('dashboard:filterAll') : sm.label} ({cnt})
             </button>
           )
         })}
@@ -100,7 +130,7 @@ export default function OrdersPage() {
           {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="empty"><div className="empty-icon">📋</div>No orders match filter</div>
+        <div className="empty"><div className="empty-icon">📋</div>{t('dashboard:noOrdersMatch')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(o => (
@@ -118,6 +148,7 @@ export default function OrdersPage() {
 }
 
 function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
+  const { t } = useTranslation(['dashboard', 'common'])
   const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
   const items = order.order_items || []
   const time = order.placed_at
@@ -154,14 +185,14 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ fontWeight:700, fontSize:'0.85rem' }}>
-              {items.length} item{items.length !== 1 ? 's' : ''}
+              {t('dashboard:itemCount', { count: items.length })}
             </span>
             <span style={{ fontSize:'0.68rem', color:'var(--t3)' }}>
               · {time} · {timeAgo(order.placed_at)}
             </span>
           </div>
           <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:2 }}>
-            {order.users?.name || order.users?.email || 'Guest'}
+            {order.users?.name || order.users?.email || t('dashboard:guest')}
           </div>
         </div>
 
@@ -209,16 +240,16 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
           ))}
 
           <div style={{ display:'flex', justifyContent:'space-between', padding:'0.55rem 0 0.1rem', fontSize:'0.78rem', color:'var(--t2)' }}>
-            <span>Subtotal</span><span>{formatPrice(order.subtotal)}</span>
+            <span>{t('common:subtotal')}</span><span>{formatPrice(order.subtotal)}</span>
           </div>
           {(order.tax_amount || 0) > 0 && (
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', color:'var(--t3)' }}>
-              <span>Tax</span><span>{formatPrice(order.tax_amount)}</span>
+              <span>{t('dashboard:tax')}</span><span>{formatPrice(order.tax_amount)}</span>
             </div>
           )}
           {(order.service_charge || 0) > 0 && (
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', color:'var(--t3)' }}>
-              <span>Service</span><span>{formatPrice(order.service_charge)}</span>
+              <span>{t('dashboard:service')}</span><span>{formatPrice(order.service_charge)}</span>
             </div>
           )}
           <div style={{
@@ -226,7 +257,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
             borderTop:'1px solid var(--border)', marginTop:'0.3rem',
             fontWeight:900, fontSize:'0.9rem',
           }}>
-            <span>Total</span>
+            <span>{t('dashboard:total')}</span>
             <span style={{ color:'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
           </div>
 
@@ -234,19 +265,19 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
             {order.status === 'ready' && (
               <button className="btn btn-primary btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'served')} disabled={acting}>
-                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : 'Mark Served'}
+                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markServed')}
               </button>
             )}
             {order.status === 'served' && (
               <button className="btn btn-ghost btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'done')} disabled={acting}>
-                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : 'Complete'}
+                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:complete')}
               </button>
             )}
             {['open', 'preparing', 'ready'].includes(order.status) && (
               <button className="btn btn-danger btn-sm" style={{ minWidth:80 }}
                 onClick={() => onUpdateStatus(order.id, 'cancelled')} disabled={acting}>
-                Cancel
+                {t('dashboard:cancel')}
               </button>
             )}
           </div>

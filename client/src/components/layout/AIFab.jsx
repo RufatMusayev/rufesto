@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCart } from '../../contexts/CartContext'
 import AIChatSheet from '../AIChatSheet'
 
 export default function AIFab() {
+  const { t } = useTranslation('ai')
   const { tableId } = useCart()
   const [open, setOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
@@ -21,8 +23,8 @@ export default function AIFab() {
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Ask Rufesto AI"
-        title="Ask Rufesto AI"
+        aria-label={t('openLabel')}
+        title={t('openLabel')}
         style={{
           position: 'fixed',
           right: '1rem',

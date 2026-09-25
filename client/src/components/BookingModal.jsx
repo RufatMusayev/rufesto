@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import AuthModal from './AuthModal'
 
 export default function BookingModal({ restaurant, onClose, preselectedTable = null }) {
+  const { t } = useTranslation(['booking', 'common'])
   const { session } = useAuth()
   const [step,    setStep]    = useState(session ? 'form' : 'auth')
   const [date,    setDate]    = useState('')
@@ -33,7 +35,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
     let tableId
     if (preselectedTable) {
       if (party > preselectedTable.capacity) {
-        setError(`Table ${preselectedTable.table_number} seats up to ${preselectedTable.capacity} guests.`)
+        setError(t('booking:errTableCapacity', { number: preselectedTable.table_number, capacity: preselectedTable.capacity }))
         setLoading(false)
         return
       }
@@ -50,7 +52,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
         .limit(1)
 
       if (tErr || !tables?.length) {
-        setError('No available tables for this party size and time.')
+        setError(t('booking:errNoTables'))
         setLoading(false)
         return
       }
@@ -103,12 +105,12 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
             fontWeight: 700, fontSize: '1.3rem',
             color: 'var(--t1)', marginBottom: 8, lineHeight: 1.2,
           }}>
-            Booking Confirmed
+            {t('booking:bookingConfirmed')}
           </h2>
           <p style={{ color: 'var(--t2)', fontSize: '0.84rem', lineHeight: 1.55, marginBottom: 24 }}>
             {restaurant.name}<br />
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--t3)' }}>
-              {date} at {time} · {party} {party === 1 ? 'guest' : 'guests'}
+              {t('booking:bookingSummary', { date, time, count: party })}
             </span>
           </p>
           <button
@@ -116,7 +118,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
             style={{ width: '100%', padding: '11px 0', borderRadius: 12, fontWeight: 700 }}
             onClick={onClose}
           >
-            Done
+            {t('common:done')}
           </button>
         </div>
       </div>
@@ -143,7 +145,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
               fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
               lineHeight: 1.2, marginBottom: 4,
             }}>
-              Reserve a Table
+              {t('booking:reserveTable')}
             </h2>
             <p style={{ fontSize: '0.76rem', color: 'var(--t3)', fontWeight: 500 }}>
               {restaurant.name}
@@ -159,7 +161,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ width: 11, height: 11 }}>
                   <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" />
                 </svg>
-                Table {preselectedTable.table_number} · {preselectedTable.sections?.name || 'Floor'} · up to {preselectedTable.capacity}
+                {t('booking:tableBadge', { number: preselectedTable.table_number, section: preselectedTable.sections?.name || 'Floor', capacity: preselectedTable.capacity })}
               </span>
             )}
           </div>
@@ -183,7 +185,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
               display: 'block', marginBottom: 10,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              Guests
+              {t('booking:guests')}
             </label>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 12,
@@ -215,7 +217,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
                   {party}
                 </span>
                 <div style={{ fontSize: '0.65rem', color: 'var(--t3)', marginTop: 1 }}>
-                  {party === 1 ? 'guest' : 'guests'}
+                  {t('common:guest', { count: party })}
                 </div>
               </div>
               <button
@@ -244,7 +246,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
               display: 'block', marginBottom: 8,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              Date
+              {t('booking:date')}
             </label>
             <input
               type="date"
@@ -265,7 +267,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
               display: 'block', marginBottom: 8,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              Time
+              {t('booking:time')}
             </label>
             <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6,
@@ -302,14 +304,11 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
               display: 'block', marginBottom: 8,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              Special Requests
-              <span style={{ textTransform: 'none', fontWeight: 400, marginLeft: 5, color: 'var(--t4)' }}>
-                (optional)
-              </span>
+              {t('booking:specialRequests')}
             </label>
             <textarea
               className="input"
-              placeholder="Allergies, special occasions, seating preferences..."
+              placeholder={t('booking:specialRequestsPlaceholder')}
               rows={2}
               value={note}
               onChange={e => setNote(e.target.value)}
@@ -342,9 +341,9 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
             {loading ? (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <span className="spinner" />
-                Booking...
+                {t('booking:booking')}
               </span>
-            ) : 'Confirm Booking'}
+            ) : t('booking:confirmBooking')}
           </button>
         </form>
       </div>

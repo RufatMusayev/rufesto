@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
 import { TABLE_COLORS, ORDER_STATUS } from '@shared/constants'
+import { bakuTodayStartISO, localeTag } from '../lib/time'
+import { debounce } from '../lib/debounce'
 
 export default function DashboardHome() {
   const { restaurantId } = useAuth()
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const [stats, setStats] = useState(null)
   const [recentOrders, setRecentOrders] = useState([])
   const [tables, setTables] = useState([])
@@ -16,22 +20,22 @@ export default function DashboardHome() {
     if (!restaurantId) return
     loadAll()
 
+    const debouncedLoad = debounce(loadAll, 400)
     const ch = supabase
       .channel(`dash-home-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
       .subscribe()
 
-    return () => supabase.removeChannel(ch)
+    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
   }, [restaurantId])
 
   async function loadAll() {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const todayStart = bakuTodayStartISO()
 
-    const [ordersR, tablesR, dishesR, bookingsR, recentR] = await Promise.all([
-      supabase.from('orders').select('total_amount,status').eq('restaurant_id', restaurantId).gte('placed_at', today.toISOString()),
+    const [ordersR, tablesR, dishesR, bookingsR, recentR, kdsActiveR] = await Promise.all([
+      supabase.from('orders').select('total_amount,status').eq('restaurant_id', restaurantId).gte('placed_at', todayStart),
       supabase.from('tables').select('id,table_number,state,capacity,sections(name)').eq('restaurant_id', restaurantId).eq('is_active', true).order('table_number'),
       supabase.from('dishes').select('available').eq('restaurant_id', restaurantId),
       supabase.from('bookings').select('id').eq('restaurant_id', restaurantId).eq('status', 'pending'),
@@ -40,6 +44,10 @@ export default function DashboardHome() {
         .eq('restaurant_id', restaurantId)
         .order('placed_at', { ascending: false })
         .limit(8),
+      // Active KDS tickets, not orders — an order can hold several tickets
+      // (or none left active) so counting orders overstates/understates load.
+      supabase.from('kds_tickets').select('id', { count: 'exact', head: true })
+        .eq('restaurant_id', restaurantId).in('status', ['new', 'preparing', 'ready']),
     ])
 
     const orders = ordersR.data || []
@@ -47,13 +55,13 @@ export default function DashboardHome() {
     const dishes = dishesR.data || []
 
     setStats({
-      revenue: orders.reduce((s, o) => s + (o.total_amount || 0), 0),
+      revenue: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (o.total_amount || 0), 0),
       orderCount: orders.length,
       activeTables: tbl.filter(t => t.state !== 'free' && t.state !== 'cleared').length,
       totalTables: tbl.length,
       availDishes: dishes.filter(d => d.available).length,
       totalDishes: dishes.length,
-      kdsActive: orders.filter(o => ['open', 'preparing'].includes(o.status)).length,
+      kdsActive: kdsActiveR.count || 0,
     })
     setTables(tbl)
     setRecentOrders(recentR.data || [])
@@ -62,43 +70,43 @@ export default function DashboardHome() {
 
   if (!stats) return (
     <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--t3)' }}>
-      <span className="spinner" /> Loading dashboard…
+      <span className="spinner" /> {t('common:loadingDashboard')}
     </div>
   )
 
   return (
     <div style={{ padding: '1.25rem 1.25rem 2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-        <h1 className="page-title">Overview</h1>
+        <h1 className="page-title">{t('navOverview')}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', color: 'var(--green)' }}>
           <span className="dash-live-dot" />
-          Live · {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+          {t('liveDate', { date: new Date().toLocaleDateString(localeTag(i18n.language), { day: 'numeric', month: 'short' }) })}
         </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:'0.75rem', marginBottom:'1.25rem' }}>
         <div className="stat-card" style={{ '--card-accent': 'var(--gold)' }}>
-          <span className="stat-sub">Today</span>
+          <span className="stat-sub">{t('statToday')}</span>
           <div className="stat-value">{formatPrice(stats.revenue)}</div>
-          <div className="stat-label">Revenue</div>
+          <div className="stat-label">{t('statRevenue')}</div>
         </div>
         <div className="stat-card" style={{ '--card-accent': 'var(--blue)' }}>
           <div className="stat-value">{stats.orderCount}</div>
-          <div className="stat-label">Orders Today</div>
+          <div className="stat-label">{t('statOrdersToday')}</div>
         </div>
         <div className="stat-card" style={{ '--card-accent': 'var(--green)' }}>
           <div className="stat-value">
             {stats.activeTables}
             <span style={{ fontSize:'1rem', fontWeight:500, color:'var(--t3)' }}>/{stats.totalTables}</span>
           </div>
-          <div className="stat-label">Active Tables</div>
+          <div className="stat-label">{t('statActiveTables')}</div>
         </div>
         <div className="stat-card" style={{ '--card-accent': 'var(--t2)' }}>
           <div className="stat-value">
             {stats.availDishes}
             <span style={{ fontSize:'1rem', fontWeight:500, color:'var(--t3)' }}>/{stats.totalDishes}</span>
           </div>
-          <div className="stat-label">Menu Available</div>
+          <div className="stat-label">{t('statMenuAvailable')}</div>
         </div>
       </div>
 
@@ -110,7 +118,7 @@ export default function DashboardHome() {
               '--alert-border': 'rgba(186,117,23,0.28)',
               '--alert-color': '#BA7517',
             }}>
-              🔥 {stats.kdsActive} in kitchen →
+              {t('alertKitchen', { count: stats.kdsActive })}
             </Link>
           )}
           {pendingBookings > 0 && (
@@ -119,7 +127,7 @@ export default function DashboardHome() {
               '--alert-border': 'rgba(59,130,246,0.25)',
               '--alert-color': 'var(--blue)',
             }}>
-              📅 {pendingBookings} pending booking{pendingBookings > 1 ? 's' : ''} →
+              {t('alertBookings', { count: pendingBookings })}
             </Link>
           )}
         </div>
@@ -128,13 +136,13 @@ export default function DashboardHome() {
       <div className="dash-grid">
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div className="dash-section-title">Recent Orders</div>
-            <Link to="/orders" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>View all →</Link>
+            <div className="dash-section-title">{t('recentOrders')}</div>
+            <Link to="/orders" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>{t('viewAll')}</Link>
           </div>
 
           {recentOrders.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--t3)', fontSize: '0.82rem', background: 'var(--s2)', borderRadius: 10, border: '1px solid var(--border)' }}>
-              No orders today yet
+              {t('noOrdersToday')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -145,8 +153,8 @@ export default function DashboardHome() {
 
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div className="dash-section-title">Tables</div>
-            <Link to="/tables" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>Manage →</Link>
+            <div className="dash-section-title">{t('tables')}</div>
+            <Link to="/tables" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>{t('manage')}</Link>
           </div>
 
           <div style={{ background: 'var(--s2)', borderRadius: 10, padding: '0.85rem', border: '1px solid var(--border)', marginBottom: '1rem' }}>
@@ -168,7 +176,7 @@ export default function DashboardHome() {
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem', marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border)' }}>
-              {[['free', 'Free'], ['occupied', 'Busy'], ['ordering', 'Ordering'], ['reserved', 'Reserved']].map(([k, label]) => (
+              {[['free', t('legendFree')], ['occupied', t('legendBusy')], ['ordering', t('legendOrdering')], ['reserved', t('legendReserved')]].map(([k, label]) => (
                 <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem', color: 'var(--t3)' }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: TABLE_COLORS[k].color }} />
                   {label}
@@ -177,12 +185,12 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          <div className="dash-section-title" style={{ marginBottom: '0.6rem' }}>Quick Actions</div>
+          <div className="dash-section-title" style={{ marginBottom: '0.6rem' }}>{t('quickActions')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
             {[
-              { to: '/kds', icon: '🧑‍🍳', label: 'Open Kitchen Display' },
-              { to: '/menu', icon: '📋', label: 'Toggle Menu Items' },
-              { to: '/bookings', icon: '📅', label: 'Manage Bookings' },
+              { to: '/kds', icon: '🧑‍🍳', label: t('openKitchen') },
+              { to: '/menu', icon: '📋', label: t('toggleMenuItems') },
+              { to: '/bookings', icon: '📅', label: t('manageBookings') },
             ].map(a => (
               <Link key={a.to} to={a.to} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -202,6 +210,7 @@ export default function DashboardHome() {
 }
 
 function OrderRow({ order }) {
+  const { t } = useTranslation(['dashboard', 'common'])
   const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
   const items = order.order_items || []
   const itemNames = items.slice(0, 2).map(i => `${i.quantity}× ${i.dishes?.name || 'item'}`).join(', ')
@@ -225,7 +234,7 @@ function OrderRow({ order }) {
           {itemNames || 'Order'}{more}
         </div>
         <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
-          Table {order.tables?.table_number || '—'} · {timeAgo(order.placed_at)}
+          {t('common:tableLabel', { number: order.tables?.table_number || '—' })} · {timeAgo(order.placed_at)}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>

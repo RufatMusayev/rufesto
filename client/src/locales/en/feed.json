@@ -1,0 +1,22 @@
+{
+  "viewMenuArrow": "View menu →",
+  "seatsCount": "{{count}} seats",
+  "like_one": "{{count}} like",
+  "like_other": "{{count}} likes",
+  "reply_one": "{{count}} reply",
+  "reply_other": "{{count}} replies",
+  "loadingReplies": "Loading replies…",
+  "noRepliesYet": "No replies yet",
+  "hideReplies": "Hide replies",
+  "addReply": "Add a reply…",
+  "post": "Post",
+  "addPhoto": "Add photo",
+  "replyPhotoFailed": "Photo upload failed: {{message}}",
+  "ratedDish": "Rated {{dish}} {{rating}}/5",
+  "thisDish": "this dish",
+  "reviewPhotoAlt": "Review photo",
+  "promoted": "Promoted",
+  "sponsored": "Sponsored",
+  "viewDish": "View dish →",
+  "visitRestaurant": "Visit restaurant →"
+}

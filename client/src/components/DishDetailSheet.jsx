@@ -1,16 +1,19 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function DishDetailSheet({ dish, onClose }) {
+  const { t } = useTranslation(['menu', 'common'])
   const { addDish, tableId, cartError, clearCartError } = useCart()
   const { session } = useAuth()
   const [reviews, setReviews] = useState([])
   const [ingredients, setIngredients] = useState([])
   const [allergens, setAllergens] = useState([])
   const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [likePop, setLikePop] = useState(false)
   const [savePop, setSavePop] = useState(false)
@@ -49,6 +52,13 @@ export default function DishDetailSheet({ dish, onClose }) {
       .eq('dish_id', dish.id)
       .then(({ data }) => setAllergens(data || []))
 
+    supabase
+      .from('likes')
+      .select('id', { count: 'exact', head: true })
+      .eq('target_type', 'dish')
+      .eq('target_id', dish.id)
+      .then(({ count }) => setLikeCount(count || 0))
+
     if (session) {
       supabase
         .from('saved_dishes')
@@ -69,6 +79,31 @@ export default function DishDetailSheet({ dish, onClose }) {
     }
   }, [dish.id, session?.user?.id])
 
+  async function toggleLike() {
+    const next = !liked
+    setLiked(next)
+    setLikeCount(c => c + (next ? 1 : -1))
+    if (next) setLikePop(true)
+    if (!session) return
+    try {
+      if (next) {
+        const { error } = await supabase.from('likes').insert({
+          user_id: session.user.id, target_type: 'dish', target_id: dish.id,
+        })
+        if (error) { setLiked(false); setLikeCount(c => c - 1) }
+      } else {
+        const { error } = await supabase.from('likes').delete()
+          .eq('user_id', session.user.id)
+          .eq('target_type', 'dish')
+          .eq('target_id', dish.id)
+        if (error) { setLiked(true); setLikeCount(c => c + 1) }
+      }
+    } catch {
+      setLiked(!next)
+      setLikeCount(c => c + (next ? -1 : 1))
+    }
+  }
+
   const hasReviewed = session && reviews.some(r => r.user_id === session.user.id)
 
   function handleDoubleTap() {
@@ -78,7 +113,7 @@ export default function DishDetailSheet({ dish, onClose }) {
     } else if (tapCount.current === 2) {
       clearTimeout(tapTimer.current)
       tapCount.current = 0
-      if (!liked) setLiked(true)
+      if (!liked) toggleLike()
       setShowHeart(true)
       setTimeout(() => setShowHeart(false), 900)
     }
@@ -86,7 +121,7 @@ export default function DishDetailSheet({ dish, onClose }) {
 
   async function handleSubmitReview(e) {
     e.preventDefault()
-    if (!myRating) { setReviewError('Select a rating'); return }
+    if (!myRating) { setReviewError(t('menu:selectRating')); return }
     setReviewError('')
     setSubmitting(true)
     let photoUrl = null
@@ -94,7 +129,7 @@ export default function DishDetailSheet({ dish, onClose }) {
       const ext = (myPhoto.name.split('.').pop() || 'jpg').toLowerCase()
       const path = `reviews/${session.user.id}/${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('dish-photos').upload(path, myPhoto)
-      if (upErr) { setSubmitting(false); setReviewError(`Photo upload failed: ${upErr.message}`); return }
+      if (upErr) { setSubmitting(false); setReviewError(t('menu:photoUploadFailed', { message: upErr.message })); return }
       photoUrl = supabase.storage.from('dish-photos').getPublicUrl(path).data.publicUrl
     }
     const { data, error } = await supabase.from('reviews').insert({
@@ -239,7 +274,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               display: 'flex', alignItems: 'center', gap: 5,
             }}>
               <span className="open-indicator" />
-              <span style={{ fontSize: '0.63rem', fontWeight: 600, color: '#F5F0E8' }}>Available</span>
+              <span style={{ fontSize: '0.63rem', fontWeight: 600, color: '#F5F0E8' }}>{t('menu:available')}</span>
             </div>
           ) : (
             <div style={{
@@ -250,7 +285,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                 background: 'rgba(0,0,0,0.78)', padding: '6px 22px',
                 borderRadius: 100, fontSize: '0.8rem', fontWeight: 700, color: '#F5F0E8',
                 letterSpacing: 1.2, textTransform: 'uppercase',
-              }}>Sold Out</span>
+              }}>{t('menu:soldOut')}</span>
             </div>
           )}
 
@@ -312,7 +347,7 @@ export default function DishDetailSheet({ dish, onClose }) {
         }}>
           <button
             className="icon-btn"
-            onClick={() => { setLiked(v => { if (!v) setLikePop(true); return !v }) }}
+            onClick={toggleLike}
             style={{ width: 30, height: 30 }}
           >
             <svg viewBox="0 0 24 24"
@@ -370,12 +405,12 @@ export default function DishDetailSheet({ dish, onClose }) {
           </button>
         </div>
 
-        {liked && (
+        {likeCount > 0 && (
           <div style={{
             padding: '0 14px 4px',
             fontSize: '0.8rem', fontWeight: 700, color: 'var(--t1)',
           }}>
-            1 like
+            {t('menu:likeCount', { count: likeCount })}
           </div>
         )}
 
@@ -390,7 +425,7 @@ export default function DishDetailSheet({ dish, onClose }) {
             </span>
             {' '}
             <span style={{ color: 'var(--t2)', fontWeight: 400 }}>
-              {dish.description || `${dish.category} dish`}
+              {dish.description || t('menu:categoryDish', { category: dish.category })}
             </span>
           </p>
 
@@ -401,9 +436,9 @@ export default function DishDetailSheet({ dish, onClose }) {
               fontFamily: "'DM Mono', monospace",
               fontSize: '0.7rem', color: 'var(--t3)',
             }}>
-              <span>{dish.calories} kcal</span>
+              <span>{t('menu:kcal', { count: dish.calories })}</span>
               <span style={{ color: 'var(--border-strong)' }}>·</span>
-              <span>{dish.prep_time_min} min prep</span>
+              <span>{t('menu:prepMin', { count: dish.prep_time_min })}</span>
             </div>
           )}
 
@@ -418,7 +453,7 @@ export default function DishDetailSheet({ dish, onClose }) {
         {allergens.length > 0 && (
           <div style={{ padding: '0 14px 10px' }}>
             <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Allergens
+              {t('menu:allergens')}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {allergens.map((a, i) => (
@@ -446,7 +481,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               display: 'flex', alignItems: 'center', gap: 5,
               transition: 'color 150ms var(--ease-out)',
             }}>
-              Ingredients ({ingredients.length})
+              {t('menu:ingredientsCount', { count: ingredients.length })}
               <svg viewBox="0 0 16 16" fill="currentColor" style={{
                 width: 12, height: 12, color: 'var(--t4)',
                 transform: showIngredients ? 'rotate(180deg)' : 'rotate(0)',
@@ -503,7 +538,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
               onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              Add to Order · {formatPrice(dish.price)}
+              {t('menu:addToOrder', { price: formatPrice(dish.price) })}
             </button>
           </div>
         ) : dish.available && !tableId ? (
@@ -515,7 +550,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               background: 'var(--s2)', borderRadius: 12,
               border: '1px solid var(--border)',
             }}>
-              Enter a table code on the Table tab to order
+              {t('menu:enterTablePrompt')}
             </div>
           </div>
         ) : null}
@@ -527,7 +562,7 @@ export default function DishDetailSheet({ dish, onClose }) {
               fontSize: '0.7rem', fontWeight: 700, color: 'var(--t3)',
               textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10,
             }}>
-              Reviews · {reviews.length}
+              {t('menu:reviewsCount', { count: reviews.length })}
             </div>
             <div>
               {reviews.slice(0, showReviewForm ? 20 : 3).map(r => (
@@ -581,7 +616,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                 fontSize: '0.76rem', color: 'var(--t3)', padding: '0 0 8px',
                 fontWeight: 500,
               }}>
-                View all {reviews.length} reviews
+                {t('menu:viewAllReviews', { count: reviews.length })}
               </button>
             )}
           </div>
@@ -598,7 +633,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '0.8rem', color: 'var(--t3)', padding: 0, fontWeight: 500,
               }}>
-                Add a review...
+                {t('menu:addReviewPlaceholder')}
               </button>
             ) : (
               <form onSubmit={handleSubmitReview}>
@@ -622,7 +657,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <input
                     className="input"
-                    placeholder="Write a review..."
+                    placeholder={t('menu:writeReviewPlaceholder')}
                     value={myBody}
                     onChange={e => setMyBody(e.target.value)}
                     style={{ flex: 1, fontSize: '0.82rem', padding: '9px 13px', borderRadius: 20 }}
@@ -644,7 +679,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    aria-label="Add photo"
+                    aria-label={t('menu:addPhoto')}
                     style={{
                       width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                       background: myPhoto ? 'var(--gold)' : 'var(--s2)',
@@ -660,7 +695,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                     style={{ padding: '8px 18px', fontSize: '0.82rem', borderRadius: 20, flexShrink: 0 }}
                     disabled={submitting || !myRating}
                   >
-                    {submitting ? '...' : 'Post'}
+                    {submitting ? '...' : t('menu:post')}
                   </button>
                 </div>
                 {myPhotoPreview && (
@@ -671,7 +706,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                     }} />
                     <button
                       type="button"
-                      aria-label="Remove photo"
+                      aria-label={t('menu:removePhoto')}
                       onClick={() => {
                         URL.revokeObjectURL(myPhotoPreview)
                         setMyPhoto(null)

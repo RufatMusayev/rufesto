@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { categoryEmoji, formatPrice } from '@shared/helpers'
 import DishFormModal from '../components/DishFormModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import { dishPhotoPath } from '../lib/storage'
 
 export default function MenuPage() {
   const { restaurantId } = useAuth()
+  const { t } = useTranslation(['dashboard', 'common'])
   const [dishes, setDishes] = useState([])
   const [sections, setSections] = useState([])
   const [active, setActive] = useState(null)
@@ -17,6 +20,7 @@ export default function MenuPage() {
   const [editDish, setEditDish] = useState(null)
   const [deleteDish, setDeleteDish] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!restaurantId) return
@@ -67,12 +71,23 @@ export default function MenuPage() {
   async function handleDelete(id) {
     setDeleting(true)
     const dish = dishes.find(d => d.id === id)
+
+    // DB row first: if this fails (RLS, FK, etc.) we must not touch storage
+    // or local state, otherwise a dish is left "deleted" in the UI with its
+    // photo gone while the row itself still exists.
+    const { error: delErr } = await supabase.from('dishes').delete().eq('id', id)
+    if (delErr) {
+      setDeleteError(delErr.message)
+      setDeleting(false)
+      return
+    }
+
+    await supabase.from('dish_photos').delete().eq('dish_id', id)
     if (dish?.photo) {
-      const path = dish.photo.split('/dish-photos/')[1]
+      const path = dishPhotoPath(restaurantId, id, dish.photo)
       if (path) await supabase.storage.from('dish-photos').remove([path])
     }
-    await supabase.from('dish_photos').delete().eq('dish_id', id)
-    await supabase.from('dishes').delete().eq('id', id)
+
     setDishes(prev => prev.filter(d => d.id !== id))
     setDeleteDish(null)
     setDeleting(false)
@@ -86,21 +101,21 @@ export default function MenuPage() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <div>
-          <h1 className="page-title">Menu</h1>
+          <h1 className="page-title">{t('dashboard:menuTitle')}</h1>
           <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
-            {availCount}/{filtered.length} available · {dishes.length} total
+            {t('dashboard:menuSummary', { avail: availCount, total: filtered.length, all: dishes.length })}
           </span>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Add Dish
+          {t('dashboard:addDish')}
         </button>
       </div>
 
       {/* Section chips */}
       <div className="no-scrollbar" style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
         <button className={`chip${!active ? ' active' : ''}`}
-          onClick={() => setActive(null)}>All ({dishes.length})</button>
+          onClick={() => setActive(null)}>{t('dashboard:menuAll', { count: dishes.length })}</button>
         {sections.map(s => {
           const cnt = dishes.filter(d => d.menu_section_id === s.id).length
           return (
@@ -112,11 +127,11 @@ export default function MenuPage() {
 
       {/* Dish list */}
       {loading ? (
-        <div style={{ color: 'var(--t3)' }}>Loading…</div>
+        <div style={{ color: 'var(--t3)' }}>{t('common:loading')}</div>
       ) : filtered.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">🍽️</div>
-          No dishes yet. Add your first dish.
+          {t('dashboard:noDishesYet')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -125,7 +140,7 @@ export default function MenuPage() {
               toggling={toggling.has(d.id)}
               onToggle={() => toggle(d)}
               onEdit={() => setEditDish(d)}
-              onDelete={() => setDeleteDish(d)}
+              onDelete={() => { setDeleteError(''); setDeleteDish(d) }}
             />
           ))}
         </div>
@@ -153,6 +168,7 @@ export default function MenuPage() {
         <DeleteConfirmModal
           dishName={deleteDish.name}
           loading={deleting}
+          error={deleteError}
           onConfirm={() => handleDelete(deleteDish.id)}
           onCancel={() => setDeleteDish(null)}
         />
@@ -162,6 +178,7 @@ export default function MenuPage() {
 }
 
 function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
+  const { t } = useTranslation('dashboard')
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:'0.85rem',
@@ -192,12 +209,12 @@ function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
           </span>
           {d.is_featured && (
             <span style={{ fontSize:'0.58rem', background:'rgba(196,154,44,0.15)', color:'var(--gold)', padding:'1px 6px', borderRadius:100, fontWeight:700, flexShrink:0 }}>
-              ★ Featured
+              {t('featured')}
             </span>
           )}
           {!d.available && (
             <span style={{ fontSize:'0.58rem', background:'rgba(163,45,45,0.12)', color:'var(--red)', padding:'1px 6px', borderRadius:100, fontWeight:700, flexShrink:0 }}>
-              Off
+              {t('off')}
             </span>
           )}
         </div>
@@ -213,7 +230,7 @@ function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
 
       {/* Actions */}
       <div style={{ display:'flex', alignItems:'center', gap:'0.3rem' }}>
-        <button onClick={onEdit} title="Edit" style={{
+        <button onClick={onEdit} title={t('edit')} style={{
           width:30, height:30, borderRadius:7, background:'none', border:'none',
           color:'var(--t3)', cursor:'pointer',
           display:'flex', alignItems:'center', justifyContent:'center',
@@ -227,7 +244,7 @@ function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button onClick={onDelete} title="Delete" style={{
+        <button onClick={onDelete} title={t('delete')} style={{
           width:30, height:30, borderRadius:7, background:'none', border:'none',
           color:'var(--t3)', cursor:'pointer',
           display:'flex', alignItems:'center', justifyContent:'center',
@@ -247,8 +264,9 @@ function DishRow({ dish: d, toggling, onToggle, onEdit, onDelete }) {
 }
 
 function Toggle({ on, loading, onToggle }) {
+  const { t } = useTranslation('dashboard')
   return (
-    <button onClick={onToggle} disabled={loading} title={on ? 'Mark unavailable' : 'Mark available'} style={{
+    <button onClick={onToggle} disabled={loading} title={on ? t('markUnavailable') : t('markAvailable')} style={{
       width:50, height:28, borderRadius:100, flexShrink:0,
       background: on ? 'var(--green)' : 'var(--s4)',
       border: 'none',

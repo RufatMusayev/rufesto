@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice } from '@shared/helpers'
+import { localeTag } from '../lib/time'
 
 const FILTERS = ['all', 'draft', 'active', 'paused', 'completed', 'cancelled']
 
@@ -13,17 +15,19 @@ const STATUS_STYLE = {
   cancelled: { label: 'Cancelled', color: '#A32D2D',    bg: 'rgba(239,68,68,0.08)',     border: 'rgba(239,68,68,0.18)' },
 }
 
-const TYPES = [
-  { value: 'feed_placement', label: 'Feed Placement' },
-  { value: 'discount',       label: 'Discount' },
-  { value: 'highlight',      label: 'Highlight' },
-  { value: 'banner',         label: 'Banner' },
-]
-const TYPE_LABEL = Object.fromEntries(TYPES.map(t => [t.value, t.label]))
+const TYPES = ['feed_placement', 'discount', 'highlight', 'banner']
+const TYPE_KEYS = {
+  feed_placement: 'typeFeed', discount: 'typeDiscount',
+  highlight: 'typeHighlight', banner: 'typeBanner',
+}
+const STATUS_LABEL_KEYS = {
+  draft: 'promoStatusDraft', active: 'promoStatusActive', paused: 'promoStatusPaused',
+  completed: 'promoStatusCompleted', cancelled: 'promoStatusCancelled',
+}
 
-function fmtDate(iso) {
+function fmtDate(iso, lang) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function toLocalInput(iso) {
@@ -34,6 +38,7 @@ function toLocalInput(iso) {
 
 export default function PromosPage() {
   const { restaurantId } = useAuth()
+  const { t } = useTranslation(['dashboard', 'common'])
   const [campaigns, setCampaigns] = useState([])
   const [dishes, setDishes] = useState([])
   const [filter, setFilter] = useState('all')
@@ -100,14 +105,14 @@ export default function PromosPage() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <div>
-          <h1 className="page-title">Promos</h1>
+          <h1 className="page-title">{t('dashboard:promosTitle')}</h1>
           <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
-            {statusCounts.active || 0} active · {campaigns.length} total
+            {t('dashboard:promosSummary', { active: statusCounts.active || 0, total: campaigns.length })}
           </span>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          New Campaign
+          {t('dashboard:newCampaign')}
         </button>
       </div>
 
@@ -116,10 +121,11 @@ export default function PromosPage() {
         {FILTERS.map(f => {
           const cnt = f === 'all' ? campaigns.length : (statusCounts[f] || 0)
           const sm = f !== 'all' ? STATUS_STYLE[f] : null
+          const chipLabel = f === 'all' ? t('dashboard:filterAll') : t(`dashboard:${STATUS_LABEL_KEYS[f]}`)
           return (
             <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {sm && <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, display: 'inline-block', marginRight: 4 }} />}
-              {f === 'all' ? 'All' : sm.label} ({cnt})
+              {chipLabel} ({cnt})
             </button>
           )
         })}
@@ -133,7 +139,7 @@ export default function PromosPage() {
       ) : filtered.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📣</div>
-          {campaigns.length === 0 ? 'No campaigns yet. Create your first promotion.' : 'No campaigns match filter'}
+          {campaigns.length === 0 ? t('dashboard:noCampaignsYet') : t('dashboard:noCampaignsMatch')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -168,6 +174,7 @@ export default function PromosPage() {
 }
 
 function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCancel }) {
+  const { t, i18n } = useTranslation('dashboard')
   const s = STATUS_STYLE[c.status] || STATUS_STYLE.draft
   const budget = Number(c.budget) || 0
   const spent = Number(c.spent) || 0
@@ -204,29 +211,29 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
             <span style={{
               fontSize: '0.6rem', fontWeight: 600, padding: '2px 7px', borderRadius: 100,
               background: 'var(--s3)', color: 'var(--t2)', border: '1px solid var(--border)',
-            }}>{TYPE_LABEL[c.type] || c.type}</span>
+            }}>{t(`dashboard:${TYPE_KEYS[c.type] || 'typeFeed'}`)}</span>
             <span style={{
               fontSize: '0.58rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4,
               background: s.bg, color: s.color, border: `1px solid ${s.border}`,
               textTransform: 'uppercase', letterSpacing: 0.5,
-            }}>{s.label}</span>
+            }}>{t(`dashboard:${STATUS_LABEL_KEYS[c.status] || 'promoStatusDraft'}`)}</span>
           </div>
         </div>
 
         {/* Meta row */}
         <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.72rem', color: 'var(--t3)', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-          <span>{fmtDate(c.starts_at)} → {fmtDate(c.ends_at)}</span>
-          <span>{c.impressions || 0} impressions</span>
-          <span>{c.clicks || 0} clicks</span>
+          <span>{fmtDate(c.starts_at, i18n.language)} → {fmtDate(c.ends_at, i18n.language)}</span>
+          <span>{t('dashboard:impressions', { count: c.impressions || 0 })}</span>
+          <span>{t('dashboard:clicks', { count: c.clicks || 0 })}</span>
           {c.dishes?.name && <span style={{ color: 'var(--gold)' }}>🍽 {c.dishes.name}</span>}
         </div>
 
         {/* Budget bar */}
         <div style={{ marginTop:'0.65rem' }}>
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.7rem', color:'var(--t2)', marginBottom:4 }}>
-            <span>{formatPrice(spent)} spent</span>
+            <span>{t('dashboard:spent', { price: formatPrice(spent) })}</span>
             <span style={{ color: pct >= 90 ? 'var(--red)' : 'var(--t2)' }}>
-              {formatPrice(budget)} budget{c.daily_limit ? ` · ${formatPrice(c.daily_limit)}/day` : ''}
+              {t('dashboard:budget', { price: formatPrice(budget) })}{c.daily_limit ? ` · ${t('dashboard:perDay', { price: formatPrice(c.daily_limit) })}` : ''}
             </span>
           </div>
           <div style={{ height:5, borderRadius:100, background:'var(--s3)', overflow:'hidden' }}>
@@ -243,20 +250,20 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
           {canActivate && (
             <button className="btn btn-primary" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
               onClick={onActivate} disabled={acting}>
-              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Activate'}
+              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:activate')}
             </button>
           )}
           {canPause && (
             <button className="btn btn-ghost" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
               onClick={onPause} disabled={acting}>
-              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Pause'}
+              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:pause')}
             </button>
           )}
           {canCancel && (
             <button className="btn btn-danger" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
-              onClick={onCancel} disabled={acting}>Cancel</button>
+              onClick={onCancel} disabled={acting}>{t('dashboard:cancel')}</button>
           )}
-          <button onClick={onEdit} title="Edit" style={{
+          <button onClick={onEdit} title={t('dashboard:edit')} style={{
             width: 30, height: 30, borderRadius: 8, marginLeft: 'auto',
             background: 'none', border: 'none', color: 'var(--t3)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -277,6 +284,7 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
 }
 
 function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
+  const { t } = useTranslation('dashboard')
   const isEdit = !!campaign
 
   const [form, setForm] = useState({
@@ -304,17 +312,19 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
   }
 
   async function handleSave() {
-    if (!form.name.trim()) { setError('Name is required'); return }
-    if (!form.title.trim()) { setError('Title is required'); return }
-    if (!form.budget || isNaN(Number(form.budget)) || Number(form.budget) <= 0) { setError('Budget must be greater than 0'); return }
-    if (form.daily_limit && (isNaN(Number(form.daily_limit)) || Number(form.daily_limit) <= 0)) { setError('Daily limit must be greater than 0'); return }
-    if (!form.starts_at || !form.ends_at) { setError('Start and end dates are required'); return }
-    if (new Date(form.ends_at) <= new Date(form.starts_at)) { setError('End date must be after start date'); return }
+    if (!form.name.trim()) { setError(t('errNameRequired')); return }
+    if (!form.title.trim()) { setError(t('errTitleRequired')); return }
+    if (!form.budget || isNaN(Number(form.budget)) || Number(form.budget) <= 0) { setError(t('errBudgetPositive')); return }
+    if (form.daily_limit && (isNaN(Number(form.daily_limit)) || Number(form.daily_limit) <= 0)) { setError(t('errDailyLimitPositive')); return }
+    if (!form.starts_at || !form.ends_at) { setError(t('errDatesRequired')); return }
+    if (new Date(form.ends_at) <= new Date(form.starts_at)) { setError(t('errEndAfterStart')); return }
     setSaving(true)
     setError('')
 
+    // restaurant_id is intentionally left out of `row`: it must never be sent
+    // on an update (a campaign could otherwise be moved to another
+    // restaurant), and on insert it's added explicitly from the staff row.
     const row = {
-      restaurant_id: restaurantId,
       name: form.name.trim(),
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -329,7 +339,7 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
 
     const { error: err } = isEdit
       ? await supabase.from('ad_campaigns').update(row).eq('id', campaign.id)
-      : await supabase.from('ad_campaigns').insert(row)
+      : await supabase.from('ad_campaigns').insert({ ...row, restaurant_id: restaurantId })
 
     if (err) {
       setError(err.message)
@@ -346,7 +356,7 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
         <div style={{ padding: '1.25rem 1.25rem 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>
-              {isEdit ? 'Edit Campaign' : 'New Campaign'}
+              {isEdit ? t('editCampaign') : t('newCampaign')}
             </h2>
             <button onClick={onClose} style={{
               background: 'none', border: 'none', color: 'var(--t3)',
@@ -358,35 +368,35 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
         <div style={{ padding: '0 1.25rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Name */}
           <div>
-            <label className="label">Name *</label>
+            <label className="label">{t('name')} *</label>
             <input className="input" value={form.name} onChange={e => update('name', e.target.value)}
-              placeholder="e.g. Summer Lunch Promo" />
+              placeholder={t('namePlaceholder')} />
           </div>
 
           {/* Title */}
           <div>
-            <label className="label">Title *</label>
+            <label className="label">{t('title')} *</label>
             <input className="input" value={form.title} onChange={e => update('title', e.target.value)}
-              placeholder="Public headline shown to diners" />
+              placeholder={t('titlePlaceholder')} />
           </div>
 
           {/* Description */}
           <div>
-            <label className="label">Description</label>
+            <label className="label">{t('description')}</label>
             <textarea className="input" rows={2} value={form.description}
               onChange={e => update('description', e.target.value)}
-              placeholder="Short promo description" style={{ resize: 'vertical' }} />
+              placeholder={t('descPromoPlaceholder')} style={{ resize: 'vertical' }} />
           </div>
 
           {/* Type */}
           <div>
-            <label className="label">Type *</label>
+            <label className="label">{t('type')} *</label>
             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-              {TYPES.map(t => (
-                <button key={t.value} className={`chip${form.type === t.value ? ' active' : ''}`}
-                  onClick={() => update('type', t.value)}
+              {TYPES.map(tp => (
+                <button key={tp} className={`chip${form.type === tp ? ' active' : ''}`}
+                  onClick={() => update('type', tp)}
                   style={{ fontSize: '0.72rem', padding: '0.3rem 0.65rem' }}>
-                  {t.label}
+                  {t(`dashboard:${TYPE_KEYS[tp]}`)}
                 </button>
               ))}
             </div>
@@ -394,10 +404,10 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
 
           {/* Dish */}
           <div>
-            <label className="label">Linked Dish</label>
+            <label className="label">{t('linkedDish')}</label>
             <select className="input" value={form.dish_id}
               onChange={e => update('dish_id', e.target.value)} style={{ cursor: 'pointer' }}>
-              <option value="">None</option>
+              <option value="">{t('none')}</option>
               {dishes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
@@ -405,12 +415,12 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
           {/* Budget + daily limit */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
             <div>
-              <label className="label">Budget (₼) *</label>
+              <label className="label">{t('budgetLabel')} *</label>
               <input className="input" type="number" step="0.01" min="0" value={form.budget}
                 onChange={e => update('budget', e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label className="label">Daily Limit (₼)</label>
+              <label className="label">{t('dailyLimit')}</label>
               <input className="input" type="number" step="0.01" min="0" value={form.daily_limit}
                 onChange={e => update('daily_limit', e.target.value)} placeholder="–" />
             </div>
@@ -419,12 +429,12 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
           {/* Dates */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
             <div>
-              <label className="label">Starts *</label>
+              <label className="label">{t('starts')} *</label>
               <input className="input" type="datetime-local" value={form.starts_at}
                 onChange={e => update('starts_at', e.target.value)} />
             </div>
             <div>
-              <label className="label">Ends *</label>
+              <label className="label">{t('ends')} *</label>
               <input className="input" type="datetime-local" value={form.ends_at}
                 onChange={e => update('ends_at', e.target.value)} />
             </div>
@@ -432,11 +442,11 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
 
           {/* Status */}
           <div>
-            <label className="label">Status</label>
+            <label className="label">{t('status')}</label>
             <select className="input" value={form.status}
               onChange={e => update('status', e.target.value)} style={{ cursor: 'pointer' }}>
-              {Object.entries(STATUS_STYLE).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
+              {Object.keys(STATUS_STYLE).map(k => (
+                <option key={k} value={k}>{t(`dashboard:${STATUS_LABEL_KEYS[k]}`)}</option>
               ))}
             </select>
           </div>
@@ -445,9 +455,9 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
-            <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <><span className="spinner" /> Saving…</> : isEdit ? 'Save Changes' : 'Create Campaign'}
+              {saving ? <><span className="spinner" /> {t('saving')}</> : isEdit ? t('saveChanges') : t('createCampaign')}
             </button>
           </div>
         </div>
@@ -457,6 +467,8 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
 }
 
 function CancelConfirmModal({ campaignName, loading, onConfirm, onCancel }) {
+  const { t } = useTranslation('dashboard')
+
   useEffect(() => {
     document.body.classList.add('modal-open')
     return () => document.body.classList.remove('modal-open')
@@ -465,15 +477,14 @@ function CancelConfirmModal({ campaignName, loading, onConfirm, onCancel }) {
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="modal" style={{ padding: '1.75rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.75rem' }}>Cancel Campaign</h2>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.75rem' }}>{t('cancelCampaign')}</h2>
         <p style={{ fontSize: '0.88rem', color: 'var(--t2)', lineHeight: 1.5 }}>
-          Are you sure you want to cancel <strong style={{ color: 'var(--t1)' }}>{campaignName}</strong>?
-          The campaign will stop running and cannot be reactivated.
+          {t('cancelCampaignConfirm', { name: campaignName })}
         </p>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>Keep</button>
+          <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>{t('keep')}</button>
           <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? <><span className="spinner" /> Cancelling…</> : 'Cancel Campaign'}
+            {loading ? <><span className="spinner" /> {t('cancelling')}</> : t('cancelCampaign')}
           </button>
         </div>
       </div>

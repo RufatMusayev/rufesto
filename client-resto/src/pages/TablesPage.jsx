@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo } from '@shared/helpers'
 import { TABLE_COLORS, TABLE_STATE_TRANSITIONS } from '@shared/constants'
+import { debounce } from '../lib/debounce'
+
+// Active-orders window for the table floor: 24h is generous for a single
+// dine-in visit while still dropping stale open orders from earlier days.
+const ACTIVE_ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export default function TablesPage() {
   const { restaurantId } = useAuth()
+  const { t } = useTranslation(['dashboard', 'common'])
   const [tables, setTables] = useState([])
   const [sections, setSections] = useState([])
   const [activeSection, setActiveSection] = useState(null)
@@ -14,30 +21,42 @@ export default function TablesPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
   const [updating, setUpdating] = useState(null)
+  const [actionError, setActionError] = useState('')
+  const [accessCodes, setAccessCodes] = useState({})
 
   useEffect(() => {
     if (!restaurantId) return
     loadAll()
 
+    const debouncedLoad = debounce(loadAll, 400)
     const ch = supabase
       .channel(`dash-tables-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
       .subscribe()
 
-    return () => supabase.removeChannel(ch)
+    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
   }, [restaurantId])
 
   async function loadAll() {
-    const [tablesR, sectionsR, ordersR] = await Promise.all([
-      supabase.from('tables').select('*, sections(name)')
+    const [tablesR, sectionsR, ordersR, codesR] = await Promise.all([
+      // Explicit columns only: `tables` may carry access_code / qr_code_token,
+      // which must never be selected from the client.
+      supabase.from('tables').select('id, table_number, state, capacity, section_id, sections(name)')
         .eq('restaurant_id', restaurantId).eq('is_active', true).order('table_number'),
       supabase.from('sections').select('id, name')
         .eq('restaurant_id', restaurantId).order('name'),
       supabase.from('orders').select('id, table_id, status, total_amount, placed_at, order_items(quantity, dishes(name))')
         .eq('restaurant_id', restaurantId)
-        .not('status', 'in', '("done","cancelled")')
+        .not('status', 'in', '("paid","cancelled")')
+        .gte('placed_at', new Date(Date.now() - ACTIVE_ORDERS_WINDOW_MS).toISOString())
         .order('placed_at', { ascending: false }),
+      // access_code lives in table_access_codes (staff-only, RLS-gated) since
+      // sql/31 moved it off `tables`. Never select qr_code_token here. This
+      // query fails silently (table may not exist yet pre-migration) — the
+      // page must keep working either way, just without the code chip.
+      supabase.from('table_access_codes').select('table_id, access_code')
+        .eq('restaurant_id', restaurantId),
     ])
 
     setTables(tablesR.data || [])
@@ -49,13 +68,25 @@ export default function TablesPage() {
       orderMap[o.table_id].push(o)
     }
     setOrders(orderMap)
+
+    const codeMap = {}
+    if (!codesR.error) {
+      for (const c of (codesR.data || [])) codeMap[c.table_id] = c.access_code
+    }
+    setAccessCodes(codeMap)
+
     setLoading(false)
   }
 
   async function changeState(tableId, newState) {
     setUpdating(tableId)
-    await supabase.from('tables').update({ state: newState }).eq('id', tableId)
+    const prevState = tables.find(t => t.id === tableId)?.state
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, state: newState } : t))
+    const { error } = await supabase.from('tables').update({ state: newState }).eq('id', tableId)
+    if (error) {
+      setTables(prev => prev.map(t => t.id === tableId ? { ...t, state: prevState } : t))
+      setActionError(t('dashboard:actionFailed'))
+    }
     setUpdating(null)
   }
 
@@ -69,16 +100,28 @@ export default function TablesPage() {
   return (
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
-        <h1 className="page-title">Tables</h1>
+        <h1 className="page-title">{t('dashboard:tablesTitle')}</h1>
         <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
-          <span className="dash-live-dot" /> Live
+          <span className="dash-live-dot" /> {t('common:live')}
         </div>
       </div>
+
+      {actionError && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
+          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
+          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
+        }}>
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
+        </div>
+      )}
 
       {sections.length > 1 && (
         <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '0.75rem' }} className="no-scrollbar">
           <button className={`chip${!activeSection ? ' active' : ''}`} onClick={() => setActiveSection(null)}>
-            All Areas ({tables.length})
+            {t('dashboard:allAreas', { count: tables.length })}
           </button>
           {sections.map(s => {
             const cnt = tables.filter(t => t.section_id === s.id).length
@@ -92,7 +135,7 @@ export default function TablesPage() {
 
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         <button className={`chip${stateFilter === 'all' ? ' active' : ''}`} onClick={() => setStateFilter('all')}>
-          All ({tables.length})
+          {t('dashboard:filterAll')} ({tables.length})
         </button>
         {Object.entries(TABLE_COLORS).map(([key, s]) => {
           const cnt = stateCounts[key] || 0
@@ -112,11 +155,12 @@ export default function TablesPage() {
           {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton" style={{ height: 140, borderRadius: 12 }} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="empty"><div className="empty-icon">🪑</div>No tables match filters</div>
+        <div className="empty"><div className="empty-icon">🪑</div>{t('dashboard:noTablesMatch')}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '0.75rem' }}>
           {filtered.map(t => (
             <TableCard key={t.id} table={t} orders={orders[t.id] || []}
+              code={accessCodes[t.id]}
               expanded={expanded === t.id} onToggle={() => setExpanded(expanded === t.id ? null : t.id)}
               onChangeState={changeState} updating={updating === t.id} />
           ))}
@@ -128,7 +172,7 @@ export default function TablesPage() {
         background:'var(--s2)', borderRadius:12, border:'1px solid var(--border)',
         flexWrap:'wrap', alignItems:'center',
       }}>
-        <span className="dash-section-title">Legend</span>
+        <span className="dash-section-title">{t('dashboard:legend')}</span>
         {Object.entries(TABLE_COLORS).map(([key, s]) => (
           <div key={key} style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ width:8, height:8, borderRadius:'50%', background: s.color, display:'inline-block' }} />
@@ -141,10 +185,23 @@ export default function TablesPage() {
   )
 }
 
-function TableCard({ table, orders, expanded, onToggle, onChangeState, updating }) {
+function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating }) {
+  const { t } = useTranslation(['dashboard', 'common'])
   const s = TABLE_COLORS[table.state] || TABLE_COLORS.free
   const transitions = TABLE_STATE_TRANSITIONS[table.state] || []
   const totalSpend = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy(e) {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard API unavailable/denied — nothing sensible to show, ignore
+    }
+  }
 
   return (
     <div style={{
@@ -173,13 +230,43 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
             {table.table_number}
           </div>
           <div>
-            <div style={{ fontWeight:700, fontSize:'0.88rem' }}>Table {table.table_number}</div>
+            <div style={{ fontWeight:700, fontSize:'0.88rem' }}>{t('dashboard:tableLabel', { number: table.table_number })}</div>
             <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:1 }}>
-              {table.sections?.name || '—'} · {table.capacity} seats
+              {table.sections?.name || '—'} · {t('dashboard:seatsCount', { count: table.capacity })}
               {orders.length > 0 && (
                 <span style={{ color:'var(--t2)', marginLeft:4 }}>· {formatPrice(totalSpend)}</span>
               )}
             </div>
+            {code && (
+              <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
+                <span style={{
+                  fontFamily:"'JetBrains Mono','Courier New',monospace", fontSize:'0.62rem',
+                  fontWeight:600, color:'var(--t2)', background:'var(--s3)',
+                  border:'1px solid var(--border)', borderRadius:5,
+                  padding:'1px 6px', letterSpacing:0.3,
+                }}>{code}</span>
+                <button
+                  onClick={handleCopy}
+                  title={copied ? t('dashboard:codeCopied') : t('dashboard:copyCode')}
+                  style={{
+                    background:'none', border:'none', cursor:'pointer', padding:2,
+                    display:'flex', alignItems:'center', color: copied ? 'var(--green)' : 'var(--t3)',
+                    transition:'color 0.15s',
+                  }}
+                >
+                  {copied ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -199,7 +286,7 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
         <div style={{ borderTop:'1px solid var(--border)', padding:'0.75rem 1rem 0.85rem', animation:'fadeSlideUp 0.18s ease' }}>
           {orders.length > 0 && (
             <div style={{ marginBottom:'0.75rem' }}>
-              <div className="dash-section-title" style={{ marginBottom:'0.4rem' }}>Active Orders</div>
+              <div className="dash-section-title" style={{ marginBottom:'0.4rem' }}>{t('dashboard:activeOrders')}</div>
               {orders.map(o => (
                 <div key={o.id} style={{
                   padding:'0.45rem 0.65rem', borderRadius:8,
@@ -240,7 +327,7 @@ function TableCard({ table, orders, expanded, onToggle, onChangeState, updating 
                     onMouseDown={e => (e.currentTarget.style.transform='scale(0.97)')}
                     onMouseUp={e => (e.currentTarget.style.transform='scale(1)')}
                   >
-                    → {ns.label}
+                    {t('dashboard:transitionTo', { state: ns.label })}
                   </button>
                 )
               })}

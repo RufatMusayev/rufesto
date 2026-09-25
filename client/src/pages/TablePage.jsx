@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,7 +9,8 @@ import AuthModal from '../components/AuthModal'
 import PaymentSheet from '../components/PaymentSheet'
 
 export default function TablePage() {
-  const { tableId, restaurantId, setTable, clearTable } = useCart()
+  const { t } = useTranslation(['table', 'booking', 'common'])
+  const { tableId, restaurantId, setTable, claimTable, clearTable } = useCart()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [tableInfo, setTableInfo] = useState(null)
@@ -40,6 +42,7 @@ export default function TablePage() {
     let orderChannel
     let kdsChannel
     let tableChannel
+    let cancelled = false
 
     async function load() {
       setLoading(true)
@@ -50,16 +53,12 @@ export default function TablePage() {
         .eq('id', tableId)
         .single()
 
+      if (cancelled) return
       if (table) {
         setTableInfo(table)
         if (table.state === 'awaiting_payment') setPaymentState('requested')
-        // Self-heal: holding an active session but the table still reads free/reserved
-        // (e.g. session started before this was wired up) — claim it as occupied.
-        if (table.state === 'free' || table.state === 'reserved') {
-          supabase.from('tables').update({ state: 'occupied' })
-            .eq('id', tableId).in('state', ['free', 'reserved'])
-            .then(() => setTableInfo(prev => prev ? { ...prev, state: 'occupied' } : prev))
-        }
+        // Table state is now owned entirely by claim_table()/leave_table() server-side —
+        // the client never writes `tables` directly, so there's no self-heal here.
       }
 
       if (session) {
@@ -69,9 +68,11 @@ export default function TablePage() {
           .eq('table_id', tableId)
           .eq('user_id', session.user.id)
           .order('placed_at', { ascending: true })
+        if (cancelled) return
         setOrders(data || [])
       }
 
+      if (cancelled) return
       setLoading(false)
 
       orderChannel = supabase
@@ -95,8 +96,11 @@ export default function TablePage() {
           event: 'UPDATE', schema: 'public', table: 'tables',
           filter: `id=eq.${tableId}`,
         }, (payload) => {
-          setTableInfo(prev => prev ? { ...prev, ...payload.new } : prev)
-          if (payload.new.state === 'free' || payload.new.state === 'cleared') {
+          // Realtime broadcasts the whole row regardless of our select() column list, so
+          // merge only the fields we actually render — never access_code/qr_code_token.
+          const { state, table_number, capacity } = payload.new
+          setTableInfo(prev => prev ? { ...prev, state, table_number, capacity } : prev)
+          if (state === 'free' || state === 'cleared') {
             clearTable()
             setTableInfo(null)
             setOrders([])
@@ -107,11 +111,15 @@ export default function TablePage() {
 
     load()
     return () => {
+      cancelled = true
       if (orderChannel) supabase.removeChannel(orderChannel)
       if (kdsChannel) supabase.removeChannel(kdsChannel)
       if (tableChannel) supabase.removeChannel(tableChannel)
     }
-  }, [tableId, session])
+    // Depend on the stable user id, not the whole `session` object (which gets a new
+    // identity on every token refresh and would otherwise re-subscribe needlessly).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableId, session?.user?.id])
 
   async function enterCode(e) {
     e.preventDefault()
@@ -123,21 +131,21 @@ export default function TablePage() {
     }
     setCodeLoading(true)
     setCodeError('')
-    const { data: table } = await supabase
-      .from('tables')
-      .select('id, restaurant_id, table_number, is_active')
-      .eq('access_code', code)
-      .eq('is_active', true)
-      .maybeSingle()
+    const { error } = await claimTable(code)
     setCodeLoading(false)
-    if (!table) {
-      setCodeError('Invalid table code. Check the code and try again.')
+    if (error) {
+      const msg = error.message || ''
+      setCodeError(msg.includes('table_reserved') ? t('booking:reservedByOther') : t('table:errInvalidCode'))
       return
     }
-    setTable(table.id, table.restaurant_id)
+    setCodeInput('')
   }
 
+  // Dev-only convenience: seats the caller at any free table so the ordering flow can
+  // be exercised without a real QR code or access code. Never rendered in production
+  // (see the `import.meta.env.DEV` guard around EmptyTableState below).
   async function startDemo() {
+    if (!import.meta.env.DEV) return
     if (!session) {
       setShowAuthModal(true)
       return
@@ -180,6 +188,7 @@ export default function TablePage() {
         onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError}
         codeInput={codeInput} setCodeInput={setCodeInput}
         onEnterCode={enterCode} codeLoading={codeLoading} codeError={codeError}
+        showDemo={import.meta.env.DEV}
       />
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </>
@@ -250,7 +259,7 @@ export default function TablePage() {
                 fontSize: '1.25rem', fontWeight: 700, color: '#F5F0E8',
                 lineHeight: 1.2,
               }}>
-                Your Table
+                {t('table:yourTable')}
               </h1>
               <div style={{
                 fontFamily: "'DM Mono', monospace",
@@ -277,7 +286,7 @@ export default function TablePage() {
                 fontSize: '0.62rem', fontWeight: 700, color: '#22C55E',
                 textTransform: 'uppercase', letterSpacing: 0.8,
               }}>
-                Active
+                {t('common:active')}
               </span>
             </div>
           </div>
@@ -288,9 +297,9 @@ export default function TablePage() {
             paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)',
           }}>
             {[
-              { val: orders.length, label: 'orders' },
-              { val: allItems.length, label: 'items' },
-              { val: formatPrice(sessionTotal), label: 'total', accent: true },
+              { val: orders.length, label: t('table:statOrders') },
+              { val: allItems.length, label: t('table:statItems') },
+              { val: formatPrice(sessionTotal), label: t('table:statTotal'), accent: true },
             ].map(s => (
               <div key={s.label}>
                 <div style={{
@@ -324,7 +333,7 @@ export default function TablePage() {
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2" style={{ width: 17, height: 17, stroke: 'currentColor' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Add More Items
+            {t('table:addMoreItems')}
           </Link>
         )}
 
@@ -337,12 +346,12 @@ export default function TablePage() {
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.35 }}>📋</div>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-              No orders yet
+              {t('table:noOrdersYet')}
             </p>
             <p style={{ fontSize: '0.8rem', color: 'var(--t3)', lineHeight: 1.5 }}>
               {session
-                ? 'Browse the menu and add dishes to start ordering.'
-                : 'Sign in to place orders at this table.'}
+                ? t('table:noOrdersHintSignedIn')
+                : t('table:noOrdersHintSignedOut')}
             </p>
           </div>
         ) : (
@@ -363,12 +372,12 @@ export default function TablePage() {
               fontSize: '0.68rem', fontWeight: 700, color: 'var(--t3)',
               textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
             }}>
-              Session Total
+              {t('table:sessionTotal')}
             </div>
             {[
-              ['Subtotal', sessionSubtotal],
-              ['VAT (18%)', sessionTax],
-              ['Service (10%)', sessionService],
+              [t('common:subtotal'), sessionSubtotal],
+              [t('common:vatPct'), sessionTax],
+              [t('common:servicePct'), sessionService],
             ].map(([label, val]) => (
               <div key={label} style={{
                 display: 'flex', justifyContent: 'space-between',
@@ -383,7 +392,7 @@ export default function TablePage() {
               paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--border)',
               fontWeight: 800, fontSize: '1.05rem',
             }}>
-              <span>Total</span>
+              <span>{t('common:total')}</span>
               <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>
                 {formatPrice(sessionTotal)}
               </span>
@@ -398,25 +407,25 @@ export default function TablePage() {
             style={{ width: '100%', marginTop: 16, padding: '14px 0', fontSize: '0.92rem' }}
             onClick={() => setShowPayment(true)}
           >
-            Request Bill · {formatPrice(sessionTotal)}
+            {t('table:requestBill', { price: formatPrice(sessionTotal) })}
           </button>
         )}
 
         {/* End session */}
         <button onClick={handleEndSession} className="btn btn-danger" style={{ width: '100%', marginTop: 12 }}>
-          End Session
+          {t('table:endSession')}
         </button>
       </div>
 
       {showPayment && orders.length > 0 && (
         <PaymentSheet
           order={{ id: orders[0].id, total_amount: sessionTotal }}
-          allOrderIds={orders.map(o => o.id)}
           onClose={() => setShowPayment(false)}
           onComplete={() => {
+            // PaymentSheet's own "Done" already released the table via leave_table();
+            // this just resets the page's local view.
             setShowPayment(false)
             setPaymentState('completed')
-            clearTable(true)
             setTableInfo(null)
             setOrders([])
           }}
@@ -426,16 +435,20 @@ export default function TablePage() {
   )
 }
 
-const STATUS_CONFIG = {
-  open:      { label: 'Placed',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)'  },
-  preparing: { label: 'Preparing', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)'  },
-  ready:     { label: 'Ready',     color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-  served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-  done:      { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)'   },
+function useStatusConfig(t) {
+  return {
+    open:      { label: t('table:statusPlaced'),    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)'  },
+    preparing: { label: t('table:statusPreparing'), color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)'  },
+    ready:     { label: t('table:statusReady'),     color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+    served:    { label: t('table:statusServed'),    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+    done:      { label: t('table:statusServed'),    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
+    cancelled: { label: t('table:statusCancelled'), color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)'   },
+  }
 }
 
 function OrderCard({ order, index, number }) {
+  const { t } = useTranslation(['table', 'common'])
+  const STATUS_CONFIG = useStatusConfig(t)
   const status = order.status || 'open'
   const s = STATUS_CONFIG[status] || STATUS_CONFIG.open
   const items = order.order_items || []
@@ -471,7 +484,7 @@ function OrderCard({ order, index, number }) {
             #{number}
           </span>
           <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--t1)' }}>Order #{number}</div>
+            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--t1)' }}>{t('table:orderNumber', { number })}</div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t3)' }}>{time}</div>
           </div>
         </div>
@@ -532,7 +545,7 @@ function OrderCard({ order, index, number }) {
         display: 'flex', justifyContent: 'space-between',
         fontSize: '0.84rem',
       }}>
-        <span style={{ color: 'var(--t3)', fontWeight: 600 }}>Order Total</span>
+        <span style={{ color: 'var(--t3)', fontWeight: 600 }}>{t('table:orderTotal')}</span>
         <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)', fontWeight: 800 }}>
           {formatPrice(order.total_amount)}
         </span>
@@ -584,7 +597,9 @@ function StatusDot({ status, color }) {
 function EmptyTableState({
   onStartDemo, demoLoading, demoError,
   codeInput, setCodeInput, onEnterCode, codeLoading, codeError,
+  showDemo,
 }) {
+  const { t } = useTranslation(['table', 'common'])
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -610,13 +625,13 @@ function EmptyTableState({
         fontFamily: "'Playfair Display', serif",
         fontSize: '1.3rem', fontWeight: 700, marginBottom: 8, color: 'var(--t1)',
       }}>
-        No Active Table
+        {t('table:noActiveTable')}
       </h2>
       <p style={{
         fontSize: '0.84rem', color: 'var(--t3)', textAlign: 'center',
         lineHeight: 1.6, maxWidth: 280, marginBottom: 28,
       }}>
-        Enter the table code shown on your table card to start a dining session and place orders.
+        {t('table:noActiveTableHint')}
       </p>
 
       {/* Code entry form — primary action */}
@@ -627,7 +642,7 @@ function EmptyTableState({
         <input
           className="input"
           type="text"
-          placeholder="e.g. BELLA-T2"
+          placeholder={t('table:codePlaceholder')}
           value={codeInput}
           onChange={e => setCodeInput(e.target.value)}
           autoCapitalize="characters"
@@ -656,13 +671,13 @@ function EmptyTableState({
           onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           {codeLoading ? (
-            <><span className="spinner" style={{ width: 14, height: 14 }} /> Checking...</>
+            <><span className="spinner" style={{ width: 14, height: 14 }} /> {t('table:checking')}</>
           ) : (
             <>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
-              Join Table
+              {t('table:joinTable')}
             </>
           )}
         </button>
@@ -674,51 +689,55 @@ function EmptyTableState({
         </p>
       )}
 
-      {/* Divider */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        width: '100%', margin: '24px 0 16px',
-      }}>
-        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        <span style={{ fontSize: '0.68rem', color: 'var(--t4)', fontWeight: 500 }}>or</span>
-        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-      </div>
+      {showDemo && (
+        <>
+          {/* Divider */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: '100%', margin: '24px 0 16px',
+          }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: '0.68rem', color: 'var(--t4)', fontWeight: 500 }}>{t('common:or')}</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
 
-      {/* Demo session — secondary action */}
-      <button
-        onClick={onStartDemo}
-        disabled={demoLoading}
-        style={{
-          background: 'none', border: '1px solid var(--border)', borderRadius: 8,
-          padding: '10px 24px', fontSize: '0.82rem', color: 'var(--t3)',
-          cursor: demoLoading ? 'default' : 'pointer',
-          display: 'flex', alignItems: 'center', gap: 7,
-          opacity: demoLoading ? 0.6 : 1,
-          transition: 'border-color 150ms, color 150ms',
-        }}
-        onPointerEnter={e => { e.currentTarget.style.borderColor = 'var(--t3)'; e.currentTarget.style.color = 'var(--t2)' }}
-        onPointerLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t3)' }}
-      >
-        {demoLoading ? (
-          <><span className="spinner" style={{ width: 12, height: 12 }} /> Setting up...</>
-        ) : (
-          <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2" />
-              <rect x="6" y="8" width="12" height="8" rx="1" />
-            </svg>
-            Start Demo Session
-          </>
-        )}
-      </button>
+          {/* Demo session — secondary action, dev builds only */}
+          <button
+            onClick={onStartDemo}
+            disabled={demoLoading}
+            style={{
+              background: 'none', border: '1px solid var(--border)', borderRadius: 8,
+              padding: '10px 24px', fontSize: '0.82rem', color: 'var(--t3)',
+              cursor: demoLoading ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 7,
+              opacity: demoLoading ? 0.6 : 1,
+              transition: 'border-color 150ms, color 150ms',
+            }}
+            onPointerEnter={e => { e.currentTarget.style.borderColor = 'var(--t3)'; e.currentTarget.style.color = 'var(--t2)' }}
+            onPointerLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t3)' }}
+          >
+            {demoLoading ? (
+              <><span className="spinner" style={{ width: 12, height: 12 }} /> {t('table:settingUp')}</>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2" />
+                  <rect x="6" y="8" width="12" height="8" rx="1" />
+                </svg>
+                {t('table:startDemoSession')}
+              </>
+            )}
+          </button>
 
-      {demoError && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--red)', marginTop: 8, textAlign: 'center' }}>{demoError}</p>
+          {demoError && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--red)', marginTop: 8, textAlign: 'center' }}>{demoError}</p>
+          )}
+
+          <p style={{ fontSize: '0.65rem', color: 'var(--t4)', marginTop: 10, textAlign: 'center' }}>
+            {t('table:demoHint')}
+          </p>
+        </>
       )}
-
-      <p style={{ fontSize: '0.65rem', color: 'var(--t4)', marginTop: 10, textAlign: 'center' }}>
-        Demo mode assigns a free table for testing
-      </p>
     </div>
   )
 }

@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
 import DishDetailSheet from '../components/DishDetailSheet'
 
-const FILTERS = [
-  { id: 'all',         label: 'All'          },
-  { id: 'available',   label: 'Available'    },
-  { id: 'vegan',       label: 'Vegan'        },
-  { id: 'vegetarian',  label: 'Veggie'       },
-  { id: 'gluten_free', label: 'Gluten-free'  },
-  { id: 'spicy',       label: 'Spicy'        },
-]
-
 export default function ExplorePage() {
+  const { t } = useTranslation(['menu', 'common'])
+
+  const FILTERS = [
+    { id: 'all',         label: t('menu:exploreFilterAll')       },
+    { id: 'available',   label: t('menu:exploreFilterAvailable') },
+    { id: 'vegan',       label: t('menu:exploreFilterVegan')     },
+    { id: 'vegetarian',  label: t('menu:exploreFilterVeggie')    },
+    { id: 'gluten_free', label: t('menu:exploreFilterGlutenFree')},
+    { id: 'spicy',       label: t('menu:exploreFilterSpicy')     },
+  ]
   const [dishes, setDishes] = useState([])
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -70,7 +72,7 @@ export default function ExplorePage() {
           </svg>
           <input
             className="input"
-            placeholder="Dishes, restaurants…"
+            placeholder={t('menu:exploreSearchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 40, borderRadius: 12, fontSize: '0.9rem' }}
@@ -122,8 +124,8 @@ export default function ExplorePage() {
       {!loading && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>Nothing found</div>
-          <div style={{ fontSize: '0.82rem' }}>Try a different search or filter</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('menu:nothingFound')}</div>
+          <div style={{ fontSize: '0.82rem' }}>{t('menu:tryDifferentSearch')}</div>
         </div>
       )}
 
@@ -181,7 +183,7 @@ export default function ExplorePage() {
                       padding: '2px 8px',
                       borderRadius: 100, textTransform: 'uppercase', letterSpacing: 0.6,
                     }}>
-                      Sold Out
+                      {t('common:soldOut')}
                     </span>
                   </div>
                 )}
@@ -197,7 +199,7 @@ export default function ExplorePage() {
                       borderRadius: 100, textTransform: 'uppercase', letterSpacing: 0.6,
                       display: 'block',
                     }}>
-                      Available
+                      {t('common:available')}
                     </span>
                   </div>
                 )}

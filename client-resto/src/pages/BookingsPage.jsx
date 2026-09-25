@@ -1,16 +1,25 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { timeAgo } from '@shared/helpers'
 import { BOOKING_STATUS_STYLE } from '@shared/constants'
+import { localeTag } from '../lib/time'
 
 const STATUSES = ['all', 'pending', 'confirmed', 'seated', 'completed', 'cancelled']
 
+const STATUS_LABEL_KEYS = {
+  pending: 'bkPending', confirmed: 'bkConfirmed', seated: 'bkSeated',
+  completed: 'bkCompleted', cancelled: 'bkCancelled',
+}
+
 export default function BookingsPage() {
   const { restaurantId } = useAuth()
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const [bookings, setBookings] = useState([])
   const [filter,   setFilter]   = useState('all')
   const [loading,  setLoading]  = useState(true)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!restaurantId) return
@@ -39,8 +48,13 @@ export default function BookingsPage() {
   }
 
   async function updateStatus(id, status) {
-    await supabase.from('bookings').update({ status }).eq('id', id)
+    const prevStatus = bookings.find(b => b.id === id)?.status
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+    const { error } = await supabase.from('bookings').update({ status }).eq('id', id)
+    if (error) {
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: prevStatus } : b))
+      setActionError(t('dashboard:actionFailed'))
+    }
   }
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter)
@@ -48,25 +62,39 @@ export default function BookingsPage() {
   return (
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
-        <h1 className="page-title">Bookings</h1>
+        <h1 className="page-title">{t('dashboard:bookingsTitle')}</h1>
         <span style={{ fontSize:'0.78rem', color:'var(--t3)' }}>
-          {filtered.length} booking{filtered.length !== 1 ? 's' : ''}
+          {t('dashboard:bookingCount', { count: filtered.length })}
         </span>
       </div>
+
+      {actionError && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
+          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
+          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
+        }}>
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
         {STATUSES.map(s => (
           <button key={s} className={`chip${filter === s ? ' active' : ''}`}
             onClick={() => setFilter(s)}>
-            {s === 'all' ? `All (${bookings.length})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${bookings.filter(b => b.status === s).length})`}
+            {s === 'all'
+              ? t('dashboard:bookingFilterAll', { count: bookings.length })
+              : `${t(`dashboard:${STATUS_LABEL_KEYS[s]}`)} (${bookings.filter(b => b.status === s).length})`}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div style={{ color: 'var(--t3)' }}>Loading bookings…</div>
+        <div style={{ color: 'var(--t3)' }}>{t('dashboard:loadingBookings')}</div>
       ) : filtered.length === 0 ? (
-        <div className="empty"><div className="empty-icon">📋</div>No bookings</div>
+        <div className="empty"><div className="empty-icon">📋</div>{t('dashboard:noBookings')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(b => {
@@ -88,7 +116,7 @@ export default function BookingsPage() {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.5rem' }}>
                     <div>
                       <div style={{ fontWeight:700, fontSize:'0.92rem' }}>
-                        {b.users?.name || 'Unknown guest'}
+                        {b.users?.name || t('dashboard:unknownGuest')}
                       </div>
                       <div style={{ fontSize:'0.72rem', color:'var(--t2)', marginTop:2 }}>
                         {b.users?.email || b.users?.phone || '—'}
@@ -98,17 +126,17 @@ export default function BookingsPage() {
                       fontSize:'0.62rem', fontWeight:700, padding:'3px 9px', borderRadius:100,
                       background: sc.bg, color: sc.color,
                       textTransform:'uppercase', letterSpacing:0.3,
-                    }}>{b.status}</span>
+                    }}>{t(`dashboard:${STATUS_LABEL_KEYS[b.status]}`) || b.status}</span>
                   </div>
 
                   <div style={{ display:'flex', gap:'0.65rem', fontSize:'0.8rem', color:'var(--t2)', marginBottom:'0.5rem', flexWrap:'wrap', alignItems:'center' }}>
                     <span style={{ fontWeight:600, color:'var(--t1)' }}>
-                      {dt.toLocaleDateString('en-GB', { day:'numeric', month:'short' })}
+                      {dt.toLocaleDateString(localeTag(i18n.language), { day:'numeric', month:'short' })}
                     </span>
-                    <span>at {dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}</span>
+                    <span>{t('dashboard:atTime', { time: dt.toLocaleTimeString(localeTag(i18n.language), { hour:'2-digit', minute:'2-digit' }) })}</span>
                     <span>·</span>
-                    <span>{b.party_size} guest{b.party_size !== 1 ? 's' : ''}</span>
-                    {b.tables?.table_number && <span>· Table {b.tables.table_number}</span>}
+                    <span>{t('dashboard:bookingGuests', { count: b.party_size })}</span>
+                    {b.tables?.table_number && <span>· {t('common:tableLabel', { number: b.tables.table_number })}</span>}
                   </div>
 
                   {b.special_requests && (
@@ -120,18 +148,18 @@ export default function BookingsPage() {
                   {b.status === 'pending' && (
                     <div style={{ display:'flex', gap:'0.4rem' }}>
                       <button className="btn btn-primary btn-sm" style={{ flex:1 }}
-                        onClick={() => updateStatus(b.id, 'confirmed')}>Confirm</button>
+                        onClick={() => updateStatus(b.id, 'confirmed')}>{t('dashboard:confirm')}</button>
                       <button className="btn btn-danger btn-sm" style={{ flex:1 }}
-                        onClick={() => updateStatus(b.id, 'cancelled')}>Decline</button>
+                        onClick={() => updateStatus(b.id, 'cancelled')}>{t('dashboard:decline')}</button>
                     </div>
                   )}
                   {b.status === 'confirmed' && (
                     <button className="btn btn-ghost btn-sm" style={{ width:'100%' }}
-                      onClick={() => updateStatus(b.id, 'seated')}>Mark Seated</button>
+                      onClick={() => updateStatus(b.id, 'seated')}>{t('dashboard:markSeated')}</button>
                   )}
                   {b.status === 'seated' && (
                     <button className="btn btn-ghost btn-sm" style={{ width:'100%' }}
-                      onClick={() => updateStatus(b.id, 'completed')}>Complete</button>
+                      onClick={() => updateStatus(b.id, 'completed')}>{t('dashboard:complete')}</button>
                   )}
                 </div>
               </div>

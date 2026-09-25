@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 /* ── Demo knowledge base (canned, references seed restaurants/dishes) ───────── */
@@ -9,75 +10,45 @@ const R = {
   sakura: { slug: 'sakura-house', name: 'Sakura House' },
 }
 
-const ANSWERS = {
-  recommend: {
-    text: "Going on what's trending tonight, I'd point you to **Səda Ocağı** in İçərişəhər for authentic Azerbaijani cooking, or **Trattoria Bella Roma** if you're in the mood for Italian. Both have dishes available right now.",
-    links: [R.seda, R.bella],
-  },
-  popular: {
-    text: "The most-reviewed dishes across Rufesto right now:\n\n🥇 **Margherita Pizza** — Bella Roma\n🥈 **Piti** — Səda Ocağı\n🥉 **Dragon Roll** — Sakura House\n\nAll three are live on the menu as we speak.",
-    links: [R.bella, R.seda, R.sakura],
-  },
-  azeri: {
-    text: "For Azerbaijani, **Səda Ocağı** is the one. My picks:\n\n• **Piti** — slow-cooked lamb & chickpea stew\n• **Dolma** — stuffed grape leaves\n• **Lavangi** — walnut-stuffed chicken\n\nAvailability updates live — open the menu to see what the kitchen has on right now.",
-    links: [R.seda],
-  },
-  italian: {
-    text: "**Trattoria Bella Roma** on Nizami St 42 is the top-rated Italian spot. Highlights:\n\n• **Margherita Pizza** — the classic\n• **Truffle Risotto** — chef's special\n• **Tiramisu** — best-reviewed dessert\n\nYou can book a table straight from their page.",
-    links: [R.bella],
-  },
-  sushi: {
-    text: "Sushi tonight? **Sakura House** on Tbilisi Ave 8. Crowd favourites:\n\n• **Dragon Roll** — eel & avocado\n• **Salmon Nigiri** — daily fresh\n• **Spicy Tuna Roll**\n\nGrab a seat at the sushi bar (B1–B2) for the full show.",
-    links: [R.sakura],
-  },
-  vegetarian: {
-    text: "Plenty of vegetarian options live right now:\n\n• **Margherita Pizza** & **Caprese Salad** — Bella Roma\n• **Dolma (vegetarian)** — Səda Ocағı\n• **Avocado Roll** — Sakura House\n\nTip: the **Explore** tab has a one-tap vegetarian filter built from each dish's real ingredients.",
-    links: [R.bella, R.seda],
-  },
-  surprise: {
-    text: "Feeling adventurous? Tonight I'd send you to **Sakura House** for the **Dragon Roll** — high ratings, currently available, and the sushi bar seats are open. Trust me on this one. 🍣",
-    links: [R.sakura],
-  },
+/* Copy for greeting/answers/quick chips lives in locales/{en,az}/ai.json (keys below),
+ * so the demo speaks the visitor's chosen language instead of always English. */
+const ANSWER_LINKS = {
+  recommend:  [R.seda, R.bella],
+  popular:    [R.bella, R.seda, R.sakura],
+  azeri:      [R.seda],
+  italian:    [R.bella],
+  sushi:      [R.sakura],
+  vegetarian: [R.bella, R.seda],
+  surprise:   [R.sakura],
 }
 
-const DEFAULT_ANSWER = {
-  text: "Good question! In the full version I read every menu and review across Rufesto and match it to your taste from your order history (kept fully private). For this preview, try one of the quick questions below — or ask about Italian, Azerbaijani, sushi, or what's popular.",
-}
+const QUICK_IDS = ['recommend', 'popular', 'azeri', 'italian', 'sushi', 'vegetarian', 'surprise']
 
-const QUICK = [
-  { id: 'recommend',  label: '🍽 Recommend a place' },
-  { id: 'popular',    label: "🔥 What's popular?" },
-  { id: 'azeri',      label: '🇦🇿 Azerbaijani food' },
-  { id: 'italian',    label: '🍝 Best Italian' },
-  { id: 'sushi',      label: '🍣 I want sushi' },
-  { id: 'vegetarian', label: '🥗 Something vegetarian' },
-  { id: 'surprise',   label: '✨ Surprise me' },
-]
-
-const GREETING = {
-  text: "Hi — I'm the **Rufesto AI Waiter**. I know every menu and every review across the platform, and I learn your taste over time (your history stays private). What are you in the mood for?",
-}
-
-/* keyword → answer id for free-text input */
+/* keyword → answer id for free-text input (matches both English and Azerbaijani terms) */
 function matchKeyword(raw) {
   const t = raw.toLowerCase()
-  if (/(italian|pizza|pasta|risotto|bella)/.test(t)) return 'italian'
-  if (/(sushi|japanese|roll|nigiri|sakura)/.test(t)) return 'sushi'
-  if (/(azer|piti|dolma|lavangi|local|səda|seda)/.test(t)) return 'azeri'
-  if (/(veg|vegan|vegetarian|plant)/.test(t)) return 'vegetarian'
-  if (/(popular|trend|best|top|reviewed)/.test(t)) return 'popular'
-  if (/(recommend|suggest|where|place|eat|hungry)/.test(t)) return 'recommend'
-  if (/(surprise|random|anything|whatever)/.test(t)) return 'surprise'
+  if (/(italian|pizza|pasta|risotto|bella|italyan)/.test(t)) return 'italian'
+  if (/(sushi|japanese|roll|nigiri|sakura|suşi|yapon)/.test(t)) return 'sushi'
+  if (/(azer|piti|dolma|lavangi|lavəngi|local|səda|seda|azərbaycan)/.test(t)) return 'azeri'
+  if (/(veg|vegan|vegetarian|plant|vegetarian)/.test(t)) return 'vegetarian'
+  if (/(popular|trend|best|top|reviewed|populyar|məşhur)/.test(t)) return 'popular'
+  if (/(recommend|suggest|where|place|eat|hungry|tövsiyə|harada|ac )/.test(t)) return 'recommend'
+  if (/(surprise|random|anything|whatever|sürpriz|təəccübləndir)/.test(t)) return 'surprise'
   return null
 }
 
+const cap = s => s[0].toUpperCase() + s.slice(1)
+
 export default function AIChatSheet({ onClose }) {
+  const { t } = useTranslation('ai')
   const navigate = useNavigate()
-  const [messages, setMessages] = useState([{ role: 'bot', ...GREETING }])
+  const [messages, setMessages] = useState(() => [{ role: 'bot', text: t('greeting') }])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const scrollRef = useRef(null)
   const timerRef = useRef(null)
+
+  const QUICK = QUICK_IDS.map(id => ({ id, label: t(`quick${cap(id)}`) }))
 
   useEffect(() => {
     document.body.classList.add('modal-open')
@@ -92,14 +63,15 @@ export default function AIChatSheet({ onClose }) {
   }, [messages, typing])
 
   function ask(id, userText) {
-    const answer = ANSWERS[id] || DEFAULT_ANSWER
+    const text = id ? t(`answer${cap(id)}`) : t('answerDefault')
+    const links = id ? ANSWER_LINKS[id] : undefined
     setMessages(prev => [...prev, { role: 'user', text: userText }])
     setInput('')
     setTyping(true)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       setTyping(false)
-      setMessages(prev => [...prev, { role: 'bot', ...answer }])
+      setMessages(prev => [...prev, { role: 'bot', text, links }])
     }, 750)
   }
 
@@ -142,13 +114,13 @@ export default function AIChatSheet({ onClose }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.05rem', fontWeight: 700, color: 'var(--t1)', lineHeight: 1.1 }}>
-              Rufesto AI
+              {t('title')}
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--t2)', marginTop: 2 }}>
-              Your pocket food guide · Preview
+              {t('subtitle')}
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="icon-btn" style={{ width: 34, height: 34, color: 'var(--t2)' }}>
+          <button onClick={onClose} aria-label={t('close')} className="icon-btn" style={{ width: 34, height: 34, color: 'var(--t2)' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -195,13 +167,13 @@ export default function AIChatSheet({ onClose }) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSend() } }}
-              placeholder="Ask about restaurants…"
+              placeholder={t('inputPlaceholder')}
               style={{ flex: 1, border: 'none', background: 'none', color: 'var(--t1)', fontSize: '0.88rem', outline: 'none', padding: '8px 0', fontFamily: 'inherit' }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              aria-label="Send"
+              aria-label={t('send')}
               style={{
                 width: 36, height: 36, borderRadius: '50%',
                 background: input.trim() ? 'var(--accent)' : 'var(--s4)',

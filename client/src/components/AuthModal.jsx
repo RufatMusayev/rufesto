@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -17,7 +18,8 @@ const RESEND_COOLDOWN = 60 // seconds
  * Also offers Google & Apple OAuth one-tap buttons.
  */
 export default function AuthModal({ onClose, onSuccess }) {
-  const { sendOtp, verifyOtp, signInWithOAuth, signInWithPassword, updateUserMeta } = useAuth()
+  const { t } = useTranslation(['auth', 'common'])
+  const { sendOtp, verifyOtp, signInWithOAuth, signInWithPassword, updateUserMeta, session, updateProfile } = useAuth()
 
   // Steps: 'email' -> 'otp' -> 'profile' (only for new users). 'password' is dev-only.
   const [step, setStep] = useState('email')
@@ -64,7 +66,7 @@ export default function AuthModal({ onClose, onSuccess }) {
     setError('')
     const trimmed = email.trim().toLowerCase()
     if (!EMAIL_REGEX.test(trimmed)) {
-      setError('Please enter a valid email address')
+      setError(t('auth:errInvalidEmail'))
       return
     }
     setEmail(trimmed)
@@ -96,20 +98,28 @@ export default function AuthModal({ onClose, onSuccess }) {
 
   async function handleSaveProfile(e) {
     e.preventDefault()
-    if (!name.trim()) { setError('Name is required'); return }
+    if (!name.trim()) { setError(t('auth:errNameRequired')); return }
     const trimmedPhone = phone.trim()
     if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
-      setError('Please enter a valid phone number (e.g. +994 50 123 4567)')
+      setError(t('auth:errInvalidPhone'))
       return
     }
     setError('')
     setLoading(true)
+    const trimmedName = name.trim()
     const { error } = await updateUserMeta({
-      name: name.trim(),
+      name: trimmedName,
       phone: trimmedPhone || null,
     })
+    if (error) { setLoading(false); setError(error.message); return }
+    // Also write the row the rest of the app actually reads (public.users.name/phone) —
+    // auth.updateUser above only touches auth user_metadata. Best-effort: don't block
+    // sign-in on this secondary write.
+    if (session?.user?.id) {
+      const { error: profileErr } = await updateProfile({ name: trimmedName, phone: trimmedPhone || null }) || {}
+      if (profileErr) console.warn('Could not sync public.users profile:', profileErr.message)
+    }
     setLoading(false)
-    if (error) { setError(error.message); return }
     onSuccess?.()
     onClose?.()
   }
@@ -126,8 +136,8 @@ export default function AuthModal({ onClose, onSuccess }) {
     e.preventDefault()
     setError('')
     const trimmed = email.trim().toLowerCase()
-    if (!EMAIL_REGEX.test(trimmed)) { setError('Please enter a valid email address'); return }
-    if (!password) { setError('Enter a password'); return }
+    if (!EMAIL_REGEX.test(trimmed)) { setError(t('auth:errInvalidEmail')); return }
+    if (!password) { setError(t('auth:errEnterPassword')); return }
     setLoading(true)
     const { error } = await signInWithPassword(trimmed, password)
     setLoading(false)
@@ -137,16 +147,16 @@ export default function AuthModal({ onClose, onSuccess }) {
   }
 
   const STEP_TITLES = {
-    email: 'Welcome back',
-    otp: 'Check your inbox',
-    profile: 'One last step',
-    password: 'Password sign-in',
+    email: t('auth:welcomeBack'),
+    otp: t('auth:checkInbox'),
+    profile: t('auth:oneLastStep'),
+    password: t('auth:passwordSignIn'),
   }
   const STEP_SUBTITLES = {
-    email: 'Sign in or create an account — no password needed',
-    otp: `We sent a 6-digit code to ${email}`,
-    profile: 'Just a few details to get you started',
-    password: 'Local testing only — not available in production',
+    email: t('auth:emailSubtitle'),
+    otp: t('auth:otpSubtitle', { email }),
+    profile: t('auth:profileSubtitle'),
+    password: t('auth:passwordSubtitle'),
   }
 
   return (
@@ -217,7 +227,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                {t('auth:continueWithGoogle')}
               </button>
               <button
                 onClick={() => handleOAuth('apple')}
@@ -232,7 +242,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                 <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18, flexShrink: 0 }}>
                   <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                 </svg>
-                Continue with Apple
+                {t('auth:continueWithApple')}
               </button>
             </div>
 
@@ -242,7 +252,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               margin: '0 0 1.25rem', color: 'var(--t4)', fontSize: '0.75rem',
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              or
+              {t('common:or')}
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
 
@@ -250,7 +260,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               <input
                 className="input"
                 type="email"
-                placeholder="Your email"
+                placeholder={t('auth:yourEmail')}
                 required autoFocus
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -260,7 +270,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                 <p style={{ color: 'var(--red)', fontSize: '0.76rem', marginBottom: 10, marginTop: 2 }}>{error}</p>
               )}
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-                {loading ? <><span className="spinner" /> Sending code…</> : 'Continue with Email'}
+                {loading ? <><span className="spinner" /> {t('auth:sendingCode')}</> : t('auth:continueWithEmail')}
               </button>
             </form>
 
@@ -274,7 +284,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                   marginTop: '1rem', width: '100%', padding: 0,
                 }}
               >
-                🔧 Sign in with password (testing)
+                {t('auth:passwordTestingHint')}
               </button>
             )}
           </>
@@ -286,7 +296,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             <input
               className="input"
               type="email"
-              placeholder="Email"
+              placeholder={t('auth:email')}
               required autoFocus
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -295,7 +305,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             <input
               className="input"
               type="password"
-              placeholder="Password"
+              placeholder={t('auth:password')}
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -305,7 +315,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               <p style={{ color: 'var(--red)', fontSize: '0.76rem', marginBottom: 10 }}>{error}</p>
             )}
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-              {loading ? <><span className="spinner" /> Signing in…</> : 'Sign in'}
+              {loading ? <><span className="spinner" /> {t('auth:signingIn')}</> : t('auth:signIn')}
             </button>
             <button
               type="button"
@@ -316,7 +326,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                 marginTop: '1rem', width: '100%', padding: 0,
               }}
             >
-              ← Back to email code
+              {t('auth:backToEmailCode')}
             </button>
           </form>
         )}
@@ -329,7 +339,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              placeholder="000000"
+              placeholder={t('auth:otpPlaceholder')}
               required autoFocus
               maxLength={6}
               value={otpCode}
@@ -368,8 +378,8 @@ export default function AuthModal({ onClose, onSuccess }) {
                 }}
               >
                 {resendCooldown > 0
-                  ? <><span style={{ fontFamily: "'DM Mono', monospace" }}>{resendCooldown}s</span> to resend</>
-                  : 'Resend code'
+                  ? t('auth:resendCooldown', { seconds: resendCooldown })
+                  : t('auth:resendCode')
                 }
               </button>
               <span style={{ color: 'var(--border)', lineHeight: '1.5' }}>|</span>
@@ -382,12 +392,12 @@ export default function AuthModal({ onClose, onSuccess }) {
                 }}
                 onClick={() => { setStep('email'); setOtpCode(''); setError('') }}
               >
-                Change email
+                {t('auth:changeEmail')}
               </button>
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || otpCode.length < 6}>
-              {loading ? <><span className="spinner" /> Verifying…</> : 'Verify'}
+              {loading ? <><span className="spinner" /> {t('auth:verifying')}</> : t('auth:verify')}
             </button>
           </form>
         )}
@@ -395,20 +405,20 @@ export default function AuthModal({ onClose, onSuccess }) {
         {/* Step 3: Profile completion (new users) */}
         {step === 'profile' && (
           <form onSubmit={handleSaveProfile}>
-            <label className="label">Full name <span style={{ color: 'var(--red)' }}>*</span></label>
+            <label className="label">{t('auth:fullName')} <span style={{ color: 'var(--red)' }}>*</span></label>
             <input
               className="input"
-              placeholder="Your name"
+              placeholder={t('auth:yourName')}
               required autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
               style={{ marginBottom: '0.75rem' }}
             />
-            <label className="label">Phone <span style={{ color: 'var(--t4)', fontWeight: 400 }}>optional</span></label>
+            <label className="label">{t('auth:phone')} <span style={{ color: 'var(--t4)', fontWeight: 400 }}>{t('auth:optional')}</span></label>
             <input
               className="input"
               type="tel"
-              placeholder="+994 XX XXX XXXX"
+              placeholder={t('auth:phonePlaceholder')}
               value={phone}
               onChange={e => setPhone(e.target.value)}
               style={{ marginBottom: error ? 6 : '1.25rem' }}
@@ -417,13 +427,13 @@ export default function AuthModal({ onClose, onSuccess }) {
               <p style={{ color: 'var(--red)', fontSize: '0.76rem', marginBottom: 10 }}>{error}</p>
             )}
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-              {loading ? <><span className="spinner" /> Saving…</> : 'Get Started'}
+              {loading ? <><span className="spinner" /> {t('auth:saving')}</> : t('auth:getStarted')}
             </button>
           </form>
         )}
 
         <p style={{ fontSize: '0.7rem', color: 'var(--t4)', textAlign: 'center', marginTop: '1.25rem' }}>
-          By continuing you agree to our Terms &amp; Privacy Policy
+          {t('auth:termsNotice')}
         </p>
       </div>
     </div>

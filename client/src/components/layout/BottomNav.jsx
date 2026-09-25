@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCart } from '../../contexts/CartContext'
 import AuthModal from '../AuthModal'
@@ -10,6 +11,7 @@ export default function BottomNav() {
   const { tableId } = useCart()
   const navigate = useNavigate()
   const [sheet, setSheet] = useState(null)
+  const { t } = useTranslation('nav')
 
   function handleQRPress() {
     if (!session) { setSheet('auth');  return }
@@ -35,11 +37,11 @@ export default function BottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
 
-        <NavItem to="/" label="Home">
+        <NavItem to="/" label={t('home')}>
           {a => <HomeIcon filled={a} />}
         </NavItem>
 
-        <NavItem to="/explore" label="Explore">
+        <NavItem to="/explore" label={t('explore')}>
           {a => <SearchIcon filled={a} />}
         </NavItem>
 
@@ -47,7 +49,7 @@ export default function BottomNav() {
         <div style={{ flex: '0 0 60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <button
             onClick={handleQRPress}
-            aria-label={tableId ? 'Active table' : 'Scan QR'}
+            aria-label={tableId ? t('activeTable') : t('scanQR')}
             style={{
               position: 'relative', top: -18,
               width: 54, height: 54, borderRadius: '50%',
@@ -86,7 +88,7 @@ export default function BottomNav() {
           </button>
         </div>
 
-        <NavItem to="/map" label="Map">
+        <NavItem to="/map" label={t('map')}>
           {a => <MapIcon filled={a} />}
         </NavItem>
 

@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { formatPrice } from '../lib/helpers'
 
 const METHODS = [
-  { id: 'card',      label: 'Credit / Debit Card', icon: CardIcon,      digital: true  },
-  { id: 'apple',     label: 'Apple Pay',            icon: ApplePayIcon,  digital: true  },
-  { id: 'google',    label: 'Google Pay',            icon: GooglePayIcon, digital: true  },
-  { id: 'cash',      label: 'Pay Cash',              icon: CashIcon,      digital: false },
-  { id: 'reception', label: 'Pay at Reception',      icon: ReceptionIcon, digital: false },
+  { id: 'card',      labelKey: 'methodCard',      icon: CardIcon,      digital: true  },
+  { id: 'apple',     labelKey: 'methodApple',     icon: ApplePayIcon,  digital: true  },
+  { id: 'google',    labelKey: 'methodGoogle',    icon: GooglePayIcon, digital: true  },
+  { id: 'cash',      labelKey: 'methodCash',      icon: CashIcon,      digital: false },
+  { id: 'reception', labelKey: 'methodReception', icon: ReceptionIcon, digital: false },
 ]
 
-export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }) {
+export default function PaymentSheet({ order, onClose, onComplete }) {
+  const { t } = useTranslation(['payment', 'common'])
   const { session } = useAuth()
-  const { clearTable, restaurantId, tableId } = useCart()
+  const { clearTable, tableId } = useCart()
   const [selected, setSelected] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(null)
@@ -23,6 +25,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
   const [useCredits, setUseCredits] = useState(false)
   const [creditError, setCreditError] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
+  const [amountDue, setAmountDue] = useState(null)
 
   const total = order?.total_amount || 0
 
@@ -42,7 +45,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
   const creditDiscount = usablePoints / 100
   const creditsOn = useCredits && usablePoints >= 100
   const payable = creditsOn ? Math.max(total - creditDiscount, 0) : total
-  const paidTotal = Math.max(total - appliedDiscount, 0)
+  const paidTotal = amountDue != null ? amountDue : Math.max(total - appliedDiscount, 0)
 
   async function handlePay() {
     if (!selected) return
@@ -51,7 +54,6 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
     setCreditError('')
 
     const method = METHODS.find(m => m.id === selected)
-    const orderIds = allOrderIds?.length ? allOrderIds : [order.id]
 
     // Redeem Resto-Credits first — never finalize payment if redemption fails
     let discountApplied = 0
@@ -66,64 +68,44 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
         setAppliedDiscount(discountApplied)
       } catch {
         setUseCredits(false)
-        setCreditError('Could not apply Resto-Credits. You can pay the full amount instead.')
+        setCreditError(t('payment:creditError'))
         setProcessing(false)
         return
       }
     }
-    const amountDue = Math.max(total - discountApplied, 0)
 
+    // No real payment provider is wired up yet — "digital" methods keep the demo
+    // processing delay for feel, but every method now goes through request_bill(),
+    // which records one pending payment per unpaid order (server-computed amounts),
+    // marks the table awaiting_payment and notifies staff. Nothing is marked "paid"
+    // from the client.
     if (method.digital) {
       await new Promise(r => setTimeout(r, 1800))
-
-      const paymentRows = orderIds.map(oid => ({
-        order_id: oid,
-        user_id: session.user.id,
-        amount: amountDue,
-        method: selected,
-        status: 'completed',
-        paid_at: new Date().toISOString(),
-      }))
-      const { error: payErr } = await supabase.from('payments').insert(paymentRows)
-
-      if (payErr) { setError(payErr.message); setProcessing(false); return }
-
-      await supabase.from('tables').update({ state: 'cleared' }).eq('id', tableId)
-      setSuccess('digital')
-    } else {
-      const paymentRows = orderIds.map(oid => ({
-        order_id: oid,
-        user_id: session.user.id,
-        amount: amountDue,
-        method: selected,
-        status: 'pending',
-      }))
-      const { error: payErr } = await supabase.from('payments').insert(paymentRows)
-
-      if (payErr) { setError(payErr.message); setProcessing(false); return }
-
-      await supabase.from('notifications').insert({
-        restaurant_id: restaurantId,
-        type: selected === 'cash' ? 'cash_payment_request' : 'reception_payment_request',
-        title: selected === 'cash' ? 'Cash Payment Requested' : 'Reception Payment Requested',
-        body: `Table requires ${selected === 'cash' ? 'cash collection' : 'reception payment'}. Amount: ${formatPrice(amountDue)}`,
-        metadata: JSON.stringify({
-          table_id: tableId,
-          order_id: order.id,
-          amount: amountDue,
-          user_id: session.user.id,
-        }),
-      })
-
-      await supabase.from('tables').update({ state: 'awaiting_payment' }).eq('id', tableId)
-      setSuccess(selected)
     }
 
+    const { data, error: billErr } = await supabase.rpc('request_bill', {
+      p_table_id: tableId,
+      p_method: selected,
+    })
+
+    if (billErr) {
+      const msg = billErr.message || ''
+      if (msg.includes('not_authenticated')) setError(t('payment:errNotAuthenticated'))
+      else if (msg.includes('no_session')) setError(t('payment:errNoSession'))
+      else if (msg.includes('invalid_method')) setError(t('payment:errInvalidMethod'))
+      else setError(t('payment:errRequestFailed'))
+      setProcessing(false)
+      return
+    }
+
+    setAmountDue(data?.amount_due ?? Math.max(total - discountApplied, 0))
+    setSuccess(selected)
     setProcessing(false)
   }
 
   function handleDone() {
-    clearTable()
+    // The guest is leaving the table now that the bill has been requested.
+    clearTable(true)
     onComplete?.()
     onClose()
   }
@@ -146,44 +128,44 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
               </svg>
             </div>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              Payment Complete
+              {t('payment:requestSent')}
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span> paid successfully.
+              {t('payment:requestSentBody', { price: formatPrice(paidTotal) })}
             </p>
             {appliedDiscount > 0 && (
               <p style={{ color: 'var(--gold)', fontSize: '0.78rem', marginBottom: 4 }}>
-                Resto-Credits saved you {formatPrice(appliedDiscount)}.
+                {t('payment:creditsSaved', { discount: formatPrice(appliedDiscount) })}
               </p>
             )}
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Thank you for dining with us!</p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:thankYou')}</p>
           </>
         ) : success === 'cash' ? (
           <>
             <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>💵</div>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              Waiter Notified
+              {t('payment:waiterNotified')}
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              A waiter is coming to collect <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span> in cash.
+              {t('payment:cashCollect', { price: formatPrice(paidTotal) })}
             </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>Please have the amount ready.</p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:haveAmountReady')}</p>
           </>
         ) : (
           <>
             <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>🧾</div>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              Pay at Reception
+              {t('payment:payAtReception')}
             </h2>
             <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              Please proceed to the reception to pay <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{formatPrice(paidTotal)}</span>.
+              {t('payment:proceedReception', { price: formatPrice(paidTotal) })}
             </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>The staff has been notified.</p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:staffNotified')}</p>
           </>
         )}
 
         <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }} onClick={handleDone}>
-          Done
+          {t('common:done')}
         </button>
       </div>
     </div>
@@ -198,7 +180,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.15rem', fontWeight: 700, color: 'var(--t1)' }}>
-              How would you like to pay?
+              {t('payment:howToPay')}
             </h2>
             <button onClick={onClose} className="icon-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -214,7 +196,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
             border: '1px solid var(--border)',
           }}>
             <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
-              Total Amount
+              {t('payment:totalAmount')}
             </div>
             <div style={{
               fontFamily: "'DM Mono', monospace",
@@ -227,7 +209,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
                 fontFamily: "'DM Mono', monospace",
                 fontSize: '0.72rem', color: 'var(--gold)', marginTop: 4,
               }}>
-                {formatPrice(total)} − {formatPrice(creditDiscount)} Resto-Credits
+                {t('payment:creditsBreakdown', { total: formatPrice(total), discount: formatPrice(creditDiscount) })}
               </div>
             )}
           </div>
@@ -245,10 +227,12 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
                 <span style={{ fontSize: '1.1rem' }}>🪙</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--t1)' }}>
-                    Use Resto-Credits
+                    {t('payment:useRestoCredits')}
                   </div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace", marginTop: 1 }}>
-                    {credits} credits{useCredits ? ` · −${formatPrice(creditDiscount)}` : ''}
+                    {useCredits
+                      ? t('payment:creditsDiscountLine', { count: credits, discount: formatPrice(creditDiscount) })
+                      : t('payment:creditsLine', { count: credits })}
                   </div>
                 </div>
                 <button
@@ -275,7 +259,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
 
           {/* Payment method label */}
           <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: '0.6rem' }}>
-            Select Payment Method
+            {t('payment:selectMethod')}
           </div>
 
           {/* Methods */}
@@ -304,7 +288,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
                   <m.icon />
                 </div>
                 <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--t1)', flex: 1 }}>
-                  {m.label}
+                  {t(`payment:${m.labelKey}`)}
                 </span>
                 <div style={{
                   width: 18, height: 18, borderRadius: '50%',
@@ -328,9 +312,7 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
           {/* Note for cash/reception */}
           {(selected === 'cash' || selected === 'reception') && (
             <p style={{ fontSize: '0.72rem', color: 'var(--t3)', textAlign: 'center', marginBottom: 10 }}>
-              {selected === 'cash'
-                ? 'A waiter will come to your table to collect payment.'
-                : 'Please proceed to the reception desk after confirmation.'}
+              {selected === 'cash' ? t('payment:cashNote') : t('payment:receptionNote')}
             </p>
           )}
 
@@ -345,13 +327,13 @@ export default function PaymentSheet({ order, allOrderIds, onClose, onComplete }
             onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             {processing ? (
-              <><span className="spinner" /> Processing…</>
+              <><span className="spinner" /> {t('payment:processing')}</>
             ) : selected === 'cash' ? (
-              'Notify Waiter'
+              t('payment:notifyWaiter')
             ) : selected === 'reception' ? (
-              'Confirm'
+              t('payment:confirm')
             ) : (
-              `Pay ${formatPrice(payable)}`
+              t('payment:pay', { price: formatPrice(payable) })
             )}
           </button>
         </div>

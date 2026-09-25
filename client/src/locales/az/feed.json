@@ -1,0 +1,22 @@
+{
+  "viewMenuArrow": "Menyuya bax →",
+  "seatsCount": "{{count}} yer",
+  "like_one": "{{count}} bəyənmə",
+  "like_other": "{{count}} bəyənmə",
+  "reply_one": "{{count}} cavab",
+  "reply_other": "{{count}} cavab",
+  "loadingReplies": "Cavablar yüklənir…",
+  "noRepliesYet": "Hələ cavab yoxdur",
+  "hideReplies": "Cavabları gizlət",
+  "addReply": "Cavab əlavə et…",
+  "post": "Paylaş",
+  "addPhoto": "Şəkil əlavə et",
+  "replyPhotoFailed": "Şəkil yüklənmədi: {{message}}",
+  "ratedDish": "{{dish}} {{rating}}/5 qiymətləndirildi",
+  "thisDish": "bu yeməyi",
+  "reviewPhotoAlt": "Rəy şəkli",
+  "promoted": "Reklam",
+  "sponsored": "Sponsorlu",
+  "viewDish": "Yeməyə bax →",
+  "visitRestaurant": "Restorana bax →"
+}

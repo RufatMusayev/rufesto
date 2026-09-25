@@ -26,21 +26,63 @@ export function formatPrice(n) {
   return `₼${Number(n).toFixed(2)}`
 }
 
-export function isRestaurantOpen(hours = []) {
-  if (!hours?.length) return false
-  const now  = new Date()
-  const day  = now.getDay()
-  const mins = now.getHours() * 60 + now.getMinutes()
-  const row  = hours.find(h => h.day_of_week === day && !h.is_closed)
-  if (!row) return false
+const BAKU_WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+
+/** Current day-of-week (0=Sun..6=Sat) and minutes-since-midnight in Asia/Baku,
+ *  independent of the visitor's own browser timezone/locale. Baku (AZT) has
+ *  had no DST since 2016, but we resolve it via Intl rather than a hardcoded
+ *  UTC+4 offset so this stays correct if that ever changes. */
+function bakuNow() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Baku',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date())
+  const map = {}
+  for (const p of parts) map[p.type] = p.value
+  const day = BAKU_WEEKDAY_INDEX[map.weekday]
+  let hour = Number(map.hour)
+  if (hour === 24) hour = 0 // some locales format midnight as "24:00"
+  return { day, mins: hour * 60 + Number(map.minute) }
+}
+
+function hoursWindow(row) {
   const [oh, om] = (row.open_time  || '00:00').split(':').map(Number)
   const [ch, cm] = (row.close_time || '23:59').split(':').map(Number)
-  return mins >= oh * 60 + om && mins < ch * 60 + cm
+  return { open: oh * 60 + om, close: ch * 60 + cm }
+}
+
+export function isRestaurantOpen(hours = []) {
+  if (!hours?.length) return false
+  const { day, mins } = bakuNow()
+
+  const today = hours.find(h => h.day_of_week === day && !h.is_closed)
+  if (today) {
+    const { open, close } = hoursWindow(today)
+    if (close > open) {
+      // Same-day hours (e.g. 09:00-23:00)
+      if (mins >= open && mins < close) return true
+    } else {
+      // Overnight hours starting today (e.g. 18:00 -> 02:00 the next day)
+      if (mins >= open) return true
+    }
+  }
+
+  // Still inside an overnight window that started yesterday and crosses midnight
+  const yesterday = hours.find(h => h.day_of_week === (day + 6) % 7 && !h.is_closed)
+  if (yesterday) {
+    const { open, close } = hoursWindow(yesterday)
+    if (close <= open && mins < close) return true
+  }
+
+  return false
 }
 
 export function getTodayHours(hours = []) {
   if (!hours?.length) return null
-  const day = new Date().getDay()
+  const { day } = bakuNow()
   const row = hours.find(h => h.day_of_week === day)
   if (!row || row.is_closed) return null
   return {
@@ -130,4 +172,14 @@ const SECTION_EMOJI = {
 
 export function sectionEmoji(name) {
   return SECTION_EMOJI[(name || '').toLowerCase()] || '🍴'
+}
+
+/** Resolve localized dish name/description with fallback to canonical columns. */
+export function localizeDish(dish, lang = 'en') {
+  if (!dish) return dish
+  return {
+    ...dish,
+    name: dish.name_i18n?.[lang] || dish.name,
+    description: dish.desc_i18n?.[lang] || dish.description,
+  }
 }

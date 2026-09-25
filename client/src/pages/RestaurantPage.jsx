@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import {
   cuisineEmoji, categoryEmoji, formatPrice, dishBackground,
@@ -7,6 +8,7 @@ import {
 } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+import AuthModal from '../components/AuthModal'
 import BookingModal from '../components/BookingModal'
 import DishDetailSheet from '../components/DishDetailSheet'
 import FloorPlanSheet from '../components/FloorPlanSheet'
@@ -14,6 +16,7 @@ import FloorPlanSheet from '../components/FloorPlanSheet'
 export default function RestaurantPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation(['restaurant', 'common'])
   const { tableId, restaurantId: cartRestaurantId, addDish, cartError, clearCartError } = useCart()
   const [restaurant, setRestaurant] = useState(null)
   const [sections, setSections] = useState([])
@@ -31,7 +34,9 @@ export default function RestaurantPage() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState(0)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const { session } = useAuth()
+  const pendingFollowRef = useRef(false)
 
   const isSeatedHere = cartRestaurantId === restaurant?.id && !!tableId
 
@@ -134,8 +139,18 @@ export default function RestaurantPage() {
     }
   }, [session?.user?.id, restaurant?.id])
 
+  useEffect(() => {
+    if (session && pendingFollowRef.current) {
+      pendingFollowRef.current = false
+      setShowAuthModal(false)
+      handleFollow()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session])
+
   async function handleFollow() {
-    if (!session || !restaurant || followLoading) return
+    if (!restaurant || followLoading) return
+    if (!session) { pendingFollowRef.current = true; setShowAuthModal(true); return }
     setFollowLoading(true)
     const next = !isFollowing
     setIsFollowing(next)
@@ -294,10 +309,10 @@ export default function RestaurantPage() {
 
           {/* Stats */}
           <div style={{ display: 'flex', gap: 18, paddingBottom: 8 }}>
-            <StatPill label="dishes" value={dishes.length} />
-            <StatPill label="followers" value={followerCount} />
-            <StatPill label="reviews" value={reviewTotal} />
-            <StatPill label="seats" value={`${seatsFree}/${seatsTotal}`} />
+            <StatPill label={t('restaurant:statDishes')} value={dishes.length} />
+            <StatPill label={t('restaurant:statFollowers')} value={followerCount} />
+            <StatPill label={t('restaurant:statReviews')} value={reviewTotal} />
+            <StatPill label={t('restaurant:statSeats')} value={`${seatsFree}/${seatsTotal}`} />
           </div>
         </div>
 
@@ -316,7 +331,7 @@ export default function RestaurantPage() {
           marginBottom: 6,
         }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--t3)', fontWeight: 500 }}>
-            {restaurant.cuisine_type} Restaurant
+            {t('restaurant:restaurantSuffix', { cuisine: restaurant.cuisine_type })}
           </span>
           <span style={{ color: 'var(--border-strong)', fontSize: '0.7rem' }}>·</span>
           {open ? (
@@ -325,10 +340,10 @@ export default function RestaurantPage() {
               fontSize: '0.74rem', fontWeight: 600, color: 'var(--sage)',
             }}>
               <span className="open-indicator" />
-              Open
+              {t('common:open')}
               {today && (
                 <span style={{ fontWeight: 400, color: 'var(--t3)', fontFamily: "'DM Mono', monospace", fontSize: '0.7rem' }}>
-                  · until {today.close}
+                  {t('common:untilClose', { time: today.close })}
                 </span>
               )}
             </span>
@@ -341,10 +356,10 @@ export default function RestaurantPage() {
                 width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',
                 flexShrink: 0,
               }} />
-              Closed
+              {t('common:closed')}
               {today && (
                 <span style={{ fontWeight: 400, color: 'var(--t3)', fontFamily: "'DM Mono', monospace", fontSize: '0.7rem' }}>
-                  · opens {today.open}
+                  {t('common:opensAt', { time: today.open })}
                 </span>
               )}
             </span>
@@ -381,13 +396,13 @@ export default function RestaurantPage() {
             onClick={() => { setPickedTable(null); setShowBook(true) }}
             style={{ flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10 }}
           >
-            Reserve a Table
+            {t('restaurant:reserveTable')}
           </button>
           <button
             className="btn btn-ghost"
             onClick={() => setShowFloor(true)}
-            aria-label="Floor plan"
-            title="Floor plan"
+            aria-label={t('restaurant:floorPlan')}
+            title={t('restaurant:floorPlan')}
             style={{
               width: 38, padding: '8px 0', borderRadius: 10, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -415,7 +430,7 @@ export default function RestaurantPage() {
               fontFamily: 'inherit',
             }}
           >
-            {followLoading ? '...' : isFollowing ? '✓ Following' : 'Follow'}
+            {followLoading ? '...' : isFollowing ? t('restaurant:following') : t('restaurant:follow')}
           </button>
         </div>
       </div>
@@ -428,7 +443,7 @@ export default function RestaurantPage() {
           maxWidth: 470, margin: '0 auto',
         }}>
           <HighlightCircle
-            label="All"
+            label={t('restaurant:all')}
             emoji="🍽️"
             active={!activeSection}
             onClick={() => setActiveSection(null)}
@@ -522,7 +537,7 @@ export default function RestaurantPage() {
         {sectionDishes.length === 0 && (
           <div className="empty" style={{ padding: '4.5rem 1.5rem' }}>
             <div style={{ fontSize: '2.2rem', marginBottom: 10, opacity: 0.35 }}>🍽️</div>
-            <p style={{ color: 'var(--t3)', fontSize: '0.82rem' }}>No dishes in this section</p>
+            <p style={{ color: 'var(--t3)', fontSize: '0.82rem' }}>{t('restaurant:noDishesInSection')}</p>
           </div>
         )}
 
@@ -548,6 +563,12 @@ export default function RestaurantPage() {
         />
       )}
       {dishDetail && <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => { pendingFollowRef.current = false; setShowAuthModal(false) }}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -604,6 +625,7 @@ function HighlightCircle({ label, emoji, active, onClick, count }) {
 }
 
 function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
+  const { t } = useTranslation(['restaurant', 'common'])
   const bg = dishBackground(dish.category)
   const emoji = categoryEmoji(dish.category)
 
@@ -639,7 +661,7 @@ function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
             fontSize: '0.55rem', color: '#F5F0E8', fontWeight: 700,
             letterSpacing: 1, textTransform: 'uppercase',
             background: 'rgba(163,45,45,0.85)', padding: '3px 8px', borderRadius: 100,
-          }}>Sold Out</span>
+          }}>{t('common:soldOut')}</span>
         </div>
       )}
 
@@ -650,7 +672,7 @@ function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
             letterSpacing: 0.8, textTransform: 'uppercase',
             background: 'rgba(77,124,63,0.85)', padding: '2px 6px', borderRadius: 100,
             display: 'block',
-          }}>Available</span>
+          }}>{t('common:available')}</span>
         </div>
       )}
 
@@ -703,6 +725,7 @@ function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
 
 function ListDishCard({ dish, index, onClick }) {
   const { addDish, tableId } = useCart()
+  const { t } = useTranslation('common')
   const emoji = categoryEmoji(dish.category)
 
   return (
@@ -762,10 +785,10 @@ function ListDishCard({ dish, index, onClick }) {
           {dish.available ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.64rem', color: 'var(--sage)', fontWeight: 600 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--sage)', flexShrink: 0 }} />
-              Available
+              {t('available')}
             </span>
           ) : (
-            <span style={{ fontSize: '0.64rem', color: 'var(--red)', fontWeight: 600 }}>Sold Out</span>
+            <span style={{ fontSize: '0.64rem', color: 'var(--red)', fontWeight: 600 }}>{t('soldOut')}</span>
           )}
           {dish.review_count > 0 && (
             <span style={{
@@ -807,11 +830,12 @@ function ListDishCard({ dish, index, onClick }) {
 }
 
 function FilterBar({ filters, setFilters, dishes }) {
+  const { t } = useTranslation('restaurant')
   const FILTER_OPTIONS = [
-    { key: 'vegan', label: 'Vegan', icon: '🌱' },
-    { key: 'vegetarian', label: 'Vegetarian', icon: '🥬' },
-    { key: 'gluten-free', label: 'Gluten Free', icon: '🌾' },
-    { key: 'spicy', label: 'Spicy', icon: '🌶️' },
+    { key: 'vegan', label: t('filterVegan'), icon: '🌱' },
+    { key: 'vegetarian', label: t('filterVegetarian'), icon: '🥬' },
+    { key: 'gluten-free', label: t('filterGlutenFree'), icon: '🌾' },
+    { key: 'spicy', label: t('filterSpicy'), icon: '🌶️' },
   ]
 
   const counts = {
@@ -864,7 +888,7 @@ function FilterBar({ filters, setFilters, dishes }) {
           cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
           transition: 'all 150ms var(--ease-out)',
         }}>
-          Clear
+          {t('clear')}
         </button>
       )}
     </div>

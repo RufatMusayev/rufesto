@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../lib/supabase'
@@ -7,6 +8,7 @@ import { formatPrice, timeAgo, categoryEmoji, dishBackground } from '../lib/help
 import AuthModal from '../components/AuthModal'
 
 function FeedbackForm({ userId, defaultName, defaultEmail }) {
+  const { t } = useTranslation(['profile', 'common'])
   const [fbName,    setFbName]    = useState(defaultName || '')
   const [fbEmail,   setFbEmail]   = useState(defaultEmail || '')
   const [fbMsg,     setFbMsg]     = useState('')
@@ -17,9 +19,9 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
 
   async function handleFeedback(e) {
     e.preventDefault()
-    if (!fbName.trim()) return setFbError('Name is required.')
-    if (!fbRating)      return setFbError('Please select a rating.')
-    if (!fbMsg.trim())  return setFbError('Please write a message.')
+    if (!fbName.trim()) return setFbError(t('profile:errNameRequired'))
+    if (!fbRating)      return setFbError(t('profile:errSelectRating'))
+    if (!fbMsg.trim())  return setFbError(t('profile:errWriteMessage'))
     setFbError('')
     setFbLoading(true)
     const { error } = await supabase.from('feedback').insert({
@@ -30,7 +32,7 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
       rating: fbRating || null,
     })
     setFbLoading(false)
-    if (error) return setFbError(error.message || 'Could not send feedback. Try again.')
+    if (error) return setFbError(error.message || t('profile:errSendFailed'))
     setFbDone(true)
     setFbMsg('')
     setFbRating(0)
@@ -48,23 +50,23 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
-      <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>Thanks for the feedback!</div>
-      <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>We appreciate you taking the time.</p>
-      <button className="btn btn-ghost" onClick={() => setFbDone(false)}>Send another</button>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{t('profile:feedbackThanks')}</div>
+      <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>{t('profile:feedbackThanksHint')}</p>
+      <button className="btn btn-ghost" onClick={() => setFbDone(false)}>{t('profile:sendAnother')}</button>
     </div>
   )
 
   return (
     <form onSubmit={handleFeedback}>
-      <label className="label">Name</label>
+      <label className="label">{t('profile:fbName')}</label>
       <input className="input" value={fbName} onChange={e => setFbName(e.target.value)}
-        placeholder="Your name" style={{ marginBottom: '0.75rem' }} />
+        placeholder={t('profile:fbName')} style={{ marginBottom: '0.75rem' }} />
 
-      <label className="label">Email <span style={{ color: 'var(--t4)', fontWeight: 400 }}>(optional)</span></label>
+      <label className="label">{t('profile:fbEmail')} <span style={{ color: 'var(--t4)', fontWeight: 400 }}>{t('profile:fbEmailOptional')}</span></label>
       <input className="input" type="email" value={fbEmail} onChange={e => setFbEmail(e.target.value)}
-        placeholder="your@email.com" style={{ marginBottom: '0.75rem' }} />
+        placeholder={t('profile:fbEmailPlaceholder')} style={{ marginBottom: '0.75rem' }} />
 
-      <label className="label">Rating</label>
+      <label className="label">{t('profile:fbRating')}</label>
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} type="button" onClick={() => setFbRating(fbRating === n ? 0 : n)}
@@ -78,15 +80,15 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
         ))}
       </div>
 
-      <label className="label">Message</label>
+      <label className="label">{t('profile:fbMessage')}</label>
       <textarea className="input" value={fbMsg} onChange={e => setFbMsg(e.target.value)}
-        placeholder="What's on your mind?" rows={4}
+        placeholder={t('profile:fbMessagePlaceholder')} rows={4}
         style={{ marginBottom: '0.75rem', resize: 'vertical', fontFamily: 'inherit' }} />
 
       {fbError && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{fbError}</p>}
 
       <button className="btn btn-primary" type="submit" style={{ width: '100%' }} disabled={fbLoading}>
-        {fbLoading ? 'Sending…' : 'Send Feedback'}
+        {fbLoading ? t('profile:sending') : t('profile:sendFeedback')}
       </button>
     </form>
   )
@@ -95,6 +97,7 @@ function FeedbackForm({ userId, defaultName, defaultEmail }) {
 const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
 
 export default function ProfilePage() {
+  const { t } = useTranslation(['profile', 'auth', 'common'])
   const { session, profile, signOut, updateProfile } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
   const [showAuth, setShowAuth] = useState(false)
@@ -106,16 +109,17 @@ export default function ProfilePage() {
   const [saving,   setSaving]   = useState(false)
 
   async function handleSave() {
-    if (!name.trim()) { setEditError('Name is required'); return }
+    if (!name.trim()) { setEditError(t('profile:errNameRequired')); return }
     const trimmedPhone = editPhone.trim()
     if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
-      setEditError('Please enter a valid phone number (e.g. +994 50 123 4567)')
+      setEditError(t('profile:errInvalidPhone'))
       return
     }
     setEditError('')
     setSaving(true)
-    await updateProfile({ name: name.trim(), phone: trimmedPhone || null })
+    const { error } = await updateProfile({ name: name.trim(), phone: trimmedPhone || null })
     setSaving(false)
+    if (error) { setEditError(error.message || t('profile:errSaveFailed')); return }
     setEditing(false)
   }
 
@@ -124,23 +128,23 @@ export default function ProfilePage() {
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
         <div style={{ fontSize: '3rem', marginBottom: 16 }}>🍽️</div>
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, marginBottom: 8, color: 'var(--t1)' }}>
-          Welcome to Rufesto
+          {t('auth:welcomeToRufesto')}
         </h2>
         <p style={{ fontSize: '0.86rem', color: 'var(--t2)', lineHeight: 1.6, marginBottom: 24 }}>
-          Sign in to discover restaurants, save dishes, and join the conversation.
+          {t('auth:signInPrompt')}
         </p>
         <button onClick={() => setShowAuth(true)} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '0.9rem' }}>
-          Sign in
+          {t('auth:signIn')}
         </button>
       </div>
 
       <div style={{ margin: '0 16px 24px' }}>
         <div className="card" style={{ padding: '1.5rem' }}>
           <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
-            Share Feedback
+            {t('profile:shareFeedback')}
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-            Tell us what you think — no account needed.
+            {t('profile:feedbackPromptGuest')}
           </p>
           <FeedbackForm />
         </div>
@@ -151,11 +155,11 @@ export default function ProfilePage() {
   )
 
   const TABS = [
-    { id: 'profile',  label: 'Profile'  },
-    { id: 'reviews',  label: 'Reviews'  },
-    { id: 'orders',   label: 'Orders'   },
-    { id: 'bookings', label: 'Bookings' },
-    { id: 'saved',    label: 'Saved'    },
+    { id: 'profile',  label: t('profile:tabProfile')  },
+    { id: 'reviews',  label: t('profile:tabReviews')  },
+    { id: 'orders',   label: t('profile:tabOrders')   },
+    { id: 'bookings', label: t('profile:tabBookings') },
+    { id: 'saved',    label: t('profile:tabSaved')    },
   ]
 
   return (
@@ -177,7 +181,7 @@ export default function ProfilePage() {
           )}
         </div>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-          {profile?.name || 'Your Profile'}
+          {profile?.name || t('profile:yourProfile')}
         </h1>
         <p style={{ fontSize: '0.78rem', color: 'var(--t3)' }}>{profile?.email || session.user?.email}</p>
 
@@ -216,40 +220,40 @@ export default function ProfilePage() {
             <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
               {/* Email (always shown, read-only) */}
               <div style={{ marginBottom: '0.75rem' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Email</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('profile:email')}</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--t2)' }}>{profile?.email || session.user.email}</div>
               </div>
 
               {/* Phone display (when not editing) */}
               {!editing && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Phone</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('profile:phone')}</div>
                   <div style={{ fontSize: '0.85rem', color: profile?.phone ? 'var(--t2)' : 'var(--t4)' }}>
-                    {profile?.phone || 'Not set'}
+                    {profile?.phone || t('profile:notSet')}
                   </div>
                 </div>
               )}
 
               {editing ? (
                 <div>
-                  <label className="label" style={{ fontSize: '0.72rem' }}>Name</label>
-                  <input className="input" placeholder="Your name" value={name}
+                  <label className="label" style={{ fontSize: '0.72rem' }}>{t('profile:name')}</label>
+                  <input className="input" placeholder={t('profile:name')} value={name}
                     onChange={e => setName(e.target.value)} style={{ marginBottom: '0.75rem' }} />
-                  <label className="label" style={{ fontSize: '0.72rem' }}>Phone</label>
+                  <label className="label" style={{ fontSize: '0.72rem' }}>{t('profile:phone')}</label>
                   <input className="input" type="tel" placeholder="+994 50 123 4567" value={editPhone}
                     onChange={e => setEditPhone(e.target.value)} style={{ marginBottom: '0.75rem' }} />
                   {editError && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{editError}</p>}
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving…' : 'Save'}
+                      {saving ? t('common:saving') : t('common:save')}
                     </button>
-                    <button className="btn btn-ghost" onClick={() => { setEditing(false); setEditError('') }}>Cancel</button>
+                    <button className="btn btn-ghost" onClick={() => { setEditing(false); setEditError('') }}>{t('common:cancel')}</button>
                   </div>
                 </div>
               ) : (
                 <button className="btn btn-ghost" style={{ width: '100%' }}
                   onClick={() => { setEditing(true); setName(profile?.name || ''); setEditPhone(profile?.phone || ''); setEditError('') }}>
-                  Edit Profile
+                  {t('profile:editProfile')}
                 </button>
               )}
             </div>
@@ -264,7 +268,7 @@ export default function ProfilePage() {
                 padding: '12px 0', borderBottom: '1px solid var(--border)',
               }}>
                 <span style={{ fontSize: '0.86rem', color: 'var(--t1)', fontWeight: 500 }}>
-                  {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                  {theme === 'dark' ? t('profile:darkMode') : t('profile:lightMode')}
                 </span>
                 <button onClick={toggleTheme} style={{
                   width: 48, height: 28, borderRadius: 14,
@@ -287,16 +291,16 @@ export default function ProfilePage() {
               </div>
 
               <button className="btn btn-danger" style={{ width: '100%', marginTop: 16 }} onClick={signOut}>
-                Sign out
+                {t('profile:signOut')}
               </button>
             </div>
 
             <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
               <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
-                Share Feedback
+                {t('profile:shareFeedback')}
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-                Tell us what you think — suggestions, issues, or compliments.
+                {t('profile:feedbackPromptUser')}
               </p>
               <FeedbackForm userId={session.user.id} defaultName={profile?.name} defaultEmail={profile?.email} />
             </div>
@@ -313,6 +317,7 @@ export default function ProfilePage() {
 }
 
 function PointsBadge({ userId }) {
+  const { t } = useTranslation('profile')
   const [points, setPoints] = useState(null)
 
   useEffect(() => {
@@ -335,13 +340,14 @@ function PointsBadge({ userId }) {
     }}>
       <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>
       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
-        {points.points} credits
+        {t('profile:creditsBadge', { count: points.points })}
       </span>
     </div>
   )
 }
 
 function BookingsTab({ userId }) {
+  const { t } = useTranslation(['profile', 'common'])
   const [bookings, setBookings] = useState([])
   const [loading,  setLoading]  = useState(true)
 
@@ -366,8 +372,8 @@ function BookingsTab({ userId }) {
   if (!bookings.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>📅</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No bookings yet</div>
-      <div style={{ fontSize: '0.82rem' }}>Book a table from any restaurant page.</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noBookings')}</div>
+      <div style={{ fontSize: '0.82rem' }}>{t('profile:noBookingsHint')}</div>
     </div>
   )
 
@@ -401,11 +407,11 @@ function BookingsTab({ userId }) {
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem', color: 'var(--t2)', fontFamily: "'DM Mono', monospace" }}>
               <span>{dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               <span>{dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-              <span>{b.party_size} guests</span>
+              <span>{t('profile:guestsCount', { count: b.party_size })}</span>
             </div>
             {b.tables?.table_number && (
               <div style={{ fontSize: '0.78rem', color: 'var(--t4)', marginTop: 4 }}>
-                Table {b.tables.table_number}
+                {t('common:tableLabel', { number: b.tables.table_number })}
               </div>
             )}
             {b.special_requests && (
@@ -421,6 +427,7 @@ function BookingsTab({ userId }) {
 }
 
 function OrdersTab({ userId }) {
+  const { t } = useTranslation(['profile', 'common'])
   const [orders,  setOrders]  = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
@@ -454,8 +461,8 @@ function OrdersTab({ userId }) {
   if (!orders.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🧾</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No orders yet</div>
-      <div style={{ fontSize: '0.82rem' }}>Add items to cart from a restaurant.</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noOrders')}</div>
+      <div style={{ fontSize: '0.82rem' }}>{t('profile:noOrdersHint')}</div>
     </div>
   )
 
@@ -480,9 +487,9 @@ function OrdersTab({ userId }) {
             onClick={() => toggleExpand(o.id)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
               <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--t1)' }}>
-                {o.order_items?.length || 0} item{o.order_items?.length !== 1 ? 's' : ''}
+                {t('profile:itemCount', { count: o.order_items?.length || 0 })}
                 {o.tables?.table_number && (
-                  <span style={{ color: 'var(--t3)', fontWeight: 400 }}> · Table {o.tables.table_number}</span>
+                  <span style={{ color: 'var(--t3)', fontWeight: 400 }}> · {t('common:tableLabel', { number: o.tables.table_number })}</span>
                 )}
               </div>
               <span style={{
@@ -505,23 +512,23 @@ function OrdersTab({ userId }) {
                 ))}
                 <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Subtotal</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.subtotal)}</span>
+                    <span>{t('common:subtotal')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.subtotal)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Tax (18%)</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
+                    <span>{t('common:taxPct')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>Service (10%)</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
+                    <span>{t('common:servicePct')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, marginTop: 4 }}>
-                    <span>Total</span>
+                    <span>{t('common:total')}</span>
                     <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
                   </div>
                 </div>
               </div>
             )}
             <div style={{ textAlign: 'right', fontSize: '0.7rem', color: 'var(--t4)', marginTop: 6 }}>
-              {open ? '▲ collapse' : '▼ details'}
+              {open ? t('profile:collapse') : t('profile:details')}
             </div>
           </div>
         )
@@ -530,19 +537,16 @@ function OrdersTab({ userId }) {
   )
 }
 
-const TX_REASON_LABELS = {
-  review_posted: 'Review posted',
-  redeemed: 'Redeemed at checkout',
-}
-
-function txReasonLabel(reason) {
-  if (TX_REASON_LABELS[reason]) return TX_REASON_LABELS[reason]
-  if (!reason) return 'Adjustment'
+function txReasonLabel(reason, t) {
+  if (reason === 'review_posted') return t('profile:txReviewPosted')
+  if (reason === 'redeemed') return t('profile:txRedeemed')
+  if (!reason) return t('profile:txAdjustment')
   const label = reason.replace(/_/g, ' ')
   return label[0].toUpperCase() + label.slice(1)
 }
 
 function PointsCard({ userId }) {
+  const { t } = useTranslation('profile')
   const [account, setAccount] = useState(null)
   const [transactions, setTransactions] = useState([])
 
@@ -580,7 +584,7 @@ function PointsCard({ userId }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: '1.2rem' }}>🪙</span>
-          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--t1)' }}>Resto-Credits</span>
+          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--t1)' }}>{t('profile:restoCredits')}</span>
         </div>
         <span style={{
           fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
@@ -594,17 +598,17 @@ function PointsCard({ userId }) {
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--gold)' }}>
             {account.points}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Available</div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{t('profile:creditsAvailable')}</div>
         </div>
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--t2)' }}>
             {account.points_earned}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>Earned</div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{t('profile:creditsEarned')}</div>
         </div>
       </div>
       <p style={{ fontSize: '0.72rem', color: 'var(--t4)', marginTop: 10 }}>
-        Earn 10 credits per review · 100 credits = ₼1
+        {t('profile:creditsRule')}
       </p>
 
       {transactions.length > 0 && (
@@ -613,26 +617,26 @@ function PointsCard({ userId }) {
             fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)',
             textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
           }}>
-            Recent activity
+            {t('profile:recentActivity')}
           </div>
-          {transactions.map(t => (
-            <div key={t.id} style={{
+          {transactions.map(tx => (
+            <div key={tx.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '5px 0',
             }}>
               <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--t1)', fontWeight: 500 }}>
-                  {txReasonLabel(t.reason)}
+                  {txReasonLabel(tx.reason, t)}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--t4)', fontFamily: "'DM Mono', monospace" }}>
-                  {timeAgo(t.created_at)}
+                  {timeAgo(tx.created_at)}
                 </div>
               </div>
               <span style={{
                 fontFamily: "'DM Mono', monospace", fontSize: '0.82rem', fontWeight: 700,
-                color: t.delta >= 0 ? 'var(--sage)' : 'var(--red)',
+                color: tx.delta >= 0 ? 'var(--sage)' : 'var(--red)',
               }}>
-                {t.delta >= 0 ? `+${t.delta}` : t.delta}
+                {tx.delta >= 0 ? `+${tx.delta}` : tx.delta}
               </span>
             </div>
           ))}
@@ -643,6 +647,7 @@ function PointsCard({ userId }) {
 }
 
 function ReviewsTab({ userId }) {
+  const { t } = useTranslation('profile')
   const navigate = useNavigate()
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
@@ -668,8 +673,8 @@ function ReviewsTab({ userId }) {
   if (!reviews.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>⭐</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No reviews yet</div>
-      <div style={{ fontSize: '0.82rem' }}>Review dishes after dining to earn Resto-Credits.</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noReviews')}</div>
+      <div style={{ fontSize: '0.82rem' }}>{t('profile:noReviewsHint')}</div>
     </div>
   )
 
@@ -713,6 +718,7 @@ function ReviewsTab({ userId }) {
 }
 
 function SavedTab({ userId }) {
+  const { t } = useTranslation(['profile', 'common'])
   const navigate = useNavigate()
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
@@ -742,8 +748,8 @@ function SavedTab({ userId }) {
   if (!saved.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🍽️</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>No saved dishes yet</div>
-      <div style={{ fontSize: '0.82rem' }}>Tap the plate icon on any dish to save it for later.</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noSaved')}</div>
+      <div style={{ fontSize: '0.82rem' }}>{t('profile:noSavedHint')}</div>
     </div>
   )
 
@@ -778,7 +784,7 @@ function SavedTab({ userId }) {
                   {formatPrice(dish.price)}
                 </span>
                 {!dish.available && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase' }}>Sold Out</span>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase' }}>{t('common:soldOut')}</span>
                 )}
               </div>
             </div>

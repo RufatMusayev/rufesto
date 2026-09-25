@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useCart } from '../../contexts/CartContext'
 import { supabase } from '../../lib/supabase'
+import LanguageSwitcher from '../LanguageSwitcher'
 
 export default function Sidebar() {
   const { session } = useAuth()
   const { theme, toggle } = useTheme()
   const { tableId } = useCart()
   const [unreadCount, setUnreadCount] = useState(0)
+  const { t } = useTranslation('nav')
 
   useEffect(() => {
     if (!session) { setUnreadCount(0); return }
@@ -66,18 +69,18 @@ export default function Sidebar() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-        <SideItem to="/" label="Home" Icon={HomeIcon} />
-        <SideItem to="/explore" label="Explore" Icon={SearchIcon} />
-        <SideItem to="/map" label="Map" Icon={MapIcon} />
-        <SideItem to="/notifications" label="Notifications" Icon={BellIcon} badge={unreadCount} />
-        <SideItem to="/profile" label="Profile" Icon={ProfileIcon} />
-        <SideItem to="/table" label={tableId ? 'Your Table' : 'Enter Table Code'} Icon={QrIcon} dot={!!tableId} />
+        <SideItem to="/" label={t('home')} Icon={HomeIcon} />
+        <SideItem to="/explore" label={t('explore')} Icon={SearchIcon} />
+        <SideItem to="/map" label={t('map')} Icon={MapIcon} />
+        <SideItem to="/notifications" label={t('notifications')} Icon={BellIcon} badge={unreadCount} />
+        <SideItem to="/profile" label={t('profile')} Icon={ProfileIcon} />
+        <SideItem to="/table" label={tableId ? t('yourTable') : t('enterTableCode')} Icon={QrIcon} dot={!!tableId} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <button
           onClick={toggle}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          title={theme === 'dark' ? t('lightMode') : t('darkMode')}
           style={{
             width: 44, height: 44, borderRadius: 12,
             background: 'none', border: 'none',
@@ -94,8 +97,9 @@ export default function Sidebar() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
 
+        <LanguageSwitcher />
         <button
-          title="More"
+          title={t('more')}
           style={{
             width: 44, height: 44, borderRadius: 12,
             background: 'none', border: 'none',

@@ -14,20 +14,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return
-      setSession(session)
-      if (session) {
-        fetchProfile(session.user.id).finally(() => {
-          if (mounted) setLoading(false)
-        })
-      } else {
-        setLoading(false)
-      }
-    }).catch(() => {
-      if (mounted) setLoading(false)
-    })
-
+    // onAuthStateChange fires an INITIAL_SESSION event as soon as it subscribes, so a
+    // separate up-front getSession() call would just fetch the same profile twice.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!mounted) return
       setSession(session)
@@ -98,6 +86,17 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    // If the guest is leaving an active table session, free it server-side first
+    // (must happen while still authenticated — leave_table is RLS-gated).
+    try {
+      const raw = sessionStorage.getItem('rufesto_table_session')
+      const tableId = raw ? JSON.parse(raw)?.tableId : null
+      if (tableId) {
+        // Builder has no .catch(); errors come back as { error } and are ignored here.
+        await supabase.rpc('leave_table', { p_table_id: tableId })
+      }
+    } catch { /* ignore malformed/missing session data */ }
+
     // Clean up sessionStorage (cart, table session data)
     sessionStorage.removeItem('rufesto_table_session')
     sessionStorage.removeItem('rufesto_cart')

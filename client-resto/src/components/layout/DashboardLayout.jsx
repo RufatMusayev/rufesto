@@ -1,21 +1,24 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
-
-const NAV = [
-  { to: '/',         label: 'Overview', end: true, icon: OverviewIcon },
-  { to: '/orders',   label: 'Orders',              icon: OrdersIcon },
-  { to: '/kds',      label: 'Kitchen',             icon: KitchenIcon },
-  { to: '/tables',   label: 'Tables',              icon: TablesIcon },
-  { to: '/menu',     label: 'Menu',                icon: MenuIcon },
-  { to: '/promos',   label: 'Promos',              icon: PromosIcon },
-  { to: '/bookings', label: 'Bookings',            icon: BookingsIcon },
-]
+import LanguageSwitcher from '../LanguageSwitcher'
 
 export default function DashboardLayout() {
-  const { staffRow, signOut } = useAuth()
+  const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
   const { theme, toggle } = useTheme()
+  const { t } = useTranslation('dashboard')
   const initial = staffRow?.restaurants?.name?.[0] || 'R'
+
+  const NAV = [
+    { to: '/',         label: t('navOverview'), end: true, icon: OverviewIcon },
+    { to: '/orders',   label: t('navOrders'),             icon: OrdersIcon },
+    { to: '/kds',      label: t('navKitchen'),            icon: KitchenIcon },
+    { to: '/tables',   label: t('navTables'),             icon: TablesIcon },
+    { to: '/menu',     label: t('navMenu'),               icon: MenuIcon },
+    { to: '/promos',   label: t('navPromos'),             icon: PromosIcon },
+    { to: '/bookings', label: t('navBookings'),           icon: BookingsIcon },
+  ]
 
   return (
     <div className="dash-layout">
@@ -23,11 +26,24 @@ export default function DashboardLayout() {
         <div className="dash-sidebar-head">
           <div className="dash-resto-badge">{initial}</div>
           <div className="dash-resto-info" style={{ flex: 1, minWidth: 0 }}>
-            <div className="dash-resto-name">{staffRow?.restaurants?.name || 'Restaurant'}</div>
+            {hasMultipleRestaurants ? (
+              <select
+                className="input"
+                value={staffRow?.id || ''}
+                onChange={e => setActiveStaffId(e.target.value)}
+                style={{ fontSize: '0.74rem', fontWeight: 700, padding: '2px 4px', width: '100%', cursor: 'pointer' }}
+              >
+                {staffRows.map(s => (
+                  <option key={s.id} value={s.id}>{s.restaurants?.name || t('restaurantFallback')}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="dash-resto-name">{staffRow?.restaurants?.name || t('restaurantFallback')}</div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
               <span className="dash-live-dot" style={{ width: 5, height: 5 }} />
               <span className="dash-resto-role" style={{ marginTop: 0, color: 'var(--green)', fontSize: '0.62rem', fontWeight: 600 }}>
-                {staffRow?.role || 'Staff'}
+                {staffRow?.role || t('staff')}
               </span>
             </div>
           </div>
@@ -44,13 +60,14 @@ export default function DashboardLayout() {
         </nav>
 
         <div className="dash-sidebar-foot">
+          <LanguageSwitcher />
           <button onClick={toggle} className="dash-nav-item" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t2)' }}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            <span className="dash-nav-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            <span className="dash-nav-label">{theme === 'dark' ? t('navLight') : t('navDark')}</span>
           </button>
           <button onClick={signOut} className="dash-nav-item" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t2)' }}>
             <ExitIcon />
-            <span className="dash-nav-label">Sign Out</span>
+            <span className="dash-nav-label">{t('navSignOut')}</span>
           </button>
         </div>
       </aside>
@@ -61,7 +78,7 @@ export default function DashboardLayout() {
           <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{staffRow?.restaurants?.name}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.7rem', color: 'var(--green)' }}>
-          <span className="dash-live-dot" /> Live
+          <span className="dash-live-dot" /> {t('live')}
         </div>
       </div>
 

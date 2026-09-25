@@ -1,0 +1,11 @@
+{
+  "yourOrder": "Sifarişiniz",
+  "cartEmpty": "Səbətiniz boşdur",
+  "cartEmptyHint": "Menyuya baxın və dadlı bir şey əlavə edin.",
+  "placeOrder": "Sifariş ver · {{price}}",
+  "placingOrder": "Sifariş verilir…",
+  "orderPlaced": "Sifariş verildi!",
+  "orderPlacedHint": "Mətbəx çekiniz hazırlanır. Sizi məlumatlandıracağıq.",
+  "noTableError": "Masa seçilməyib — əvvəlcə QR kodu skan edin.",
+  "openCart": "Səbəti aç"
+}

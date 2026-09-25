@@ -1,0 +1,15 @@
+{
+  "title": "Notifications",
+  "markAllRead": "Mark all read",
+  "allCaughtUp": "You're all caught up",
+  "allCaughtUpHint": "Book a table or place an order to start seeing activity here.",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "bookingConfirmed": "Your booking has been confirmed.",
+  "bookingCancelled": "A booking was cancelled.",
+  "orderReady": "Your order is ready!",
+  "orderPlaced": "Your order has been placed.",
+  "reviewReply": "Someone replied to your review.",
+  "promotion": "New promotion available!",
+  "system": "System notification."
+}

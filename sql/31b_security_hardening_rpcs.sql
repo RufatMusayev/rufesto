@@ -295,6 +295,7 @@ DECLARE
   v_amount_due    numeric;
   v_total_due     numeric := 0;
   v_order_ids     uuid[] := ARRAY[]::uuid[];
+  v_state         table_state;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -360,7 +361,16 @@ BEGIN
   END LOOP;
 
   IF array_length(v_order_ids, 1) IS NOT NULL THEN
-    UPDATE public.tables SET state = 'awaiting_payment' WHERE id = p_table_id;
+    -- State machine only allows ordering -> awaiting_payment; step an
+    -- 'occupied' table through 'ordering' first. Other states are left as is.
+    SELECT state INTO v_state FROM public.tables WHERE id = p_table_id;
+    IF v_state = 'occupied' THEN
+      UPDATE public.tables SET state = 'ordering' WHERE id = p_table_id;
+      v_state := 'ordering';
+    END IF;
+    IF v_state = 'ordering' THEN
+      UPDATE public.tables SET state = 'awaiting_payment' WHERE id = p_table_id;
+    END IF;
 
     INSERT INTO public.notifications (user_id, type, payload)
     SELECT s.user_id,

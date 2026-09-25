@@ -548,11 +548,12 @@ DECLARE
     -- those writes. Both are invoker functions, so RLS still guards them.
   ];
 BEGIN
+  -- ROUTINE, not FUNCTION: refresh_analytics() is a procedure.
   FOREACH sig IN ARRAY pin_search_path LOOP
-    EXECUTE format('ALTER FUNCTION public.%s SET search_path = public, pg_temp;', sig);
+    EXECUTE format('ALTER ROUTINE public.%s SET search_path = public, pg_temp;', sig);
   END LOOP;
   FOREACH sig IN ARRAY revoke_execute LOOP
-    EXECUTE format('REVOKE EXECUTE ON FUNCTION public.%s FROM anon, authenticated, PUBLIC;', sig);
+    EXECUTE format('REVOKE EXECUTE ON ROUTINE public.%s FROM anon, authenticated, PUBLIC;', sig);
   END LOOP;
 END $$;
 

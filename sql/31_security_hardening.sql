@@ -658,8 +658,10 @@ CREATE POLICY feedback_admin_read ON public.feedback
 -- =====================================================================
 
 DROP POLICY IF EXISTS users_staff_read_customers ON public.users;
+-- TO authenticated: anon would evaluate the orders/bookings subqueries without
+-- SELECT rights on them and fail every public query that embeds users(...).
 CREATE POLICY users_staff_read_customers ON public.users
-  FOR SELECT USING (
+  FOR SELECT TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.orders o
       WHERE o.user_id = users.id AND is_staff_of(o.restaurant_id)

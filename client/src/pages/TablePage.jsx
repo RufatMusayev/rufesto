@@ -86,7 +86,10 @@ export default function TablePage() {
       kdsChannel = supabase
         .channel(`kds-updates-${tableId}`)
         .on('postgres_changes', {
+          // Scoped to this table's own restaurant — without this filter every
+          // restaurant's kitchen ticket updates triggered a refetch here.
           event: 'UPDATE', schema: 'public', table: 'kds_tickets',
+          filter: `restaurant_id=eq.${restaurantId}`,
         }, () => refetchOrders())
         .subscribe()
 
@@ -199,6 +202,11 @@ export default function TablePage() {
   const sessionTax = orders.reduce((s, o) => s + (o.tax_amount || 0), 0)
   const sessionService = orders.reduce((s, o) => s + (o.service_charge || 0), 0)
   const sessionTotal = orders.reduce((s, o) => s + (o.total_amount || 0), 0)
+  // Labels show the restaurant's actual configured rate, derived from the server-computed
+  // amounts (orders.tax_amount / service_charge), never a hardcoded percentage — different
+  // restaurants can have different restaurant_settings.tax_rate / service_charge.
+  const sessionTaxPct = sessionSubtotal > 0 ? Math.round((sessionTax / sessionSubtotal) * 100) : 0
+  const sessionServicePct = sessionSubtotal > 0 ? Math.round((sessionService / sessionSubtotal) * 100) : 0
 
   const allServed = orders.length > 0 && orders.every(o =>
     o.status === 'served' || o.status === 'done' || o.status === 'ready'
@@ -376,8 +384,8 @@ export default function TablePage() {
             </div>
             {[
               [t('common:subtotal'), sessionSubtotal],
-              [t('common:vatPct'), sessionTax],
-              [t('common:servicePct'), sessionService],
+              [t('common:vatPct', { pct: sessionTaxPct }), sessionTax],
+              [t('common:servicePct', { pct: sessionServicePct }), sessionService],
             ].map(([label, val]) => (
               <div key={label} style={{
                 display: 'flex', justifyContent: 'space-between',

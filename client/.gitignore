@@ -1,0 +1,5 @@
+# Client-only ignores (kept separate from the root .gitignore, which devops owns).
+
+# Real table QR tokens used to generate PNGs locally — never commit live tokens or codes.
+scripts/qr-tables.local.json
+qr-codes/

@@ -24,6 +24,9 @@ export default function AppLayout() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
+  // Single source of truth for the unread-notifications badge — passed down to Sidebar
+  // on desktop so it doesn't also subscribe (that used to open two realtime channels and
+  // fire the count query twice on every change).
   useEffect(() => {
     if (!session) { setUnreadCount(0); return }
     const userId = session.user.id
@@ -59,7 +62,7 @@ export default function AppLayout() {
 
   return (
     <div className="app-layout">
-      {!isMobile && <Sidebar />}
+      {!isMobile && <Sidebar unreadCount={unreadCount} />}
       <div className="main-content">
         {isMobile && (
           <header style={{

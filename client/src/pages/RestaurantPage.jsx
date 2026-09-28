@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import {
   cuisineEmoji, categoryEmoji, formatPrice, dishBackground,
-  cuisineBackground, sectionEmoji, isRestaurantOpen, getTodayHours, timeAgo,
+  cuisineBackground, sectionEmoji, isRestaurantOpen, getTodayHours,
 } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'

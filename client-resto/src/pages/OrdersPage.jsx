@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
 import { ORDER_STATUS } from '@shared/constants'
 import { bakuTodayStartISO } from '../lib/time'
+import { debounce } from '../lib/debounce'
 
 const FILTERS = ['all', 'open', 'preparing', 'ready', 'served', 'done', 'cancelled']
+const ORDER_STATUS_LABEL_KEYS = {
+  open: 'ordStatusOpen', preparing: 'ordStatusPreparing', ready: 'ordStatusReady',
+  served: 'ordStatusServed', done: 'ordStatusDone', cancelled: 'ordStatusCancelled',
+}
 
 export default function OrdersPage() {
   const { restaurantId } = useAuth()
@@ -17,29 +22,23 @@ export default function OrdersPage() {
   const [expanded, setExpanded] = useState(new Set())
   const [acting, setActing] = useState(null)
   const [actionError, setActionError] = useState('')
-  const orderIdsRef = useRef(new Set())
-
-  useEffect(() => {
-    orderIdsRef.current = new Set(orders.map(o => o.id))
-  }, [orders])
 
   useEffect(() => {
     if (!restaurantId) return
     loadOrders()
 
+    const debouncedLoad = debounce(loadOrders, 400)
     const ch = supabase
       .channel(`dash-orders-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadOrders())
-      // order_items has no restaurant_id column, so it can't be filtered
-      // server-side by restaurant — only reload when the changed row belongs
-      // to an order we already know about (cheap local Set check).
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, payload => {
-        const oid = payload.new?.order_id || payload.old?.order_id
-        if (oid && orderIdsRef.current.has(oid)) loadOrders()
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+      // order_items has no restaurant_id column and isn't in the
+      // supabase_realtime publication, so it can never fire here. kds_tickets
+      // is what actually reflects item/KDS progress (started/ready/done) —
+      // listen to that instead to keep expanded order rows live.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
       .subscribe()
 
-    return () => supabase.removeChannel(ch)
+    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
   }, [restaurantId])
 
   async function loadOrders() {
@@ -119,7 +118,7 @@ export default function OrdersPage() {
           return (
             <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {sm && <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, display: 'inline-block', marginRight: 4 }} />}
-              {f === 'all' ? t('dashboard:filterAll') : sm.label} ({cnt})
+              {f === 'all' ? t('dashboard:filterAll') : t(`dashboard:${ORDER_STATUS_LABEL_KEYS[f]}`)} ({cnt})
             </button>
           )
         })}
@@ -203,7 +202,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
               fontSize:'0.58rem', fontWeight:700, padding:'2px 7px', borderRadius:4,
               background: s.bg, color: s.color, border:`1px solid ${s.border}`,
               textTransform:'uppercase', letterSpacing:0.5,
-            }}>{s.label}</span>
+            }}>{t(`dashboard:${ORDER_STATUS_LABEL_KEYS[order.status] || 'ordStatusOpen'}`)}</span>
           </div>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
             style={{ flexShrink:0, transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>

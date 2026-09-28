@@ -7,6 +7,7 @@
   "orderPlaced": "Order placed!",
   "orderPlacedHint": "Your kitchen ticket is being prepared. We'll keep you updated.",
   "noTableError": "No table selected — scan a QR code first.",
+  "notReady": "You need to be signed in with items in your cart to place an order.",
   "openCart": "Open cart",
   "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to."
 }

@@ -427,7 +427,7 @@ function BookingsTab({ userId }) {
 }
 
 function OrdersTab({ userId }) {
-  const { t } = useTranslation(['profile', 'common'])
+  const { t, i18n } = useTranslation(['profile', 'common'])
   const [orders,  setOrders]  = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
@@ -498,7 +498,7 @@ function OrdersTab({ userId }) {
               }}>{o.status.toUpperCase()}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--t3)' }}>
-              <span style={{ fontFamily: "'DM Mono', monospace" }}>{timeAgo(o.placed_at)}</span>
+              <span style={{ fontFamily: "'DM Mono', monospace" }}>{timeAgo(o.placed_at, i18n.language)}</span>
               <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
             </div>
 
@@ -515,10 +515,12 @@ function OrdersTab({ userId }) {
                     <span>{t('common:subtotal')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.subtotal)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>{t('common:taxPct')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
+                    {/* Percentage derived from the order's own server-computed amounts —
+                        never a hardcoded rate, since restaurants configure their own tax/service. */}
+                    <span>{t('common:taxPct', { pct: o.subtotal > 0 ? Math.round((o.tax_amount / o.subtotal) * 100) : 0 })}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>{t('common:servicePct')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
+                    <span>{t('common:servicePct', { pct: o.subtotal > 0 ? Math.round((o.service_charge / o.subtotal) * 100) : 0 })}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, marginTop: 4 }}>
                     <span>{t('common:total')}</span>
@@ -546,7 +548,7 @@ function txReasonLabel(reason, t) {
 }
 
 function PointsCard({ userId }) {
-  const { t } = useTranslation('profile')
+  const { t, i18n } = useTranslation('profile')
   const [account, setAccount] = useState(null)
   const [transactions, setTransactions] = useState([])
 
@@ -629,7 +631,7 @@ function PointsCard({ userId }) {
                   {txReasonLabel(tx.reason, t)}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--t4)', fontFamily: "'DM Mono', monospace" }}>
-                  {timeAgo(tx.created_at)}
+                  {timeAgo(tx.created_at, i18n.language)}
                 </div>
               </div>
               <span style={{
@@ -647,7 +649,7 @@ function PointsCard({ userId }) {
 }
 
 function ReviewsTab({ userId }) {
-  const { t } = useTranslation('profile')
+  const { t, i18n } = useTranslation('profile')
   const navigate = useNavigate()
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
@@ -702,7 +704,7 @@ function ReviewsTab({ userId }) {
                 </span>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.72rem', color: 'var(--t3)', marginTop: 1 }}>
-                {r.dishes?.restaurants?.name} · {timeAgo(r.created_at)}
+                {r.dishes?.restaurants?.name} · {timeAgo(r.created_at, i18n.language)}
               </div>
               {r.body && (
                 <p style={{ fontSize: '0.82rem', color: 'var(--t2)', marginTop: 4, lineHeight: 1.4 }}>

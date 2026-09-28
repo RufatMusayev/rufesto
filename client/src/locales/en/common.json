@@ -32,10 +32,10 @@
   "total": "Total",
   "subtotal": "Subtotal",
   "tax": "Tax",
-  "taxPct": "Tax (18%)",
-  "vatPct": "VAT (18%)",
+  "taxPct": "Tax ({{pct}}%)",
+  "vatPct": "VAT ({{pct}}%)",
   "service": "Service",
-  "servicePct": "Service (10%)",
+  "servicePct": "Service ({{pct}}%)",
   "restaurant": "Restaurant",
   "termsNotice": "By continuing you agree to our Terms & Privacy Policy"
 }

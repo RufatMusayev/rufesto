@@ -11,7 +11,10 @@ services:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     ports:
-      - "${WEB_PORT:-8080}:80"
+      # cloudflared runs on the host (not in this compose network) and reaches this
+      # container over localhost, so bind loopback-only — nothing needs to reach
+      # WEB_PORT from the LAN or a public IP directly.
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy

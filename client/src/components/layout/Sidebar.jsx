@@ -1,47 +1,16 @@
-import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useCart } from '../../contexts/CartContext'
-import { supabase } from '../../lib/supabase'
 import LanguageSwitcher from '../LanguageSwitcher'
 
-export default function Sidebar() {
-  const { session } = useAuth()
+// unreadCount is owned by AppLayout (single subscription) and passed down here — this
+// component used to run its own duplicate notifications subscription + count query on
+// desktop, doubling both the realtime channel and the query on every change.
+export default function Sidebar({ unreadCount = 0 }) {
   const { theme, toggle } = useTheme()
   const { tableId } = useCart()
-  const [unreadCount, setUnreadCount] = useState(0)
   const { t } = useTranslation('nav')
-
-  useEffect(() => {
-    if (!session) { setUnreadCount(0); return }
-    const userId = session.user.id
-
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('read', false)
-      .then(({ count }) => setUnreadCount(count || 0))
-
-    const channel = supabase
-      .channel('sidebar-notif-badge')
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        supabase
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('read', false)
-          .then(({ count }) => setUnreadCount(count || 0))
-      })
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session?.user?.id])
 
   return (
     <aside style={{

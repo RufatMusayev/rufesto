@@ -1,7 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase } from '../lib/supabase'
+
+// Vite fingerprints/relocates these assets at build time, so Leaflet's own hardcoded
+// default-icon URLs (which assume a classic /images/ path next to leaflet.js) 404 unless
+// we point them at the imported, build-hashed asset URLs ourselves. We always pass a
+// custom divIcon per marker below, so this only matters if Leaflet ever falls back to
+// its default icon (e.g. a future L.marker() call without an explicit icon).
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+})
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth <= 768)
@@ -79,15 +96,15 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => {
-    if (mapInstance.current || !mapRef.current || !window.L) return
+    if (mapInstance.current || !mapRef.current) return
 
-    const map = window.L.map(mapRef.current, {
+    const map = L.map(mapRef.current, {
       zoomControl: false,
     }).setView(BAKU_CENTER, 13)
 
-    window.L.control.zoom({ position: 'bottomright' }).addTo(map)
+    L.control.zoom({ position: 'bottomright' }).addTo(map)
 
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
       maxZoom: 19,
     }).addTo(map)
@@ -108,7 +125,7 @@ export default function MapPage() {
     restaurants.forEach(r => {
       const color = CUISINE_COLORS[r.cuisine_type?.toLowerCase()] || '#8B2D42'
 
-      const icon = window.L.divIcon({
+      const icon = L.divIcon({
         className: '',
         html: `<div style="
           width:36px;height:36px;border-radius:50%;
@@ -122,7 +139,7 @@ export default function MapPage() {
         iconAnchor: [18, 18],
       })
 
-      const marker = window.L.marker([r.latitude, r.longitude], { icon })
+      const marker = L.marker([r.latitude, r.longitude], { icon })
         .addTo(map)
         .bindPopup(buildPopupContent(r, t, navigate))
       markersRef.current[r.id] = marker

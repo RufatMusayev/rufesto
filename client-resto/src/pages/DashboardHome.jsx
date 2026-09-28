@@ -8,6 +8,11 @@ import { TABLE_COLORS, ORDER_STATUS } from '@shared/constants'
 import { bakuTodayStartISO, localeTag } from '../lib/time'
 import { debounce } from '../lib/debounce'
 
+const ORDER_STATUS_LABEL_KEYS = {
+  open: 'ordStatusOpen', preparing: 'ordStatusPreparing', ready: 'ordStatusReady',
+  served: 'ordStatusServed', done: 'ordStatusDone', cancelled: 'ordStatusCancelled',
+}
+
 export default function DashboardHome() {
   const { restaurantId } = useAuth()
   const { t, i18n } = useTranslation(['dashboard', 'common'])
@@ -242,7 +247,7 @@ function OrderRow({ order }) {
         <span style={{
           fontSize: '0.58rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4,
           background: s.bg, color: s.color, textTransform: 'uppercase',
-        }}>{s.label}</span>
+        }}>{t(`dashboard:${ORDER_STATUS_LABEL_KEYS[order.status] || 'ordStatusOpen'}`)}</span>
       </div>
     </div>
   )

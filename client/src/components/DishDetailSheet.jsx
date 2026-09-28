@@ -6,7 +6,7 @@ import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function DishDetailSheet({ dish, onClose }) {
-  const { t } = useTranslation(['menu', 'common'])
+  const { t, i18n } = useTranslation(['menu', 'common'])
   const { addDish, tableId, cartError, clearCartError } = useCart()
   const { session } = useAuth()
   const [reviews, setReviews] = useState([])
@@ -592,7 +592,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                         {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
                       </span>
                       <span style={{ fontSize: '0.64rem', color: 'var(--t4)', marginLeft: 'auto' }}>
-                        {timeAgo(r.created_at)}
+                        {timeAgo(r.created_at, i18n.language)}
                       </span>
                     </div>
                     {r.body && (

@@ -10,6 +10,11 @@ import { debounce } from '../lib/debounce'
 // dine-in visit while still dropping stale open orders from earlier days.
 const ACTIVE_ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 
+const STATE_LABEL_KEYS = {
+  free: 'stateFree', reserved: 'stateReserved', occupied: 'stateOccupied',
+  ordering: 'stateOrdering', awaiting_payment: 'stateAwaitingPay', cleared: 'stateCleared',
+}
+
 export default function TablesPage() {
   const { restaurantId } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
@@ -144,7 +149,7 @@ export default function TablesPage() {
             <button key={key} className={`chip${stateFilter === key ? ' active' : ''}`}
               onClick={() => setStateFilter(key)}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color, display: 'inline-block', marginRight: 4 }} />
-              {s.label} ({cnt})
+              {t(`dashboard:${STATE_LABEL_KEYS[key]}`)} ({cnt})
             </button>
           )
         })}
@@ -176,7 +181,7 @@ export default function TablesPage() {
         {Object.entries(TABLE_COLORS).map(([key, s]) => (
           <div key={key} style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ width:8, height:8, borderRadius:'50%', background: s.color, display:'inline-block' }} />
-            <span style={{ fontSize:'0.75rem', color:'var(--t2)' }}>{s.label}</span>
+            <span style={{ fontSize:'0.75rem', color:'var(--t2)' }}>{t(`dashboard:${STATE_LABEL_KEYS[key]}`)}</span>
             <span style={{ fontSize:'0.75rem', fontWeight:800, color:'var(--t1)' }}>{stateCounts[key] || 0}</span>
           </div>
         ))}
@@ -274,7 +279,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
             fontSize:'0.6rem', fontWeight:700, padding:'3px 8px', borderRadius:100,
             background: s.bg, color: s.color, border:`1px solid ${s.border}`,
             textTransform:'uppercase', letterSpacing:0.5,
-          }}>{s.label}</span>
+          }}>{t(`dashboard:${STATE_LABEL_KEYS[table.state]}`)}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
             style={{ transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
             <polyline points="6 9 12 15 18 9"/>
@@ -327,7 +332,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
                     onMouseDown={e => (e.currentTarget.style.transform='scale(0.97)')}
                     onMouseUp={e => (e.currentTarget.style.transform='scale(1)')}
                   >
-                    {t('dashboard:transitionTo', { state: ns.label })}
+                    {t('dashboard:transitionTo', { state: t(`dashboard:${STATE_LABEL_KEYS[next]}`) })}
                   </button>
                 )
               })}

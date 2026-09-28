@@ -211,7 +211,7 @@ export default function NotificationsPage() {
                         fontFamily: "'DM Mono', monospace",
                         fontSize: '0.68rem', color: 'var(--t4)',
                       }}>
-                        {timeAgo(n.sent_at)}
+                        {timeAgo(n.sent_at, i18n.language)}
                       </span>
                     </div>
 

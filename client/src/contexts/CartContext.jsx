@@ -121,7 +121,7 @@ export function CartProvider({ children }) {
   }
 
   async function placeOrder(restaurantId, tableId, bookingId = null) {
-    if (!session || state.items.length === 0) return { error: 'Not ready' }
+    if (!session || state.items.length === 0) return { error: t('notReady') }
     setPlacing(true)
 
     const subtotal = total

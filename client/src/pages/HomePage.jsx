@@ -14,6 +14,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [dishDetail, setDishDetail] = useState(null)
   const [followedIds, setFollowedIds] = useState([])
+  // Batched engagement data for the feed cards below — fetched once per feed load (a
+  // handful of `in()` queries) instead of each FeedPost/ReviewPostCard firing its own
+  // like-count / liked-by-me / saved-by-me queries on mount (previously ~3 queries ×
+  // every card on the page).
+  const [restaurantLikeCounts, setRestaurantLikeCounts] = useState({})
+  const [reviewLikeCounts, setReviewLikeCounts] = useState({})
+  const [myLikedRestaurantIds, setMyLikedRestaurantIds] = useState(() => new Set())
+  const [myLikedReviewIds, setMyLikedReviewIds] = useState(() => new Set())
+  const [mySavedDishIds, setMySavedDishIds] = useState(() => new Set())
   const { session } = useAuth()
   const trackedImpressions = useRef(new Set())
 
@@ -70,6 +79,60 @@ export default function HomePage() {
               .then(() => {}, () => {})
           } catch { /* ignore */ }
         })
+
+        // --- Batched engagement queries (replaces per-card fetching) ---
+        const restIds = allRest.map(r => r.id)
+        const reviewIds = allRevs.map(r => r.id)
+        const dishIds = [...new Set(allRevs.map(r => r.dishes?.id || r.dish_id).filter(Boolean))]
+
+        const engagementQueries = []
+
+        engagementQueries.push(
+          restIds.length
+            ? supabase.from('likes').select('target_id').eq('target_type', 'restaurant').in('target_id', restIds)
+            : Promise.resolve({ data: [] })
+        )
+        engagementQueries.push(
+          reviewIds.length
+            ? supabase.from('likes').select('target_id').eq('target_type', 'review').in('target_id', reviewIds)
+            : Promise.resolve({ data: [] })
+        )
+        if (session) {
+          engagementQueries.push(
+            restIds.length
+              ? supabase.from('likes').select('target_id').eq('user_id', session.user.id).eq('target_type', 'restaurant').in('target_id', restIds)
+              : Promise.resolve({ data: [] })
+          )
+          engagementQueries.push(
+            reviewIds.length
+              ? supabase.from('likes').select('target_id').eq('user_id', session.user.id).eq('target_type', 'review').in('target_id', reviewIds)
+              : Promise.resolve({ data: [] })
+          )
+          engagementQueries.push(
+            dishIds.length
+              ? supabase.from('saved_dishes').select('dish_id').eq('user_id', session.user.id).in('dish_id', dishIds)
+              : Promise.resolve({ data: [] })
+          )
+        }
+
+        // Logged out: only the two public count queries run, so the "my…" slots default to {}.
+        const [
+          { data: restLikeRows },
+          { data: reviewLikeRows },
+          { data: myRestLikeRows } = {},
+          { data: myReviewLikeRows } = {},
+          { data: mySavedRows } = {},
+        ] = await Promise.all(engagementQueries)
+
+        const countBy = (rows) => (rows || []).reduce((acc, row) => {
+          acc[row.target_id] = (acc[row.target_id] || 0) + 1
+          return acc
+        }, {})
+        setRestaurantLikeCounts(countBy(restLikeRows))
+        setReviewLikeCounts(countBy(reviewLikeRows))
+        setMyLikedRestaurantIds(new Set((myRestLikeRows || []).map(r => r.target_id)))
+        setMyLikedReviewIds(new Set((myReviewLikeRows || []).map(r => r.target_id)))
+        setMySavedDishIds(new Set((mySavedRows || []).map(r => r.dish_id)))
       } catch (err) {
         // Never let a feed error leave `loading` stuck true forever.
         console.error('Feed load failed:', err)
@@ -93,10 +156,19 @@ export default function HomePage() {
           <div style={{ maxWidth: 470, margin: '0 auto' }}>
             {buildFeed(reviews, restaurants, campaigns).map((item, i) =>
               item._type === 'review'
-                ? <ReviewPostCard key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail} />
+                ? <ReviewPostCard
+                    key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail}
+                    initialLikeCount={reviewLikeCounts[item.id] || 0}
+                    initialLiked={myLikedReviewIds.has(item.id)}
+                    initialSaved={mySavedDishIds.has(item.dishes?.id || item.dish_id)}
+                  />
                 : item._type === 'promo'
                   ? <PromoCard key={`promo-${item.id}`} campaign={item} index={i} onDishClick={setDishDetail} />
-                  : <FeedPost key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds} />
+                  : <FeedPost
+                      key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds}
+                      initialLikeCount={restaurantLikeCounts[item.id] || 0}
+                      initialLiked={myLikedRestaurantIds.has(item.id)}
+                    />
             )}
             <div style={{ height: 80 }} />
           </div>
@@ -172,47 +244,21 @@ function StoriesBar({ restaurants, followedIds = [] }) {
   )
 }
 
-function FeedPost({ restaurant: r, index, followedIds = [] }) {
+function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false, initialLikeCount = 0 }) {
   const open = isRestaurantOpen(r.operating_hours)
   const today = getTodayHours(r.operating_hours)
   const emoji = cuisineEmoji(r.cuisine_type)
   const { session } = useAuth()
   const { t } = useTranslation(['feed', 'common'])
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(0)
-  const [saved, setSaved] = useState(false)
+  // Seeded from HomePage's batched engagement queries — see loadFeed — instead of each
+  // card firing its own like-count / liked-by-me / saved queries on mount.
+  const [liked, setLiked] = useState(initialLiked)
+  const [likeCount, setLikeCount] = useState(initialLikeCount)
+  const [saved, setSaved] = useState(() => followedIds.includes(r.id))
   const [showHeart, setShowHeart] = useState(false)
   const [likeAnimating, setLikeAnimating] = useState(false)
   const tapTimer = useRef(null)
   const tapCount = useRef(0)
-
-  useEffect(() => {
-    supabase
-      .from('likes')
-      .select('id', { count: 'exact', head: true })
-      .eq('target_type', 'restaurant')
-      .eq('target_id', r.id)
-      .then(({ count }) => setLikeCount(count || 0))
-
-    if (session) {
-      supabase
-        .from('likes')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('target_type', 'restaurant')
-        .eq('target_id', r.id)
-        .maybeSingle()
-        .then(({ data }) => setLiked(!!data))
-
-      supabase
-        .from('user_follows')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('restaurant_id', r.id)
-        .maybeSingle()
-        .then(({ data }) => setSaved(!!data))
-    }
-  }, [r.id, session?.user?.id])
 
   async function toggleLike() {
     const next = !liked
@@ -486,14 +532,16 @@ function buildFeed(reviews, restaurants, campaigns = []) {
   return withPromos
 }
 
-function ReviewPostCard({ review: rev, index, onDishClick }) {
+function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false, initialLikeCount = 0, initialSaved = false }) {
   const dish = rev.dishes
   const restaurant = dish?.restaurants
   const { session, profile } = useAuth()
-  const { t } = useTranslation('feed')
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(0)
-  const [saved, setSaved] = useState(false)
+  const { t, i18n } = useTranslation('feed')
+  // Seeded from HomePage's batched engagement queries — see loadFeed — instead of each
+  // card firing its own like-count / liked-by-me / saved-by-me queries on mount.
+  const [liked, setLiked] = useState(initialLiked)
+  const [likeCount, setLikeCount] = useState(initialLikeCount)
+  const [saved, setSaved] = useState(initialSaved)
   const [showThread, setShowThread] = useState(false)
   const [replies, setReplies] = useState([])
   const [replyCount, setReplyCount] = useState(0)
@@ -506,41 +554,9 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
   const [submitting, setSubmitting] = useState(false)
   const [replyError, setReplyError] = useState('')
   const photoInputRef = useRef(null)
-
-  useEffect(() => {
-    supabase
-      .from('likes')
-      .select('id', { count: 'exact', head: true })
-      .eq('target_type', 'review')
-      .eq('target_id', rev.id)
-      .then(({ count }) => setLikeCount(count || 0))
-
-    if (session) {
-      supabase
-        .from('likes')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('target_type', 'review')
-        .eq('target_id', rev.id)
-        .maybeSingle()
-        .then(({ data }) => setLiked(!!data))
-    }
-    // Reply count is loaded lazily on first thread open (toggleThread) so we don't
-    // fire a query per card on every feed load — and so an un-migrated review_comments
-    // table can't spam the console with 404s before the migration is applied.
-  }, [rev.id, session?.user?.id])
-
-  useEffect(() => {
-    if (session && dish) {
-      supabase
-        .from('saved_dishes')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('dish_id', dish.id || rev.dish_id)
-        .maybeSingle()
-        .then(({ data }) => setSaved(!!data))
-    }
-  }, [session?.user?.id, dish?.id])
+  // Reply count is loaded lazily on first thread open (toggleThread) so we don't fire a
+  // query per card on every feed load — and so an un-migrated review_comments table
+  // can't spam the console with 404s before the migration is applied.
 
   async function toggleLike(e) {
     e.stopPropagation()
@@ -709,7 +725,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
                 {cleanDisplayName(rev.users?.name)}
               </span>
               <span style={{ fontSize: '0.72rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
-                · {timeAgo(rev.created_at)}
+                · {timeAgo(rev.created_at, i18n.language)}
               </span>
             </div>
             {/* Meal chip */}
@@ -951,7 +967,7 @@ function ReviewPostCard({ review: rev, index, onDishClick }) {
 }
 
 function CommentThread({ comments, loading, replyCount, onHide }) {
-  const { t } = useTranslation('feed')
+  const { t, i18n } = useTranslation('feed')
   return (
     <div style={{ padding: '0 14px 4px' }}>
       {/* Header row with hide button */}
@@ -1005,7 +1021,7 @@ function CommentThread({ comments, loading, replyCount, onHide }) {
                 {cleanDisplayName(c.users?.name)}
               </span>
               <span style={{ fontSize: '0.68rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
-                {timeAgo(c.created_at)}
+                {timeAgo(c.created_at, i18n.language)}
               </span>
             </div>
             {c.body && (

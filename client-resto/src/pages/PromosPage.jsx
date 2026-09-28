@@ -8,11 +8,11 @@ import { localeTag } from '../lib/time'
 const FILTERS = ['all', 'draft', 'active', 'paused', 'completed', 'cancelled']
 
 const STATUS_STYLE = {
-  draft:     { label: 'Draft',     color: 'var(--t2)',  bg: 'var(--s3)',                border: 'var(--border)' },
-  active:    { label: 'Active',    color: '#22c55e',    bg: 'rgba(34,197,94,0.08)',     border: 'rgba(34,197,94,0.18)' },
-  paused:    { label: 'Paused',    color: '#BA7517',    bg: 'rgba(186,117,23,0.08)',    border: 'rgba(186,117,23,0.18)' },
-  completed: { label: 'Completed', color: '#3b82f6',    bg: 'rgba(59,130,246,0.08)',    border: 'rgba(59,130,246,0.18)' },
-  cancelled: { label: 'Cancelled', color: '#A32D2D',    bg: 'rgba(239,68,68,0.08)',     border: 'rgba(239,68,68,0.18)' },
+  draft:     { color: 'var(--t2)',  bg: 'var(--s3)',                border: 'var(--border)' },
+  active:    { color: '#22c55e',    bg: 'rgba(34,197,94,0.08)',     border: 'rgba(34,197,94,0.18)' },
+  paused:    { color: '#BA7517',    bg: 'rgba(186,117,23,0.08)',    border: 'rgba(186,117,23,0.18)' },
+  completed: { color: '#3b82f6',    bg: 'rgba(59,130,246,0.08)',    border: 'rgba(59,130,246,0.18)' },
+  cancelled: { color: '#A32D2D',    bg: 'rgba(239,68,68,0.08)',     border: 'rgba(239,68,68,0.18)' },
 }
 
 const TYPES = ['feed_placement', 'discount', 'highlight', 'banner']
@@ -24,6 +24,10 @@ const STATUS_LABEL_KEYS = {
   draft: 'promoStatusDraft', active: 'promoStatusActive', paused: 'promoStatusPaused',
   completed: 'promoStatusCompleted', cancelled: 'promoStatusCancelled',
 }
+// The campaign form only ever creates/edits into these two statuses; Activate,
+// Pause and Cancel (below) are the only paths to active/completed/cancelled,
+// and are manager-only actions.
+const FORM_STATUSES = ['draft', 'paused']
 
 function fmtDate(iso, lang) {
   if (!iso) return '—'
@@ -37,7 +41,7 @@ function toLocalInput(iso) {
 }
 
 export default function PromosPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, isManager } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
   const [campaigns, setCampaigns] = useState([])
   const [dishes, setDishes] = useState([])
@@ -110,11 +114,23 @@ export default function PromosPage() {
             {t('dashboard:promosSummary', { active: statusCounts.active || 0, total: campaigns.length })}
           </span>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          {t('dashboard:newCampaign')}
-        </button>
+        {isManager && (
+          <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)} style={{ gap:'0.35rem' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            {t('dashboard:newCampaign')}
+          </button>
+        )}
       </div>
+
+      {!isManager && (
+        <div style={{
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'1.25rem',
+          background:'var(--s2)', border:'1px solid var(--border)',
+          color:'var(--t2)', fontSize:'0.78rem',
+        }}>
+          {t('dashboard:managerOnlyNotice')}
+        </div>
+      )}
 
       {/* Status filter chips */}
       <div className="no-scrollbar" style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
@@ -145,6 +161,7 @@ export default function PromosPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(c => (
             <CampaignCard key={c.id} campaign={c}
+              canManage={isManager}
               acting={acting === c.id}
               onEdit={() => setEditCampaign(c)}
               onActivate={() => updateStatus(c.id, 'active')}
@@ -156,15 +173,15 @@ export default function PromosPage() {
       )}
 
       {/* Modals */}
-      {showAdd && (
+      {isManager && showAdd && (
         <PromoFormModal dishes={dishes} restaurantId={restaurantId}
           onClose={() => setShowAdd(false)} onSaved={load} />
       )}
-      {editCampaign && (
+      {isManager && editCampaign && (
         <PromoFormModal campaign={editCampaign} dishes={dishes} restaurantId={restaurantId}
           onClose={() => setEditCampaign(null)} onSaved={load} />
       )}
-      {cancelCampaign && (
+      {isManager && cancelCampaign && (
         <CancelConfirmModal campaignName={cancelCampaign.name} loading={cancelling}
           onConfirm={() => handleCancel(cancelCampaign.id)}
           onCancel={() => setCancelCampaign(null)} />
@@ -173,7 +190,7 @@ export default function PromosPage() {
   )
 }
 
-function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCancel }) {
+function CampaignCard({ campaign: c, canManage, acting, onEdit, onActivate, onPause, onCancel }) {
   const { t, i18n } = useTranslation('dashboard')
   const s = STATUS_STYLE[c.status] || STATUS_STYLE.draft
   const budget = Number(c.budget) || 0
@@ -246,38 +263,40 @@ function CampaignCard({ campaign: c, acting, onEdit, onActivate, onPause, onCanc
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.7rem', alignItems: 'center' }}>
-          {canActivate && (
-            <button className="btn btn-primary" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
-              onClick={onActivate} disabled={acting}>
-              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:activate')}
+        {canManage && (
+          <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.7rem', alignItems: 'center' }}>
+            {canActivate && (
+              <button className="btn btn-primary" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
+                onClick={onActivate} disabled={acting}>
+                {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:activate')}
+              </button>
+            )}
+            {canPause && (
+              <button className="btn btn-ghost" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
+                onClick={onPause} disabled={acting}>
+                {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:pause')}
+              </button>
+            )}
+            {canCancel && (
+              <button className="btn btn-danger" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
+                onClick={onCancel} disabled={acting}>{t('dashboard:cancel')}</button>
+            )}
+            <button onClick={onEdit} title={t('dashboard:edit')} style={{
+              width: 30, height: 30, borderRadius: 8, marginLeft: 'auto',
+              background: 'none', border: 'none', color: 'var(--t3)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'color 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--t1)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
             </button>
-          )}
-          {canPause && (
-            <button className="btn btn-ghost" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
-              onClick={onPause} disabled={acting}>
-              {acting ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:pause')}
-            </button>
-          )}
-          {canCancel && (
-            <button className="btn btn-danger" style={{ fontSize: '0.74rem', padding: '0.35rem 0.85rem' }}
-              onClick={onCancel} disabled={acting}>{t('dashboard:cancel')}</button>
-          )}
-          <button onClick={onEdit} title={t('dashboard:edit')} style={{
-            width: 30, height: 30, borderRadius: 8, marginLeft: 'auto',
-            background: 'none', border: 'none', color: 'var(--t3)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'color 0.15s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--t1)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -301,6 +320,11 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // The form can only put a campaign into draft or paused. If it's already
+  // active/completed/cancelled, that status came from Activate/Pause/Cancel
+  // (manager-only buttons on the card) and stays locked here.
+  const statusLocked = isEdit && !FORM_STATUSES.includes(campaign.status)
 
   useEffect(() => {
     document.body.classList.add('modal-open')
@@ -440,15 +464,22 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Status */}
+          {/* Status: only draft/paused here. Activate, Pause and Cancel are
+              explicit manager-only buttons on the campaign card. */}
           <div>
             <label className="label">{t('status')}</label>
-            <select className="input" value={form.status}
-              onChange={e => update('status', e.target.value)} style={{ cursor: 'pointer' }}>
-              {Object.keys(STATUS_STYLE).map(k => (
-                <option key={k} value={k}>{t(`dashboard:${STATUS_LABEL_KEYS[k]}`)}</option>
-              ))}
-            </select>
+            {statusLocked ? (
+              <div className="input" style={{ display: 'flex', alignItems: 'center', color: 'var(--t3)', cursor: 'default' }}>
+                {t(`dashboard:${STATUS_LABEL_KEYS[form.status]}`)}
+              </div>
+            ) : (
+              <select className="input" value={form.status}
+                onChange={e => update('status', e.target.value)} style={{ cursor: 'pointer' }}>
+                {FORM_STATUSES.map(k => (
+                  <option key={k} value={k}>{t(`dashboard:${STATUS_LABEL_KEYS[k]}`)}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem' }}>{error}</p>}

@@ -32,10 +32,10 @@
   "total": "Cəmi",
   "subtotal": "Aralıq cəm",
   "tax": "Vergi",
-  "taxPct": "Vergi (18%)",
-  "vatPct": "ƏDV (18%)",
+  "taxPct": "Vergi ({{pct}}%)",
+  "vatPct": "ƏDV ({{pct}}%)",
   "service": "Xidmət",
-  "servicePct": "Xidmət haqqı (10%)",
+  "servicePct": "Xidmət haqqı ({{pct}}%)",
   "restaurant": "Restoran",
   "termsNotice": "Davam etməklə Şərtlər və Məxfilik Siyasətimizlə razılaşırsınız"
 }

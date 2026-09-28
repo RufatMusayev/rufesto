@@ -113,13 +113,17 @@ export function AuthProvider({ children }) {
 
   const staffRow = staffRows.find(s => s.id === activeStaffId) || staffRows[0] || null
   const isKitchen = staffRow?.role === 'kitchen'
+  // Mirrors the DB's is_manager_of(): only admin/manager staff may write
+  // menu (dishes) or promo (ad_campaigns) rows. Everyone else can still use
+  // KDS/orders/tables/bookings, which have no such restriction.
+  const isManager = staffRow?.role === 'admin' || staffRow?.role === 'manager'
   const restaurantId = staffRow?.restaurant_id || staffRow?.restaurants?.id
   const hasMultipleRestaurants = staffRows.length > 1
 
   return (
     <AuthContext.Provider value={{
       session, staffRow, staffRows, loading, staffLoading, error,
-      isKitchen, restaurantId, hasMultipleRestaurants,
+      isKitchen, isManager, restaurantId, hasMultipleRestaurants,
       signIn, signOut, setActiveStaffId,
     }}>
       {children}

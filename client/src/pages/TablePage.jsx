@@ -7,10 +7,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
 import PaymentSheet from '../components/PaymentSheet'
+import PendingJoin from '../components/table/PendingJoin'
+import TableParty from '../components/table/TableParty'
+import CallWaiterSheet from '../components/table/CallWaiterSheet'
 
 export default function TablePage() {
   const { t } = useTranslation(['table', 'booking', 'common'])
-  const { tableId, restaurantId, setTable, claimTable, clearTable } = useCart()
+  const { tableId, restaurantId, setTable, claimTable, clearTable, sessionStatus } = useCart()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [tableInfo, setTableInfo] = useState(null)
@@ -37,7 +40,9 @@ export default function TablePage() {
   }
 
   useEffect(() => {
-    if (!tableId) { setLoading(false); return }
+    // A guest still waiting on host approval has no RLS access to place orders and
+    // shouldn't be querying/subscribing here — PendingJoin owns that screen instead.
+    if (!tableId || sessionStatus === 'pending') { setLoading(false); return }
 
     let orderChannel
     let kdsChannel
@@ -121,8 +126,9 @@ export default function TablePage() {
     }
     // Depend on the stable user id, not the whole `session` object (which gets a new
     // identity on every token refresh and would otherwise re-subscribe needlessly).
+    // Also re-run when sessionStatus flips pending -> active (host just approved).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableId, session?.user?.id])
+  }, [tableId, session?.user?.id, sessionStatus])
 
   async function enterCode(e) {
     e.preventDefault()
@@ -138,7 +144,10 @@ export default function TablePage() {
     setCodeLoading(false)
     if (error) {
       const msg = error.message || ''
-      setCodeError(msg.includes('table_reserved') ? t('booking:reservedByOther') : t('table:errInvalidCode'))
+      if (msg.includes('table_reserved')) setCodeError(t('booking:reservedByOther'))
+      else if (msg.includes('join_declined')) setCodeError(t('booking:joinDeclined'))
+      else if (msg.includes('too_many_requests')) setCodeError(t('booking:tooManyJoinRequests'))
+      else setCodeError(t('table:errInvalidCode'))
       return
     }
     setCodeInput('')
@@ -196,6 +205,7 @@ export default function TablePage() {
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </>
   )
+  if (sessionStatus === 'pending') return <PendingJoin tableId={tableId} />
 
   const allItems = orders.flatMap(o => o.order_items || [])
   const sessionSubtotal = orders.reduce((s, o) => s + (o.subtotal || 0), 0)
@@ -344,6 +354,12 @@ export default function TablePage() {
             {t('table:addMoreItems')}
           </Link>
         )}
+
+        {/* Who's at the table + join requests (host only) */}
+        {!paymentState && <TableParty tableId={tableId} />}
+
+        {/* Call waiter */}
+        {!paymentState && <CallWaiterSheet tableId={tableId} />}
 
         {/* Orders */}
         {orders.length === 0 ? (

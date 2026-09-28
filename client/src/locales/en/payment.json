@@ -33,5 +33,15 @@
   "errNotAuthenticated": "Please sign in to request the bill.",
   "errNoSession": "Your table session has ended. Rejoin the table and try again.",
   "errInvalidMethod": "That payment method isn't available. Pick another one.",
-  "errRequestFailed": "Couldn't send the bill request. Try again."
+  "errRequestFailed": "Couldn't send the bill request. Try again.",
+  "billLoadError": "Couldn't load the bill. Try again.",
+  "splitTitle": "How do you want to split the bill?",
+  "splitOwn": "Pay my own",
+  "splitEqual": "Split equally ({{count}} ways)",
+  "splitAll": "Pay for everyone",
+  "showBreakdown": "Show breakdown",
+  "hideBreakdown": "Hide breakdown",
+  "splitConfirmOwn": "You paid for your own order.",
+  "splitConfirmEqual": "Split equally among {{count}} guests.",
+  "splitConfirmAll": "You covered the whole table."
 }

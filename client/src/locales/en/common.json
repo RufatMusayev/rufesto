@@ -37,5 +37,6 @@
   "service": "Service",
   "servicePct": "Service ({{pct}}%)",
   "restaurant": "Restaurant",
-  "termsNotice": "By continuing you agree to our Terms & Privacy Policy"
+  "termsNotice": "By continuing you agree to our Terms & Privacy Policy",
+  "you": "you"
 }

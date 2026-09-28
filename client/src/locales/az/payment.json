@@ -33,5 +33,15 @@
   "errNotAuthenticated": "Hesabı tələb etmək üçün daxil olun.",
   "errNoSession": "Masa sessiyanız bitib. Masaya yenidən qoşulub cəhd edin.",
   "errInvalidMethod": "Bu ödəniş üsulu mövcud deyil. Başqasını seçin.",
-  "errRequestFailed": "Hesab sorğusu göndərilmədi. Yenidən cəhd edin."
+  "errRequestFailed": "Hesab sorğusu göndərilmədi. Yenidən cəhd edin.",
+  "billLoadError": "Hesab yüklənmədi. Yenidən cəhd edin.",
+  "splitTitle": "Hesabı necə bölmək istəyirsiniz?",
+  "splitOwn": "Öz payımı ödə",
+  "splitEqual": "Bərabər böl ({{count}} nəfər)",
+  "splitAll": "Hamısı üçün ödə",
+  "showBreakdown": "Ətraflı bax",
+  "hideBreakdown": "Gizlət",
+  "splitConfirmOwn": "Öz sifarişinizi ödədiniz.",
+  "splitConfirmEqual": "{{count}} qonaq arasında bərabər bölündü.",
+  "splitConfirmAll": "Bütün masanın hesabını ödədiniz."
 }

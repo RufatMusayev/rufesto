@@ -13,6 +13,25 @@ const TYPE_META = {
   review_reply:      { icon: '💬', color: 'var(--accent)',     bg: 'rgba(139,45,66,0.08)'        },
   promotion:         { icon: '🎉', color: 'var(--gold)',       bg: 'rgba(196,154,44,0.08)'       },
   system:            { icon: '🔔', color: 'var(--t3)',         bg: 'var(--s3)'                   },
+  join_request:      { icon: '🙋', color: 'var(--gold)',       bg: 'rgba(196,154,44,0.08)'       },
+  join_approved:     { icon: '✅', color: 'var(--sage)',       bg: 'var(--sage-bg)'             },
+  join_declined:     { icon: '🚫', color: 'var(--red)',        bg: 'rgba(239,68,68,0.08)'        },
+}
+
+// Types whose `payload` is a JSON string (parsed for interpolation) rather than
+// ready-to-render text — everything else keeps the legacy `payload || t(type)` shape.
+const JSON_PAYLOAD_TYPES = new Set(['join_request', 'join_approved', 'join_declined'])
+
+function notificationText(n, t) {
+  if (JSON_PAYLOAD_TYPES.has(n.type)) {
+    let payload = {}
+    try { payload = n.payload ? JSON.parse(n.payload) : {} } catch { payload = {} }
+    if (n.type === 'join_request') {
+      return t('notifications:join_request', { name: payload.name || t('notifications:someone') })
+    }
+    return t(`notifications:${n.type}`)
+  }
+  return n.payload || t(`notifications:${n.type}`, { defaultValue: n.type })
 }
 
 function groupByDate(notifs, t, locale) {
@@ -205,7 +224,7 @@ export default function NotificationsPage() {
                         fontWeight: n.read ? 400 : 500,
                         marginBottom: 3,
                       }}>
-                        {n.payload || t(`notifications:${n.type}`, { defaultValue: n.type })}
+                        {notificationText(n, t)}
                       </p>
                       <span style={{
                         fontFamily: "'DM Mono', monospace",

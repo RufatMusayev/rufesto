@@ -8,12 +8,12 @@ const CartContext = createContext(null)
 function loadSession() {
   try {
     const raw = sessionStorage.getItem('rufesto_table_session')
-    return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null }
-  } catch { return { tableId: null, restaurantId: null, activeBookingId: null } }
+    return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false }
+  } catch { return { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false } }
 }
 
-function saveSession(tableId, restaurantId, activeBookingId) {
-  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId }))
+function saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost) {
+  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId, sessionStatus, isHost }))
 }
 
 function clearSession() {
@@ -47,9 +47,16 @@ function cartReducer(state, action) {
     case 'CLEAR':
       return { ...state, items: [] }
     case 'SET_TABLE':
-      return { ...state, tableId: action.tableId, restaurantId: action.restaurantId, activeBookingId: action.activeBookingId }
+      return {
+        ...state,
+        tableId: action.tableId,
+        restaurantId: action.restaurantId,
+        activeBookingId: action.activeBookingId,
+        sessionStatus: action.sessionStatus ?? null,
+        isHost: action.isHost ?? false,
+      }
     case 'CLEAR_TABLE':
-      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, items: [] }
+      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, items: [] }
     default:
       return state
   }
@@ -61,6 +68,8 @@ export function CartProvider({ children }) {
     tableId: savedSession.tableId,
     restaurantId: savedSession.restaurantId,
     activeBookingId: savedSession.activeBookingId,
+    sessionStatus: savedSession.sessionStatus ?? null,
+    isHost: savedSession.isHost ?? false,
   })
   const [open, setOpen]       = useState(false)
   const [placing, setPlacing] = useState(false)
@@ -73,6 +82,12 @@ export function CartProvider({ children }) {
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
 
   function addDish(dish) {
+    // A guest still waiting on host approval has no write access to orders (RLS
+    // rejects the insert) — block it client-side too so the UI stays honest.
+    if (state.sessionStatus === 'pending') {
+      setCartError(t('pendingBlocked'))
+      return
+    }
     // Block cross-restaurant adds when a table session is active
     if (
       state.tableId &&
@@ -94,17 +109,33 @@ export function CartProvider({ children }) {
 
   // Sets the local session only. Table state itself is now owned server-side by the
   // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
-  function setTable(tableId, restaurantId, activeBookingId = null) {
-    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId })
-    saveSession(tableId, restaurantId, activeBookingId)
+  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false) {
+    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost })
+    saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost)
   }
 
   // Claims a table by scanned QR token or typed access code via the claim_table RPC,
-  // which also seats the caller's own booking for that table server-side.
+  // which also seats the caller's own booking for that table server-side. The first
+  // guest at a table becomes host (active); later guests land 'pending' until approved.
   async function claimTable(code) {
     const { data, error } = await supabase.rpc('claim_table', { p_code: code })
     if (error) return { error }
-    setTable(data.table_id, data.restaurant_id, data.booking_id)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
+    return { data }
+  }
+
+  // Re-reads the caller's own table session from the server (source of truth for
+  // pending/active/host) and syncs local state — clears the table locally if the
+  // session no longer exists (e.g. the host declined, or it was ended).
+  async function refreshTableSession() {
+    const { data, error } = await supabase.rpc('my_table_session')
+    if (error) return { error }
+    if (!data) {
+      dispatch({ type: 'CLEAR_TABLE' })
+      clearSession()
+      return { data: null }
+    }
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
     return { data }
   }
 
@@ -122,6 +153,7 @@ export function CartProvider({ children }) {
 
   async function placeOrder(restaurantId, tableId, bookingId = null) {
     if (!session || state.items.length === 0) return { error: t('notReady') }
+    if (state.sessionStatus === 'pending') return { error: t('pendingBlocked') }
     setPlacing(true)
 
     const subtotal = total
@@ -184,8 +216,8 @@ export function CartProvider({ children }) {
         dispatch({ type: 'CLEAR_TABLE' })
         clearSession()
       } else {
-        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id })
-        saveSession(data.table_id, data.restaurant_id, data.booking_id)
+        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id, sessionStatus: data.session_status, isHost: data.is_host })
+        saveSession(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
       }
     })
     return () => { cancelled = true }
@@ -196,6 +228,7 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items: state.items, total, itemCount,
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
+      sessionStatus: state.sessionStatus, isHost: state.isHost,
       open, setOpen,
       placing,
       cartError, clearCartError,
@@ -204,6 +237,7 @@ export function CartProvider({ children }) {
       decrement: (dishId) => dispatch({ type: 'DEC',    dishId }),
       setTable,
       claimTable,
+      refreshTableSession,
       clearTable,
       placeOrder,
       clear: () => dispatch({ type: 'CLEAR' }),

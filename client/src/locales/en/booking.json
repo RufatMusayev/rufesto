@@ -39,5 +39,9 @@
   "stateOccupied": "Occupied",
   "claiming": "Joining table…",
   "errNotAuthenticated": "Please sign in to join a table.",
-  "errClaimFailed": "Couldn't join this table. Try again."
+  "errClaimFailed": "Couldn't join this table. Try again.",
+  "joinDeclined": "The host didn't approve your last request to join this table. Please ask them, or a staff member, for help.",
+  "tooManyJoinRequests": "Several people are already waiting to join this table. Please ask the host or a staff member.",
+  "requestSentTitle": "Request Sent",
+  "pendingApprovalHint": "We'll seat you as soon as the host approves your request."
 }

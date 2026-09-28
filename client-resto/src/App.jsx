@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 
 import LoginPage       from './pages/LoginPage'
 import ProtectedRoute  from './components/ProtectedRoute'
+import RoleGate        from './components/RoleGate'
 import DashboardLayout from './components/layout/DashboardLayout'
 import DashboardHome   from './pages/DashboardHome'
 import OrdersPage      from './pages/OrdersPage'
@@ -12,6 +13,7 @@ import TablesPage      from './pages/TablesPage'
 import MenuPage        from './pages/MenuPage'
 import PromosPage      from './pages/PromosPage'
 import BookingsPage    from './pages/BookingsPage'
+import WaiterPage      from './pages/WaiterPage'
 
 export default function App() {
   return (
@@ -21,14 +23,17 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<ProtectedRoute />}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/"         element={<DashboardHome />} />
-                <Route path="/orders"   element={<OrdersPage />} />
-                <Route path="/kds"      element={<KDSPage />} />
-                <Route path="/tables"   element={<TablesPage />} />
-                <Route path="/menu"     element={<MenuPage />} />
-                <Route path="/promos"   element={<PromosPage />} />
-                <Route path="/bookings" element={<BookingsPage />} />
+              <Route element={<RoleGate />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/"         element={<DashboardHome />} />
+                  <Route path="/orders"   element={<OrdersPage />} />
+                  <Route path="/kds"      element={<KDSPage />} />
+                  <Route path="/tables"   element={<TablesPage />} />
+                  <Route path="/menu"     element={<MenuPage />} />
+                  <Route path="/promos"   element={<PromosPage />} />
+                  <Route path="/bookings" element={<BookingsPage />} />
+                  <Route path="/waiter"   element={<WaiterPage />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

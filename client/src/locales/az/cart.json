@@ -9,5 +9,6 @@
   "noTableError": "Masa seçilməyib — əvvəlcə QR kodu skan edin.",
   "notReady": "Sifariş vermək üçün daxil olmalı və səbətinizdə məhsul olmalıdır.",
   "openCart": "Səbəti aç",
-  "crossRestaurantError": "Bu masa başqa restorana aiddir. Yalnız masanızın olduğu restorandan sifariş verə bilərsiniz."
+  "crossRestaurantError": "Bu masa başqa restorana aiddir. Yalnız masanızın olduğu restorandan sifariş verə bilərsiniz.",
+  "pendingBlocked": "Masa sahibinin sizi buraxmasını gözləyirsiniz — hələ sifariş verə bilməzsiniz."
 }

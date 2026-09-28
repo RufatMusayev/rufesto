@@ -9,5 +9,6 @@
   "noTableError": "No table selected — scan a QR code first.",
   "notReady": "You need to be signed in with items in your cart to place an order.",
   "openCart": "Open cart",
-  "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to."
+  "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to.",
+  "pendingBlocked": "You're waiting for the host to let you in — you can't order yet."
 }

@@ -11,5 +11,9 @@
   "orderPlaced": "Your order has been placed.",
   "reviewReply": "Someone replied to your review.",
   "promotion": "New promotion available!",
-  "system": "System notification."
+  "system": "System notification.",
+  "join_request": "{{name}} wants to join your table.",
+  "join_approved": "You've been let in — you can start ordering!",
+  "join_declined": "Your request to join the table wasn't approved.",
+  "someone": "Someone"
 }

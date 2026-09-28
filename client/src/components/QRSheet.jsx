@@ -85,6 +85,8 @@ export default function QRSheet({ onClose }) {
       if (msg.includes('table_reserved')) setError(t('booking:reservedByOther'))
       else if (msg.includes('not_authenticated')) setError(t('booking:errNotAuthenticated'))
       else if (msg.includes('invalid_code')) setError(t('table:errInvalidCode'))
+      else if (msg.includes('join_declined')) setError(t('booking:joinDeclined'))
+      else if (msg.includes('too_many_requests')) setError(t('booking:tooManyJoinRequests'))
       else setError(t('booking:errClaimFailed'))
       if (!manualMode) setScanning(true)
       return
@@ -92,6 +94,8 @@ export default function QRSheet({ onClose }) {
 
     setResult(data)
     setDone(true)
+    // A pending guest (not yet approved by the host) heads straight to /table, which
+    // renders the PendingJoin waiting screen based on CartContext's sessionStatus.
     closeTimerRef.current = setTimeout(onClose, 1400)
   }
 
@@ -120,18 +124,31 @@ export default function QRSheet({ onClose }) {
 
           {done ? (
             <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: 'var(--sage-bg)', border: '1px solid var(--sage)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
+              {result?.session_status === 'pending' ? (
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px',
+                }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 15" />
+                  </svg>
+                </div>
+              ) : (
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'var(--sage-bg)', border: '1px solid var(--sage)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px',
+                }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+              )}
               <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>
-                {t('booking:youreSeated')}
+                {result?.session_status === 'pending' ? t('booking:requestSentTitle') : t('booking:youreSeated')}
               </h2>
               {result && (
                 <div style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
@@ -140,7 +157,7 @@ export default function QRSheet({ onClose }) {
                 </div>
               )}
               <p style={{ color: 'var(--t3)', fontSize: '0.85rem' }}>
-                {t('booking:seatedHint')}
+                {result?.session_status === 'pending' ? t('booking:pendingApprovalHint') : t('booking:seatedHint')}
               </p>
             </div>
           ) : (

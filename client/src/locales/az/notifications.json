@@ -11,5 +11,9 @@
   "orderPlaced": "Sifarişiniz verildi.",
   "reviewReply": "Kimsə rəyinizə cavab verdi.",
   "promotion": "Yeni kampaniya mövcuddur!",
-  "system": "Sistem bildirişi."
+  "system": "Sistem bildirişi.",
+  "join_request": "{{name}} masanıza qoşulmaq istəyir.",
+  "join_approved": "Sizi buraxdılar — indi sifariş verə bilərsiniz!",
+  "join_declined": "Masaya qoşulma sorğunuz təsdiqlənmədi.",
+  "someone": "Kimsə"
 }

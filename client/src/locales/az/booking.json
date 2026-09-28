@@ -39,5 +39,9 @@
   "stateOccupied": "Dolu",
   "claiming": "Masaya qoşulur…",
   "errNotAuthenticated": "Masaya qoşulmaq üçün daxil olun.",
-  "errClaimFailed": "Masaya qoşula bilmədik. Yenidən cəhd edin."
+  "errClaimFailed": "Masaya qoşula bilmədik. Yenidən cəhd edin.",
+  "joinDeclined": "Masa sahibi bu masaya qoşulma sorğunuzu təsdiqləmədi. Onlardan və ya işçilərdən kömək istəyin.",
+  "tooManyJoinRequests": "Bu masaya qoşulmaq üçün artıq bir neçə nəfər gözləyir. Masa sahibindən və ya işçilərdən kömək istəyin.",
+  "requestSentTitle": "Sorğu Göndərildi",
+  "pendingApprovalHint": "Masa sahibi sorğunuzu təsdiqləyən kimi sizi oturdacağıq."
 }

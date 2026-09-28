@@ -4,6 +4,7 @@ import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { formatPrice } from '../lib/helpers'
+import BillSplit from './BillSplit'
 
 const METHODS = [
   { id: 'card',      labelKey: 'methodCard',      icon: CardIcon,      digital: true  },
@@ -26,8 +27,9 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
   const [creditError, setCreditError] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const [amountDue, setAmountDue] = useState(null)
-
-  const total = order?.total_amount || 0
+  const [bill, setBill] = useState(null)
+  const [billError, setBillError] = useState('')
+  const [mode, setMode] = useState('own')
 
   useEffect(() => {
     if (!session) return
@@ -40,8 +42,35 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
       .catch(() => {})
   }, [session?.user?.id])
 
-  // Usable credits: capped by order total, rounded down to nearest 100 (100 credits = ₼1)
-  const usablePoints = Math.floor(Math.min(credits, Math.round(total * 100)) / 100) * 100
+  // Server-computed per-guest bill for split options — never trust a client total.
+  useEffect(() => {
+    if (!tableId) return
+    let cancelled = false
+    supabase.rpc('table_bill', { p_table_id: tableId }).then(({ data, error: err }) => {
+      if (cancelled) return
+      if (err) {
+        setBillError(err.message?.includes('no_session') ? t('payment:errNoSession') : t('payment:billLoadError'))
+        return
+      }
+      setBill(data)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableId])
+
+  const memberCount = bill?.member_count ?? 1
+  const effectiveMode = memberCount > 1 ? mode : 'own'
+  // Fall back to the order prop's total only until table_bill() resolves, so the
+  // sheet doesn't flash ₼0 — the server amount always wins once it's in.
+  const total = bill
+    ? (effectiveMode === 'equal' ? bill.equal_share : effectiveMode === 'all' ? bill.table_total : bill.my_own)
+    : (order?.total_amount || 0)
+
+  // Usable credits: capped by the order they're redeemed against (and by what this
+  // guest pays), rounded down to nearest 100 (100 credits = ₼1). redeem_credits()
+  // attaches to that one order, so a split total must not raise the cap.
+  const creditCap = Math.min(total, order?.total_amount || 0)
+  const usablePoints = Math.floor(Math.min(credits, Math.round(creditCap * 100)) / 100) * 100
   const creditDiscount = usablePoints / 100
   const creditsOn = useCredits && usablePoints >= 100
   const payable = creditsOn ? Math.max(total - creditDiscount, 0) : total
@@ -75,17 +104,18 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
     }
 
     // No real payment provider is wired up yet — "digital" methods keep the demo
-    // processing delay for feel, but every method now goes through request_bill(),
-    // which records one pending payment per unpaid order (server-computed amounts),
+    // processing delay for feel, but every method now goes through request_table_bill(),
+    // which records pending payment(s) for the chosen split (server-computed amounts),
     // marks the table awaiting_payment and notifies staff. Nothing is marked "paid"
     // from the client.
     if (method.digital) {
       await new Promise(r => setTimeout(r, 1800))
     }
 
-    const { data, error: billErr } = await supabase.rpc('request_bill', {
+    const { data, error: billErr } = await supabase.rpc('request_table_bill', {
       p_table_id: tableId,
       p_method: selected,
+      p_mode: effectiveMode,
     })
 
     if (billErr) {
@@ -109,6 +139,12 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
     onComplete?.()
     onClose()
   }
+
+  const splitNote = memberCount > 1
+    ? (effectiveMode === 'equal' ? t('payment:splitConfirmEqual', { count: memberCount })
+      : effectiveMode === 'all' ? t('payment:splitConfirmAll')
+      : t('payment:splitConfirmOwn'))
+    : null
 
   if (success) return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && handleDone()}>
@@ -164,6 +200,10 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
           </>
         )}
 
+        {splitNote && (
+          <p style={{ color: 'var(--t3)', fontSize: '0.76rem', marginTop: 8 }}>{splitNote}</p>
+        )}
+
         <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }} onClick={handleDone}>
           {t('common:done')}
         </button>
@@ -188,6 +228,12 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
               </svg>
             </button>
           </div>
+
+          {billError && (
+            <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginBottom: '0.75rem', textAlign: 'center' }}>{billError}</p>
+          )}
+
+          <BillSplit bill={bill} mode={mode} onSelectMode={setMode} />
 
           {/* Total display */}
           <div style={{

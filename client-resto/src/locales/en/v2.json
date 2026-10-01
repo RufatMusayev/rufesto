@@ -125,6 +125,7 @@
   "minutes_other": "{{count}} min",
   "fixRules": "Fix the highlighted values to save",
   "saveRules": "Save rules",
+  "rulesPartial": "Only part of your changes was saved, so the form was reloaded with what the restaurant has now. Check the values and save again.",
   "depositsTitle": "Booking deposits",
   "depositsHint": "Ask guests for a deposit when they book.",
   "staffTitle": "Team",

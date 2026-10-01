@@ -11,7 +11,9 @@ export default function usePayPlan(bill, tableId) {
   const [modeSel, setModeSel] = useState(null)              // null = follow the server's plan
   const [tipSel, setTipSel] = useState({ pct: 0, custom: null })   // custom: null = a % chip, string = custom input
   const [waiterSel, setWaiterSel] = useState(null)          // null = the assigned waiter, else staff id | 'team'
-  const [methodSel, setMethod] = useState('demo')
+  // Reception is the default: the bill view-model does not say whether the restaurant allows the demo card,
+  // so the card row is only offered, never preselected (it can still turn out to be demo_disabled).
+  const [methodSel, setMethod] = useState('reception')
   const [demoOff, setDemoOff] = useState(false)          // the restaurant switched demo payments off (demo_disabled)
   const [waiters, setWaiters] = useState([])
 
@@ -41,8 +43,9 @@ export default function usePayPlan(bill, tableId) {
 
   const customOn = tipSel.custom !== null
   const parsed = customOn ? parseTip(tipSel.custom) : tipForShare(share, tipSel.pct)
-  const tipValid = parsed !== null
-  const tipWanted = tipValid ? parsed : 0
+  // No tip is collected at reception, so a half-typed custom tip must not block paying there.
+  const tipValid = method === 'reception' || parsed !== null
+  const tipWanted = parsed !== null ? parsed : 0
   const tip = method === 'reception' ? 0 : tipWanted
 
   const assigned = waiters.find(w => w.isAssigned)?.staffId ?? null

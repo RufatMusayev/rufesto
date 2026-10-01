@@ -125,6 +125,7 @@
   "minutes_other": "{{count}} dəq",
   "fixRules": "Saxlamaq üçün qırmızı sahələri düzəldin",
   "saveRules": "Qaydaları saxla",
+  "rulesPartial": "Dəyişikliklərin yalnız bir hissəsi saxlanıldı, ona görə forma restoranın hazırkı dəyərləri ilə yenidən yükləndi. Dəyərləri yoxlayıb yenidən saxlayın.",
   "depositsTitle": "Rezervasiya depoziti",
   "depositsHint": "Rezervasiya zamanı qonaqdan depozit istəyin.",
   "staffTitle": "Komanda",

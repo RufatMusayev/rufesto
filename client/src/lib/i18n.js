@@ -20,8 +20,6 @@ import bookingEN from '../locales/en/booking.json'
 import bookingAZ from '../locales/az/booking.json'
 import tableEN from '../locales/en/table.json'
 import tableAZ from '../locales/az/table.json'
-import paymentEN from '../locales/en/payment.json'
-import paymentAZ from '../locales/az/payment.json'
 import profileEN from '../locales/en/profile.json'
 import profileAZ from '../locales/az/profile.json'
 import notificationsEN from '../locales/en/notifications.json'
@@ -43,14 +41,14 @@ const resources = {
   en: {
     common: commonEN, nav: navEN, auth: authEN, feed: feedEN,
     restaurant: restaurantEN, menu: menuEN, cart: cartEN, booking: bookingEN,
-    table: tableEN, payment: paymentEN, profile: profileEN,
+    table: tableEN, profile: profileEN,
     notifications: notificationsEN, map: mapEN,
     social: socialEN, bookings: bookingsEN, bills: billsEN,
   },
   az: {
     common: commonAZ, nav: navAZ, auth: authAZ, feed: feedAZ,
     restaurant: restaurantAZ, menu: menuAZ, cart: cartAZ, booking: bookingAZ,
-    table: tableAZ, payment: paymentAZ, profile: profileAZ,
+    table: tableAZ, profile: profileAZ,
     notifications: notificationsAZ, map: mapAZ,
     social: socialAZ, bookings: bookingsAZ, bills: billsAZ,
   },

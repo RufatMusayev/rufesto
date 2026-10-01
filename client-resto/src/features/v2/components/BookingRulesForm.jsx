@@ -58,7 +58,7 @@ function toRules(form, sections) {
 export default function BookingRulesForm({ restaurantId, onSaved }) {
   const { t } = useTranslation(['v2', 'dashboard'])
   const load = useCallback(() => fetchBookingRules(restaurantId), [restaurantId])
-  const { data, error, loading, retry } = useLiveList(load, null, restaurantId)
+  const { data, error, loading, retry, reload } = useLiveList(load, null, restaurantId)
 
   const [form, setForm] = useState(null)
   const [baseline, setBaseline] = useState(null)
@@ -96,7 +96,13 @@ export default function BookingRulesForm({ restaurantId, onSaved }) {
     if (saving || !dirty || invalid) return
     setSaving(true)
     setSaveError('')
-    const { error: err } = await saveBookingRules(restaurantId, toRules(form, sections))
+    const { data: saved, error: err } = await saveBookingRules(restaurantId, toRules(form, sections))
+    if (err && saved?.partial) {
+      // The settings write landed, the timing rules did not: show what the server holds now and say so.
+      await reload()
+      setSaving(false)
+      return setSaveError(t('rulesPartial'))
+    }
     setSaving(false)
     if (err) return setSaveError(v2Error(err, t))
     setBaseline(form)

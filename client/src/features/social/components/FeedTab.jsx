@@ -61,8 +61,11 @@ export default function FeedTab() {
 
   const loadMore = useCallback(async () => {
     if (!userId || !state.nextCursor || more.loading) return
+    const mine = seq.current
     setMore({ loading: true, error: false })
     const { data, error } = await getFeed({ scope, cursor: state.nextCursor })
+    // The scope changed (or the feed reloaded) while this page was loading: it belongs to the old list.
+    if (mine !== seq.current) return
     if (error) { setMore({ loading: false, error: true }); return }
     setState(s => {
       const seen = new Set(s.items.map(key))

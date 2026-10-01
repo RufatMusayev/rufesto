@@ -84,20 +84,38 @@ export async function fetchGroupDetail(bookingId) {
 let openMemberChannels = 0
 const MAX_MEMBER_CHANNELS = 5
 
+// supabase-js hands back the existing channel for a repeated topic, and removeChannel() is async: a panel
+// closed and reopened (or a remount) would get the old channel while it is still leaving, and `.on()` on it
+// throws "cannot add callbacks after subscribe()". Every channel therefore gets a unique name.
+let channelSeq = 0
+
 /** Live members of an open panel. Past 5 open panels it polls instead of adding channels. */
 export function subscribeGroupMembers(bookingId, resync) {
-  if (openMemberChannels >= MAX_MEMBER_CHANNELS) {
+  const poll = () => {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') resync() }, 15000)
     return () => clearInterval(timer)
   }
+  if (openMemberChannels >= MAX_MEMBER_CHANNELS) return poll()
   openMemberChannels += 1
-  const channel = supabase
-    .channel(`v2-booking-members-${bookingId}`)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'booking_members', filter: `booking_id=eq.${bookingId}`,
-    }, resync)
-  const stop = subscribeResync(channel, resync, { onVisible: true, pollMs: 30000 })
-  return () => { openMemberChannels -= 1; stop() }
+  let stop
+  try {
+    const channel = supabase
+      .channel(`v2-booking-members-${bookingId}-${++channelSeq}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'booking_members', filter: `booking_id=eq.${bookingId}`,
+      }, resync)
+    stop = subscribeResync(channel, resync, { onVisible: true, pollMs: 30000 })
+  } catch {
+    // The slot goes back and the panel polls: a realtime failure must not take the screen down.
+    openMemberChannels -= 1
+    return poll()
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    try { stop() } finally { openMemberChannels -= 1 }
+  }
 }
 
 // ───────────────────────── Bills ─────────────────────────
@@ -171,7 +189,7 @@ export function subscribeBills(restaurantId, resync) {
   // CONTRACT: bills and payment_intents are in supabase_realtime and carry restaurant_id (sql/42, 43);
   // a share only changes together with its intent / bill, so these two cover bill_shares.
   const channel = supabase
-    .channel(`v2-bills-${restaurantId}`)
+    .channel(`v2-bills-${restaurantId}-${++channelSeq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `restaurant_id=eq.${restaurantId}` }, resync)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_intents', filter: `restaurant_id=eq.${restaurantId}` }, resync)
   return subscribeResync(channel, resync, { onVisible: true, pollMs: 30000 })
@@ -323,6 +341,11 @@ export async function fetchBookingRules(restaurantId) {
   }
 }
 
+/**
+ * Two writes, no transaction: restaurant_settings first, then availability_rules. When the second one fails the
+ * first is already stored, so the result carries `data: { partial: true }` next to the error; the screen then
+ * reloads what the server holds and says so, instead of showing a plain failure.
+ */
 export async function saveBookingRules(restaurantId, v) {
   // Only the granted columns are updated: a PostgREST upsert would also rewrite restaurant_id, which managers
   // may not UPDATE (sql/43 column grants), and fail with 42501. The row normally exists (created with the
@@ -355,7 +378,8 @@ export async function saveBookingRules(restaurantId, v) {
     max_covers_per_slot: v.maxCovers,
     online_section_ids: v.onlineSectionIds,
   }, { onConflict: 'restaurant_id' }).select('restaurant_id'))
-  return rules.error ? rules : checkWrite(rules)
+  const rulesCheck = rules.error ? rules : checkWrite(rules)
+  return rulesCheck.error ? { data: { partial: true }, error: rulesCheck.error } : rulesCheck
 }
 
 // ───────────────────────── Settings: staff (read-only) ─────────────────────────

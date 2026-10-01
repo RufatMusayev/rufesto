@@ -36,8 +36,7 @@ export default function BillView({ bill, tableId, tableEnded, reload }) {
   const active = ACTIVE.includes(bill.status)
   const myPayment = bill.myPayments.find(p => p.status === 'succeeded') || null
   const myPaid = bill.status === 'paid' || bill.myShare?.status === 'paid'
-  const pendingAtReception = bill.myPayments.find(p => p.status === 'requires_action' && p.provider === 'reception')
-  const reception = actions.reception || (pendingAtReception ? { amount: pendingAtReception.amount } : null)
+  const reception = actions.reception
   const ended = tableEnded && !myPaid
   const canPay = active && !myPaid && !reception && !ended
   const others = bill.shares.filter(s => s.status === 'pending' && s.userId !== bill.people.find(p => p.isMe)?.userId)

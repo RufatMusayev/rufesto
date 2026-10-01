@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createIntent, requestReception, settleDemo } from './api'
 import { sameAmount } from './money'
 
@@ -15,6 +15,14 @@ function readReception(billId) {
 function writeReception(billId, value) {
   try { sessionStorage.setItem(receptionKey(billId), JSON.stringify(value)) } catch { /* private mode */ }
 }
+function clearReception(billId) {
+  try { sessionStorage.removeItem(receptionKey(billId)) } catch { /* private mode */ }
+}
+
+/** My pending "pay at reception" request on this bill, as the server reports it (null when there is none). */
+function pendingReception(bill) {
+  return bill?.myPayments?.find(p => p.status === 'requires_action' && p.provider === 'reception') || null
+}
 
 /**
  * The two ways to pay. Each guards itself with a ref so a double tap runs once: the demo path creates one
@@ -22,11 +30,23 @@ function writeReception(billId, value) {
  *
  *   payDemo()   -> { error } | { changed: amount } | { ok: true }
  *   askStaff()  -> { error } | { ok: true }
+ *
+ * `reception` ({ amount } | null) is "waiting for staff". The server decides: a pending reception intent in
+ * `bill.myPayments` shows it. The sessionStorage copy only bridges the moment between asking and the reload
+ * that returns the intent; every bill snapshot without a pending intent (e.g. after someone replanned the
+ * split, which cancels it) clears it, so a guest is never stuck on "waiting for staff".
  */
 export default function usePayActions({ bill, plan, tableId, reload }) {
   const busy = useRef(false)
   const [processing, setProcessing] = useState(false)
-  const [reception, setReception] = useState(() => (bill ? readReception(bill.id) : null))
+  const [local, setReception] = useState(() => (bill ? readReception(bill.id) : null))
+  const server = pendingReception(bill)
+
+  useEffect(() => {
+    if (!bill || pendingReception(bill)) return
+    clearReception(bill.id)
+    setReception(null)
+  }, [bill])
 
   async function guarded(fn) {
     if (busy.current) return { skipped: true }
@@ -64,5 +84,6 @@ export default function usePayActions({ bill, plan, tableId, reload }) {
     return { ok: true }
   })
 
+  const reception = server ? { amount: server.amount } : local
   return { processing, reception, payDemo, askStaff }
 }

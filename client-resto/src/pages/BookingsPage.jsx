@@ -7,6 +7,7 @@ import { localeTag } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
+import { GroupBookingPanel } from '../features/v2/mounts'
 
 // Real `booking_status` values. `no_show` is set by the mark_no_shows() job, so
 // its chip only shows while a booking has it (or the chip is selected).
@@ -52,7 +53,7 @@ export default function BookingsPage() {
   async function load() {
     const { data } = await supabase
       .from('bookings')
-      .select('*, users(name, email, phone), tables(table_number)')
+      .select('*, users!bookings_user_id_fkey(name, email, phone), tables(table_number)')
       .eq('restaurant_id', restaurantId)
       .order('reserved_from', { ascending: false })
       .limit(50)
@@ -161,6 +162,8 @@ export default function BookingsPage() {
                       "{b.special_requests}"
                     </p>
                   )}
+
+                  <GroupBookingPanel booking={b} />
 
                   {b.status === 'pending' && (
                     <div style={{ display:'flex', gap:'0.4rem' }}>

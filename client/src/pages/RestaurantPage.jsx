@@ -13,6 +13,7 @@ import AuthModal from '../components/AuthModal'
 import BookingModal from '../components/BookingModal'
 import DishDetailSheet from '../components/DishDetailSheet'
 import FloorPlanSheet from '../components/FloorPlanSheet'
+import { BookWithFriendsButton } from '../features/bookings/mounts'
 
 export default function RestaurantPage() {
   const { slug } = useParams()
@@ -400,6 +401,7 @@ export default function RestaurantPage() {
           >
             {t('restaurant:reserveTable')}
           </button>
+          <BookWithFriendsButton restaurant={restaurant} />
           <button
             className="btn btn-ghost"
             onClick={() => setShowFloor(true)}

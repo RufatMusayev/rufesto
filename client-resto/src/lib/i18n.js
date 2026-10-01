@@ -18,6 +18,8 @@ import ordersEN from '../locales/en/orders.json'
 import ordersAZ from '../locales/az/orders.json'
 import dashboardEN from '../locales/en/dashboard.json'
 import dashboardAZ from '../locales/az/dashboard.json'
+import v2EN from '../locales/en/v2.json'
+import v2AZ from '../locales/az/v2.json'
 
 export const SUPPORTED_LANGS = ['en', 'az']
 export const DEFAULT_LANG = 'en'
@@ -26,12 +28,12 @@ const resources = {
   en: {
     common: commonEN, nav: navEN, auth: authEN,
     menu: menuEN, booking: bookingEN, table: tableEN,
-    orders: ordersEN, dashboard: dashboardEN,
+    orders: ordersEN, dashboard: dashboardEN, v2: v2EN,
   },
   az: {
     common: commonAZ, nav: navAZ, auth: authAZ,
     menu: menuAZ, booking: bookingAZ, table: tableAZ,
-    orders: ordersAZ, dashboard: dashboardAZ,
+    orders: ordersAZ, dashboard: dashboardAZ, v2: v2AZ,
   },
 }
 

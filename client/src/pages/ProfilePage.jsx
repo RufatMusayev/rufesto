@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,6 +8,8 @@ import { rsrc } from '../lib/publicSource'
 import { formatPrice, timeAgo, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
 import LoadError from '../components/LoadError'
+import { FriendsEntry } from '../features/social/mounts'
+import { MyBookingsTab as BookingsTab } from '../features/bookings/mounts'
 
 function FeedbackForm({ userId, defaultName, defaultEmail }) {
   const { t } = useTranslation(['profile', 'common'])
@@ -264,6 +266,7 @@ export default function ProfilePage() {
 
             {/* Settings */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
+              <FriendsEntry />
               {/* Theme toggle row */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -344,128 +347,6 @@ function PointsBadge({ userId }) {
       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
         {t('profile:creditsBadge', { count: points.points })}
       </span>
-    </div>
-  )
-}
-
-function BookingsTab({ userId }) {
-  const { t } = useTranslation(['profile', 'common'])
-  const [bookings, setBookings] = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-  const hasData = useRef(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    function load() {
-      supabase
-        .from('bookings')
-        .select(`*, ${rsrc()}(name, cuisine_type, address), tables(table_number)`)
-        .eq('user_id', userId)
-        .order('reserved_from', { ascending: false })
-        .limit(20)
-        .then(({ data, error }) => {
-          if (cancelled) return
-          if (error) {
-            console.error('Bookings load failed:', error.message)
-            if (!hasData.current) setLoadError(true)   // a failed live refetch keeps the list already shown
-          } else {
-            hasData.current = true
-            setLoadError(false)
-            setBookings(data || [])
-          }
-          setLoading(false)
-        })
-    }
-    load()
-
-    // Live status: a request flips pending -> confirmed/cancelled when the restaurant acts on it.
-    // Scoped to this guest's own bookings.
-    const channel = supabase
-      .channel(`my-bookings-${userId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'bookings',
-        filter: `user_id=eq.${userId}`,
-      }, (payload) => {
-        if (payload.eventType === 'UPDATE' && payload.new?.id) {
-          setBookings(prev => prev.map(b => b.id === payload.new.id ? { ...b, ...payload.new } : b))
-        } else {
-          load()   // new booking or a deletion: refetch (the embedded restaurant/table aren't in the payload)
-        }
-      })
-      .subscribe()
-
-    return () => {
-      cancelled = true
-      supabase.removeChannel(channel)
-    }
-  }, [userId, attempt])
-
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-      {[1,2,3].map(i => (
-        <div key={i} className="skeleton" style={{ height: 90, borderRadius: 12 }} />
-      ))}
-    </div>
-  )
-
-  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
-
-  if (!bookings.length) return (
-    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>📅</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noBookings')}</div>
-      <div style={{ fontSize: '0.82rem' }}>{t('profile:noBookingsHint')}</div>
-    </div>
-  )
-
-  const STATUS_COLOR = {
-    pending:   { color: 'var(--accent)', bg: 'rgba(245,158,11,0.08)' },
-    confirmed: { color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
-    seated:    { color: '#3b82f6',       bg: 'rgba(59,130,246,0.08)' },
-    completed: { color: 'var(--t3)',     bg: 'var(--s3)'             },
-    cancelled: { color: 'var(--red)',    bg: 'rgba(239,68,68,0.08)'  },
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {bookings.map(b => {
-        const sc = STATUS_COLOR[b.status] || STATUS_COLOR.pending
-        const dt = new Date(b.reserved_from)
-        return (
-          <div key={b.id} className="card stagger-item" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--t1)' }}>{b.restaurants?.name}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--t3)', marginTop: 2 }}>
-                  {b.restaurants?.cuisine_type} · {b.restaurants?.address}
-                </div>
-              </div>
-              <span style={{
-                fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
-                background: sc.bg, color: sc.color, flexShrink: 0, marginLeft: 8,
-              }}>{b.status.toUpperCase()}</span>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem', color: 'var(--t2)', fontFamily: "'DM Mono', monospace" }}>
-              <span>{dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              <span>{dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-              <span>{t('profile:guestsCount', { count: b.party_size })}</span>
-            </div>
-            {b.tables?.table_number && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--t4)', marginTop: 4 }}>
-                {t('common:tableLabel', { number: b.tables.table_number })}
-              </div>
-            )}
-            {b.special_requests && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--accent)', marginTop: 4, fontStyle: 'italic' }}>
-                "{b.special_requests}"
-              </div>
-            )}
-          </div>
-        )
-      })}
     </div>
   )
 }

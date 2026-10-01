@@ -15,5 +15,20 @@
   "join_request": "{{name}} masanıza qoşulmaq istəyir.",
   "join_approved": "Sizi buraxdılar — indi sifariş verə bilərsiniz!",
   "join_declined": "Masaya qoşulma sorğunuz təsdiqlənmədi.",
-  "someone": "Kimsə"
+  "someone": "Kimsə",
+  "friend_request": "{{name}} sizə dostluq sorğusu göndərdi.",
+  "friend_accepted": "{{name}} dostluq sorğunuzu qəbul etdi.",
+  "post_like": "{{name}} paylaşımınızı bəyəndi.",
+  "post_comment": "{{name}} şərh yazdı: “{{snippet}}”",
+  "post_comment_plain": "{{name}} paylaşımınıza şərh yazdı.",
+  "booking_invite": "{{host}} sizi {{restaurant}} məkanına dəvət etdi, {{when}}.",
+  "booking_member_joined": "{{name}} rezervasiyanıza qoşuldu.",
+  "booking_seated": "Qrupunuz {{number}} nömrəli masaya yerləşdirildi.",
+  "group_confirmed": "{{restaurant}} üzrə rezervasiyanız ({{when}}) təsdiqləndi.",
+  "group_cancelled": "{{restaurant}} üzrə rezervasiyanız ({{when}}) ləğv edildi.",
+  "group_no_show": "{{restaurant}} üzrə rezervasiyanız ({{when}}) gəlmədi kimi qeyd olundu.",
+  "bill_settled": "Hesabınız ödənildi ({{total}}). Qəbz: {{receipt}}.",
+  "booking_created": "Yeni rezervasiya sorğusu.",
+  "bill_requested": "Masa hesab istədi.",
+  "aRestaurant": "restoran"
 }

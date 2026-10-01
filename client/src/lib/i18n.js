@@ -28,6 +28,13 @@ import notificationsEN from '../locales/en/notifications.json'
 import notificationsAZ from '../locales/az/notifications.json'
 import mapEN from '../locales/en/map.json'
 import mapAZ from '../locales/az/map.json'
+// v2 features (client/src/features/*): each also self-registers, adding the same bundle twice is harmless
+import socialEN from '../locales/en/social.json'
+import socialAZ from '../locales/az/social.json'
+import bookingsEN from '../locales/en/bookings.json'
+import bookingsAZ from '../locales/az/bookings.json'
+import billsEN from '../locales/en/bills.json'
+import billsAZ from '../locales/az/bills.json'
 
 export const SUPPORTED_LANGS = ['en', 'az']
 export const DEFAULT_LANG = 'en'
@@ -38,12 +45,14 @@ const resources = {
     restaurant: restaurantEN, menu: menuEN, cart: cartEN, booking: bookingEN,
     table: tableEN, payment: paymentEN, profile: profileEN,
     notifications: notificationsEN, map: mapEN,
+    social: socialEN, bookings: bookingsEN, bills: billsEN,
   },
   az: {
     common: commonAZ, nav: navAZ, auth: authAZ, feed: feedAZ,
     restaurant: restaurantAZ, menu: menuAZ, cart: cartAZ, booking: bookingAZ,
     table: tableAZ, payment: paymentAZ, profile: profileAZ,
     notifications: notificationsAZ, map: mapAZ,
+    social: socialAZ, bookings: bookingsAZ, bills: billsAZ,
   },
 }
 

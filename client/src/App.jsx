@@ -14,6 +14,9 @@ import NotificationsPage  from './pages/NotificationsPage'
 import MapPage            from './pages/MapPage'
 import TablePage          from './pages/TablePage'
 import TableClaimPage     from './pages/TableClaimPage'
+import socialRoutes       from './features/social/routes'
+import bookingsRoutes     from './features/bookings/routes'
+import billsRoutes        from './features/bills/routes'
 
 export default function App() {
   return (
@@ -33,6 +36,10 @@ export default function App() {
                 <Route path="/notifications"    element={<NotificationsPage />} />
                 <Route path="/table"            element={<TablePage />}          />
                 <Route path="/t/:code"          element={<TableClaimPage />}     />
+                {/* v2: all public (each screen handles signed-out itself), inside AppLayout */}
+                {socialRoutes}
+                {bookingsRoutes}
+                {billsRoutes}
               </Route>
             </Routes>
           </CartProvider>

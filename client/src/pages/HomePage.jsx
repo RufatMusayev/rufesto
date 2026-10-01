@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
 import LoadError from '../components/LoadError'
+import { HomeTabs } from '../features/social/mounts'
 
 export default function HomePage() {
   const [restaurants, setRestaurants] = useState([])
@@ -162,43 +163,45 @@ export default function HomePage() {
   }
 
   return (
-    <div>
-      {loading ? (
-        <>
-          <StoriesBarSkeleton />
-          {[1, 2].map(i => <PostSkeleton key={i} />)}
-        </>
-      ) : loadError ? (
-        <LoadError onRetry={retry} />
-      ) : (
-        <>
-          <StoriesBar restaurants={restaurants} followedIds={followedIds} />
-          <div style={{ maxWidth: 470, margin: '0 auto' }}>
-            {buildFeed(reviews, restaurants, campaigns).map((item, i) =>
-              item._type === 'review'
-                ? <ReviewPostCard
-                    key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail}
-                    initialLikeCount={reviewLikeCounts[item.id] || 0}
-                    initialLiked={myLikedReviewIds.has(item.id)}
-                    initialSaved={mySavedDishIds.has(item.dishes?.id || item.dish_id)}
-                  />
-                : item._type === 'promo'
-                  ? <PromoCard key={`promo-${item.id}`} campaign={item} index={i} onDishClick={setDishDetail} />
-                  : <FeedPost
-                      key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds}
-                      initialLikeCount={restaurantLikeCounts[item.id] || 0}
-                      initialLiked={myLikedRestaurantIds.has(item.id)}
+    <HomeTabs>
+      <div>
+        {loading ? (
+          <>
+            <StoriesBarSkeleton />
+            {[1, 2].map(i => <PostSkeleton key={i} />)}
+          </>
+        ) : loadError ? (
+          <LoadError onRetry={retry} />
+        ) : (
+          <>
+            <StoriesBar restaurants={restaurants} followedIds={followedIds} />
+            <div style={{ maxWidth: 470, margin: '0 auto' }}>
+              {buildFeed(reviews, restaurants, campaigns).map((item, i) =>
+                item._type === 'review'
+                  ? <ReviewPostCard
+                      key={`rev-${item.id}`} review={item} index={i} onDishClick={setDishDetail}
+                      initialLikeCount={reviewLikeCounts[item.id] || 0}
+                      initialLiked={myLikedReviewIds.has(item.id)}
+                      initialSaved={mySavedDishIds.has(item.dishes?.id || item.dish_id)}
                     />
-            )}
-            <div style={{ height: 80 }} />
-          </div>
-        </>
-      )}
+                  : item._type === 'promo'
+                    ? <PromoCard key={`promo-${item.id}`} campaign={item} index={i} onDishClick={setDishDetail} />
+                    : <FeedPost
+                        key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds}
+                        initialLikeCount={restaurantLikeCounts[item.id] || 0}
+                        initialLiked={myLikedRestaurantIds.has(item.id)}
+                      />
+              )}
+              <div style={{ height: 80 }} />
+            </div>
+          </>
+        )}
 
-      {dishDetail && (
-        <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />
-      )}
-    </div>
+        {dishDetail && (
+          <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />
+        )}
+      </div>
+    </HomeTabs>
   )
 }
 

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { timeAgo } from '../lib/helpers'
+import { describeNotification } from '../lib/notificationView'
 import AuthModal from '../components/AuthModal'
 
 const TYPE_META = {
@@ -16,22 +18,18 @@ const TYPE_META = {
   join_request:      { icon: '🙋', color: 'var(--gold)',       bg: 'rgba(196,154,44,0.08)'       },
   join_approved:     { icon: '✅', color: 'var(--sage)',       bg: 'var(--sage-bg)'             },
   join_declined:     { icon: '🚫', color: 'var(--red)',        bg: 'rgba(239,68,68,0.08)'        },
-}
-
-// Types whose `payload` is a JSON string (parsed for interpolation) rather than
-// ready-to-render text — everything else keeps the legacy `payload || t(type)` shape.
-const JSON_PAYLOAD_TYPES = new Set(['join_request', 'join_approved', 'join_declined'])
-
-function notificationText(n, t) {
-  if (JSON_PAYLOAD_TYPES.has(n.type)) {
-    let payload = {}
-    try { payload = n.payload ? JSON.parse(n.payload) : {} } catch { payload = {} }
-    if (n.type === 'join_request') {
-      return t('notifications:join_request', { name: payload.name || t('notifications:someone') })
-    }
-    return t(`notifications:${n.type}`)
-  }
-  return n.payload || t(`notifications:${n.type}`, { defaultValue: n.type })
+  // v2 social, group bookings, bills (payloads: docs/V2-CONTRACT.md section 6)
+  friend_request:        { icon: '👥', color: 'var(--gold)',   bg: 'rgba(196,154,44,0.08)' },
+  friend_accepted:       { icon: '🤝', color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
+  post_like:             { icon: '🤌', color: 'var(--accent)', bg: 'rgba(139,45,66,0.08)'  },
+  post_comment:          { icon: '🍽️', color: 'var(--accent)', bg: 'rgba(139,45,66,0.08)'  },
+  booking_invite:        { icon: '💌', color: 'var(--gold)',   bg: 'rgba(196,154,44,0.08)' },
+  booking_member_joined: { icon: '👥', color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
+  booking_seated:        { icon: '🪑', color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
+  booking_no_show:       { icon: '✕',  color: 'var(--red)',    bg: 'rgba(239,68,68,0.08)'  },
+  booking_created:       { icon: '📋', color: 'var(--gold)',   bg: 'rgba(196,154,44,0.08)' },
+  bill_settled:          { icon: '🧾', color: 'var(--sage)',   bg: 'var(--sage-bg)'        },
+  bill_requested:        { icon: '🧾', color: '#3b82f6',       bg: 'rgba(59,130,246,0.08)' },
 }
 
 function groupByDate(notifs, t, locale) {
@@ -61,6 +59,7 @@ function groupByDate(notifs, t, locale) {
 export default function NotificationsPage() {
   const { t, i18n } = useTranslation(['notifications', 'auth', 'common'])
   const { session } = useAuth()
+  const navigate = useNavigate()
   const dateLocale = i18n.language?.startsWith('az') ? 'az-AZ' : 'en-GB'
   const [notifs,    setNotifs]    = useState([])
   const [loading,   setLoading]  = useState(true)
@@ -118,7 +117,7 @@ export default function NotificationsPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '16px 16px 12px',
         borderBottom: '1px solid var(--border)',
-        position: 'sticky', top: 'var(--nav-h)', background: 'var(--bg)', zIndex: 5,
+        position: 'sticky', top: 'var(--sticky-top)', background: 'var(--bg)', zIndex: 5,
       }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)' }}>
           {t('notifications:title')}
@@ -182,7 +181,7 @@ export default function NotificationsPage() {
                 color: 'var(--t4)', textTransform: 'uppercase',
                 letterSpacing: 0.8,
                 background: 'var(--bg)',
-                position: 'sticky', top: 'calc(var(--nav-h) + 49px)', zIndex: 4,
+                position: 'sticky', top: 'calc(var(--sticky-top) + 49px)', zIndex: 4,
                 borderBottom: '1px solid var(--border)',
               }}>
                 {group.label}
@@ -190,18 +189,27 @@ export default function NotificationsPage() {
 
               {group.items.map((n, idx) => {
                 const meta = TYPE_META[n.type] || TYPE_META.system
+                const { text, to } = describeNotification(n, t, i18n.language)
+                function open() {
+                  if (!n.read) markRead(n.id)
+                  if (to) navigate(to)
+                }
                 return (
                   <div
                     key={n.id}
                     className="stagger-item"
-                    onClick={() => !n.read && markRead(n.id)}
+                    onClick={open}
+                    {...(to ? {
+                      role: 'link', tabIndex: 0,
+                      onKeyDown: e => { if (e.key === 'Enter') open() },
+                    } : {})}
                     style={{
                       display: 'flex', gap: 12, alignItems: 'flex-start',
                       padding: '14px 16px',
                       borderBottom: '1px solid var(--border)',
                       borderLeft: `3px solid ${n.read ? 'transparent' : 'var(--accent)'}`,
                       background: n.read ? 'transparent' : 'var(--s2)',
-                      cursor: n.read ? 'default' : 'pointer',
+                      cursor: n.read && !to ? 'default' : 'pointer',
                       transition: 'background 200ms var(--ease-out), border-color 200ms',
                       animationDelay: `${idx * 40}ms`,
                     }}
@@ -224,7 +232,7 @@ export default function NotificationsPage() {
                         fontWeight: n.read ? 400 : 500,
                         marginBottom: 3,
                       }}>
-                        {notificationText(n, t)}
+                        {text}
                       </p>
                       <span style={{
                         fontFamily: "'DM Mono', monospace",

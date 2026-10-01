@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useCart } from '../../contexts/CartContext'
 import LanguageSwitcher from '../LanguageSwitcher'
+import socialNav from '../../features/social/nav'
+import bookingsNav from '../../features/bookings/nav'
+import billsNav from '../../features/bills/nav'
+
+// v2 feature entries for the desktop rail. placement 'tab' / 'profile' show here ('profile' ones are
+// reached from the Profile screen on mobile, so the bottom nav never lists them); 'none' is never rendered.
+const FEATURE_NAV = [...socialNav, ...bookingsNav, ...billsNav].filter(n => n.placement === 'tab' || n.placement === 'profile')
 
 // unreadCount is owned by AppLayout (single subscription) and passed down here — this
 // component used to run its own duplicate notifications subscription + count query on
@@ -43,6 +50,7 @@ export default function Sidebar({ unreadCount = 0 }) {
         <SideItem to="/map" label={t('map')} Icon={MapIcon} />
         <SideItem to="/notifications" label={t('notifications')} Icon={BellIcon} badge={unreadCount} />
         <SideItem to="/profile" label={t('profile')} Icon={ProfileIcon} />
+        {FEATURE_NAV.map(n => <SideItem key={n.id} to={n.to} label={t(n.labelKey)} Icon={n.icon} />)}
         <SideItem to="/table" label={tableId ? t('yourTable') : t('enterTableCode')} Icon={QrIcon} dot={!!tableId} />
       </div>
 

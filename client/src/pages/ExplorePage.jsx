@@ -91,7 +91,7 @@ export default function ExplorePage() {
       {/* Sticky search bar */}
       <div style={{
         padding: '12px 16px',
-        position: 'sticky', top: 'var(--nav-h)',
+        position: 'sticky', top: 'var(--sticky-top)',
         background: 'var(--bg)', zIndex: 5,
         borderBottom: '1px solid var(--border)',
       }}>

@@ -1,0 +1,17 @@
+# WP1 Social: integrator notes
+
+**Routes** (public, inside `<Route element={<AppLayout/>}>`, no auth redirect): `import socialRoutes from '../features/social/routes'` then `{socialRoutes}` gives `/friends`, `/u/:id`, `/post/new`, `/post/:id`.
+**Locales:** self-registered by `features/social/i18n.js` (imported by routes/mounts/nav). Optional: also `resources.en.social = socialEN` / `az` in `lib/i18n.js` (same files, harmless twice).
+**Mounts** (`import { HomeTabs, FriendsEntry } from '../features/social/mounts'`):
+- `HomePage.jsx`: `return <HomeTabs>{ ...existing JSX... }</HomeTabs>` (Discover = children; the Feed tab and the gold "+" FAB live inside `HomeTabs`, no second edit).
+- `ProfilePage.jsx`: `<FriendsEntry />` as a row above the theme toggle (renders nothing signed out). `PostComposerFab` is exported but already used by `HomeTabs`.
+**nav.js:** `{ id:'friends', to:'/friends', labelKey:'social:navFriends', icon: PeopleIcon, placement:'profile' }`. Add a Sidebar item (desktop); no BottomNav tab.
+**CSS:** `features/social/styles.css` (global once imported, prefix `soc-`). It has ONE global-ish rule: `.main-content:has(.soc-page, .soc-feed) { overflow-x: clip }`. `.main-content { overflow-x: hidden }` in `index.css` makes it a scroll container, which silently disables `position: sticky` (the mobile app header is not sticky today either). Better fix: change that line in `index.css` to `overflow-x: clip` and delete mine.
+**NotificationsPage.jsx:** types `friend_request`, `friend_accepted`, `post_like`, `post_comment` (payload is JSON text: `friendship_id|post_id`, `user_id`, `name`) are not in `TYPE_META`, so they would render the raw JSON. Add icon + text (+ link to `/friends` or `/post/:id`) and keys in `notifications.json`.
+**Photos:** `PHOTO_UPLOAD_ENABLED = true` in `api.js` (bucket `post-photos`, `<uid>/<ts>.jpg`, from `sql/43`). If the bucket is missing, the first upload failure switches the screen to caption-only with the translated note "Photo upload coming soon" (no data loss). Set the flag to `false` to ship caption-only.
+**Ui primitives:** `client/src/components/ui/` (Avatar, Sheet, Pill, EmptyState, MoneyText, `index.js`) per I-4.
+
+**Contract status** (reconciled with `docs/V2-CONTRACT.md` section 1 and `sql/40, 40b, 40c, 43`; every call has a `// CONTRACT:` note in `api.js`, only `api.js` and `mappers.js` change on a rename):
+- RPCs used: `my_friends`, `friend_requests`, `search_users(p_q)`, `send_friend_request(p_user_id)`, `respond_friend_request(p_id,p_accept)`, `cancel_friend_request(p_id)`, `remove_friend(p_user_id)`, `get_public_profile(p_user_id)` (anon), `feed(p_scope,p_cursor,p_limit)`, `get_post(p_post_id)` (anon), `create_post`, `delete_post(p_id)`, `toggle_post_like`, `post_comments` (anon), `add_post_comment`, `delete_post_comment`. Tables read directly: `friendships` (count + realtime), `likes` (review like), `reviews` (signed-out Feed), `restaurants` (picker). Realtime: `friendships`, `posts` INSERT, `post_comments`.
+- Migrations 40-43 are applied on preview. Every RPC call/shape was verified there (rolled-back transaction as the QA guest and manager); signed-out screens were verified in the browser. Not yet verified in a real signed-in browser session: Storage upload under RLS and Realtime delivery. `block_user` has no UI (out of scope).
+- Signed-out Feed shows public reviews only (`feed` is authenticated-only); `/post/:id` and `/u/:id` work signed-out through the anon RPCs.

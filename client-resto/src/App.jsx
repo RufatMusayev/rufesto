@@ -14,6 +14,7 @@ import MenuPage        from './pages/MenuPage'
 import PromosPage      from './pages/PromosPage'
 import BookingsPage    from './pages/BookingsPage'
 import WaiterPage      from './pages/WaiterPage'
+import v2Routes        from './features/v2/routes'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
                   <Route path="/promos"   element={<PromosPage />} />
                   <Route path="/bookings" element={<BookingsPage />} />
                   <Route path="/waiter"   element={<WaiterPage />} />
+                  {v2Routes /* /bills, /qr-sheet, /settings: role-gated by lib/roles.js */}
                 </Route>
               </Route>
             </Route>

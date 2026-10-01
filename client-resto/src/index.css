@@ -386,9 +386,13 @@ a { text-decoration: none; color: inherit; }
 .dash-mobile-nav {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
   background: var(--bg); border-top: 1px solid var(--border); z-index: 60;
-  justify-content: space-around; align-items: center;
+  justify-content: flex-start; align-items: center;
+  /* admin/manager have 10 entries: scroll sideways instead of squeezing the labels */
+  overflow-x: auto; scrollbar-width: none;
 }
+.dash-mobile-nav::-webkit-scrollbar { display: none; }
 .dash-mobile-nav-item {
+  flex: 1 0 auto; min-width: 54px;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-size: 0.58rem; font-weight: 600; color: var(--t3); text-decoration: none;
   padding: 4px 6px; border-radius: 6px; transition: color 0.15s;
@@ -410,10 +414,12 @@ a { text-decoration: none; color: inherit; }
 }
 @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
 @media (max-width: 768px) {
+  /* Stack: the sticky mobile header sits above the page, not beside it (the layout is a row on desktop). */
+  .dash-layout { flex-direction: column; }
   .dash-sidebar { display: none; }
   .dash-mobile-head { display: flex; }
   .dash-mobile-nav { display: flex; }
-  .dash-content { margin-left: 0; padding-bottom: 64px; }
+  .dash-content { margin-left: 0; padding-bottom: 64px; min-width: 0; }
 }
 
 /* ── Modal / Overlay ── */

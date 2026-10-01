@@ -13,3 +13,7 @@ Thumbs.db
 .agents/
 .claude/
 .mcp.json
+
+# Supabase CLI temp folder, QA credentials for the e2e suite
+supabase/
+e2e/.env

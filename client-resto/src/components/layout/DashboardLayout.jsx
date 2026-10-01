@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { canAccess } from '../../lib/roles'
 import LanguageSwitcher from '../LanguageSwitcher'
+import v2Nav from '../../features/v2/nav'
 
 export default function DashboardLayout() {
   const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
@@ -20,6 +21,8 @@ export default function DashboardLayout() {
     { to: '/promos',   label: t('navPromos'),             icon: PromosIcon },
     { to: '/bookings', label: t('navBookings'),           icon: BookingsIcon },
     { to: '/waiter',   label: t('navWaiter'),             icon: WaiterIcon },
+    // v2 (features/v2): Bills, Settings. The QR sheet is hidden: it opens from Tables and Settings.
+    ...v2Nav.filter(n => !n.hidden).map(n => ({ to: n.to, label: t(n.labelKey), icon: n.icon })),
   ]
   const NAV = ALL_NAV.filter(n => canAccess(staffRow?.role, n.to))
 

@@ -2,18 +2,24 @@
 // UX only: the DB still enforces every write (menu/promos require
 // is_manager_of, the waiter RPCs require _floor_staff_id, etc). This just
 // keeps staff from opening pages their role has no business seeing.
+import { V2_ROLE_ROUTES } from '../features/v2/roles'
 
-export const ALL_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter']
+// v2 pages (features/v2: /bills, /settings, /qr-sheet) are added per role from
+// the feature's own map (decision D-9): bills for admin, manager and cashier;
+// settings and the QR sheet for admin and manager. Waiter, host and kitchen get none.
+const v2 = role => V2_ROLE_ROUTES[role] || []
+
+export const ALL_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', ...v2('admin')]
 
 export const ROLE_ROUTES = {
   admin:   ALL_PAGES,
-  manager: ALL_PAGES,
-  waiter:  ['/waiter', '/tables', '/orders'],
-  host:    ['/waiter', '/tables', '/bookings'],
-  cashier: ['/waiter', '/orders', '/tables'],
+  manager: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', ...v2('manager')],
+  waiter:  ['/waiter', '/tables', '/orders', ...v2('waiter')],
+  host:    ['/waiter', '/tables', '/bookings', ...v2('host')],
+  cashier: ['/waiter', '/orders', '/tables', ...v2('cashier')],
   // Kitchen works the ticket queue only (TARGET-ARCHITECTURE 17.2: "kitchen:
   // tickets only").
-  kitchen: ['/kds'],
+  kitchen: ['/kds', ...v2('kitchen')],
 }
 
 export const ROLE_HOME = {

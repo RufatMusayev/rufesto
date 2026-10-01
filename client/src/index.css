@@ -44,7 +44,11 @@
   --sage:          #4D7C3F;
   --sage-bg:       rgba(77,124,63,0.10);
   --bottom-h: 64px;
+  /* Where a page's own sticky bar docks: 0 on desktop (no top bar), under the 56px app header on mobile. */
+  --sticky-top: 0px;
 }
+
+@media (max-width: 768px) { :root { --sticky-top: var(--nav-h); } }
 
 [data-theme="light"] {
   --bg:       #F5F0E8;
@@ -297,7 +301,12 @@ img { max-width: 100%; display: block; }
 }
 
 .app-layout { display: flex; min-height: 100dvh; }
-.main-content { flex: 1; min-height: 100dvh; overflow-x: hidden; }
+/* Horizontal clip, NOT overflow-x:hidden: hidden turns .main-content into a scroll container, which
+   silently disables position:sticky for everything inside it (app header, page top bars, pay bars).
+   clip hides the overflow the same way and keeps sticky relative to the viewport; the "hidden" line
+   is the fallback for browsers without overflow:clip (Safari < 16). A flex item is only allowed to
+   shrink below its content when it is a scroll container, so min-width:0 is stated explicitly. */
+.main-content { flex: 1; min-width: 0; min-height: 100dvh; overflow-x: hidden; overflow-x: clip; }
 
 body.modal-open { overflow: hidden; }
 
@@ -545,3 +554,7 @@ a.btn { text-decoration: none; }
 /* Inline "couldn't load" notice (components/LoadError) */
 .load-error { text-align: center; padding: 3rem 1.5rem; color: var(--t3); font-size: 0.85rem; line-height: 1.5; }
 .load-error p { margin-bottom: 12px; }
+
+/* Active-booking banner above the no-table empty state (features/bookings ActiveBookingBanner) */
+.table-empty-banner { max-width: 400px; margin: 0 auto; padding: 16px 16px 0; }
+.table-empty-banner:empty { display: none; }

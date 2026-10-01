@@ -7,7 +7,8 @@ import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
-import PaymentSheet from '../components/PaymentSheet'
+import { BillEntry } from '../features/bills/mounts'
+import { ActiveBookingBanner } from '../features/bookings/mounts'
 import PendingJoin from '../components/table/PendingJoin'
 import TableParty from '../components/table/TableParty'
 import CallWaiterSheet from '../components/table/CallWaiterSheet'
@@ -26,7 +27,6 @@ export default function TablePage() {
   const [codeLoading, setCodeLoading] = useState(false)
   const [codeError, setCodeError] = useState('')
   const [paymentState, setPaymentState] = useState(null)
-  const [showPayment, setShowPayment] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   function refetchOrders() {
@@ -197,6 +197,7 @@ export default function TablePage() {
   if (loading) return <TableSkeleton />
   if (!tableId) return (
     <>
+      <div className="table-empty-banner"><ActiveBookingBanner /></div>
       <EmptyTableState
         onStartDemo={startDemo} demoLoading={demoLoading} demoError={demoError}
         codeInput={codeInput} setCodeInput={setCodeInput}
@@ -218,11 +219,6 @@ export default function TablePage() {
   // restaurants can have different restaurant_settings.tax_rate / service_charge.
   const sessionTaxPct = sessionSubtotal > 0 ? Math.round((sessionTax / sessionSubtotal) * 100) : 0
   const sessionServicePct = sessionSubtotal > 0 ? Math.round((sessionService / sessionSubtotal) * 100) : 0
-
-  const creditOrder = orders.reduce(
-    (best, o) => (!best || (o.total_amount || 0) > (best.total_amount || 0) ? o : best),
-    null,
-  )
 
   const allServed = orders.length > 0 && orders.every(o =>
     o.status === 'served' || o.status === 'done' || o.status === 'ready'
@@ -430,39 +426,14 @@ export default function TablePage() {
           </div>
         )}
 
-        {/* Payment section */}
-        {allServed && !paymentState && orders.length > 0 && (
-          <button
-            className="btn btn-primary payment-pulse"
-            style={{ width: '100%', marginTop: 16, padding: '14px 0', fontSize: '0.92rem' }}
-            onClick={() => setShowPayment(true)}
-          >
-            {t('table:requestBill', { price: formatPrice(sessionTotal) })}
-          </button>
-        )}
+        {/* Payment section: the v2 bill screen (split, tip, pay) replaces the old PaymentSheet. */}
+        {allServed && orders.length > 0 && <BillEntry total={sessionTotal} />}
 
         {/* End session */}
         <button onClick={handleEndSession} className="btn btn-danger" style={{ width: '100%', marginTop: 12 }}>
           {t('table:endSession')}
         </button>
       </div>
-
-      {showPayment && orders.length > 0 && (
-        <PaymentSheet
-          // total_amount = whole session (shown until the server bill loads); Resto-Credits are
-          // redeemed against ONE order, so cap them by the largest single order, not the sum.
-          order={{ id: creditOrder.id, total_amount: sessionTotal, credit_cap: creditOrder.total_amount || 0 }}
-          onClose={() => setShowPayment(false)}
-          onComplete={() => {
-            // PaymentSheet's own "Done" already released the table via leave_table();
-            // this just resets the page's local view.
-            setShowPayment(false)
-            setPaymentState('completed')
-            setTableInfo(null)
-            setOrders([])
-          }}
-        />
-      )}
     </div>
   )
 }

@@ -15,5 +15,20 @@
   "join_request": "{{name}} wants to join your table.",
   "join_approved": "You've been let in — you can start ordering!",
   "join_declined": "Your request to join the table wasn't approved.",
-  "someone": "Someone"
+  "someone": "Someone",
+  "friend_request": "{{name}} sent you a friend request.",
+  "friend_accepted": "{{name}} accepted your friend request.",
+  "post_like": "{{name}} liked your post.",
+  "post_comment": "{{name}} commented: “{{snippet}}”",
+  "post_comment_plain": "{{name}} commented on your post.",
+  "booking_invite": "{{host}} invited you to {{restaurant}}, {{when}}.",
+  "booking_member_joined": "{{name}} joined your booking.",
+  "booking_seated": "Your group is seated at table {{number}}.",
+  "group_confirmed": "Your booking at {{restaurant}} ({{when}}) is confirmed.",
+  "group_cancelled": "Your booking at {{restaurant}} ({{when}}) was cancelled.",
+  "group_no_show": "Your booking at {{restaurant}} ({{when}}) was marked as a no-show.",
+  "bill_settled": "Your bill is paid ({{total}}). Receipt {{receipt}}.",
+  "booking_created": "New booking request.",
+  "bill_requested": "A table asked for the bill.",
+  "aRestaurant": "the restaurant"
 }

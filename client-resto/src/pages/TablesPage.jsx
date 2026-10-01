@@ -9,6 +9,7 @@ import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import { tableStateLabel } from '../components/waiter/waiterHelpers'
 import TableQRModal from '../components/TableQRModal'
+import { PrintAllQrButton } from '../features/v2/mounts'
 
 // Active-orders window for the table floor: 24h is generous for a single
 // dine-in visit while still dropping stale open orders from earlier days.
@@ -107,8 +108,11 @@ export default function TablesPage() {
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
         <h1 className="page-title">{t('dashboard:tablesTitle')}</h1>
-        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
-          <span className="dash-live-dot" /> {t('common:live')}
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <PrintAllQrButton />
+          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
+            <span className="dash-live-dot" /> {t('common:live')}
+          </div>
         </div>
       </div>
 

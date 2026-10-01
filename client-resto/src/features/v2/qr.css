@@ -1,0 +1,51 @@
+/* QR sheet: on-screen A4 preview and the print-only copy.
+   Card sizes use container units (cqw = 1% of the sheet width) so the preview
+   and the printed page are the same layout: an A4 page with 10mm margins is a
+   190mm wide sheet, so 1cqw = 1.9mm. The paper is always white with dark ink. */
+
+.v2-qr-preview { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+
+.v2-qr-page {
+  container-type: inline-size;
+  width: min(100%, 560px); aspect-ratio: 190 / 276;
+  display: grid; overflow: hidden;
+  background: #FFFFFF; color: #1A1210; border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.v2-qr-page--1 { grid-template-columns: 1fr; grid-template-rows: 1fr; --qr-size: 73cqw; --qr-resto: 3.6cqw; --qr-table: 11cqw; --qr-hint: 4.2cqw; --qr-code: 3.4cqw; }
+.v2-qr-page--4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); --qr-size: 41cqw; --qr-resto: 2.9cqw; --qr-table: 6.8cqw; --qr-hint: 2.8cqw; --qr-code: 2.3cqw; }
+.v2-qr-page--6 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); --qr-size: 28.9cqw; --qr-resto: 2.3cqw; --qr-table: 5.2cqw; --qr-hint: 2.1cqw; --qr-code: 1.8cqw; }
+
+.v2-qr-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.9cqw; padding: 1cqw; line-height: 1.2; text-align: center; min-width: 0; min-height: 0;
+  outline: 0.15cqw dashed #CFC4B8; outline-offset: -0.075cqw;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.v2-qr-resto { font-family: 'Playfair Display', Georgia, serif; font-size: var(--qr-resto); font-weight: 700; line-height: 1.2; }
+.v2-qr-table { font-size: var(--qr-table); font-weight: 800; line-height: 1.1; }
+.v2-qr-frame { width: var(--qr-size); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.v2-qr-img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.v2-qr-scan { font-size: var(--qr-hint); font-weight: 600; }
+.v2-qr-code { font-size: var(--qr-code); color: #4A3E35; }
+.v2-qr-code strong { font-family: 'JetBrains Mono', 'Courier New', monospace; color: #1A1210; letter-spacing: 0.1em; }
+.v2-qr-spinner { border-color: rgba(26, 18, 16, 0.15); border-top-color: #1A1210; }
+.v2-qr-fail { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; font-size: 0.74rem; color: #A32D2D; }
+
+/* Hidden on screen; shown only while printing (body.v2-qr-printing). */
+.v2-qr-print-root { display: none; }
+
+@page v2qr { size: A4; margin: 10mm; }
+
+@media print {
+  body.v2-qr-printing { background: #FFFFFF !important; overflow: visible !important; }
+  body.v2-qr-printing #root { display: none !important; }
+  body.v2-qr-printing .v2-qr-print-root { display: block; page: v2qr; }
+  .v2-qr-print-root .v2-qr-page {
+    width: 190mm; height: 276mm; aspect-ratio: auto; border-radius: 0; box-shadow: none;
+    break-after: page; page-break-after: always;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .v2-qr-print-root .v2-qr-page:last-child { break-after: auto; page-break-after: auto; }
+}

@@ -5,24 +5,32 @@ export const TABLE_COLORS = {
   ordering:          { label: 'Ordering',     color: '#BA7517', bg: 'rgba(186,117,23,0.12)',  border: 'rgba(186,117,23,0.25)' },
   awaiting_payment:  { label: 'Awaiting Pay', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)' },
   cleared:           { label: 'Cleared',      color: '#6B5E56', bg: 'rgba(107,94,86,0.08)',   border: 'rgba(107,94,86,0.15)' },
+  maintenance:       { label: 'Maintenance',  color: '#64748B', bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.25)' },
 }
 
+// Mirrors the DB enum order_status (sql/_prod_baseline.sql): open, submitted, preparing,
+// ready, served, paid, cancelled, refunded. 'done' never existed in the DB.
 export const ORDER_STATUS = {
   open:      { label: 'Open',      color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)' },
+  submitted: { label: 'Submitted', color: '#6366f1', bg: 'rgba(99,102,241,0.08)',  border: 'rgba(99,102,241,0.18)' },
   preparing: { label: 'Preparing', color: '#BA7517', bg: 'rgba(186,117,23,0.08)',  border: 'rgba(186,117,23,0.18)' },
   ready:     { label: 'Ready',     color: '#3B6D11', bg: 'rgba(59,109,17,0.08)',   border: 'rgba(59,109,17,0.18)' },
   served:    { label: 'Served',    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)' },
-  done:      { label: 'Done',      color: '#6B5E56', bg: 'var(--s3)',              border: 'var(--border)' },
+  paid:      { label: 'Paid',      color: '#6B5E56', bg: 'var(--s3)',              border: 'var(--border)' },
   cancelled: { label: 'Cancelled', color: '#A32D2D', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.18)' },
+  refunded:  { label: 'Refunded',  color: '#A32D2D', bg: 'rgba(239,68,68,0.05)',  border: 'rgba(239,68,68,0.12)' },
 }
 
+// Mirrors the DB trigger enforce_table_state_machine (live on preview, verified 2026-10-01).
+// Keep in sync: the DB rejects anything not listed here.
 export const TABLE_STATE_TRANSITIONS = {
-  free:              ['reserved', 'occupied'],
+  free:              ['reserved', 'occupied', 'maintenance'],
   reserved:          ['occupied', 'free'],
   occupied:          ['ordering', 'free'],
-  ordering:          ['awaiting_payment', 'occupied'],
-  awaiting_payment:  ['cleared'],
+  ordering:          ['awaiting_payment'],
+  awaiting_payment:  ['cleared', 'ordering'],
   cleared:           ['free'],
+  maintenance:       ['free'],
 }
 
 export const KDS_STATUS = {

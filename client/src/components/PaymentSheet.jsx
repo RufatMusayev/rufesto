@@ -30,6 +30,7 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
   const [bill, setBill] = useState(null)
   const [billError, setBillError] = useState('')
   const [mode, setMode] = useState('own')
+  const [nothingDue, setNothingDue] = useState(false)
 
   useEffect(() => {
     if (!session) return
@@ -66,14 +67,22 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
     ? (effectiveMode === 'equal' ? bill.equal_share : effectiveMode === 'all' ? bill.table_total : bill.my_own)
     : (order?.total_amount || 0)
 
-  // Usable credits: capped by the order they're redeemed against (and by what this
-  // guest pays), rounded down to nearest 100 (100 credits = ₼1). redeem_credits()
-  // attaches to that one order, so a split total must not raise the cap.
-  const creditCap = Math.min(total, order?.total_amount || 0)
+  // Usable credits: capped by the single order they're redeemed against (order.credit_cap, which
+  // is that order's own total, not the whole table's) and by what this guest pays, rounded down
+  // to nearest 100 (100 credits = ₼1). redeem_credits() attaches to that one order and the
+  // server rejects anything above its cap, so a split or table-wide total must not raise it.
+  const creditCap = Math.min(total, order?.credit_cap ?? order?.total_amount ?? 0)
   const usablePoints = Math.floor(Math.min(credits, Math.round(creditCap * 100)) / 100) * 100
   const creditDiscount = usablePoints / 100
-  const creditsOn = useCredits && usablePoints >= 100
-  const payable = creditsOn ? Math.max(total - creditDiscount, 0) : total
+  // Once redeem_credits() has succeeded the points are spent for good: remember it (appliedDiscount) so
+  // a retry after a failed bill request never redeems again, and keep showing the discount.
+  const creditsApplied = appliedDiscount > 0
+  // redeem_credits() requires a real order of the caller's (p_order_id is never null), so credits are
+  // only offered when the sheet was given one.
+  const canRedeem = !!order?.id
+  const creditsOn = canRedeem && !creditsApplied && useCredits && usablePoints >= 100
+  const discountShown = creditsApplied ? appliedDiscount : creditsOn ? creditDiscount : 0
+  const payable = Math.max(total - discountShown, 0)
   const paidTotal = amountDue != null ? amountDue : Math.max(total - appliedDiscount, 0)
 
   async function handlePay() {
@@ -85,19 +94,24 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
     const method = METHODS.find(m => m.id === selected)
 
     // Redeem Resto-Credits first — never finalize payment if redemption fails
-    let discountApplied = 0
+    let discountApplied = appliedDiscount
     if (creditsOn) {
       try {
         const { error: redeemErr } = await supabase.rpc('redeem_credits', {
           p_points: usablePoints,
-          p_order_id: order?.id ?? null,
+          p_order_id: order.id,
         })
         if (redeemErr) throw redeemErr
         discountApplied = creditDiscount
         setAppliedDiscount(discountApplied)
-      } catch {
+        setUseCredits(false)   // spent: the toggle is replaced by the applied discount below
+      } catch (err) {
         setUseCredits(false)
-        setCreditError(t('payment:creditError'))
+        // points_exceed_cap: the server caps redemption per order — say so instead of the
+        // generic failure, and the guest can still pay the full amount.
+        setCreditError((err?.message || '').includes('points_exceed_cap')
+          ? t('payment:creditCapError')
+          : t('payment:creditError'))
         setProcessing(false)
         return
       }
@@ -120,6 +134,12 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
 
     if (billErr) {
       const msg = billErr.message || ''
+      if (msg.includes('nothing_due')) {
+        // Amount due is 0 (already settled / nothing ordered): not an error — offer to leave.
+        setNothingDue(true)
+        setProcessing(false)
+        return
+      }
       if (msg.includes('not_authenticated')) setError(t('payment:errNotAuthenticated'))
       else if (msg.includes('no_session')) setError(t('payment:errNoSession'))
       else if (msg.includes('invalid_method')) setError(t('payment:errInvalidMethod'))
@@ -146,65 +166,71 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
       : t('payment:splitConfirmOwn'))
     : null
 
-  if (success) return (
+  // `success` holds the chosen method id (card | apple | google | cash | reception), so each
+  // method gets its own confirmation. card / apple / google go through the digital branch.
+  const successMethod = METHODS.find(m => m.id === success)
+
+  if (nothingDue) return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="sheet state-panel">
+        <div className="sheet-handle" />
+        <div className="state-icon">🧾</div>
+        <h2 className="state-title">{t('payment:nothingDueTitle')}</h2>
+        <p className="state-body">{t('payment:nothingDueBody')}</p>
+        <div className="state-actions">
+          <button className="btn btn-primary" onClick={handleDone}>{t('payment:leaveTable')}</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t('payment:stayAtTable')}</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (successMethod) return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && handleDone()}>
-      <div className="sheet" style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+      <div className="sheet state-panel">
         <div className="sheet-handle" />
 
-        {success === 'digital' ? (
+        {successMethod.digital ? (
           <>
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '1.5rem auto 1rem',
-            }}>
+            <div className="state-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              {t('payment:requestSent')}
-            </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              {t('payment:requestSentBody', { price: formatPrice(paidTotal) })}
+            <h2 className="state-title">{t('payment:requestSent')}</h2>
+            <p className="state-body">
+              {t('payment:requestSentBody', { price: formatPrice(paidTotal), method: t(`payment:${successMethod.labelKey}`) })}
             </p>
             {appliedDiscount > 0 && (
-              <p style={{ color: 'var(--gold)', fontSize: '0.78rem', marginBottom: 4 }}>
-                {t('payment:creditsSaved', { discount: formatPrice(appliedDiscount) })}
-              </p>
+              <p className="state-credits">{t('payment:creditsSaved', { discount: formatPrice(appliedDiscount) })}</p>
             )}
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:thankYou')}</p>
+            <p className="state-note">{t('payment:thankYou')}</p>
           </>
-        ) : success === 'cash' ? (
+        ) : successMethod.id === 'cash' ? (
           <>
-            <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>💵</div>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              {t('payment:waiterNotified')}
-            </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              {t('payment:cashCollect', { price: formatPrice(paidTotal) })}
-            </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:haveAmountReady')}</p>
+            <div className="state-icon state-icon-plain">💵</div>
+            <h2 className="state-title">{t('payment:waiterNotified')}</h2>
+            <p className="state-body">{t('payment:cashCollect', { price: formatPrice(paidTotal) })}</p>
+            {appliedDiscount > 0 && (
+              <p className="state-credits">{t('payment:creditsSaved', { discount: formatPrice(appliedDiscount) })}</p>
+            )}
+            <p className="state-note">{t('payment:haveAmountReady')}</p>
           </>
         ) : (
           <>
-            <div style={{ fontSize: '3rem', margin: '1.5rem 0 1rem' }}>🧾</div>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, marginBottom: 6, color: 'var(--t1)' }}>
-              {t('payment:payAtReception')}
-            </h2>
-            <p style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-              {t('payment:proceedReception', { price: formatPrice(paidTotal) })}
-            </p>
-            <p style={{ color: 'var(--t3)', fontSize: '0.78rem' }}>{t('payment:staffNotified')}</p>
+            <div className="state-icon state-icon-plain">🧾</div>
+            <h2 className="state-title">{t('payment:payAtReception')}</h2>
+            <p className="state-body">{t('payment:proceedReception', { price: formatPrice(paidTotal) })}</p>
+            {appliedDiscount > 0 && (
+              <p className="state-credits">{t('payment:creditsSaved', { discount: formatPrice(appliedDiscount) })}</p>
+            )}
+            <p className="state-note">{t('payment:staffNotified')}</p>
           </>
         )}
 
-        {splitNote && (
-          <p style={{ color: 'var(--t3)', fontSize: '0.76rem', marginTop: 8 }}>{splitNote}</p>
-        )}
+        {splitNote && <p className="state-note state-note-split">{splitNote}</p>}
 
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }} onClick={handleDone}>
+        <button className="btn btn-primary state-done" onClick={handleDone}>
           {t('common:done')}
         </button>
       </div>
@@ -250,18 +276,18 @@ export default function PaymentSheet({ order, onClose, onComplete }) {
             }}>
               {formatPrice(payable)}
             </div>
-            {creditsOn && (
+            {discountShown > 0 && (
               <div style={{
                 fontFamily: "'DM Mono', monospace",
                 fontSize: '0.72rem', color: 'var(--gold)', marginTop: 4,
               }}>
-                {t('payment:creditsBreakdown', { total: formatPrice(total), discount: formatPrice(creditDiscount) })}
+                {t('payment:creditsBreakdown', { total: formatPrice(total), discount: formatPrice(discountShown) })}
               </div>
             )}
           </div>
 
           {/* Resto-Credits toggle */}
-          {credits >= 100 && total > 0 && (
+          {canRedeem && credits >= 100 && total > 0 && !creditsApplied && (
             <div style={{ marginBottom: '1.25rem' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12,

@@ -5,6 +5,7 @@ import { ThemeProvider }  from './contexts/ThemeContext'
 
 import AppLayout          from './components/layout/AppLayout'
 import AuthCallback       from './components/AuthCallback'
+import PendingClaimRedirect from './components/PendingClaimRedirect'
 import HomePage           from './pages/HomePage'
 import RestaurantPage     from './pages/RestaurantPage'
 import ExplorePage        from './pages/ExplorePage'
@@ -12,6 +13,7 @@ import ProfilePage        from './pages/ProfilePage'
 import NotificationsPage  from './pages/NotificationsPage'
 import MapPage            from './pages/MapPage'
 import TablePage          from './pages/TablePage'
+import TableClaimPage     from './pages/TableClaimPage'
 
 export default function App() {
   return (
@@ -19,6 +21,7 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <CartProvider>
+            <PendingClaimRedirect />
             <Routes>
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route element={<AppLayout />}>
@@ -29,6 +32,7 @@ export default function App() {
                 <Route path="/profile"          element={<ProfilePage />}       />
                 <Route path="/notifications"    element={<NotificationsPage />} />
                 <Route path="/table"            element={<TablePage />}          />
+                <Route path="/t/:code"          element={<TableClaimPage />}     />
               </Route>
             </Routes>
           </CartProvider>

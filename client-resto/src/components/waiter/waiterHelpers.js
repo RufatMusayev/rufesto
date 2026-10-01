@@ -1,6 +1,6 @@
 // Shared display helpers for the waiter page (pages/WaiterPage.jsx and the
-// tab components in this folder) — request kind icons/labels, table state
-// labels, and RPC error -> i18n key mapping.
+// tab components in this folder) — request kind icons/labels and table state
+// labels. Also used by TablesPage. (RPC error mapping lives in lib/errors.js.)
 
 export const REQUEST_KIND_ICON = {
   assist:  '🙋',
@@ -24,31 +24,19 @@ export function requestKindLabelKey(kind) {
   return REQUEST_KIND_LABEL_KEY[kind] || REQUEST_KIND_LABEL_KEY.assist
 }
 
-// Mirrors TablesPage's local state->label map (not shared via
-// @shared/constants, whose TABLE_COLORS labels are English-only).
+// table_state -> translated label (@shared/constants' TABLE_COLORS labels are
+// English-only). Used by the waiter tabs and TablesPage.
 export const TABLE_STATE_LABEL_KEY = {
   free: 'stateFree', reserved: 'stateReserved', occupied: 'stateOccupied',
   ordering: 'stateOrdering', awaiting_payment: 'stateAwaitingPay', cleared: 'stateCleared',
+  maintenance: 'stateMaintenance',
 }
 
 /** Falls back to the raw state string for a value this dashboard has no
- *  copy for yet (e.g. 'maintenance'), instead of rendering a missing key. */
+ *  copy for yet, instead of rendering a missing key. */
 export function tableStateLabel(t, state) {
   const key = TABLE_STATE_LABEL_KEY[state]
   return key ? t(`dashboard:${key}`) : state
-}
-
-// error.message on a failed supabase.rpc() call is the DB exception code
-// (see sql/34_waiter_service.sql). Maps it to a `dashboard` namespace key;
-// unrecognised codes fall back to the generic actionFailed message.
-const RPC_ERROR_KEY = {
-  not_open:    'waiterErrNotOpen',
-  not_found:   'waiterErrNotFound',
-  not_allowed: 'waiterErrNotAllowed',
-}
-
-export function rpcErrorKey(message) {
-  return RPC_ERROR_KEY[message] || 'actionFailed'
 }
 
 // An open call is "urgent" once it's been waiting 3+ minutes.

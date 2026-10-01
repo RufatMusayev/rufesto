@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
-const POLL_MS = 6000
+// The realtime channel below only sees this guest's own session row (RLS), so other guests
+// joining or leaving only show up through this poll (join requests also arrive via notifications).
+const POLL_MS = 10000
 
 // Shown on /table for an active (approved) guest: who else is seated, and — for the
-// host only — who's waiting to be let in, with Approve/Decline. Refreshes on a poll,
-// on window focus, and immediately when a 'join_request' notification arrives.
+// host only — who's waiting to be let in, with Approve/Decline. Refreshes when a
+// table_sessions row for this table changes (realtime), when a 'join_request'
+// notification arrives, on window focus, and on a 10 s poll.
 export default function TableParty({ tableId }) {
   const { t } = useTranslation(['table', 'common'])
   const { session } = useAuth()
@@ -29,12 +32,28 @@ export default function TableParty({ tableId }) {
   }, [tableId])
 
   useEffect(() => {
+    if (!tableId) return
     load()
     const interval = setInterval(load, POLL_MS)
     function onFocus() { load() }
     window.addEventListener('focus', onFocus)
-    return () => { clearInterval(interval); window.removeEventListener('focus', onFocus) }
-  }, [load])
+
+    const channel = supabase
+      .channel(`table-party-sessions-${tableId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'table_sessions',
+        filter: `table_id=eq.${tableId}`,
+      }, () => load())
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') load()   // catch up on anything missed before the channel came up
+      })
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      supabase.removeChannel(channel)
+    }
+  }, [load, tableId])
 
   useEffect(() => {
     const uid = session?.user?.id

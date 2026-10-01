@@ -1,22 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo } from '@shared/helpers'
 import { TABLE_COLORS, TABLE_STATE_TRANSITIONS } from '@shared/constants'
 import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
+import { tableStateLabel } from '../components/waiter/waiterHelpers'
+import TableQRModal from '../components/TableQRModal'
 
 // Active-orders window for the table floor: 24h is generous for a single
 // dine-in visit while still dropping stale open orders from earlier days.
 const ACTIVE_ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 
-const STATE_LABEL_KEYS = {
-  free: 'stateFree', reserved: 'stateReserved', occupied: 'stateOccupied',
-  ordering: 'stateOrdering', awaiting_payment: 'stateAwaitingPay', cleared: 'stateCleared',
-}
-
 export default function TablesPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
   const [tables, setTables] = useState([])
   const [sections, setSections] = useState([])
@@ -28,6 +27,8 @@ export default function TablesPage() {
   const [updating, setUpdating] = useState(null)
   const [actionError, setActionError] = useState('')
   const [accessCodes, setAccessCodes] = useState({})
+  const [qrTable, setQrTable] = useState(null)
+  const closeQr = useCallback(() => setQrTable(null), [])
 
   useEffect(() => {
     if (!restaurantId) return
@@ -38,9 +39,9 @@ export default function TablesPage() {
       .channel(`dash-tables-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .subscribe()
 
-    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
+    const stop = subscribeResync(ch, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function loadAll() {
@@ -53,7 +54,7 @@ export default function TablesPage() {
         .eq('restaurant_id', restaurantId).order('name'),
       supabase.from('orders').select('id, table_id, status, total_amount, placed_at, order_items(quantity, dishes(name))')
         .eq('restaurant_id', restaurantId)
-        .not('status', 'in', '("paid","cancelled")')
+        .not('status', 'in', '("paid","cancelled","refunded")')
         .gte('placed_at', new Date(Date.now() - ACTIVE_ORDERS_WINDOW_MS).toISOString())
         .order('placed_at', { ascending: false }),
       // access_code lives in table_access_codes (staff-only, RLS-gated) since
@@ -87,10 +88,10 @@ export default function TablesPage() {
     setUpdating(tableId)
     const prevState = tables.find(t => t.id === tableId)?.state
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, state: newState } : t))
-    const { error } = await supabase.from('tables').update({ state: newState }).eq('id', tableId)
+    const error = writeError(await supabase.from('tables').update({ state: newState }).eq('id', tableId).select('id'))
     if (error) {
       setTables(prev => prev.map(t => t.id === tableId ? { ...t, state: prevState } : t))
-      setActionError(t('dashboard:actionFailed'))
+      setActionError(friendlyError(error, t))
     }
     setUpdating(null)
   }
@@ -149,7 +150,7 @@ export default function TablesPage() {
             <button key={key} className={`chip${stateFilter === key ? ' active' : ''}`}
               onClick={() => setStateFilter(key)}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color, display: 'inline-block', marginRight: 4 }} />
-              {t(`dashboard:${STATE_LABEL_KEYS[key]}`)} ({cnt})
+              {tableStateLabel(t, key)} ({cnt})
             </button>
           )
         })}
@@ -167,9 +168,15 @@ export default function TablesPage() {
             <TableCard key={t.id} table={t} orders={orders[t.id] || []}
               code={accessCodes[t.id]}
               expanded={expanded === t.id} onToggle={() => setExpanded(expanded === t.id ? null : t.id)}
-              onChangeState={changeState} updating={updating === t.id} />
+              onChangeState={changeState} updating={updating === t.id}
+              onShowQR={setQrTable} />
           ))}
         </div>
+      )}
+
+      {qrTable && accessCodes[qrTable.id] && (
+        <TableQRModal table={qrTable} code={accessCodes[qrTable.id]}
+          restaurantName={staffRow?.restaurants?.name} onClose={closeQr} />
       )}
 
       <div style={{
@@ -181,7 +188,7 @@ export default function TablesPage() {
         {Object.entries(TABLE_COLORS).map(([key, s]) => (
           <div key={key} style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ width:8, height:8, borderRadius:'50%', background: s.color, display:'inline-block' }} />
-            <span style={{ fontSize:'0.75rem', color:'var(--t2)' }}>{t(`dashboard:${STATE_LABEL_KEYS[key]}`)}</span>
+            <span style={{ fontSize:'0.75rem', color:'var(--t2)' }}>{tableStateLabel(t, key)}</span>
             <span style={{ fontSize:'0.75rem', fontWeight:800, color:'var(--t1)' }}>{stateCounts[key] || 0}</span>
           </div>
         ))}
@@ -190,7 +197,7 @@ export default function TablesPage() {
   )
 }
 
-function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating }) {
+function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating, onShowQR }) {
   const { t } = useTranslation(['dashboard', 'common'])
   const s = TABLE_COLORS[table.state] || TABLE_COLORS.free
   const transitions = TABLE_STATE_TRANSITIONS[table.state] || []
@@ -270,6 +277,13 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
                     </svg>
                   )}
                 </button>
+                <button className="code-chip-btn" onClick={e => { e.stopPropagation(); onShowQR(table) }}
+                  title={t('dashboard:qrShow')} aria-label={t('dashboard:qrShow')}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/>
+                  </svg>
+                </button>
               </div>
             )}
           </div>
@@ -279,7 +293,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
             fontSize:'0.6rem', fontWeight:700, padding:'3px 8px', borderRadius:100,
             background: s.bg, color: s.color, border:`1px solid ${s.border}`,
             textTransform:'uppercase', letterSpacing:0.5,
-          }}>{t(`dashboard:${STATE_LABEL_KEYS[table.state]}`)}</span>
+          }}>{tableStateLabel(t, table.state)}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
             style={{ transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
             <polyline points="6 9 12 15 18 9"/>
@@ -332,7 +346,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
                     onMouseDown={e => (e.currentTarget.style.transform='scale(0.97)')}
                     onMouseUp={e => (e.currentTarget.style.transform='scale(1)')}
                   >
-                    {t('dashboard:transitionTo', { state: t(`dashboard:${STATE_LABEL_KEYS[next]}`) })}
+                    {t('dashboard:transitionTo', { state: tableStateLabel(t, next) })}
                   </button>
                 )
               })}

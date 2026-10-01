@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import { rsrc } from '../lib/publicSource'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
 import DishDetailSheet from '../components/DishDetailSheet'
+import LoadError from '../components/LoadError'
 
 export default function ExplorePage() {
   const { t } = useTranslation(['menu', 'common'])
@@ -19,28 +21,59 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [dishDetail, setDishDetail] = useState(null)
 
   useEffect(() => {
+    let cancelled = false
+    let channel
+
     supabase
       .from('dishes')
-      .select('*, restaurants(name, slug, cuisine_type)')
+      // !inner: dishes of restaurants that are not listed (the public source is active-only) drop out.
+      .select(`*, ${rsrc()}!inner(name, slug, cuisine_type)`)
       .order('review_count', { ascending: false })
       .limit(100)
-      .then(({ data }) => { setDishes(data || []); setLoading(false) })
-
-    const channel = supabase
-      .channel('explore-dishes-realtime')
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'dishes' },
-        (payload) => {
-          setDishes(prev => prev.map(d => d.id === payload.new.id ? { ...d, ...payload.new } : d))
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.error('Explore load failed:', error.message)
+          setLoadError(true)
+          setLoading(false)
+          return
         }
-      )
-      .subscribe()
+        const rows = data || []
+        setDishes(rows)
+        setLoading(false)
 
-    return () => supabase.removeChannel(channel)
-  }, [])
+        // Realtime is scoped to the restaurants whose dishes are on screen. `dishes` is in the
+        // publication, so an unfiltered channel would deliver every restaurant's updates to every
+        // visitor. (The `in` filter accepts at most 100 values; the page shows at most 100 dishes.)
+        const restaurantIds = [...new Set(rows.map(d => d.restaurant_id).filter(Boolean))]
+        if (restaurantIds.length === 0) return
+        channel = supabase
+          .channel('explore-dishes-realtime')
+          .on('postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'dishes', filter: `restaurant_id=in.(${restaurantIds.join(',')})` },
+            (payload) => {
+              setDishes(prev => prev.map(d => d.id === payload.new.id ? { ...d, ...payload.new } : d))
+            }
+          )
+          .subscribe()
+      })
+
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [attempt])
+
+  function retry() {
+    setLoadError(false)
+    setLoading(true)
+    setAttempt(a => a + 1)
+  }
 
   const filtered = dishes.filter(d => {
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -120,8 +153,10 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {!loading && loadError && <LoadError onRetry={retry} />}
+
       {/* Empty state */}
-      {!loading && filtered.length === 0 && (
+      {!loading && !loadError && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔍</div>
           <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('menu:nothingFound')}</div>
@@ -130,7 +165,7 @@ export default function ExplorePage() {
       )}
 
       {/* Dish grid */}
-      {!loading && filtered.length > 0 && (
+      {!loading && !loadError && filtered.length > 0 && (
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
           gap: 10, padding: '12px 16px',

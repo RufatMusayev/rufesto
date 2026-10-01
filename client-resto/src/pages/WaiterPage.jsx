@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { debounce } from '../lib/debounce'
-import { rpcErrorKey } from '../components/waiter/waiterHelpers'
+import { friendlyError } from '../lib/errors'
+import { subscribeResync } from '../lib/realtime'
 import CallsTab from '../components/waiter/CallsTab'
 import MyTablesTab from '../components/waiter/MyTablesTab'
 import AllTablesTab from '../components/waiter/AllTablesTab'
 
-// Realtime (debounced) drives most refreshes; this is just the safety net
-// for a missed/late event.
-const FALLBACK_REFRESH_MS = 30000
+// Safety-net refresh for events realtime can't deliver (see the effect below).
+const FALLBACK_POLL_MS = 60000
 // waiter_overview() excludes tables nobody's at from "All tables".
 const IDLE_STATES = ['free', 'maintenance', 'cleared']
 
@@ -29,7 +29,7 @@ export default function WaiterPage() {
     if (!restaurantId) return
     const { data, error } = await supabase.rpc('waiter_overview', { p_restaurant_id: restaurantId })
     if (error) {
-      setActionError(t(`dashboard:${rpcErrorKey(error.message)}`))
+      setActionError(friendlyError(error, t))
       setLoading(false)
       return
     }
@@ -41,24 +41,35 @@ export default function WaiterPage() {
     if (!restaurantId) return
     load()
 
+    // Everything waiter_overview() aggregates, so any of these means a stale
+    // view: calls (service_requests), who has the table (table_service), table
+    // state and outstanding bills (orders), guest counts (table_sessions).
     const debouncedLoad = debounce(load, 400)
-    const ch = supabase
+    const filter = `restaurant_id=eq.${restaurantId}`
+    const main = supabase
       .channel(`waiter-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_service', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .subscribe()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests', filter }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_service', filter }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter }, debouncedLoad)
+    // table_sessions gets its own channel: while it is missing from the
+    // supabase_realtime publication, subscribing to it fails the channel it is
+    // on, and that must not take the bindings above down with it.
+    const sessions = supabase
+      .channel(`waiter-sessions-${restaurantId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter }, debouncedLoad)
 
-    const interval = setInterval(load, FALLBACK_REFRESH_MS)
-    const onFocus = () => load()
-    window.addEventListener('focus', onFocus)
+    // The 60s poll covers what realtime cannot: DELETE events are not delivered
+    // for filtered subscriptions under RLS, so release_table (which deletes the
+    // table_service row) never reaches the other waiters by event. Visibility
+    // resync = a phone coming back from the lock screen / another app.
+    const stopMain = subscribeResync(main, debouncedLoad, { pollMs: FALLBACK_POLL_MS, onVisible: true })
+    const stopSessions = subscribeResync(sessions, debouncedLoad)
 
     return () => {
       debouncedLoad.cancel()
-      supabase.removeChannel(ch)
-      clearInterval(interval)
-      window.removeEventListener('focus', onFocus)
+      stopMain()
+      stopSessions()
     }
   }, [restaurantId, load])
 
@@ -130,7 +141,7 @@ export default function WaiterPage() {
     setActing(id)
     setActionError('')
     const { error } = await supabase.rpc(rpcName, params)
-    if (error) setActionError(t(`dashboard:${rpcErrorKey(error.message)}`))
+    if (error) setActionError(friendlyError(error, t))
     await load() // never optimistic — always reflect what the DB actually did
     setActing(null)
   }

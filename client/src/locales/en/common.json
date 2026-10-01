@@ -38,5 +38,7 @@
   "servicePct": "Service ({{pct}}%)",
   "restaurant": "Restaurant",
   "termsNotice": "By continuing you agree to our Terms & Privacy Policy",
-  "you": "you"
+  "you": "you",
+  "loadError": "Couldn't load this. Check your connection and try again.",
+  "retry": "Try again"
 }

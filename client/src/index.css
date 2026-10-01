@@ -500,3 +500,48 @@ body.modal-open { overflow: hidden; }
   .skeleton      { animation: none; }
 }
 
+
+
+/* Centered status panel (success / nothing-due / sign-in-needed states inside sheets and modals) */
+.state-panel { padding: 2rem 1.5rem; text-align: center; }
+.state-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 1.5rem auto 1rem;
+  background: rgba(196,154,44,0.12); border: 1px solid var(--gold);
+}
+.state-icon-sage  { background: var(--sage-bg); border-color: var(--sage); }
+.state-icon-plain { width: auto; height: auto; background: none; border: none; font-size: 3rem; margin: 1.5rem 0 1rem; }
+.state-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.2rem; font-weight: 700; color: var(--t1); margin-bottom: 6px; line-height: 1.25; }
+.state-body  { color: var(--t2); font-size: 0.85rem; line-height: 1.55; margin-bottom: 4px; }
+.state-meta  { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--t3); }
+.state-note  { color: var(--t3); font-size: 0.78rem; line-height: 1.5; }
+.state-note-split { font-size: 0.76rem; margin-top: 8px; }
+.state-credits { color: var(--gold); font-size: 0.78rem; margin-bottom: 4px; }
+.state-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 1.5rem; }
+.state-done  { width: 100%; margin-top: 1.5rem; padding: 11px 0; border-radius: 12px; font-weight: 700; }
+.modal-narrow { max-width: 360px; padding: 0; }
+
+/* Booking form: bookable time slots */
+.slot-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.slot-btn {
+  padding: 7px 0; border-radius: 9px; cursor: pointer; text-align: center;
+  border: 1px solid var(--border); background: var(--s2); color: var(--t2);
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500;
+  transition: all 150ms var(--ease-out);
+}
+.slot-btn.active { border-color: var(--accent); background: var(--accent); color: #F5F0E8; font-weight: 700; }
+.slot-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.slot-hint { font-size: 0.76rem; color: var(--t3); line-height: 1.45; margin-bottom: 8px; }
+.slot-hint-warn { color: var(--warning); background: var(--warning-bg); border-radius: 9px; padding: 9px 12px; margin-bottom: 0; }
+.slot-skeleton { height: 64px; border-radius: 10px; }
+
+a.btn { text-decoration: none; }
+
+/* /t/:code deep-link page */
+.claim-page { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+.claim-card { width: 100%; max-width: 400px; }
+
+/* Inline "couldn't load" notice (components/LoadError) */
+.load-error { text-align: center; padding: 3rem 1.5rem; color: var(--t3); font-size: 0.85rem; line-height: 1.5; }
+.load-error p { margin-bottom: 12px; }

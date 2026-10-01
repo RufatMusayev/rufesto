@@ -10,5 +10,6 @@
   "notReady": "You need to be signed in with items in your cart to place an order.",
   "openCart": "Open cart",
   "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to.",
-  "pendingBlocked": "You're waiting for the host to let you in — you can't order yet."
+  "pendingBlocked": "You're waiting for the host to let you in — you can't order yet.",
+  "rollbackFailed": "We couldn't place your order and couldn't fully undo it. Your cart is saved — please tell your waiter before ordering again."
 }

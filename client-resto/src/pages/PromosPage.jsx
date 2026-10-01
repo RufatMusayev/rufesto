@@ -4,6 +4,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice } from '@shared/helpers'
 import { localeTag } from '../lib/time'
+import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
+
+// Writes to ad_campaigns are manager-only (RLS); a non-manager's failed write is
+// reported as this instead of a raw policy error.
+const MANAGERS_ONLY = { permission: 'errManagersOnly' }
 
 const FILTERS = ['all', 'draft', 'active', 'paused', 'completed', 'cancelled']
 
@@ -48,6 +55,7 @@ export default function PromosPage() {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(null)
+  const [actionError, setActionError] = useState('')
 
   const [showAdd, setShowAdd] = useState(false)
   const [editCampaign, setEditCampaign] = useState(null)
@@ -58,15 +66,18 @@ export default function PromosPage() {
     if (!restaurantId) return
     load()
 
+    // Every impression / click on the consumer app updates a campaign row, so
+    // this fires constantly for an active campaign: keep the reload debounced.
+    const debouncedLoad = debounce(load, 1000)
     const channel = supabase
       .channel(`dash-promos-${restaurantId}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'ad_campaigns',
         filter: `restaurant_id=eq.${restaurantId}`,
-      }, () => load())
-      .subscribe()
+      }, debouncedLoad)
 
-    return () => supabase.removeChannel(channel)
+    const stop = subscribeResync(channel, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function load() {
@@ -85,8 +96,11 @@ export default function PromosPage() {
 
   async function updateStatus(id, status) {
     setActing(id)
-    const { error } = await supabase.from('ad_campaigns').update({ status }).eq('id', id)
-    if (!error) {
+    setActionError('')
+    const error = writeError(await supabase.from('ad_campaigns').update({ status }).eq('id', id).select('id'))
+    if (error) {
+      setActionError(friendlyError(error, t, MANAGERS_ONLY))
+    } else {
       setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status } : c))
     }
     setActing(null)
@@ -129,6 +143,18 @@ export default function PromosPage() {
           color:'var(--t2)', fontSize:'0.78rem',
         }}>
           {t('dashboard:managerOnlyNotice')}
+        </div>
+      )}
+
+      {actionError && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
+          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
+          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
+        }}>
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
         </div>
       )}
 
@@ -361,12 +387,12 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
       status: form.status,
     }
 
-    const { error: err } = isEdit
-      ? await supabase.from('ad_campaigns').update(row).eq('id', campaign.id)
-      : await supabase.from('ad_campaigns').insert({ ...row, restaurant_id: restaurantId })
+    const err = isEdit
+      ? writeError(await supabase.from('ad_campaigns').update(row).eq('id', campaign.id).select('id'))
+      : (await supabase.from('ad_campaigns').insert({ ...row, restaurant_id: restaurantId })).error
 
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err, t, MANAGERS_ONLY))
       setSaving(false)
       return
     }

@@ -7,7 +7,7 @@
   "time": "Vaxt",
   "specialRequests": "Xüsusi İstəklər",
   "specialRequestsPlaceholder": "Allergiyalar, xüsusi tədbirlər, oturma üstünlükləri...",
-  "confirmBooking": "Rezervasiyanı Təsdiqlə",
+  "requestBooking": "Rezervasiya sorğusu göndər",
   "booking": "Rezerv edilir...",
   "tableBadge": "Masa {{number}} · {{section}} · {{capacity}} nəfərə qədər",
   "errTableCapacity": "Masa {{number}} {{capacity}} qonağa qədər yer tutur.",
@@ -43,5 +43,18 @@
   "joinDeclined": "Masa sahibi bu masaya qoşulma sorğunuzu təsdiqləmədi. Onlardan və ya işçilərdən kömək istəyin.",
   "tooManyJoinRequests": "Bu masaya qoşulmaq üçün artıq bir neçə nəfər gözləyir. Masa sahibindən və ya işçilərdən kömək istəyin.",
   "requestSentTitle": "Sorğu Göndərildi",
-  "pendingApprovalHint": "Masa sahibi sorğunuzu təsdiqləyən kimi sizi oturdacağıq."
+  "pendingApprovalHint": "Masa sahibi sorğunuzu təsdiqləyən kimi sizi oturdacağıq.",
+  "bookingRequested": "Sorğu göndərildi",
+  "bookingRequestedHint": "Restoran rezervasiyanızı təsdiqləyəcək. Statusu profilinizdə Rezervasiyalar bölməsində izləyə bilərsiniz.",
+  "pickDateFirst": "Mövcud vaxtları görmək üçün tarix seçin.",
+  "openHours": "İş saatları {{open}} – {{close}}",
+  "closedOnDate": "Restoran bu tarixdə bağlıdır.",
+  "closedOnDateReason": "Restoran bu tarixdə bağlıdır ({{reason}}).",
+  "closedOnDay": "Restoran bu gün rezervasiya qəbul etmir.",
+  "noSlotsLeft": "Bu gün üçün boş rezervasiya vaxtı qalmayıb. Başqa tarix seçin.",
+  "errPastTime": "Bu vaxt artıq keçib. Daha gec vaxt seçin.",
+  "errOutsideHours": "Bu vaxt iş saatlarından kənardır ({{open}} – {{close}}). Rezervasiya 90 dəqiqə davam edir, ona görə daha tez başlanğıc seçin.",
+  "errDateRange": "Növbəti 30 gün ərzində tarix seçin.",
+  "errHoursUnavailable": "Restoranın iş saatları yüklənmədi. Pəncərəni bağlayıb yenidən cəhd edin.",
+  "errBookingFailed": "Rezervasiyanız yaradıla bilmədi. Yenidən cəhd edin."
 }

@@ -28,8 +28,6 @@ import notificationsEN from '../locales/en/notifications.json'
 import notificationsAZ from '../locales/az/notifications.json'
 import mapEN from '../locales/en/map.json'
 import mapAZ from '../locales/az/map.json'
-import aiEN from '../locales/en/ai.json'
-import aiAZ from '../locales/az/ai.json'
 
 export const SUPPORTED_LANGS = ['en', 'az']
 export const DEFAULT_LANG = 'en'
@@ -39,13 +37,13 @@ const resources = {
     common: commonEN, nav: navEN, auth: authEN, feed: feedEN,
     restaurant: restaurantEN, menu: menuEN, cart: cartEN, booking: bookingEN,
     table: tableEN, payment: paymentEN, profile: profileEN,
-    notifications: notificationsEN, map: mapEN, ai: aiEN,
+    notifications: notificationsEN, map: mapEN,
   },
   az: {
     common: commonAZ, nav: navAZ, auth: authAZ, feed: feedAZ,
     restaurant: restaurantAZ, menu: menuAZ, cart: cartAZ, booking: bookingAZ,
     table: tableAZ, payment: paymentAZ, profile: profileAZ,
-    notifications: notificationsAZ, map: mapAZ, ai: aiAZ,
+    notifications: notificationsAZ, map: mapAZ,
   },
 }
 

@@ -3,14 +3,32 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
-import { ORDER_STATUS } from '@shared/constants'
+import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
 import { bakuTodayStartISO } from '../lib/time'
 import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
 
-const FILTERS = ['all', 'open', 'preparing', 'ready', 'served', 'done', 'cancelled']
-const ORDER_STATUS_LABEL_KEYS = {
-  open: 'ordStatusOpen', preparing: 'ordStatusPreparing', ready: 'ordStatusReady',
-  served: 'ordStatusServed', done: 'ordStatusDone', cancelled: 'ordStatusCancelled',
+// Real `order_status` values. `submitted` / `refunded` chips only appear while
+// there is an order in that status (or the chip is selected).
+const FILTERS = ['all', 'open', 'submitted', 'preparing', 'ready', 'served', 'paid', 'cancelled', 'refunded']
+const OPTIONAL_FILTERS = ['submitted', 'refunded']
+// Statuses a staff member can still cancel from.
+const CANCELLABLE = ['open', 'submitted', 'preparing', 'ready']
+// Other orders in these statuses don't hold a table back from being cleared.
+const SETTLED = ['paid', 'cancelled', 'refunded'] // served = delivered but still unpaid
+
+// Marking an order paid fires the DB trigger that clears its table, and the table
+// state machine only allows that from awaiting_payment. So "Mark Paid" is offered
+// only when the order has no table, or the table is awaiting payment and nothing
+// else on it is still in progress. Returns the i18n key of the reason it is not
+// available yet, or null when it is. `orders` is today's list (what this page loads).
+function markPaidBlockReason(order, orders) {
+  if (!order.table_id) return null
+  if (order.tables?.state !== 'awaiting_payment') return 'markPaidNeedsBill'
+  const othersInProgress = orders.some(o =>
+    o.id !== order.id && o.table_id === order.table_id && !SETTLED.includes(o.status))
+  return othersInProgress ? 'markPaidOthersOpen' : null
 }
 
 export default function OrdersPage() {
@@ -36,15 +54,17 @@ export default function OrdersPage() {
       // is what actually reflects item/KDS progress (started/ready/done) —
       // listen to that instead to keep expanded order rows live.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .subscribe()
+      // The Mark Paid button depends on the table's state (awaiting_payment).
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
 
-    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
+    const stop = subscribeResync(ch, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function loadOrders() {
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(table_number), users(name, email), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
+      .select('*, tables(table_number, state), users(name, email), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
       .eq('restaurant_id', restaurantId)
       .gte('placed_at', bakuTodayStartISO())
       .order('placed_at', { ascending: false })
@@ -57,10 +77,10 @@ export default function OrdersPage() {
     setActing(orderId)
     const prevStatus = orders.find(o => o.id === orderId)?.status
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
-    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
+    const error = writeError(await supabase.from('orders').update({ status }).eq('id', orderId).select('id'))
     if (error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: prevStatus } : o))
-      setActionError(t('dashboard:actionFailed'))
+      setActionError(friendlyError(error, t))
     }
     setActing(null)
   }
@@ -79,7 +99,7 @@ export default function OrdersPage() {
   for (const o of orders) statusCounts[o.status] = (statusCounts[o.status] || 0) + 1
 
   const todayRevenue = orders
-    .filter(o => o.status !== 'cancelled')
+    .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
     .reduce((s, o) => s + (o.total_amount || 0), 0)
 
   return (
@@ -114,11 +134,12 @@ export default function OrdersPage() {
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         {FILTERS.map(f => {
           const cnt = f === 'all' ? orders.length : (statusCounts[f] || 0)
-          const sm = f !== 'all' ? ORDER_STATUS[f] : null
+          if (OPTIONAL_FILTERS.includes(f) && cnt === 0 && filter !== f) return null
+          const sm = f !== 'all' ? orderStatusStyle(f) : null
           return (
             <button key={f} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {sm && <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, display: 'inline-block', marginRight: 4 }} />}
-              {f === 'all' ? t('dashboard:filterAll') : t(`dashboard:${ORDER_STATUS_LABEL_KEYS[f]}`)} ({cnt})
+              {f === 'all' ? t('dashboard:filterAll') : t(`dashboard:${orderStatusLabelKey(f)}`)} ({cnt})
             </button>
           )
         })}
@@ -138,6 +159,7 @@ export default function OrdersPage() {
               onToggle={() => toggleExpand(o.id)}
               onUpdateStatus={updateStatus}
               acting={acting === o.id}
+              payBlock={markPaidBlockReason(o, orders)}
             />
           ))}
         </div>
@@ -146,9 +168,9 @@ export default function OrdersPage() {
   )
 }
 
-function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
+function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock }) {
   const { t } = useTranslation(['dashboard', 'common'])
-  const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
+  const s = orderStatusStyle(order.status)
   const items = order.order_items || []
   const time = order.placed_at
     ? new Date(order.placed_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
@@ -202,7 +224,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
               fontSize:'0.58rem', fontWeight:700, padding:'2px 7px', borderRadius:4,
               background: s.bg, color: s.color, border:`1px solid ${s.border}`,
               textTransform:'uppercase', letterSpacing:0.5,
-            }}>{t(`dashboard:${ORDER_STATUS_LABEL_KEYS[order.status] || 'ordStatusOpen'}`)}</span>
+            }}>{t(`dashboard:${orderStatusLabelKey(order.status)}`)}</span>
           </div>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
             style={{ flexShrink:0, transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
@@ -269,17 +291,21 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting }) {
             )}
             {order.status === 'served' && (
               <button className="btn btn-ghost btn-sm" style={{ flex:1 }}
-                onClick={() => onUpdateStatus(order.id, 'done')} disabled={acting}>
-                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:complete')}
+                onClick={() => onUpdateStatus(order.id, 'paid')} disabled={acting || !!payBlock}
+                title={payBlock ? t(`dashboard:${payBlock}`) : undefined}>
+                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markPaid')}
               </button>
             )}
-            {['open', 'preparing', 'ready'].includes(order.status) && (
+            {CANCELLABLE.includes(order.status) && (
               <button className="btn btn-danger btn-sm" style={{ minWidth:80 }}
                 onClick={() => onUpdateStatus(order.id, 'cancelled')} disabled={acting}>
                 {t('dashboard:cancel')}
               </button>
             )}
           </div>
+          {order.status === 'served' && payBlock && (
+            <div className="order-pay-hint">{t(`dashboard:${payBlock}`)}</div>
+          )}
         </div>
       )}
     </div>

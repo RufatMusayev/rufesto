@@ -11,7 +11,9 @@ export const ROLE_ROUTES = {
   waiter:  ['/waiter', '/tables', '/orders'],
   host:    ['/waiter', '/tables', '/bookings'],
   cashier: ['/waiter', '/orders', '/tables'],
-  kitchen: ['/kds', '/orders'],
+  // Kitchen works the ticket queue only (TARGET-ARCHITECTURE 17.2: "kitchen:
+  // tickets only").
+  kitchen: ['/kds'],
 }
 
 export const ROLE_HOME = {
@@ -28,8 +30,16 @@ export function homeFor(role) {
   return ROLE_HOME[role] || null
 }
 
+// React Router matches routes case-insensitively and ignores a trailing slash,
+// so '/Orders/' renders the orders page; compare the same way, otherwise a
+// permitted page is refused for how its URL was typed.
+function normalisePath(path) {
+  const p = String(path || '').toLowerCase().replace(/\/+$/, '')
+  return p === '' ? '/' : p
+}
+
 /** Whether `role` may open `path`. Unknown roles can access nothing. */
 export function canAccess(role, path) {
   const routes = ROLE_ROUTES[role]
-  return Array.isArray(routes) && routes.includes(path)
+  return Array.isArray(routes) && routes.includes(normalisePath(path))
 }

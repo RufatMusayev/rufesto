@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import { rsrc, RESTAURANT_COLS } from '../lib/publicSource'
 import {
   cuisineEmoji, categoryEmoji, formatPrice, dishBackground,
   cuisineBackground, sectionEmoji, isRestaurantOpen, getTodayHours,
@@ -48,9 +49,10 @@ export default function RestaurantPage() {
     async function loadRestaurant() {
       setLoading(true)
       const { data: rest } = await supabase
-        .from('restaurants')
-        .select('*, operating_hours(*)')
+        .from(rsrc())
+        .select(`${RESTAURANT_COLS}, operating_hours(*)`)
         .eq('slug', slug)
+        .eq('status', 'active')
         .single()
       if (!rest || cancelled) { if (!rest) navigate('/'); return }
       setRestaurant(rest)
@@ -296,9 +298,9 @@ export default function RestaurantPage() {
             overflow: 'hidden',
             position: 'relative',
           }}>
-            {restaurant.logo_photo ? (
+            {restaurant.logo ? (
               <img
-                src={restaurant.logo_photo}
+                src={restaurant.logo}
                 alt={restaurant.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
               />

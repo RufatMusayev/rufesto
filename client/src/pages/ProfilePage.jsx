@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../lib/supabase'
+import { rsrc } from '../lib/publicSource'
 import { formatPrice, timeAgo, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
+import LoadError from '../components/LoadError'
 
 function FeedbackForm({ userId, defaultName, defaultEmail }) {
   const { t } = useTranslation(['profile', 'common'])
@@ -350,16 +352,56 @@ function BookingsTab({ userId }) {
   const { t } = useTranslation(['profile', 'common'])
   const [bookings, setBookings] = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const hasData = useRef(false)
 
   useEffect(() => {
-    supabase
-      .from('bookings')
-      .select('*, restaurants(name, cuisine_type, address), tables(table_number)')
-      .eq('user_id', userId)
-      .order('reserved_from', { ascending: false })
-      .limit(20)
-      .then(({ data }) => { setBookings(data || []); setLoading(false) })
-  }, [userId])
+    let cancelled = false
+
+    function load() {
+      supabase
+        .from('bookings')
+        .select(`*, ${rsrc()}(name, cuisine_type, address), tables(table_number)`)
+        .eq('user_id', userId)
+        .order('reserved_from', { ascending: false })
+        .limit(20)
+        .then(({ data, error }) => {
+          if (cancelled) return
+          if (error) {
+            console.error('Bookings load failed:', error.message)
+            if (!hasData.current) setLoadError(true)   // a failed live refetch keeps the list already shown
+          } else {
+            hasData.current = true
+            setLoadError(false)
+            setBookings(data || [])
+          }
+          setLoading(false)
+        })
+    }
+    load()
+
+    // Live status: a request flips pending -> confirmed/cancelled when the restaurant acts on it.
+    // Scoped to this guest's own bookings.
+    const channel = supabase
+      .channel(`my-bookings-${userId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        filter: `user_id=eq.${userId}`,
+      }, (payload) => {
+        if (payload.eventType === 'UPDATE' && payload.new?.id) {
+          setBookings(prev => prev.map(b => b.id === payload.new.id ? { ...b, ...payload.new } : b))
+        } else {
+          load()   // new booking or a deletion: refetch (the embedded restaurant/table aren't in the payload)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [userId, attempt])
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
@@ -368,6 +410,8 @@ function BookingsTab({ userId }) {
       ))}
     </div>
   )
+
+  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
 
   if (!bookings.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
@@ -653,16 +697,22 @@ function ReviewsTab({ userId }) {
   const navigate = useNavigate()
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     supabase
       .from('reviews')
-      .select('*, dishes(name, category, price, restaurant_id, restaurants(name, slug))')
+      .select(`*, dishes(name, category, price, restaurant_id, ${rsrc()}(name, slug))`)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(30)
-      .then(({ data }) => { setReviews(data || []); setLoading(false) })
-  }, [userId])
+      .then(({ data, error }) => {
+        if (error) { console.error('Reviews load failed:', error.message); setLoadError(true) }
+        else setReviews(data || [])
+        setLoading(false)
+      })
+  }, [userId, attempt])
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
@@ -671,6 +721,8 @@ function ReviewsTab({ userId }) {
       ))}
     </div>
   )
+
+  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
 
   if (!reviews.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
@@ -724,15 +776,21 @@ function SavedTab({ userId }) {
   const navigate = useNavigate()
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     supabase
       .from('saved_dishes')
-      .select('*, dishes(id, name, category, price, available, restaurant_id, restaurants(name, slug))')
+      .select(`*, dishes(id, name, category, price, available, restaurant_id, ${rsrc()}(name, slug))`)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .then(({ data }) => { setSaved(data || []); setLoading(false) })
-  }, [userId])
+      .then(({ data, error }) => {
+        if (error) { console.error('Saved dishes load failed:', error.message); setLoadError(true) }
+        else setSaved(data || [])
+        setLoading(false)
+      })
+  }, [userId, attempt])
 
   async function handleRemove(id) {
     setSaved(prev => prev.filter(s => s.id !== id))
@@ -746,6 +804,8 @@ function SavedTab({ userId }) {
       ))}
     </div>
   )
+
+  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
 
   if (!saved.length) return (
     <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>

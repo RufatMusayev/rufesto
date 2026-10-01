@@ -19,7 +19,7 @@ export default function ProtectedRoute() {
       <div style={{ fontSize: '2.5rem' }}>🔒</div>
       <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{t('accessDeniedTitle')}</h2>
       <p style={{ color: 'var(--t3)', maxWidth: 400, fontSize: '0.88rem' }}>
-        {error || t('accessDeniedDefault')}
+        {error === 'staffVerifyFailed' ? t('errStaffVerify') : t('accessDeniedDefault')}
       </p>
       <button className="btn btn-ghost" onClick={signOut}>{t('navSignOut')}</button>
     </div>

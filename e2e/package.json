@@ -1,0 +1,16 @@
+{
+  "name": "rufesto-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright smoke suite for Rufesto (consumer app + staff dashboard)",
+  "scripts": {
+    "test": "playwright test",
+    "test:anon": "playwright test --grep @anon",
+    "test:guest": "playwright test --grep @guest",
+    "test:staff": "playwright test --grep @staff",
+    "report": "playwright show-report report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

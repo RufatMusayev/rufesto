@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { KDS_STATUS } from '@shared/constants'
+import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
 
 function ticketUrgency(minutesElapsed) {
   if (minutesElapsed < 5)  return { level: 'fresh',   color: 'var(--green)' }
@@ -27,12 +30,16 @@ export default function KDSPage() {
   useEffect(() => {
     if (!restaurantId) return
     loadTickets()
+    // kds_tickets is the only table the board needs: tickets are created by a
+    // trigger when order_items rows are inserted, so their INSERT events fire
+    // here (an `orders` INSERT arrives before any ticket exists). Debounced so
+    // a multi-item order is one reload, not one per ticket.
+    const debouncedLoad = debounce(loadTickets, 300)
     const channel = supabase
       .channel(`kds-live-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => loadTickets())
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+    const stop = subscribeResync(channel, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function loadTickets() {
@@ -57,14 +64,14 @@ export default function KDSPage() {
       : prev.map(t => t.id === ticket.id ? { ...t, ...update } : t)
     )
 
-    const { error } = await supabase.from('kds_tickets').update(update).eq('id', ticket.id)
+    const error = writeError(await supabase.from('kds_tickets').update(update).eq('id', ticket.id).select('id'))
     if (error) {
       // revert: put the ticket back exactly as it was before the optimistic change
       setTickets(prev => prev.some(t => t.id === ticket.id)
         ? prev.map(t => t.id === ticket.id ? ticket : t)
         : [...prev, ticket]
       )
-      setActionError(t('dashboard:actionFailed'))
+      setActionError(friendlyError(error, t))
     }
   }
 

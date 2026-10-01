@@ -4,12 +4,14 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCart } from '../../contexts/CartContext'
 
-const POLL_MS = 4000
+// Only used while the realtime channel is not SUBSCRIBED (see the table_sessions effect below).
+const FALLBACK_POLL_MS = 30000
 
 // Shown on /table while the guest is seated but not yet approved by the host
-// (claim_table returned session_status:'pending'). Polls table_party() and also
-// listens for the host's own realtime decision via notifications (join_approved /
-// join_declined), so it reacts as soon as either fires.
+// (claim_table returned session_status:'pending'). Re-checks table_party() whenever this
+// guest's own table_sessions row changes (realtime), and also listens for the host's
+// decision via notifications (join_approved / join_declined). A slow poll only runs while
+// the realtime channel is down.
 export default function PendingJoin({ tableId }) {
   const { t } = useTranslation(['table', 'booking', 'common'])
   const { session } = useAuth()
@@ -24,38 +26,77 @@ export default function PendingJoin({ tableId }) {
     return () => { cancelledRef.current = true }
   }, [])
 
-  // Poll table_party() as the source of truth: status flips to 'active' once the
-  // host approves, or the RPC errors 'no_session' once they decline (or the guest
-  // is otherwise removed).
+  // table_party() stays the source of truth (status flips to 'active' once the host approves,
+  // or the RPC errors 'no_session' once they decline / the guest is removed). Realtime on
+  // table_sessions just tells us *when* to ask. RLS only exposes this guest's own session row
+  // to the channel, which is exactly the row whose change matters here.
   useEffect(() => {
     if (!tableId) return
     let stopped = false
+    let finished = false
+    let subscribed = false
     let timer = null
 
-    async function poll() {
+    function stopFallback() {
+      if (timer) { clearTimeout(timer); timer = null }
+    }
+
+    async function check() {
+      if (stopped || finished) return
       const { data, error } = await supabase.rpc('table_party', { p_table_id: tableId })
-      if (stopped || cancelledRef.current) return
+      if (stopped || finished || cancelledRef.current) return
 
       if (error) {
         if ((error.message || '').includes('no_session')) {
+          finished = true
+          stopFallback()
           setDeclined(true)
-          timer = setTimeout(() => { if (!stopped) clearTable(false) }, 2500)
-          return
+          setTimeout(() => { if (!stopped) clearTable(false) }, 2500)
         }
-        timer = setTimeout(poll, POLL_MS)
         return
       }
 
       if (data?.host_name) setHostName(data.host_name)
       if (data?.status === 'active') {
+        finished = true
+        stopFallback()
         await refreshTableSession()
-        return
       }
-      timer = setTimeout(poll, POLL_MS)
     }
 
-    poll()
-    return () => { stopped = true; if (timer) clearTimeout(timer) }
+    function scheduleFallback() {
+      stopFallback()
+      if (stopped || finished || subscribed) return
+      timer = setTimeout(async () => {
+        await check()
+        scheduleFallback()
+      }, FALLBACK_POLL_MS)
+    }
+
+    const channel = supabase
+      .channel(`pending-session-${tableId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'table_sessions',
+        filter: `table_id=eq.${tableId}`,
+      }, () => { check() })
+      .subscribe((status) => {
+        subscribed = status === 'SUBSCRIBED'
+        if (subscribed) {
+          stopFallback()
+          check()   // catch anything that changed before the channel came up
+        } else {
+          scheduleFallback()
+        }
+      })
+
+    check()
+    scheduleFallback()
+
+    return () => {
+      stopped = true
+      stopFallback()
+      supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableId])
 

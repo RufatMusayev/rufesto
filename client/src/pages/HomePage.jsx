@@ -2,16 +2,20 @@ import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import { rsrc, RESTAURANT_COLS } from '../lib/publicSource'
 import { cuisineEmoji, cuisineBackground, isRestaurantOpen, getTodayHours, categoryEmoji, dishBackground, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useAuth } from '../contexts/AuthContext'
 import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
+import LoadError from '../components/LoadError'
 
 export default function HomePage() {
   const [restaurants, setRestaurants] = useState([])
   const [reviews, setReviews] = useState([])
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [dishDetail, setDishDetail] = useState(null)
   const [followedIds, setFollowedIds] = useState([])
   // Batched engagement data for the feed cards below — fetched once per feed load (a
@@ -39,23 +43,30 @@ export default function HomePage() {
           setFollowedIds(followIds)
         }
 
-        const [{ data: restData }, { data: revData }, { data: campData }] = await Promise.all([
+        const [{ data: restData, error: restErr }, { data: revData, error: revErr }, { data: campData }] = await Promise.all([
           supabase
-            .from('restaurants')
-            .select('*, operating_hours(*)')
+            .from(rsrc())
+            .select(`${RESTAURANT_COLS}, operating_hours(*)`)
             .eq('status', 'active')
             .order('name'),
           supabase
             .from('reviews')
-            .select('*, dishes(id, name, price, photo, category, available, restaurant_id, restaurants(name, slug, cuisine_type)), users(name, profile_photo)')
+            .select(`*, dishes(id, name, price, photo, category, available, restaurant_id, ${rsrc()}(name, slug, cuisine_type)), users(name, profile_photo)`)
             .eq('is_flagged', false)
             .order('created_at', { ascending: false })
             .limit(20),
           // RLS only exposes active campaigns within their run window
           supabase
             .from('ad_campaigns')
-            .select('*, restaurants(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, restaurants(name, slug, cuisine_type))'),
+            .select(`*, ${rsrc()}(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, ${rsrc()}(name, slug, cuisine_type))`),
         ])
+
+        // A failed read must not look like an empty feed: show a retry notice instead.
+        if (restErr || revErr) {
+          console.error('Feed load failed:', restErr || revErr)
+          setLoadError(true)
+          return
+        }
 
         const allRest = restData || []
         const followed = allRest.filter(r => followIds.includes(r.id))
@@ -136,12 +147,19 @@ export default function HomePage() {
       } catch (err) {
         // Never let a feed error leave `loading` stuck true forever.
         console.error('Feed load failed:', err)
+        setLoadError(true)
       } finally {
         setLoading(false)
       }
     }
     loadFeed()
-  }, [session?.user?.id])
+  }, [session?.user?.id, attempt])
+
+  function retry() {
+    setLoadError(false)
+    setLoading(true)
+    setAttempt(a => a + 1)
+  }
 
   return (
     <div>
@@ -150,6 +168,8 @@ export default function HomePage() {
           <StoriesBarSkeleton />
           {[1, 2].map(i => <PostSkeleton key={i} />)}
         </>
+      ) : loadError ? (
+        <LoadError onRetry={retry} />
       ) : (
         <>
           <StoriesBar restaurants={restaurants} followedIds={followedIds} />

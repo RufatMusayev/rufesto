@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import { rsrc } from '../lib/publicSource'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
@@ -54,7 +55,7 @@ export default function TablePage() {
 
       const { data: table } = await supabase
         .from('tables')
-        .select('id, table_number, capacity, state, restaurant_id, sections(name), restaurants(name, slug, cuisine_type)')
+        .select(`id, table_number, capacity, state, restaurant_id, sections(name), ${rsrc()}(name, slug, cuisine_type)`)
         .eq('id', tableId)
         .single()
 
@@ -173,7 +174,7 @@ export default function TablePage() {
 
     const { data: tables } = await supabase
       .from('tables')
-      .select('id, table_number, capacity, restaurant_id, restaurants(name, slug, cuisine_type)')
+      .select(`id, table_number, capacity, restaurant_id, ${rsrc()}(name, slug, cuisine_type)`)
       .eq('state', 'free')
       .limit(1)
 
@@ -217,6 +218,11 @@ export default function TablePage() {
   // restaurants can have different restaurant_settings.tax_rate / service_charge.
   const sessionTaxPct = sessionSubtotal > 0 ? Math.round((sessionTax / sessionSubtotal) * 100) : 0
   const sessionServicePct = sessionSubtotal > 0 ? Math.round((sessionService / sessionSubtotal) * 100) : 0
+
+  const creditOrder = orders.reduce(
+    (best, o) => (!best || (o.total_amount || 0) > (best.total_amount || 0) ? o : best),
+    null,
+  )
 
   const allServed = orders.length > 0 && orders.every(o =>
     o.status === 'served' || o.status === 'done' || o.status === 'ready'
@@ -443,7 +449,9 @@ export default function TablePage() {
 
       {showPayment && orders.length > 0 && (
         <PaymentSheet
-          order={{ id: orders[0].id, total_amount: sessionTotal }}
+          // total_amount = whole session (shown until the server bill loads); Resto-Credits are
+          // redeemed against ONE order, so cap them by the largest single order, not the sum.
+          order={{ id: creditOrder.id, total_amount: sessionTotal, credit_cap: creditOrder.total_amount || 0 }}
           onClose={() => setShowPayment(false)}
           onComplete={() => {
             // PaymentSheet's own "Done" already released the table via leave_table();

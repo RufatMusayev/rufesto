@@ -187,7 +187,19 @@ export function CartProvider({ children }) {
     const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
 
     if (itemsErr) {
-      await supabase.from('orders').delete().eq('id', order.id)
+      // Roll the half-created order back server-side: `authenticated` has no DELETE grant on
+      // `orders`, so a direct delete would fail silently and leave an orphan (item-less) order
+      // on the table. The cart is kept either way so the guest can simply retry.
+      const { error: cancelErr } = await supabase.rpc('cancel_order_draft', { p_order_id: order.id })
+      if (cancelErr?.code === 'PGRST202') {
+        // The RPC isn't deployed on this database yet (pre sql/36): keep the old behaviour,
+        // attempt the direct delete and ignore its result.
+        await supabase.from('orders').delete().eq('id', order.id)
+      } else if (cancelErr) {
+        setPlacing(false)
+        console.error('cancel_order_draft failed:', cancelErr.message)
+        return { error: t('rollbackFailed') }
+      }
       setPlacing(false)
       return { error: itemsErr.message }
     }

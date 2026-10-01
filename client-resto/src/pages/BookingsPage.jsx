@@ -2,15 +2,25 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { timeAgo } from '@shared/helpers'
 import { BOOKING_STATUS_STYLE } from '@shared/constants'
 import { localeTag } from '../lib/time'
+import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
 
-const STATUSES = ['all', 'pending', 'confirmed', 'seated', 'completed', 'cancelled']
+// Real `booking_status` values. `no_show` is set by the mark_no_shows() job, so
+// its chip only shows while a booking has it (or the chip is selected).
+const STATUSES = ['all', 'pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show']
+const OPTIONAL_STATUSES = ['no_show']
 
 const STATUS_LABEL_KEYS = {
   pending: 'bkPending', confirmed: 'bkConfirmed', seated: 'bkSeated',
-  completed: 'bkCompleted', cancelled: 'bkCancelled',
+  completed: 'bkCompleted', cancelled: 'bkCancelled', no_show: 'bkNoShow',
+}
+
+const STATUS_STYLE = {
+  ...BOOKING_STATUS_STYLE,
+  no_show: { bg: 'rgba(239,68,68,0.08)', color: 'var(--red)' },
 }
 
 export default function BookingsPage() {
@@ -25,15 +35,18 @@ export default function BookingsPage() {
     if (!restaurantId) return
     load()
 
+    // Guests booking from the app, the cancel/no-show jobs and other staff all
+    // write `bookings`; debounced so a burst is one reload.
+    const debouncedLoad = debounce(load, 400)
     const channel = supabase
       .channel(`dash-bookings-${restaurantId}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'bookings',
         filter: `restaurant_id=eq.${restaurantId}`,
-      }, () => load())
-      .subscribe()
+      }, debouncedLoad)
 
-    return () => supabase.removeChannel(channel)
+    const stop = subscribeResync(channel, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function load() {
@@ -50,10 +63,10 @@ export default function BookingsPage() {
   async function updateStatus(id, status) {
     const prevStatus = bookings.find(b => b.id === id)?.status
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
-    const { error } = await supabase.from('bookings').update({ status }).eq('id', id)
+    const error = writeError(await supabase.from('bookings').update({ status }).eq('id', id).select('id'))
     if (error) {
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: prevStatus } : b))
-      setActionError(t('dashboard:actionFailed'))
+      setActionError(friendlyError(error, t))
     }
   }
 
@@ -81,14 +94,18 @@ export default function BookingsPage() {
       )}
 
       <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
-        {STATUSES.map(s => (
-          <button key={s} className={`chip${filter === s ? ' active' : ''}`}
-            onClick={() => setFilter(s)}>
-            {s === 'all'
-              ? t('dashboard:bookingFilterAll', { count: bookings.length })
-              : `${t(`dashboard:${STATUS_LABEL_KEYS[s]}`)} (${bookings.filter(b => b.status === s).length})`}
-          </button>
-        ))}
+        {STATUSES.map(s => {
+          const cnt = s === 'all' ? bookings.length : bookings.filter(b => b.status === s).length
+          if (OPTIONAL_STATUSES.includes(s) && cnt === 0 && filter !== s) return null
+          return (
+            <button key={s} className={`chip${filter === s ? ' active' : ''}`}
+              onClick={() => setFilter(s)}>
+              {s === 'all'
+                ? t('dashboard:bookingFilterAll', { count: cnt })
+                : `${t(`dashboard:${STATUS_LABEL_KEYS[s]}`)} (${cnt})`}
+            </button>
+          )
+        })}
       </div>
 
       {loading ? (
@@ -98,7 +115,7 @@ export default function BookingsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(b => {
-            const sc = BOOKING_STATUS_STYLE[b.status] || BOOKING_STATUS_STYLE.pending
+            const sc = STATUS_STYLE[b.status] || STATUS_STYLE.pending
             const dt = new Date(b.reserved_from)
             return (
               <div key={b.id} style={{
@@ -126,7 +143,7 @@ export default function BookingsPage() {
                       fontSize:'0.62rem', fontWeight:700, padding:'3px 9px', borderRadius:100,
                       background: sc.bg, color: sc.color,
                       textTransform:'uppercase', letterSpacing:0.3,
-                    }}>{t(`dashboard:${STATUS_LABEL_KEYS[b.status]}`) || b.status}</span>
+                    }}>{STATUS_LABEL_KEYS[b.status] ? t(`dashboard:${STATUS_LABEL_KEYS[b.status]}`) : b.status}</span>
                   </div>
 
                   <div style={{ display:'flex', gap:'0.65rem', fontSize:'0.8rem', color:'var(--t2)', marginBottom:'0.5rem', flexWrap:'wrap', alignItems:'center' }}>

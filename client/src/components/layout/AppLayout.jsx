@@ -5,7 +5,6 @@ import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import CartSheet from '../CartSheet'
 import CartFab from './CartFab'
-import AIFab from './AIFab'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -137,7 +136,6 @@ export default function AppLayout() {
         <Outlet />
       </div>
       {isMobile && <BottomNav />}
-      <AIFab />
       <CartFab />
       <CartSheet />
     </div>

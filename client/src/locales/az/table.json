@@ -59,5 +59,14 @@
   "waiterTooMany": "Bu masada artıq bir neçə açıq sorğu var.",
   "waiterNoSession": "Ofisiant çağırmaq üçün masaya qoşulun.",
   "waiterInvalidKind": "Bu sorğu növü mövcud deyil.",
-  "waiterFailed": "Sorğu göndərilmədi. Yenidən cəhd edin."
+  "waiterFailed": "Sorğu göndərilmədi. Yenidən cəhd edin.",
+  "claimInvalidTitle": "Bu masa linki etibarlı deyil",
+  "claimEnterCode": "Əvəzinə masa kodunu daxil edin",
+  "claimFailedTitle": "Masaya qoşula bilmədik",
+  "claimRetry": "Yenidən cəhd et",
+  "claimSignInTitle": "Masanıza qoşulmaq üçün daxil olun",
+  "claimSignInBody": "Daxil olun, sizi indicə skan etdiyiniz masaya oturdaq.",
+  "claimConfirmTitle": "Bu masaya qoşulursunuz?",
+  "claimConfirmBody": "Sizi bu masaya oturdacağıq və telefonunuzdan sifariş verə biləcəksiniz.",
+  "claimJoin": "Qoşul"
 }

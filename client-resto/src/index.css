@@ -440,3 +440,54 @@ a { text-decoration: none; color: inherit; }
   to   { transform: scale(1) translateY(0); opacity: 1 }
 }
 body.modal-open { overflow: hidden; }
+
+/* ── Table QR modal + print sheet ── */
+.qr-modal { padding: 1.25rem; max-width: 380px; }
+.qr-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; }
+.qr-modal-title { font-size: 1.05rem; font-weight: 800; }
+.qr-modal-close { background: none; border: none; color: var(--t3); font-size: 1.2rem; cursor: pointer; padding: 4px; }
+.qr-modal-close:hover { color: var(--t1); }
+.qr-modal-frame {
+  display: flex; align-items: center; justify-content: center;
+  width: min(100%, 280px); aspect-ratio: 1; margin: 0 auto 1rem;
+  background: #fff; border-radius: 12px; padding: 0.5rem;
+}
+.qr-modal-img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.qr-modal-error { color: #A32D2D; font-size: 0.8rem; text-align: center; padding: 1rem; }
+.qr-modal-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 1.1rem; }
+.qr-modal-meta-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--t3); }
+.qr-modal-link {
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.7rem;
+  color: var(--t2); word-break: break-all; user-select: all;
+}
+.qr-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+.code-chip-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  display: flex; align-items: center; color: var(--t3); transition: color 0.15s;
+}
+.code-chip-btn:hover { color: var(--t1); }
+
+/* Print-only sheet for a table's QR code. Hidden on screen; while the QR modal
+   is open (body.qr-printing) a print shows only this sheet. */
+.qr-print-sheet { display: none; }
+@media print {
+  body.qr-printing { background: #fff !important; overflow: visible !important; }
+  body.qr-printing #root { display: none !important; }
+  body.qr-printing .qr-print-sheet {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.6cm; min-height: 100vh; padding: 2cm; text-align: center;
+    background: #fff; color: #1A1210; font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .qr-print-resto { font-size: 22pt; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
+  .qr-print-table { font-size: 34pt; font-weight: 800; }
+  .qr-print-img { width: min(11cm, 100%); height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+  .qr-print-hint { font-size: 15pt; }
+  .qr-print-code { font-size: 13pt; color: #4A3E35; }
+  .qr-print-code strong { font-family: 'JetBrains Mono', 'Courier New', monospace; color: #1A1210; letter-spacing: 1px; }
+}
+.qr-modal-warning {
+  padding: 0.75rem 0.85rem; margin-bottom: 1rem; border-radius: 10px;
+  background: rgba(186,117,23,0.1); border: 1px solid rgba(186,117,23,0.3);
+  color: var(--warning); font-size: 0.8rem; line-height: 1.45;
+}
+.order-pay-hint { margin-top: 0.5rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }

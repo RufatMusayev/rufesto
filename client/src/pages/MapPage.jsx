@@ -7,6 +7,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase } from '../lib/supabase'
+import { rsrc } from '../lib/publicSource'
 
 // Vite fingerprints/relocates these assets at build time, so Leaflet's own hardcoded
 // default-icon URLs (which assume a classic /images/ path next to leaflet.js) 404 unless
@@ -83,7 +84,7 @@ export default function MapPage() {
 
   useEffect(() => {
     supabase
-      .from('restaurants')
+      .from(rsrc())
       .select('id, name, slug, cuisine_type, address, latitude, longitude')
       .eq('status', 'active')
       .then(({ data }) => {

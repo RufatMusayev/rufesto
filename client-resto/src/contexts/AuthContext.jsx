@@ -11,6 +11,8 @@ export function AuthProvider({ children }) {
   const [activeStaffId, setActiveStaffIdState] = useState(null)
   const [loading, setLoading]         = useState(true)      // initial session bootstrap
   const [staffLoading, setStaffLoading] = useState(true)    // staff row(s) fetch in flight
+  // Staff-lookup failure as a code ('staffVerifyFailed' | 'noStaffRecord');
+  // ProtectedRoute translates it. Never holds raw Supabase error text.
   const [error, setError]             = useState(null)
 
   // Tracks which user id we last fetched staff for, so TOKEN_REFRESHED (and
@@ -63,13 +65,13 @@ export function AuthProvider({ children }) {
 
     if (err) {
       console.warn('Staff fetch failed:', err.message)
-      setError('Could not verify staff access')
+      setError('staffVerifyFailed')
       setStaffRows([])
       setActiveStaffIdState(null)
       return
     }
     if (!data || data.length === 0) {
-      setError('No active staff record found for this account')
+      setError('noStaffRecord')
       setStaffRows([])
       setActiveStaffIdState(null)
       return
@@ -102,7 +104,6 @@ export function AuthProvider({ children }) {
   async function signIn(email, password) {
     setError(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
     return { error }
   }
 

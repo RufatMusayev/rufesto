@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
-import { TABLE_COLORS, ORDER_STATUS } from '@shared/constants'
+import { TABLE_COLORS } from '@shared/constants'
+import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
 import { bakuTodayStartISO, localeTag } from '../lib/time'
 import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
 
-const ORDER_STATUS_LABEL_KEYS = {
-  open: 'ordStatusOpen', preparing: 'ordStatusPreparing', ready: 'ordStatusReady',
-  served: 'ordStatusServed', done: 'ordStatusDone', cancelled: 'ordStatusCancelled',
-}
+// Tables nobody is using; `maintenance` is out of service, not busy.
+const IDLE_TABLE_STATES = ['free', 'cleared', 'maintenance']
 
 export default function DashboardHome() {
   const { restaurantId } = useAuth()
@@ -25,15 +25,25 @@ export default function DashboardHome() {
     if (!restaurantId) return
     loadAll()
 
-    const debouncedLoad = debounce(loadAll, 400)
+    // Every table below feeds a stat on this page: orders (revenue/count/recent),
+    // tables (floor), kds_tickets (kitchen alert count), bookings (pending alert),
+    // dishes (menu availability).
+    const debouncedLoad = debounce(loadAll, 600)
     const ch = supabase
       .channel(`dash-home-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
+    // bookings and dishes sit on their own channel: if either isn't in the
+    // supabase_realtime publication yet, that must not fail the channel above.
+    const extra = supabase
+      .channel(`dash-home-extra-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      .subscribe()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
 
-    return () => { debouncedLoad.cancel(); supabase.removeChannel(ch) }
+    const stopMain = subscribeResync(ch, debouncedLoad)
+    const stopExtra = subscribeResync(extra, debouncedLoad)
+    return () => { debouncedLoad.cancel(); stopMain(); stopExtra() }
   }, [restaurantId])
 
   async function loadAll() {
@@ -60,9 +70,9 @@ export default function DashboardHome() {
     const dishes = dishesR.data || []
 
     setStats({
-      revenue: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (o.total_amount || 0), 0),
+      revenue: orders.filter(o => o.status !== 'cancelled' && o.status !== 'refunded').reduce((s, o) => s + (o.total_amount || 0), 0),
       orderCount: orders.length,
-      activeTables: tbl.filter(t => t.state !== 'free' && t.state !== 'cleared').length,
+      activeTables: tbl.filter(t => !IDLE_TABLE_STATES.includes(t.state)).length,
       totalTables: tbl.length,
       availDishes: dishes.filter(d => d.available).length,
       totalDishes: dishes.length,
@@ -216,7 +226,7 @@ export default function DashboardHome() {
 
 function OrderRow({ order }) {
   const { t } = useTranslation(['dashboard', 'common'])
-  const s = ORDER_STATUS[order.status] || ORDER_STATUS.open
+  const s = orderStatusStyle(order.status)
   const items = order.order_items || []
   const itemNames = items.slice(0, 2).map(i => `${i.quantity}× ${i.dishes?.name || 'item'}`).join(', ')
   const more = items.length > 2 ? ` +${items.length - 2}` : ''
@@ -247,7 +257,7 @@ function OrderRow({ order }) {
         <span style={{
           fontSize: '0.58rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4,
           background: s.bg, color: s.color, textTransform: 'uppercase',
-        }}>{t(`dashboard:${ORDER_STATUS_LABEL_KEYS[order.status] || 'ordStatusOpen'}`)}</span>
+        }}>{t(`dashboard:${orderStatusLabelKey(order.status)}`)}</span>
       </div>
     </div>
   )

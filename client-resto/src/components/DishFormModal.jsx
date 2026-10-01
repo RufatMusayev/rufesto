@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji } from '@shared/helpers'
 import { dishPhotoPath } from '../lib/storage'
+import { friendlyError, writeError } from '../lib/errors'
+
+// Thrown inside handleSave with a message that is already translated and safe
+// to show; anything else caught there goes through friendlyError().
+class FormError extends Error {}
 
 const CATEGORIES = ['starter', 'soup', 'salad', 'main', 'side', 'dessert', 'beverage', 'alcoholic', 'kids']
 
@@ -112,7 +117,7 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
         const { error: uploadErr } = await supabase.storage
           .from('dish-photos')
           .upload(path, photoFile, { upsert: true, contentType: photoFile.type })
-        if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`)
+        if (uploadErr) throw new FormError(friendlyError(uploadErr, t, { fallback: 'errUploadFailed' }))
 
         const { data: urlData } = supabase.storage.from('dish-photos').getPublicUrl(path)
         photoUrl = urlData.publicUrl
@@ -140,14 +145,14 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
       }
 
       if (isEdit) {
-        const { error: err } = await supabase.from('dishes').update(row).eq('id', dishId)
-        if (err) throw new Error(err.message)
+        const err = writeError(await supabase.from('dishes').update(row).eq('id', dishId).select('id'))
+        if (err) throw err
       } else {
         row.id = dishId
         row.restaurant_id = restaurantId
         row.available = true
         const { error: err } = await supabase.from('dishes').insert(row)
-        if (err) throw new Error(err.message)
+        if (err) throw err
       }
 
       if (photoUrl && photoFile) {
@@ -164,7 +169,7 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof FormError ? err.message : friendlyError(err, t))
     } finally {
       setSaving(false)
     }

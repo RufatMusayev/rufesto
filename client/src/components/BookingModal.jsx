@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { BOOKING_MINUTES, addDays, bakuDateString, bakuToInstant, bookableSlots, checkSlot } from '../lib/bookingSlots'
 import AuthModal from './AuthModal'
 
 export default function BookingModal({ restaurant, onClose, preselectedTable = null }) {
@@ -15,22 +16,99 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
   const [done,    setDone]    = useState(false)
+  // Status the database actually gave the new booking ('pending' until the restaurant confirms).
+  const [resultStatus, setResultStatus] = useState(null)
+  // Opening hours normally arrive embedded in the restaurant (RestaurantPage loads them);
+  // fetch them ourselves when they didn't, so the form never has to guess.
+  const [hours,      setHours]      = useState(Array.isArray(restaurant.operating_hours) ? restaurant.operating_hours : null)
+  const [hoursError, setHoursError] = useState(false)
+  const [closures,   setClosures]   = useState([])
 
-  const today   = new Date().toISOString().split('T')[0]
-  const maxDate = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
-
-  const TIME_SLOTS = ['12:00','12:30','13:00','13:30','14:00','14:30',
-    '18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00']
+  // "Today" and the booking window are Baku dates, not the visitor's browser dates.
+  const today   = bakuDateString()
+  const maxDate = addDays(today, 30)
 
   const maxParty = preselectedTable ? preselectedTable.capacity : 12
+
+  useEffect(() => {
+    if (hours) return
+    let cancelled = false
+    supabase
+      .from('operating_hours')
+      .select('day_of_week, open_time, close_time, is_closed')
+      .eq('restaurant_id', restaurant.id)
+      .then(({ data, error: err }) => {
+        if (cancelled) return
+        if (err) setHoursError(true)
+        else setHours(data || [])
+      })
+    return () => { cancelled = true }
+  }, [restaurant.id, hours])
+
+  // Special closures (holidays etc.) inside the booking window. Not always readable by
+  // guests; if the read comes back empty or fails, the database still enforces them.
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('special_closures')
+      .select('closed_date, reason')
+      .eq('restaurant_id', restaurant.id)
+      .gte('closed_date', today)
+      .lte('closed_date', maxDate)
+      .then(({ data, error: err }) => {
+        if (!cancelled && !err) setClosures(data || [])
+      })
+    return () => { cancelled = true }
+  }, [restaurant.id, today, maxDate])
+
+  const day = useMemo(
+    () => (hours && date ? bookableSlots(hours, closures, date) : null),
+    [hours, closures, date],
+  )
+
+  // Drop a chosen time that the newly picked date doesn't offer.
+  useEffect(() => {
+    if (time && day && !day.slots.includes(time)) setTime('')
+  }, [day, time])
+
+  function closedMessage(info) {
+    switch (info.status ?? info.code) {
+      case 'closedDate':
+        return info.reason ? t('booking:closedOnDateReason', { reason: info.reason }) : t('booking:closedOnDate')
+      case 'closedDay':    return t('booking:closedOnDay')
+      case 'noneLeft':     return t('booking:noSlotsLeft')
+      case 'past':         return t('booking:errPastTime')
+      case 'outsideHours': return t('booking:errOutsideHours', { open: info.open, close: info.close })
+      default:             return ''
+    }
+  }
+
+  // Translate the database's booking errors (validate_booking_time, the overlap constraint) so the
+  // guest never sees raw English exception text.
+  function bookingErrorMessage(err) {
+    const msg = err?.message || ''
+    if (err?.code === '23P01') return t('booking:errNoTables')   // exclusion constraint: slot taken
+    if (/closed on that day/i.test(msg)) return t('booking:closedOnDay')
+    if (/closed on/i.test(msg)) return t('booking:closedOnDate')
+    if (/outside operating hours/i.test(msg)) {
+      return t('booking:errOutsideHours', { open: day?.open ?? '', close: day?.close ?? '' })
+    }
+    return t('booking:errBookingFailed')
+  }
 
   async function handleBook(e) {
     e.preventDefault()
     setError('')
+
+    if (!hours) { setError(t('booking:errHoursUnavailable')); return }
+    if (date < today || date > maxDate) { setError(t('booking:errDateRange')); return }
+    const problem = checkSlot(hours, closures, date, time)
+    if (problem) { setError(closedMessage(problem)); return }
+
     setLoading(true)
 
-    const from  = new Date(`${date}T${time}`)
-    const until = new Date(from.getTime() + 90 * 60000)
+    const from  = bakuToInstant(date, time)
+    const until = new Date(from.getTime() + BOOKING_MINUTES * 60000)
 
     let tableId
     if (preselectedTable) {
@@ -59,7 +137,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
       tableId = tables[0].id
     }
 
-    const { error: bErr } = await supabase.from('bookings').insert({
+    const { data: booking, error: bErr } = await supabase.from('bookings').insert({
       restaurant_id:    restaurant.id,
       user_id:          session.user.id,
       table_id:         tableId,
@@ -69,61 +147,49 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
       status:           'pending',
       special_requests: note || null,
       source:           'app',
-    })
+    }).select('status').single()
 
     setLoading(false)
-    if (bErr) { setError(bErr.message); return }
+    if (bErr) { setError(bookingErrorMessage(bErr)); return }
+    setResultStatus(booking?.status ?? null)
     setDone(true)
   }
 
-  if (done) return (
-    <div className="overlay center" onClick={onClose}>
-      <div
-        className="modal"
-        style={{ padding: 0, maxWidth: 360 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{
-          padding: '40px 28px 32px',
-          textAlign: 'center',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-        }}>
-          {/* Success icon */}
-          <div style={{
-            width: 64, height: 64, borderRadius: '50%',
-            background: 'var(--sage-bg)',
-            border: '2px solid var(--sage)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 20,
-          }}>
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.5" style={{ width: 28, height: 28, stroke: 'var(--sage)' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+  if (done) {
+    // Only claim "confirmed" when the row really is confirmed; anything else (including an
+    // unreadable status) is a request the restaurant still has to accept.
+    const confirmed = resultStatus === 'confirmed'
+    return (
+      <div className="overlay center" onClick={onClose}>
+        <div className="modal modal-narrow" onClick={e => e.stopPropagation()}>
+          <div className="state-panel">
+            <div className={`state-icon ${confirmed ? 'state-icon-sage' : ''}`}>
+              {confirmed ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+                  <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 15" />
+                </svg>
+              )}
+            </div>
+            <h2 className="state-title">
+              {confirmed ? t('booking:bookingConfirmed') : t('booking:bookingRequested')}
+            </h2>
+            <p className="state-body">
+              {restaurant.name}<br />
+              <span className="state-meta">{t('booking:bookingSummary', { date, time, count: party })}</span>
+            </p>
+            {!confirmed && <p className="state-note">{t('booking:bookingRequestedHint')}</p>}
+            <button className="btn btn-primary state-done" onClick={onClose}>
+              {t('common:done')}
+            </button>
           </div>
-          <h2 style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontWeight: 700, fontSize: '1.3rem',
-            color: 'var(--t1)', marginBottom: 8, lineHeight: 1.2,
-          }}>
-            {t('booking:bookingConfirmed')}
-          </h2>
-          <p style={{ color: 'var(--t2)', fontSize: '0.84rem', lineHeight: 1.55, marginBottom: 24 }}>
-            {restaurant.name}<br />
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--t3)' }}>
-              {t('booking:bookingSummary', { date, time, count: party })}
-            </span>
-          </p>
-          <button
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '11px 0', borderRadius: 12, fontWeight: 700 }}
-            onClick={onClose}
-          >
-            {t('common:done')}
-          </button>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   if (step === 'auth') return (
     <AuthModal onClose={onClose} onSuccess={() => setStep('form')} />
@@ -269,32 +335,31 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
             }}>
               {t('booking:time')}
             </label>
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6,
-            }}>
-              {TIME_SLOTS.map(t => {
-                const active = time === t
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTime(t)}
-                    style={{
-                      padding: '7px 0', borderRadius: 9,
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      background: active ? 'var(--accent)' : 'var(--s2)',
-                      color: active ? '#F5F0E8' : 'var(--t2)',
-                      fontFamily: "'DM Mono', monospace",
-                      fontSize: '0.72rem', fontWeight: active ? 700 : 500,
-                      cursor: 'pointer', textAlign: 'center',
-                      transition: 'all 150ms var(--ease-out)',
-                    }}
-                  >
-                    {t}
-                  </button>
-                )
-              })}
-            </div>
+            {!date ? (
+              <p className="slot-hint">{t('booking:pickDateFirst')}</p>
+            ) : hoursError ? (
+              <p className="slot-hint slot-hint-warn">{t('booking:errHoursUnavailable')}</p>
+            ) : !day ? (
+              <div className="skeleton slot-skeleton" />
+            ) : day.status !== 'ok' ? (
+              <p className="slot-hint slot-hint-warn">{closedMessage(day)}</p>
+            ) : (
+              <>
+                <p className="slot-hint">{t('booking:openHours', { open: day.open, close: day.close })}</p>
+                <div className="slot-grid">
+                  {day.slots.map(slot => (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={`slot-btn ${time === slot ? 'active' : ''}`}
+                      onClick={() => setTime(slot)}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Special requests */}
@@ -343,7 +408,7 @@ export default function BookingModal({ restaurant, onClose, preselectedTable = n
                 <span className="spinner" />
                 {t('booking:booking')}
               </span>
-            ) : t('booking:confirmBooking')}
+            ) : t('booking:requestBooking')}
           </button>
         </form>
       </div>

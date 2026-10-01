@@ -7,7 +7,7 @@
   "time": "Time",
   "specialRequests": "Special Requests",
   "specialRequestsPlaceholder": "Allergies, special occasions, seating preferences...",
-  "confirmBooking": "Confirm Booking",
+  "requestBooking": "Request Booking",
   "booking": "Booking...",
   "tableBadge": "Table {{number}} · {{section}} · up to {{capacity}}",
   "errTableCapacity": "Table {{number}} seats up to {{capacity}} guests.",
@@ -43,5 +43,18 @@
   "joinDeclined": "The host didn't approve your last request to join this table. Please ask them, or a staff member, for help.",
   "tooManyJoinRequests": "Several people are already waiting to join this table. Please ask the host or a staff member.",
   "requestSentTitle": "Request Sent",
-  "pendingApprovalHint": "We'll seat you as soon as the host approves your request."
+  "pendingApprovalHint": "We'll seat you as soon as the host approves your request.",
+  "bookingRequested": "Request sent",
+  "bookingRequestedHint": "The restaurant will confirm your booking. You can follow its status under Bookings in your profile.",
+  "pickDateFirst": "Pick a date to see available times.",
+  "openHours": "Open {{open}} – {{close}}",
+  "closedOnDate": "The restaurant is closed on this date.",
+  "closedOnDateReason": "The restaurant is closed on this date ({{reason}}).",
+  "closedOnDay": "The restaurant isn't taking bookings on this day.",
+  "noSlotsLeft": "No booking times left today. Pick another date.",
+  "errPastTime": "That time has already passed. Pick a later time.",
+  "errOutsideHours": "That time is outside opening hours ({{open}} – {{close}}). Bookings last 90 minutes, so pick an earlier start.",
+  "errDateRange": "Pick a date within the next 30 days.",
+  "errHoursUnavailable": "Couldn't load the restaurant's opening hours. Close this window and try again.",
+  "errBookingFailed": "We couldn't create your booking. Please try again."
 }

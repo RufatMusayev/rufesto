@@ -59,5 +59,14 @@
   "waiterTooMany": "There are already several open requests at this table.",
   "waiterNoSession": "Join the table to call a waiter.",
   "waiterInvalidKind": "That request type isn't available.",
-  "waiterFailed": "Couldn't send the request. Try again."
+  "waiterFailed": "Couldn't send the request. Try again.",
+  "claimInvalidTitle": "This table link isn't valid",
+  "claimEnterCode": "Enter a table code instead",
+  "claimFailedTitle": "Couldn't join this table",
+  "claimRetry": "Try again",
+  "claimSignInTitle": "Sign in to join your table",
+  "claimSignInBody": "Sign in and we'll seat you at the table you just scanned.",
+  "claimConfirmTitle": "Join this table?",
+  "claimConfirmBody": "We'll seat you here, and you can order from your phone.",
+  "claimJoin": "Join"
 }

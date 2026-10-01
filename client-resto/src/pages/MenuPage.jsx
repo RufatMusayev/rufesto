@@ -6,6 +6,9 @@ import { categoryEmoji, formatPrice } from '@shared/helpers'
 import DishFormModal from '../components/DishFormModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { dishPhotoPath } from '../lib/storage'
+import { debounce } from '../lib/debounce'
+import { subscribeResync } from '../lib/realtime'
+import { friendlyError, writeError } from '../lib/errors'
 
 export default function MenuPage() {
   const { restaurantId, isManager } = useAuth()
@@ -21,28 +24,24 @@ export default function MenuPage() {
   const [deleteDish, setDeleteDish] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!restaurantId) return
     load()
 
+    // Realtime payloads are bare `dishes` rows without the menu_sections(name)
+    // join, so an inserted or section-moved dish would show no section label if
+    // patched in locally. Refetch (debounced) on every event instead.
+    const debouncedLoad = debounce(load, 400)
     const channel = supabase
       .channel(`menu-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes', filter: `restaurant_id=eq.${restaurantId}` },
-        payload => {
-          if (payload.eventType === 'DELETE') {
-            setDishes(prev => prev.filter(d => d.id !== payload.old.id))
-          } else {
-            setDishes(prev => {
-              const exists = prev.find(d => d.id === payload.new.id)
-              if (exists) return prev.map(d => d.id === payload.new.id ? { ...d, ...payload.new } : d)
-              return [...prev, payload.new]
-            })
-          }
-        })
-      .subscribe()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
 
-    return () => supabase.removeChannel(channel)
+    // DELETE events aren't delivered for filtered subscriptions under RLS, so a
+    // dish another staff member deletes only shows up on the slow poll.
+    const stop = subscribeResync(channel, debouncedLoad, { pollMs: 60000, onVisible: true })
+    return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
   async function load() {
@@ -57,12 +56,16 @@ export default function MenuPage() {
 
   async function toggle(dish) {
     setToggling(prev => new Set(prev).add(dish.id))
-    const { error } = await supabase
+    setActionError('')
+    const error = writeError(await supabase
       .from('dishes')
       .update({ available: !dish.available, toggled_at: new Date().toISOString() })
       .eq('id', dish.id)
+      .select('id'))
 
-    if (!error) {
+    if (error) {
+      setActionError(friendlyError(error, t))
+    } else {
       setDishes(prev => prev.map(d => d.id === dish.id ? { ...d, available: !d.available } : d))
     }
     setToggling(prev => { const s = new Set(prev); s.delete(dish.id); return s })
@@ -75,9 +78,9 @@ export default function MenuPage() {
     // DB row first: if this fails (RLS, FK, etc.) we must not touch storage
     // or local state, otherwise a dish is left "deleted" in the UI with its
     // photo gone while the row itself still exists.
-    const { error: delErr } = await supabase.from('dishes').delete().eq('id', id)
+    const delErr = writeError(await supabase.from('dishes').delete().eq('id', id).select('id'))
     if (delErr) {
-      setDeleteError(delErr.message)
+      setDeleteError(friendlyError(delErr, t))
       setDeleting(false)
       return
     }
@@ -121,6 +124,18 @@ export default function MenuPage() {
           color:'var(--t2)', fontSize:'0.78rem',
         }}>
           {t('dashboard:managerOnlyNotice')}
+        </div>
+      )}
+
+      {actionError && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'1.25rem',
+          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
+          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
+        }}>
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
         </div>
       )}
 

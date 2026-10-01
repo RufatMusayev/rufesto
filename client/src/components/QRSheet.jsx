@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Html5Qrcode } from 'html5-qrcode'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
+import { sanitizeTableCode } from '../lib/pendingClaim'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
@@ -58,12 +59,22 @@ export default function QRSheet({ onClose }) {
     }
   }, [scanning, manualMode, done])
 
+  // New QR codes encode a deep link  https://<host>/t/<table_code>; older printed ones are the
+  // bare table token (a UUID, possibly inside some other text). Both end up in claim_table().
+  function extractTableCode(text) {
+    const link = text.trim().match(/^https?:\/\/[^/?#]+\/t\/([^/?#]+)/i)
+    if (link) {
+      try { return sanitizeTableCode(decodeURIComponent(link[1])) } catch { return null }
+    }
+    const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+    return uuid ? uuid[0] : null
+  }
+
   function handleQRResult(text) {
-    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-    const match = text.match(uuidPattern)
-    if (match) {
-      setToken(match[0])
-      claim(match[0])
+    const code = extractTableCode(text)
+    if (code) {
+      setToken(code)
+      claim(code)
     } else {
       setError(t('booking:errInvalidQR'))
       setScanning(true)
@@ -101,8 +112,10 @@ export default function QRSheet({ onClose }) {
 
   async function handleLookup(e) {
     e.preventDefault()
-    if (!token.trim()) return
-    await claim(token.trim())
+    const typed = token.trim()
+    if (!typed) return
+    // Accept a pasted table link as well as a bare code/token.
+    await claim(extractTableCode(typed) ?? typed)
   }
 
   function handleRetryCamera() {

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { friendlyError } from '../lib/errors'
 
 export default function LoginPage() {
   const { session, loading, signIn } = useAuth()
@@ -30,7 +31,7 @@ export default function LoginPage() {
     }
     setSubmitting(true)
     const { error } = await signIn(email.trim().toLowerCase(), password)
-    if (error) setErr(error.message)
+    if (error) setErr(friendlyError(error, t))
     setSubmitting(false)
   }
 

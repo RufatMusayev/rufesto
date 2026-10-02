@@ -1,8 +1,8 @@
 # Rufesto e2e smoke suite
 
 Playwright (Chromium, headless) smoke tests against a deployed Rufesto stack: the consumer app
-(`client/`) and the staff dashboard (`client-resto/`). Read-only: nothing is ordered, booked or
-claimed, and no accounts are created.
+(`client/`) and the staff dashboard (`client-resto/`). The v1 specs are read-only; the `v2-*` specs
+write on the QA accounts (friend/post, booking, order + demo payment) and undo it. No accounts are created.
 
 ## Setup
 
@@ -37,6 +37,10 @@ message if either does not answer HTTP 200.
 | `tests/anon-resto.spec.js` | `@anon @resto` | staff login at `/`, SPA fallback for unknown routes, no console errors |
 | `tests/guest.spec.js` | `@guest @consumer` | sign in, profile, restaurant, booking time slots, table-code sheet |
 | `tests/staff.spec.js` | `@staff @resto` | manager / waiter / kitchen nav and route gating |
+| `tests/v2-social.spec.js` | `@guest @v2` | friend request + accept (2nd context as manager), post, feed, like, comment, unfriend |
+| `tests/v2-bookings.spec.js` | `@guest @v2` | group booking wizard, signed-out invite preview, manager joins/leaves, host cancels |
+| `tests/v2-bills.spec.js` | `@guest @v2` | `/t/<code>` claim, order, demo-card payment (double tap), receipt, leave; needs `QA_TABLE_CODE` |
+| `tests/v2-resto.spec.js` | `@staff @v2` | `/bills`, `/qr-sheet`, `/settings` tabs for the manager; waiter is redirected |
 
 Both apps are forced to English (`localStorage.rufesto_lang = 'en'`, seeded in
 `playwright.config.js`).
@@ -51,7 +55,9 @@ Put them in `e2e/.env` (git-ignored); see `.env.example`.
   seeds it into localStorage. The account needs a password set in the Supabase dashboard. The
   Supabase URL and public anon key are read from the app's own network traffic (override with
   `QA_SUPABASE_URL` / `QA_SUPABASE_ANON_KEY`).
-- **Staff:** the dashboard has a normal email + password form, so staff specs sign in through it.
+- **Staff:** `staff.spec.js` signs in through the dashboard's email + password form; the `v2-*` specs use the
+  same auth-API exchange as the guest (`support/guest.js`, helpers in `support/v2.js`).
+- **Table:** `v2-bills.spec.js` needs `QA_TABLE_CODE` (a free table at Trattoria Bella Roma, see `docs/QA-ACCOUNTS.md`).
 
 ## Console-error rule
 

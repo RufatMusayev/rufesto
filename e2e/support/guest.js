@@ -4,9 +4,12 @@
 // public auth API and seed it into localStorage exactly where supabase-js keeps it.
 const { CONSUMER_URL, supabaseOverride } = require('./env')
 
+let discovered = null   // per worker process: the Supabase URL/key never change between tests
+
 /** Supabase URL + public anon key, read from the consumer app's own requests. */
 async function discoverSupabase(page) {
   if (supabaseOverride) return supabaseOverride
+  if (discovered) return discovered
   let found = null
   page.on('request', req => {
     if (found || !/\/rest\/v1\//.test(req.url())) return
@@ -17,6 +20,7 @@ async function discoverSupabase(page) {
   const deadline = Date.now() + 15_000
   while (!found && Date.now() < deadline) await page.waitForTimeout(200)
   if (!found) throw new Error('Could not find the Supabase URL/anon key in consumer traffic; set QA_SUPABASE_URL and QA_SUPABASE_ANON_KEY.')
+  discovered = found
   return found
 }
 
@@ -35,6 +39,7 @@ async function signInGuest(page, { email, password }) {
   await page.context().addInitScript(([key, value]) => {
     try { if (!localStorage.getItem(key)) localStorage.setItem(key, value) } catch { /* storage blocked */ }
   }, [storageKey, JSON.stringify(session)])
+  return { session, supabase: { url, anonKey } }
 }
 
 /** 'YYYY-MM-DD' for today + n days on the Baku calendar (the booking form works in Baku time). */

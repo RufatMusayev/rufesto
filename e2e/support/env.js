@@ -34,5 +34,6 @@ module.exports = {
   supabaseOverride: process.env.QA_SUPABASE_URL && process.env.QA_SUPABASE_ANON_KEY
     ? { url: strip(process.env.QA_SUPABASE_URL), anonKey: process.env.QA_SUPABASE_ANON_KEY }
     : null,
+  tableCode: process.env.QA_TABLE_CODE || '',
   kitchenLockdownDeployed: process.env.QA_KITCHEN_LOCKDOWN_DEPLOYED === '1',
 }

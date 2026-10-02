@@ -21,6 +21,7 @@ cp .env.example .env     # optional, only needed for credentials or other target
 | `npm run test:anon` | `@anon`: logged-out consumer + dashboard, always runnable |
 | `npm run test:guest` | `@guest`: needs `QA_GUEST_*` |
 | `npm run test:staff` | `@staff`: needs `QA_MANAGER_*` / `QA_WAITER_*` / `QA_KITCHEN_*` |
+| `npm run tour` | `@tour`: visual tour, writes numbered full-page PNGs to `report/tour/` (see below); not part of `npm test` |
 | `npm run report` | open the last HTML report (`e2e/report`) |
 
 Filter further with `npx playwright test --grep "@consumer"` or `--grep "@resto"`.
@@ -41,6 +42,7 @@ message if either does not answer HTTP 200.
 | `tests/v2-bookings.spec.js` | `@guest @v2` | group booking wizard, signed-out invite preview, manager joins/leaves, host cancels |
 | `tests/v2-bills.spec.js` | `@guest @v2` | `/t/<code>` claim, order, demo-card payment (double tap), receipt, leave; needs `QA_TABLE_CODE` |
 | `tests/v2-resto.spec.js` | `@staff @v2` | `/bills`, `/qr-sheet`, `/settings` tabs for the manager; waiter is redirected |
+| `tour.spec.js` | `@tour` | screenshot tour of the v2 flows: consumer at 390x844 as the QA guest, dashboard at 1280x800 as the QA manager; writes on the QA accounts and undoes it like the v2 specs; needs `QA_TABLE_CODE`; run with `npm run tour` (own config `playwright.tour.config.js`, outside `tests/`) |
 
 Both apps are forced to English (`localStorage.rufesto_lang = 'en'`, seeded in
 `playwright.config.js`).

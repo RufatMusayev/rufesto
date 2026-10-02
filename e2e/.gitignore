@@ -3,3 +3,4 @@ test-results/
 playwright/.cache/
 .env
 node_modules/
+tour-out/

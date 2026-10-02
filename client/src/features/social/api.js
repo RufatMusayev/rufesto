@@ -5,15 +5,19 @@
 import { supabase } from '../../lib/supabase'
 import { rsrc } from '../../lib/publicSource'
 import { toError } from './errors'
+import { POST_PHOTO_BUCKET, withSignedPhotos } from './lib/postPhotos'
 import {
   mapFriend, mapRequest, mapSearchRow, mapFeedItem, mapComment, mapReviewRow, mapProfile,
 } from './mappers'
 
-// CONTRACT: public bucket 'post-photos' (sql/43: 5 MB, jpeg/png/webp, authenticated insert only into
-// the caller's own <uid>/ folder). If the bucket is missing on the server, the new-post screen drops
-// to caption-only with a "Photo upload coming soon" note (see uploadPostPhoto + NewPostPage).
+// CONTRACT: PRIVATE bucket 'post-photos' (sql/43 + sql/48: 5 MB, jpeg/png/webp, authenticated insert
+// only into the caller's own <uid>/ folder). posts.photo_url holds the object PATH (`<uid>/<file>`);
+// feed / get_post / get_public_profile return it as-is and the client signs it per page of results
+// (lib/postPhotos.js, createSignedUrls, 1 h, cached in memory). If the bucket is missing on the
+// server, the new-post screen drops to caption-only with a "Photo upload coming soon" note
+// (see uploadPostPhoto + NewPostPage).
 export const PHOTO_UPLOAD_ENABLED = true
-export const POST_PHOTO_BUCKET = 'post-photos'
+export { POST_PHOTO_BUCKET }
 const postPhotoPath = uid => `${uid}/${Date.now()}.jpg`
 // CONTRACT: create_post(p_photo_url, p_caption, p_restaurant_id DEFAULT NULL, ...): the tag is optional.
 export const POST_REQUIRES_RESTAURANT = false
@@ -123,7 +127,9 @@ export async function getPublicProfile(userId) {
   // Never contains email or phone.
   const { data, error } = await rpc('get_public_profile', { p_user_id: userId })
   if (error) return error.code === 'user_not_found' ? { data: null, error: null } : { data: null, error }
-  return { data: mapProfile(first(data)), error: null }
+  const profile = mapProfile(first(data))
+  if (profile) profile.posts = await withSignedPhotos(profile.posts)
+  return { data: profile, error: null }
 }
 
 /* -------------------------------------------------------------------- feed */
@@ -133,7 +139,8 @@ export async function getFeed({ scope = 'all', cursor = null, limit = FEED_PAGE_
   // (authenticated only; 'friends' = mine + my friends' posts and reviews)
   const { data, error } = await rpc('feed', { p_scope: scope, p_cursor: cursor, p_limit: limit })
   if (error) return { data: null, error }
-  return { data: { items: (data?.items || []).map(mapFeedItem), nextCursor: data?.next_cursor || null }, error: null }
+  const items = await withSignedPhotos((data?.items || []).map(mapFeedItem))
+  return { data: { items, nextCursor: data?.next_cursor || null }, error: null }
 }
 
 /** Signed-out fallback for the Feed tab: recent public reviews (same read as Discover). */
@@ -162,13 +169,15 @@ export async function getPost(postId) {
   const { data, error } = await rpc('get_post', { p_post_id: postId })
   if (error) return error.code === 'post_not_found' ? { data: null, error: null } : { data: null, error }
   const row = first(data)
-  return { data: row ? mapFeedItem({ kind: 'post', ...row }) : null, error: null }
+  const item = row ? (await withSignedPhotos([mapFeedItem({ kind: 'post', ...row })]))[0] : null
+  return { data: item, error: null }
 }
 
-export async function createPost({ restaurantId, photoUrl, caption, visibility = 'public' }) {
+export async function createPost({ restaurantId, photoPath, caption, visibility = 'public' }) {
   // CONTRACT: create_post(p_photo_url, p_caption, p_restaurant_id, p_dish_id, p_visit_id, p_visibility) -> { id, created_at }
+  // p_photo_url is the bare object path returned by uploadPostPhoto (`<uid>/<file>`), not a URL.
   const { data, error } = await rpc('create_post', {
-    p_photo_url: photoUrl || null, p_caption: caption || null,
+    p_photo_url: photoPath || null, p_caption: caption || null,
     ...(restaurantId ? { p_restaurant_id: restaurantId } : {}), p_visibility: visibility,
   })
   if (error) return { data: null, error }
@@ -194,6 +203,7 @@ export async function setReviewLike(reviewId, userId, like) {
     : supabase.from('likes').delete().eq('user_id', userId).eq('target_type', 'review').eq('target_id', reviewId)))
 }
 
+/** Uploads to `<uid>/<file>` in the private bucket and resolves { data: path } (pass it to createPost). */
 export async function uploadPostPhoto(userId, blob) {
   if (!PHOTO_UPLOAD_ENABLED) return { data: null, error: toError({ message: 'photo_disabled' }) }
   const path = postPhotoPath(userId)
@@ -208,10 +218,7 @@ export async function uploadPostPhoto(userId, blob) {
   } catch {
     return { data: null, error: toError({ message: 'upload_failed' }) }
   }
-  const { data } = supabase.storage.from(POST_PHOTO_BUCKET).getPublicUrl(path)
-  return data?.publicUrl
-    ? { data: data.publicUrl, error: null }
-    : { data: null, error: toError({ message: 'upload_failed' }) }
+  return { data: path, error: null }
 }
 
 export async function searchRestaurants(query) {

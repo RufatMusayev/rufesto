@@ -5,7 +5,7 @@ import { Avatar, Pill } from '../../../components/ui'
 import { cleanDisplayName, timeAgo } from '../../../lib/helpers'
 import { togglePostLike, deletePost } from '../api'
 import { useRequireAuth, useToast } from '../hooks'
-import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon } from './Icons'
+import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon, CameraIcon } from './Icons'
 import ConfirmSheet from './ConfirmSheet'
 
 const DOUBLE_TAP_MS = 300
@@ -25,6 +25,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   const [menu, setMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+  const [imgFailed, setImgFailed] = useState(false)   // the signed URL expired or the file is gone
   const busy = useRef(false)
   const lastTap = useRef(0)
 
@@ -32,6 +33,8 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     setLiked(item.likedByMe)
     setLikeCount(item.likeCount)
   }, [item.id, item.likedByMe, item.likeCount])
+
+  useEffect(() => { setImgFailed(false) }, [item.photoUrl])
 
   const name = cleanDisplayName(item.user.name)
   const isMine = item.isMine || (!!session && !!item.user.id && item.user.id === session.user.id)
@@ -128,9 +131,11 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
         )}
       </header>
 
-      {item.photoUrl && (
+      {(item.hasPhoto || item.photoUrl) && (
         <div className="soc-photo" onClick={onPhotoTap}>
-          <img src={item.photoUrl} alt={item.text || t('post.photoAlt', { name })} loading="lazy" draggable={false} />
+          {item.photoUrl && !imgFailed
+            ? <img src={item.photoUrl} alt={item.text || t('post.photoAlt', { name })} loading="lazy" draggable={false} onError={() => setImgFailed(true)} />
+            : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}
           {burst && <span className="soc-burst" aria-hidden="true"><LikeIcon active size={84} /></span>}
         </div>
       )}

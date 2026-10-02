@@ -18,6 +18,18 @@ const mapRestaurant = r => (r ? {
   id: r.id || null, name: r.name || '', slug: r.slug || null, logo: r.logo || null,
 } : null)
 
+/**
+ * Post photo: the `post-photos` bucket is private, so the backend sends the object path
+ * (`<uid>/<file>`). A path is kept as `photoPath` and signed by api.js (lib/postPhotos.js), which
+ * then fills `photoUrl`; a legacy absolute URL (contains '://') is used as it is.
+ */
+const isPhotoPath = v => typeof v === 'string' && v !== '' && !v.includes('://')
+const mapPostPhoto = v => ({
+  photoPath: isPhotoPath(v) ? v : null,
+  photoUrl: v && !isPhotoPath(v) ? v : null,
+  hasPhoto: !!v,
+})
+
 const mapDish = d => (d ? { id: d.id || null, name: d.name || '', photo: d.photo || null } : null)
 
 export const mapFriend = r => ({
@@ -52,7 +64,9 @@ export const mapFeedItem = r => ({
   user: mapUser(r.user),
   restaurant: mapRestaurant(r.restaurant),
   dish: mapDish(r.dish),
-  photoUrl: r.photo_url ?? r.photo ?? null,
+  ...(r.kind === 'review'
+    ? { photoPath: null, photoUrl: r.photo_url ?? r.photo ?? null, hasPhoto: !!(r.photo_url ?? r.photo) }
+    : mapPostPhoto(r.photo_url ?? r.photo)),
   text: r.text ?? r.caption ?? r.body ?? null,
   rating: r.rating ?? null,
   likeCount: Number(r.like_count) || 0,
@@ -105,7 +119,7 @@ export function mapProfile(p) {
     },
     posts: (p.posts || []).map(x => ({
       id: x.id,
-      photoUrl: x.photo_url || null,
+      ...mapPostPhoto(x.photo_url),
       caption: x.caption || null,
       likeCount: Number(x.like_count) || 0,
       commentCount: Number(x.comment_count) || 0,

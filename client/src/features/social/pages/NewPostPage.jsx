@@ -22,7 +22,7 @@ export default function NewPostPage() {
   const [place, setPlace] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const uploaded = useRef({ blob: null, url: null })   // a retry after a failed insert must not upload twice
+  const uploaded = useRef({ blob: null, path: null })   // a retry after a failed insert must not upload twice
 
   const text = caption.trim()
   const [photoOff, setPhotoOff] = useState(!PHOTO_UPLOAD_ENABLED)   // true when the server has no photo bucket
@@ -39,10 +39,10 @@ export default function NewPostPage() {
     setBusy(true)
     setError(null)
 
-    let photoUrl = null
+    let photoPath = null
     if (photo) {
       if (uploaded.current.blob === photo.blob) {
-        photoUrl = uploaded.current.url
+        photoPath = uploaded.current.path
       } else {
         const up = await uploadPostPhoto(session.user.id, photo.blob)
         if (up.error) {
@@ -52,12 +52,12 @@ export default function NewPostPage() {
           setBusy(false)
           return
         }
-        uploaded.current = { blob: photo.blob, url: up.data }
-        photoUrl = up.data
+        uploaded.current = { blob: photo.blob, path: up.data }
+        photoPath = up.data
       }
     }
 
-    const res = await createPost({ restaurantId: place?.id, photoUrl, caption: text })
+    const res = await createPost({ restaurantId: place?.id, photoPath, caption: text })
     if (res.error) { setError(res.error.key); setBusy(false); return }
     rememberHomeTab('feed')
     navigate('/')

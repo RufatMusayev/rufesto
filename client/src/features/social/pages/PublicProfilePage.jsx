@@ -11,9 +11,26 @@ import TopBar from '../components/TopBar'
 import SignInCard from '../components/SignInCard'
 import FriendButton from '../components/FriendButton'
 import ReviewCard from '../components/ReviewCard'
+import { CameraIcon } from '../components/Icons'
 
 const byVerifiedThenNewest = (a, b) =>
   Number(b.verified) - Number(a.verified) || new Date(b.createdAt) - new Date(a.createdAt)
+
+/** Grid tile of one post. A photo that cannot be shown (not signed, expired, gone) falls back to the placeholder. */
+function PostTile({ post }) {
+  const { t } = useTranslation('social')
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [post.photoUrl])
+  return (
+    <Link to={`/post/${post.id}`} className="ig-grid-tile soc-tile" aria-label={post.caption || t('profile.openPost')}>
+      {post.photoUrl && !failed
+        ? <img src={post.photoUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : post.hasPhoto
+          ? <span className="soc-tile-missing" aria-hidden="true"><CameraIcon size={24} /></span>
+          : <span className="soc-tile-text">{post.caption}</span>}
+    </Link>
+  )
+}
 
 export default function PublicProfilePage() {
   const { id } = useParams()
@@ -94,13 +111,7 @@ export default function PublicProfilePage() {
         <EmptyState icon="📷" title={t('profile.noPostsTitle')} body={t('profile.noPostsBody')} />
       ) : (
         <div className="explore-grid soc-grid" aria-label={t('profile.posts')}>
-          {p.posts.map(post => (
-            <Link key={post.id} to={`/post/${post.id}`} className="ig-grid-tile soc-tile" aria-label={post.caption || t('profile.openPost')}>
-              {post.photoUrl
-                ? <img src={post.photoUrl} alt="" loading="lazy" />
-                : <span className="soc-tile-text">{post.caption}</span>}
-            </Link>
-          ))}
+          {p.posts.map(post => <PostTile key={post.id} post={post} />)}
         </div>
       )}
 

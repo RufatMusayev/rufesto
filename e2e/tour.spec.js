@@ -229,30 +229,49 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await shot(g, '04-restaurant-bella-roma')
       })
 
-      // ---- group booking wizard
+      await soft('04b-floor-plan', async () => {   // restaurant page -> Floor plan button -> sheet, at 390 wide
+        await g.goto(url('/restaurant/bella-roma'))
+        await expect(g.locator('.menu-card').first()).toBeVisible()
+        await g.getByRole('button', { name: 'Floor plan' }).click()
+        const sheet = g.locator('.fl-sheet')
+        await expect(sheet).toBeVisible()
+        await expect(sheet.getByRole('button', { name: /^Table T\d+/ }).first()).toBeVisible()
+        await shot(g, '04b-floor-plan', { full: false })   // the floor plan is an overlay
+        await g.getByRole('button', { name: 'Close' }).click()
+        await expect(g.locator('.overlay')).toHaveCount(0)
+      })
+
+      // ---- group booking wizard (merged flow: step 1 date + party + slot, step 2 "Who's coming?", step 3 confirm)
       await test.step('05-book-with-friends-step1', async () => {
         await g.goto(url('/book/bella-roma'))
+        await expect(g.locator('.bk-stepper-num')).toHaveText('2')   // merged wizard default
+        const more = g.getByRole('button', { name: 'More guests' })
+        await more.click(); await more.click()
         await expect(g.locator('.bk-stepper-num')).toHaveText('4')
         await expect(g.locator('.bk-day').first()).toBeVisible()
         await shot(g, '05-book-with-friends-step1')
       })
 
-      await test.step('06-book-step-slots (tomorrow, party of 4)', async () => {
+      await test.step('06-book-step-slots (a later day, party of 4, slot chosen)', async () => {
         let picked = false
         for (let day = 1; day <= 7 && !picked; day++) {   // the restaurant may be closed / full on a given weekday
+          const loaded = g.waitForResponse(r => /get_available_slots/.test(r.url()))
           await g.locator('.bk-day').nth(day).click()
-          await g.getByRole('button', { name: 'Continue' }).click()
-          const slot = g.locator('.slot-btn:enabled').first()
-          picked = await slot.waitFor({ timeout: 6_000 }).then(() => true, () => false)
-          if (picked) await slot.click()
-          else await g.getByRole('button', { name: 'Try another day' }).click()
+          await loaded
+          await g.locator('.slot-btn, .bk-slot-empty').first().waitFor({ timeout: 6_000 }).catch(() => {})
+          picked = (await g.locator('.slot-btn:enabled').count()) > 0
+          if (picked) await g.locator('.slot-btn:enabled').first().click()
         }
         expect(picked, 'no bookable slot in the next 7 days').toBe(true)
+        await expect(g.getByRole('button', { name: 'Continue' })).toBeEnabled()
         await shot(g, '06-book-step-slots')
       })
 
       await test.step('07-booking-created', async () => {
-        await g.getByRole('button', { name: 'Continue' }).click()
+        await g.getByRole('button', { name: 'Continue' }).click()   // step 2: Who's coming?
+        await expect(g.getByRole('heading', { name: "Who's coming?" })).toBeVisible()
+        await expect(g.getByRole('switch', { name: 'Invite friends' })).toHaveAttribute('aria-checked', 'true')   // on from 3 guests
+        await g.getByRole('button', { name: 'Continue' }).click()   // step 3: confirm
         const phone = g.getByLabel('Phone number')
         if (!(await phone.inputValue())) await phone.fill(PHONE)
         await g.getByLabel(CONSENT).check()
@@ -329,6 +348,15 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await expect(d.locator('.v2-qr-preview .v2-qr-img').first()).toBeVisible()
         await shot(d, '21-qr-sheet')
       })
+      await soft('21b-qr-sheet-per-chair', async () => {
+        const cards = d.locator('.v2-qr-preview .v2-qr-img')
+        await d.goto(rurl('/qr-sheet'))
+        await expect(cards.first()).toBeVisible()
+        const tables = await cards.count()
+        await d.getByLabel('Per chair').check()
+        await expect.poll(() => cards.count(), 'chair cards added after the table cards').toBeGreaterThan(tables)
+        await shot(d, '21b-qr-sheet-per-chair')
+      })
       await soft('22-settings-hours', async () => {
         await d.goto(rurl('/settings?tab=hours'))
         await expect(d.locator('.v2-day')).toHaveCount(7)
@@ -401,9 +429,25 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
 
       await test.step('16-profile-bookings', async () => {
         await g.goto(url('/profile'))
-        await g.getByRole('button', { name: 'Bookings', exact: true }).click()
+        await g.getByRole('tab', { name: 'Bookings', exact: true }).click()
+        await expect(g.getByRole('tab', { name: 'Bookings', exact: true })).toHaveAttribute('aria-selected', 'true')
         await expect(g.locator('a.bk-row').first()).toBeVisible()
         await shot(g, '16-profile-bookings')
+      })
+
+      await soft('16b-profile-posts', async () => {   // the tour's own post is still there (deleted in the cleanup below)
+        await g.getByRole('tab', { name: 'Posts', exact: true }).click()
+        await expect(g.getByRole('tab', { name: 'Posts', exact: true })).toHaveAttribute('aria-selected', 'true')
+        await expect(g.getByRole('link', { name: caption })).toBeVisible()
+        await shot(g, '16b-profile-posts')
+      })
+
+      await soft('16c-profile-settings-sheet', async () => {
+        await g.getByRole('button', { name: 'Settings', exact: true }).click()
+        await expect(g.getByRole('dialog', { name: 'Settings' })).toBeVisible()
+        await shot(g, '16c-profile-settings-sheet', { full: false })   // the settings sheet is an overlay
+        await g.getByRole('button', { name: 'Close' }).click()
+        await expect(g.getByRole('dialog')).toHaveCount(0)
       })
 
       await soft('20b-bills-paid', async () => {   // extra: the same bill on the dashboard once settled

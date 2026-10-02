@@ -5,6 +5,8 @@ import './styles.css'
 const BillsPage = lazy(() => import('./pages/BillsPage'))
 const QrSheetPage = lazy(() => import('./pages/QrSheetPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const TipsPage = lazy(() => import('./pages/TipsPage'))
+const MyTipsPage = lazy(() => import('./pages/MyTipsPage'))
 
 function Loading() {
   return (
@@ -22,4 +24,6 @@ export default [
   <Route key="v2-bills" path="/bills" element={page(<BillsPage />)} />,
   <Route key="v2-qr-sheet" path="/qr-sheet" element={page(<QrSheetPage />)} />,
   <Route key="v2-settings" path="/settings" element={page(<SettingsPage />)} />,
+  <Route key="v2-tips" path="/tips" element={page(<TipsPage />)} />,
+  <Route key="v2-my-tips" path="/my-tips" element={page(<MyTipsPage />)} />,
 ]

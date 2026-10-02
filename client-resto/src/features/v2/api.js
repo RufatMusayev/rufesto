@@ -401,3 +401,86 @@ export async function fetchStaffList(restaurantId) {
     error: null,
   }
 }
+
+// ───────────────────────── Tips ─────────────────────────
+// View-models
+//   MyTips    { total, count, byDay: [{ day, total, count }],
+//               tips: [{ id, billId, tableNumber, amount, status: 'pending'|'earned'|'void', paidAt, method, payerFirstName }] }
+//   TipReport { total, count, unassigned: { total, count }, byDay: [{ day, total }],
+//               waiters: [{ staffId, userId, name, role, total, count, avg, lastTipAt }]  (biggest total first) }
+// Days are Baku calendar days ('YYYY-MM-DD'); the server does the grouping and the sums, nothing here recomputes money.
+// CONTRACT (sql/51, docs/V2-CONTRACT.md): my_tips(p_from, p_to) = the caller's own tips, any floor role;
+//           tip_report(p_restaurant_id, p_from, p_to) = managers / admins only. Ranges are at most 366 days.
+//           Pending tips are listed by my_tips but never counted in any total.
+
+const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0 }
+const firstRow = data => (Array.isArray(data) ? data[0] : data) || {}
+
+export async function fetchMyTips(from, to) {
+  const res = await run(() => supabase.rpc('my_tips', { p_from: from, p_to: to }))
+  if (res.error) return res
+  const d = firstRow(res.data)
+  return {
+    data: {
+      total: toNum(d.total),
+      count: toNum(d.count),
+      byDay: (d.by_day || []).map(r => ({ day: String(r.day).slice(0, 10), total: toNum(r.total), count: toNum(r.count) })),
+      tips: (d.tips || []).map(r => ({
+        id: r.id,
+        billId: r.bill_id,
+        tableNumber: r.table_number ?? null,
+        amount: toNum(r.amount),
+        status: r.status,
+        paidAt: r.paid_at || null,
+        method: r.method || null,
+        payerFirstName: r.payer_first_name || '',
+      })),
+    },
+    error: null,
+  }
+}
+
+export async function fetchTipReport(restaurantId, from, to) {
+  const res = await run(() => supabase.rpc('tip_report', { p_restaurant_id: restaurantId, p_from: from, p_to: to }))
+  if (res.error) return res
+  const d = firstRow(res.data)
+  const waiters = (d.waiters || []).map(w => {
+    const total = toNum(w.total)
+    const count = toNum(w.count)
+    return {
+      staffId: w.staff_id,
+      userId: w.user_id || null,
+      name: w.display_name || '',
+      role: w.role || '',
+      total,
+      count,
+      avg: w.avg != null ? toNum(w.avg) : (count > 0 ? total / count : 0),
+      lastTipAt: w.last_tip_at || null,
+    }
+  }).sort((a, b) => b.total - a.total || b.count - a.count || a.name.localeCompare(b.name))
+  return {
+    data: {
+      total: toNum(d.total),
+      count: toNum(d.count),
+      unassigned: { total: toNum(d.unassigned?.total), count: toNum(d.unassigned?.count) },
+      byDay: (d.by_day || []).map(r => ({ day: String(r.day).slice(0, 10), total: toNum(r.total) })),
+      waiters,
+    },
+    error: null,
+  }
+}
+
+/**
+ * Resync trigger for the tips screens. sql/51 derives every tip (pending,
+ * earned, void) from payment_intents and bills, and both are published with a
+ * restaurant_id column, so those two cover it; `tips` itself has no
+ * restaurant_id and isn't published, so it can't be subscribed per restaurant.
+ */
+export function subscribeTips(restaurantId, resync) {
+  const filter = `restaurant_id=eq.${restaurantId}`
+  const channel = supabase
+    .channel(`v2-tips-${restaurantId}-${++channelSeq}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_intents', filter }, resync)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter }, resync)
+  return subscribeResync(channel, resync, { onVisible: true, pollMs: 30000 })
+}

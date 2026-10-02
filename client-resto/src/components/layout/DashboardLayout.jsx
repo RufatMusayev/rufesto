@@ -21,8 +21,11 @@ export default function DashboardLayout() {
     { to: '/promos',   label: t('navPromos'),             icon: PromosIcon },
     { to: '/bookings', label: t('navBookings'),           icon: BookingsIcon },
     { to: '/waiter',   label: t('navWaiter'),             icon: WaiterIcon },
-    // v2 (features/v2): Bills, Settings. The QR sheet is hidden: it opens from Tables and Settings.
-    ...v2Nav.filter(n => !n.hidden).map(n => ({ to: n.to, label: t(n.labelKey), icon: n.icon })),
+    // v2 (features/v2): Bills, Tips, My tips, Settings. Hidden entries (QR sheet, My tips for manager
+    // and admin) have a route but no sidebar item; each entry shows only for the roles it lists.
+    ...v2Nav
+      .filter(n => !n.hidden && n.roles.includes(staffRow?.role))
+      .map(n => ({ to: n.to, label: t(n.labelKey), icon: n.icon })),
   ]
   const NAV = ALL_NAV.filter(n => canAccess(staffRow?.role, n.to))
 

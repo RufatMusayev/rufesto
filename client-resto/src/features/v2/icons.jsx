@@ -12,3 +12,11 @@ export function SettingsIcon() {
 export function QrIcon() {
   return <svg {...props}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1" /></svg>
 }
+
+export function TipsIcon() {
+  return <svg {...props}><path d="M4 20V11M10 20V4M16 20v-6M22 20H2" /></svg>
+}
+
+export function MyTipsIcon() {
+  return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M14.8 9.2c-.4-.9-1.4-1.4-2.8-1.4-1.6 0-2.6.7-2.6 1.8 0 2.7 5.4 1.2 5.4 4 0 1.1-1.1 1.9-2.8 1.9-1.5 0-2.5-.6-2.9-1.6M12 6.5v1.3M12 16.2v1.3" /></svg>
+}

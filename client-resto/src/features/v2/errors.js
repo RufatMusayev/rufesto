@@ -7,6 +7,8 @@ const BY_MESSAGE = {
   not_authenticated: 'errSession',
   forbidden:         'errNotAllowed',
   not_allowed:       'errNotAllowed',
+  not_staff:         'errNotAllowed',
+  invalid_range:     'errInvalidRange',
   bill_not_found:    'errNotFound',
   share_not_found:   'errNotFound',
   intent_not_found:  'errNotFound',

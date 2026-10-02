@@ -5,9 +5,7 @@ import { v2Error } from '../errors'
 import useLiveList from '../hooks/useLiveList'
 import EmptyBlock from './EmptyBlock'
 import LoadError from './LoadError'
-import StatusPill from './StatusPill'
-
-const ROLE_TONE = { admin: 'gold', manager: 'gold', waiter: 'blue', host: 'blue', cashier: 'green', kitchen: 'amber' }
+import StatusPill, { ROLE_TONE } from './StatusPill'
 
 // Settings -> Staff: read-only team list plus a disabled invite card. Nothing
 // here writes; inviting staff is a later release.

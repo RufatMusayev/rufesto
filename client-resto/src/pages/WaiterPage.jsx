@@ -8,6 +8,7 @@ import { subscribeResync } from '../lib/realtime'
 import CallsTab from '../components/waiter/CallsTab'
 import MyTablesTab from '../components/waiter/MyTablesTab'
 import AllTablesTab from '../components/waiter/AllTablesTab'
+import { MyTipsCard } from '../features/v2/mounts'
 
 // Safety-net refresh for events realtime can't deliver (see the effect below).
 const FALLBACK_POLL_MS = 60000
@@ -171,6 +172,8 @@ export default function WaiterPage() {
           <button onClick={() => setActionError('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
         </div>
       )}
+
+      <MyTipsCard />
 
       <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem' }} className="no-scrollbar">
         <button className={`chip${tab === 'calls' ? ' active' : ''}`} style={{ position: 'relative' }} onClick={() => selectTab('calls')}>

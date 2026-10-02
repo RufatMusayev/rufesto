@@ -4,9 +4,10 @@
 // keeps staff from opening pages their role has no business seeing.
 import { V2_ROLE_ROUTES } from '../features/v2/roles'
 
-// v2 pages (features/v2: /bills, /settings, /qr-sheet) are added per role from
-// the feature's own map (decision D-9): bills for admin, manager and cashier;
-// settings and the QR sheet for admin and manager. Waiter, host and kitchen get none.
+// v2 pages (features/v2: /bills, /tips, /my-tips, /settings, /qr-sheet) are added per role from
+// the feature's own map (decision D-9): bills and tips for admin, manager and cashier, my-tips for
+// every floor role (waiter, host, cashier, manager, admin);
+// settings and the QR sheet for admin and manager. Kitchen gets none.
 const v2 = role => V2_ROLE_ROUTES[role] || []
 
 export const ALL_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', ...v2('admin')]

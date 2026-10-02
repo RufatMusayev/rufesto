@@ -320,3 +320,118 @@
 /* ── Booking rules: sections ── */
 .v2-sections { display: flex; flex-wrap: wrap; gap: 0.6rem 1.25rem; }
 .v2-field-hint { margin-top: 0.3rem; }
+
+/* ── Tips: shared ── */
+.v2-page-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 520px) { .v2-page-head { flex-wrap: wrap; } }
+.v2-skel-hero { height: 128px; border-radius: 14px; margin-bottom: 1.25rem; }
+.v2-skel-mytips { height: 62px; border-radius: 12px; margin-bottom: 1rem; }
+.v2-stat--blue { --card-accent: var(--blue); }
+
+.v2-range { margin-bottom: 1.25rem; }
+.v2-range .v2-chips { margin-bottom: 0; }
+.v2-range-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; margin-top: 0.85rem; }
+.v2-range-custom .v2-field { flex: 1 1 9rem; max-width: 14rem; }
+.v2-range-error { flex-basis: 100%; margin-top: 0; }
+
+.v2-stats--4 { grid-template-columns: repeat(4, 1fr); }
+.v2-stats--4 .stat-value { font-size: 1.35rem; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .v2-stats--4 { grid-template-columns: repeat(2, 1fr); }
+  .v2-stats--4 .stat-value { font-size: 1.1rem; }
+}
+
+.v2-tips-hero { padding: 1.25rem 1.35rem; margin-bottom: 1.25rem; }
+.v2-tips-hero-value { font-size: 2.4rem; font-weight: 800; line-height: 1.1; color: var(--card-accent, var(--accent)); overflow-wrap: anywhere; }
+@media (max-width: 640px) { .v2-tips-hero-value { font-size: 2rem; } }
+.v2-tips-section { display: flex; flex-direction: column; gap: 0.65rem; }
+
+/* ── Tips: by-day strip (plain divs; bar height = one of the 5% step classes) ── */
+.v2-strip-card { margin-bottom: 1.25rem; }
+.v2-strip { list-style: none; display: flex; align-items: stretch; gap: 4px; height: 128px; overflow-x: auto; }
+.v2-strip-col { flex: 1 1 0; min-width: 18px; max-width: 64px; display: flex; flex-direction: column; gap: 6px; }
+.v2-strip-bar { flex: 1; display: flex; align-items: flex-end; background: var(--s3); border-radius: 6px; overflow: hidden; }
+.v2-strip-fill { display: block; width: 100%; height: 0; background: var(--gold); border-radius: 6px 6px 0 0; }
+.v2-strip-label { font-size: 0.62rem; font-weight: 600; color: var(--t3); text-align: center; white-space: nowrap; }
+.v2-strip-col.is-empty .v2-strip-label { opacity: 0.6; }
+.v2-strip-fill--h5 { height: 5%; }
+.v2-strip-fill--h10 { height: 10%; }
+.v2-strip-fill--h15 { height: 15%; }
+.v2-strip-fill--h20 { height: 20%; }
+.v2-strip-fill--h25 { height: 25%; }
+.v2-strip-fill--h30 { height: 30%; }
+.v2-strip-fill--h35 { height: 35%; }
+.v2-strip-fill--h40 { height: 40%; }
+.v2-strip-fill--h45 { height: 45%; }
+.v2-strip-fill--h50 { height: 50%; }
+.v2-strip-fill--h55 { height: 55%; }
+.v2-strip-fill--h60 { height: 60%; }
+.v2-strip-fill--h65 { height: 65%; }
+.v2-strip-fill--h70 { height: 70%; }
+.v2-strip-fill--h75 { height: 75%; }
+.v2-strip-fill--h80 { height: 80%; }
+.v2-strip-fill--h85 { height: 85%; }
+.v2-strip-fill--h90 { height: 90%; }
+.v2-strip-fill--h95 { height: 95%; }
+.v2-strip-fill--h100 { height: 100%; }
+
+/* ── Tips: per-waiter table (cards on phones) ── */
+.v2-tips-wrap { background: var(--s2); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
+.v2-tips-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.v2-tips-table th, .v2-tips-table td { padding: 0.7rem 1rem; text-align: left; border-top: 1px solid var(--border); vertical-align: middle; }
+.v2-tips-table thead th {
+  border-top: 0; background: var(--s1); font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--t3); white-space: nowrap;
+}
+.v2-tips-table th.v2-tips-name { font-weight: 600; }
+.v2-tips-table .v2-tips-num { text-align: right; }
+.v2-tips-last { color: var(--t2); font-size: 0.8rem; white-space: nowrap; }
+.v2-tips-row--team { color: var(--t2); }
+.v2-tips-row--team th.v2-tips-name { font-weight: 500; }
+@media (max-width: 640px) {
+  .v2-tips-table, .v2-tips-table tbody { display: block; }
+  .v2-tips-table thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap;
+  }
+  .v2-tips-table tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 0.75rem;
+    padding: 0.85rem 1rem; border-top: 1px solid var(--border);
+  }
+  .v2-tips-table tr:first-child { border-top: 0; }
+  .v2-tips-table th, .v2-tips-table td { padding: 0; border: 0; }
+  .v2-tips-table th.v2-tips-name { overflow-wrap: anywhere; }
+  .v2-tips-table .v2-tips-role { justify-self: end; }
+  .v2-tips-table .v2-tips-num { text-align: left; }
+  .v2-tips-table td[data-label] { display: flex; flex-direction: column; gap: 2px; }
+  .v2-tips-table td[data-label]::before {
+    content: attr(data-label); font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.6px; text-transform: uppercase; color: var(--t3);
+  }
+}
+
+/* ── Tips: my tips list ── */
+.v2-tip-list { list-style: none; display: flex; flex-direction: column; background: var(--s2); border: 1px solid var(--border); border-radius: 14px; }
+.v2-tip { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 1rem; border-top: 1px solid var(--border); }
+.v2-tip:first-child { border-top: 0; }
+.v2-tip-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.v2-tip-table { font-weight: 600; font-size: 0.9rem; }
+.v2-tip-meta { font-size: 0.76rem; color: var(--t3); overflow-wrap: anywhere; }
+.v2-tip-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.v2-tip-side .v2-money { font-size: 0.95rem; }
+.v2-tip.is-void .v2-tip-table, .v2-tip.is-void .v2-money { text-decoration: line-through; }
+
+/* ── Tips: "My tips today" card on the Waiter page ── */
+.v2-mytips {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--s2);
+  border: 1px solid var(--border); border-radius: 12px; color: inherit; text-decoration: none;
+  transition: border-color 0.15s;
+}
+a.v2-mytips:hover { border-color: var(--border-strong); }
+a.v2-mytips:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.v2-mytips-body { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.v2-mytips-figures { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.v2-mytips-figures .v2-money { font-size: 1.25rem; color: var(--gold); }
+.v2-mytips-go { font-size: 0.78rem; font-weight: 600; color: var(--t2); white-space: nowrap; }
+.v2-mytips--error { font-size: 0.8rem; color: var(--red); background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); }

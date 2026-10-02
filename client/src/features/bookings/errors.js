@@ -7,7 +7,7 @@ const KNOWN = [
   'booking_exists', 'no_table_available', 'invalid_date', 'date_in_past', 'date_too_far',
   'invalid_code', 'invite_expired', 'booking_closed', 'booking_full', 'booking_not_found',
   'host_cannot_leave', 'not_host', 'booking_not_active', 'too_early', 'booking_expired',
-  'booking_not_cancellable',
+  'booking_not_cancellable', 'not_member', 'not_seated', 'outside_window',
   // raised by this feature itself
   'no_session',
 ]

@@ -85,6 +85,12 @@ export async function claimTableFromBooking(bookingId) {
   return mapped(res, mapClaim)
 }
 
+/** CONTRACT: join_table_from_booking(p_booking_id) -> table session JSON. A joined member, once the host seated the
+ *  booking and inside the time window. Errors: not_member, not_seated, outside_window, not_authenticated. */
+export async function joinTableFromBooking(bookingId) {
+  return rpc('join_table_from_booking', { p_booking_id: bookingId })
+}
+
 /* -------------------------------------------------------------------- reads */
 
 /** CONTRACT: group_booking_detail(p_booking_id) -> { booking_id, status, restaurant, starts_at, ends_at, party_size,

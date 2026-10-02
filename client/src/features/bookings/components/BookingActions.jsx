@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCart } from '../../../contexts/CartContext'
-import { cancelBooking, claimTableFromBooking, leaveGroupBooking } from '../api'
+import { cancelBooking, claimTableFromBooking, joinTableFromBooking, leaveGroupBooking } from '../api'
 import { useNow } from '../hooks'
 import ConfirmSheet from './ConfirmSheet'
 import WeHereButton from './WeHereButton'
@@ -61,16 +61,26 @@ export default function BookingActions({ booking, onChanged }) {
     busy.current = true
     setGoing(true)
     setTableError(null)
-    // The session may already exist server-side (seated by the host); read it, and only claim if it does not.
+    // The session may already exist server-side (seated by the host); read it first.
     const synced = await refreshTableSession()
     let ok = !synced.error && !!synced.data
-    if (!ok) {
+    if (!ok && isHost) {
       const { data, error: err } = await claimTableFromBooking(booking.id)
       if (!err && data) {
         setTable(data.tableId, data.restaurantId, data.bookingId, data.sessionStatus, data.isHost)
         ok = true
       } else {
         setTableError(err?.key || 'bookings:errors.no_session')
+      }
+    } else if (!ok) {
+      // A member joins the host's session instead of claiming a table, then re-reads it.
+      const { error: err } = await joinTableFromBooking(booking.id)
+      if (err) {
+        setTableError(err.key)
+      } else {
+        const after = await refreshTableSession()
+        ok = !after.error && !!after.data
+        if (!ok) setTableError('bookings:errors.no_session')
       }
     }
     busy.current = false

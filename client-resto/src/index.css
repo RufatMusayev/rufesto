@@ -22,6 +22,7 @@
   --border-strong: rgba(245,240,232,0.22);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --tap:      44px; /* smallest touch target on phones (features/v2/styles.css applies it at <= 768px) */
 }
 
 [data-theme="light"] {
@@ -384,13 +385,31 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg); border-bottom: 1px solid var(--border);
   padding: 0 1rem; height: 50px; align-items: center; justify-content: space-between;
 }
-.dash-mobile-nav {
+.dash-mobile-nav-wrap {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
   background: var(--bg); border-top: 1px solid var(--border); z-index: 60;
+}
+.dash-mobile-nav {
+  position: relative; display: flex; height: 100%;
   justify-content: flex-start; align-items: center;
-  /* admin/manager have 10 entries: scroll sideways instead of squeezing the labels */
+  /* admin/manager have 11 entries: scroll sideways instead of squeezing the labels */
   overflow-x: auto; scrollbar-width: none;
 }
+/* Edge fades with an arrow say there are more items past that edge (components/layout/MobileNav.jsx sets the classes). */
+.dash-mobile-nav-wrap::before, .dash-mobile-nav-wrap::after {
+  display: none; position: absolute; top: 1px; bottom: 0; width: 38px; z-index: 1;
+  align-items: center; pointer-events: none;
+  font-size: 1.6rem; font-weight: 700; line-height: 1; color: var(--t1);
+}
+.dash-mobile-nav-wrap::before {
+  content: '\2039'; left: 0; justify-content: flex-start; padding-left: 6px;
+  background: linear-gradient(to right, var(--bg) 40%, transparent);
+}
+.dash-mobile-nav-wrap::after {
+  content: '\203A'; right: 0; justify-content: flex-end; padding-right: 6px;
+  background: linear-gradient(to left, var(--bg) 40%, transparent);
+}
+.dash-mobile-nav-wrap.has-more-left::before, .dash-mobile-nav-wrap.has-more-right::after { display: flex; }
 .dash-mobile-nav::-webkit-scrollbar { display: none; }
 .dash-mobile-nav-item {
   flex: 1 0 auto; min-width: 54px;
@@ -419,7 +438,7 @@ a { text-decoration: none; color: inherit; }
   .dash-layout { flex-direction: column; }
   .dash-sidebar { display: none; }
   .dash-mobile-head { display: flex; }
-  .dash-mobile-nav { display: flex; }
+  .dash-mobile-nav-wrap { display: block; }
   .dash-content { margin-left: 0; padding-bottom: 64px; min-width: 0; }
 }
 

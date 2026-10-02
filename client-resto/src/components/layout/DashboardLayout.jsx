@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { canAccess } from '../../lib/roles'
 import LanguageSwitcher from '../LanguageSwitcher'
 import v2Nav from '../../features/v2/nav'
+import MobileNav from './MobileNav'
 
 export default function DashboardLayout() {
   const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
@@ -91,15 +92,7 @@ export default function DashboardLayout() {
         </div>
       </div>
 
-      <nav className="dash-mobile-nav">
-        {NAV.map(n => (
-          <NavLink key={n.to} to={n.to} end={n.end}
-            className={({ isActive }) => `dash-mobile-nav-item${isActive ? ' active' : ''}`}>
-            <n.icon />
-            <span>{n.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <MobileNav items={NAV} />
 
       <main className="dash-content">
         <Outlet />

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import '../i18n'
@@ -6,17 +6,13 @@ import '../styles.css'
 import { EmptyState, Pill } from '../../../components/ui'
 import LoadError from '../../../components/LoadError'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useCart } from '../../../contexts/CartContext'
+import { useCart, useTableLookup } from '../../../contexts/CartContext'
 import useBill from '../useBill'
+import { STATUS_KEY, STATUS_TONE } from '../status'
 import TopBar from '../components/TopBar'
 import SignInCard from '../components/SignInCard'
 import BillSkeleton from '../components/BillSkeleton'
 import BillView from './BillView'
-
-const STATUS_TONE = { open: 'gray', requested: 'amber', paying: 'blue', paid: 'green', void: 'red' }
-const STATUS_KEY = {
-  open: 'statusOpen', requested: 'statusRequested', paying: 'statusPaying', paid: 'statusPaid', void: 'statusVoid',
-}
 
 /**
  * /bill (the bill of the current table session), /bill/:billId and /pay/:billId (deep link). Handles every
@@ -29,6 +25,9 @@ export default function BillPage() {
   const { session, loading: authLoading } = useAuth()
   const cart = useCart()
   const tableId = cart?.tableId || null
+  // The table lives on the server (my_table_session): a tab that was just opened, or opened on another
+  // device, learns it from there. Until that is known "Nothing to pay yet" would be a guess.
+  const lookingForTable = useTableLookup()
 
   // Once a table has been seen on this page the bill stays reachable even if the app clears the table
   // session (leaving the table) a moment before we navigate away.
@@ -38,11 +37,19 @@ export default function BillPage() {
   const live = useBill({ billId, tableId, enabled })
   const { bill } = live
 
+  // The guest asks for a (new) bill. From a /bill/:id deep link that means /bill: the screen opens it on load.
+  const openBill = useCallback(async () => {
+    if (billId) { navigate('/bill', { replace: true }); return null }
+    return live.openMine()
+  }, [billId, navigate, live.openMine])
+
   let body
   if (authLoading) {
     body = <BillSkeleton />
   } else if (!session) {
     body = <div className="bl-body"><SignInCard /></div>
+  } else if (!billId && !hadTable.current && lookingForTable) {
+    body = <BillSkeleton />
   } else if (!billId && !hadTable.current) {
     body = (
       <div className="bl-body">
@@ -92,6 +99,8 @@ export default function BillPage() {
       <BillView
         key={bill.id} bill={bill} tableId={tableId}
         tableEnded={live.tableEnded} reload={live.reload}
+        onOpenBill={openBill}
+        canOpenBill={!!tableId}
       />
     )
   }

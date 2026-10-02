@@ -7,8 +7,9 @@ import ShareRow from './ShareRow'
 import StatusPill, { BILL_TONE } from './StatusPill'
 
 // One bill: table, status, total, collected-vs-total bar, a row per person and
-// the whole-bill action. Staff settle reception / cash shares from here.
-export default function BillCard({ bill, busyShares, onMarkShare, onMarkBill }) {
+// the whole-bill actions. Staff settle reception / cash shares from here;
+// managers and admins (`canVoid`) can also cancel an unpaid bill.
+export default function BillCard({ bill, busyShares, canVoid = false, onMarkShare, onMarkBill, onVoidBill }) {
   const { t, i18n } = useTranslation(['v2', 'common'])
   const canCloseBill = bill.status !== 'paid' && bill.status !== 'void'
   const collected = Math.min(bill.collected, bill.total)
@@ -45,7 +46,7 @@ export default function BillCard({ bill, busyShares, onMarkShare, onMarkBill }) 
         ) : (
           <ul className="v2-shares">
             {bill.shares.map(s => (
-              <ShareRow key={s.id} share={s} busy={busyShares.has(s.id)} onMarkPaid={share => onMarkShare(bill.id, share)} />
+              <ShareRow key={s.id} share={s} voided={bill.status === 'void'} busy={busyShares.has(s.id)} onMarkPaid={share => onMarkShare(bill.id, share)} />
             ))}
           </ul>
         )}
@@ -60,6 +61,11 @@ export default function BillCard({ bill, busyShares, onMarkShare, onMarkBill }) 
 
         {canCloseBill && (
           <footer className="v2-bill-foot">
+            {canVoid && (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => onVoidBill(bill)}>
+                {t('voidBill')}
+              </button>
+            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => onMarkBill(bill)}>
               {t('markWholePaid')}
             </button>

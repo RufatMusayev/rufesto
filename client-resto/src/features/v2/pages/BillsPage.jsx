@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { closeBill, fetchBills, markSharePaid, subscribeBills } from '../api'
+import { closeBill, fetchBills, markSharePaid, subscribeBills, voidBill } from '../api'
 import { v2Error } from '../errors'
 import useLiveList from '../hooks/useLiveList'
 import BillCard from '../components/BillCard'
@@ -14,6 +14,9 @@ import { formatPrice } from '@shared/helpers'
 import '../styles.css'
 
 const FILTERS = ['active', 'paid', 'all']
+
+// void_bill is for managers and admins only (is_manager_of); every other role never sees the button.
+const VOID_ROLES = ['admin', 'manager']
 
 const matches = {
   active: b => isActiveBill(b),
@@ -35,8 +38,13 @@ function withBillPaid(bill) {
   return { ...bill, shares, collected: shares.reduce((sum, s) => sum + s.amount, 0), status: 'paid' }
 }
 
+// A voided bill takes no more payments.
+function withBillVoid(bill) {
+  return { ...bill, status: 'void', shares: bill.shares.map(s => ({ ...s, canMarkPaid: false })) }
+}
+
 export default function BillsPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['v2', 'dashboard', 'common'])
   const load = useCallback(() => fetchBills(restaurantId), [restaurantId])
   const subscribe = useCallback(resync => subscribeBills(restaurantId, resync), [restaurantId])
@@ -45,8 +53,13 @@ export default function BillsPage() {
   const [filter, setFilter] = useState('active')
   const [actionError, setActionError] = useState('')
   const [busyShares, setBusyShares] = useState(() => new Set())
-  const [confirmBill, setConfirmBill] = useState(null)
-  const [closing, setClosing] = useState(false)
+  const [confirm, setConfirm] = useState(null) // { kind: 'close' | 'void', bill }
+  const [working, setWorking] = useState(false)
+  // Guards live in refs: two taps in one tick both see the same render's state, but a ref changes at once.
+  const busySharesRef = useRef(new Set())
+  const workingRef = useRef(false)
+  const canVoid = VOID_ROLES.includes(staffRow?.role)
+  const cancelConfirm = useCallback(() => setConfirm(null), [])
 
   const bills = data || []
   const counts = { active: bills.filter(matches.active).length, paid: bills.filter(matches.paid).length, all: bills.length }
@@ -61,35 +74,47 @@ export default function BillsPage() {
   }
 
   async function handleMarkShare(billId, share) {
-    if (busyShares.has(share.id)) return
+    if (busySharesRef.current.has(share.id)) return
+    busySharesRef.current.add(share.id)
     const before = bills.find(b => b.id === billId)
     setBusy(share.id, true)
     setActionError('')
     setData(list => list.map(b => (b.id === billId ? withSharePaid(b, share.id) : b)))
-    const { error: err } = await markSharePaid(share)
-    if (err) {
-      setData(list => list.map(b => (b.id === billId ? before : b)))
-      setActionError(v2Error(err, t))
+    try {
+      const { error: err } = await markSharePaid(share)
+      if (err) {
+        setData(list => list.map(b => (b.id === billId && before ? before : b)))
+        setActionError(v2Error(err, t))
+      }
+      reload() // the server's answer replaces the guess, also after a refused write
+    } finally {
+      busySharesRef.current.delete(share.id)
+      setBusy(share.id, false)
     }
-    reload() // the server's answer replaces the guess, also after a refused write
-    setBusy(share.id, false)
   }
 
-  async function handleCloseBill() {
-    const bill = confirmBill
-    if (!bill || closing) return
+  // Confirm button of the dialog: "Mark whole bill paid" (close_bill) or "Void bill" (void_bill).
+  async function handleConfirm() {
+    const target = confirm
+    if (!target || workingRef.current) return
+    workingRef.current = true
+    const { kind, bill } = target
     const before = bills.find(b => b.id === bill.id)
-    setClosing(true)
+    setWorking(true)
     setActionError('')
-    setData(list => list.map(b => (b.id === bill.id ? withBillPaid(b) : b)))
-    const { error: err } = await closeBill(bill.id)
-    if (err) {
-      setData(list => list.map(b => (b.id === bill.id ? before : b)))
-      setActionError(v2Error(err, t))
+    setData(list => list.map(b => (b.id === bill.id ? (kind === 'void' ? withBillVoid(b) : withBillPaid(b)) : b)))
+    try {
+      const { error: err } = await (kind === 'void' ? voidBill(bill.id) : closeBill(bill.id))
+      if (err) {
+        setData(list => list.map(b => (b.id === bill.id && before ? before : b)))
+        setActionError(v2Error(err, t))
+      }
+      reload()
+    } finally {
+      workingRef.current = false
+      setWorking(false)
+      setConfirm(null)
     }
-    reload()
-    setClosing(false)
-    setConfirmBill(null)
   }
 
   return (
@@ -127,24 +152,35 @@ export default function BillsPage() {
           ) : (
             <div className="v2-bill-list">
               {visible.map(b => (
-                <BillCard key={b.id} bill={b} busyShares={busyShares} onMarkShare={handleMarkShare} onMarkBill={setConfirmBill} />
+                <BillCard
+                  key={b.id}
+                  bill={b}
+                  busyShares={busyShares}
+                  canVoid={canVoid}
+                  onMarkShare={handleMarkShare}
+                  onMarkBill={bill => setConfirm({ kind: 'close', bill })}
+                  onVoidBill={bill => setConfirm({ kind: 'void', bill })}
+                />
               ))}
             </div>
           )}
         </>
       )}
 
-      {confirmBill && (
+      {confirm && (
         <ConfirmModal
-          title={t('confirmWholeTitle')}
-          body={t('confirmWholeBody', {
-            table: confirmBill.tableNumber,
-            amount: formatPrice(Math.max(0, confirmBill.total - confirmBill.collected)),
-          })}
-          confirmLabel={t('markWholePaid')}
-          busy={closing}
-          onConfirm={handleCloseBill}
-          onCancel={() => setConfirmBill(null)}
+          title={t(confirm.kind === 'void' ? 'confirmVoidTitle' : 'confirmWholeTitle')}
+          body={confirm.kind === 'void'
+            ? t('confirmVoidBody', { table: confirm.bill.tableNumber, amount: formatPrice(confirm.bill.total) })
+            : t('confirmWholeBody', {
+              table: confirm.bill.tableNumber,
+              amount: formatPrice(Math.max(0, confirm.bill.total - confirm.bill.collected)),
+            })}
+          confirmLabel={t(confirm.kind === 'void' ? 'voidBill' : 'markWholePaid')}
+          danger={confirm.kind === 'void'}
+          busy={working}
+          onConfirm={handleConfirm}
+          onCancel={cancelConfirm}
         />
       )}
     </div>

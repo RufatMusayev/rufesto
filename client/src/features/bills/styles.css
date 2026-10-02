@@ -78,6 +78,7 @@
 .bl-hint-error, .bl-error { color: var(--red); }
 .bl-error { font-size: 0.82rem; line-height: 1.4; text-align: center; }
 .bl-note { font-size: 0.78rem; color: var(--t2); line-height: 1.45; padding: 10px 12px; border-radius: 10px; background: var(--warning-bg); border: 1px solid rgba(186, 117, 23, 0.25); }
+.bl-note-action { margin-top: 8px; }
 .bl-covered { padding: 14px; font-size: 0.86rem; color: var(--t1); line-height: 1.5; }
 
 /* totals */
@@ -178,6 +179,9 @@
 
 /* Table screen entry */
 .bl-entry { width: 100%; margin-top: 16px; padding: 14px 0; font-size: 0.92rem; }
+.bl-entry-status, .bl-entry-void { margin-top: 16px; text-align: center; }
+.bl-entry-void { font-size: 0.86rem; font-weight: 600; line-height: 1.4; color: var(--red); }
+.bl-entry-status + .bl-entry, .bl-entry-void + .bl-entry { margin-top: 8px; }
 
 /* sign-in card */
 .bl-signin { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 28px 20px; }

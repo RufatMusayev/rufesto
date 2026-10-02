@@ -21,6 +21,8 @@
   "coveredBy": "{{name}} is paying for the whole table.",
   "coveredByOther": "Someone else is paying for the whole table.",
   "newOrdersNote": "Newer orders aren't on this bill and will be billed separately.",
+  "newOrdersOpen": "New orders were placed at your table after this bill was opened.",
+  "addNewOrders": "Add them to this bill",
 
   "summaryTitle": "Bill summary",
   "discount": "Discount",
@@ -115,7 +117,8 @@
   "endedBody": "If you paid at reception, you're all set.",
   "notFoundTitle": "Bill not found",
   "notFoundBody": "It may belong to another table, or it no longer exists.",
-  "voidTitle": "This bill was cancelled",
+  "voidTitle": "This bill was cancelled by staff",
+  "startNewBill": "Start a new bill",
   "voidBody": "Ask the staff if you think this is a mistake.",
 
   "signInTitle": "Sign in to see your bill",

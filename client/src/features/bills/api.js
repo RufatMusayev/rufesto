@@ -4,7 +4,7 @@
 // note so a rename in docs/V2-CONTRACT.md is a one-line change.
 import { supabase } from '../../lib/supabase'
 import { toError } from './errors'
-import { mapBill, mapWaiter, mapIntent, mapSettle, mapReception } from './mappers'
+import { mapBill, mapBillRow, mapWaiter, mapIntent, mapSettle, mapReception } from './mappers'
 
 async function call(fn, fallback) {
   try {
@@ -35,6 +35,26 @@ export async function openMyBill() {
 export async function getBill(billId) {
   // CONTRACT: bill_detail(p_bill_id) -> bill view-model. Errors: not_authenticated, bill_not_found
   return toBill(await rpc('bill_detail', { p_bill_id: billId }))
+}
+
+const ACTIVE_STATUS = ['open', 'requested', 'paying']
+
+/** Where the bill of this table stands on the server, read-only: it never opens one (my_bill does). The bill that
+ *  is active now wins; otherwise the newest one made since `since` (the guest's visit start), so a cancelled or
+ *  settled bill of this visit shows and one from an earlier visit does not. { id, status } | null. */
+export async function tableBillStatus(tableId, since) {
+  // CONTRACT: select on bills (SELECT granted to authenticated, RLS: the caller ordered, pays, paid or is seated
+  // at the table of an active bill): id, status ('open'|'requested'|'paying'|'settled'|'void'), created_at
+  const startedAt = since && !Number.isNaN(Date.parse(since)) ? new Date(since).toISOString() : null
+  const base = () => supabase.from('bills').select('id, status, created_at').eq('table_id', tableId)
+    .order('created_at', { ascending: false }).limit(1)
+  const [active, recent] = await Promise.all([
+    call(() => base().in('status', ACTIVE_STATUS)),
+    startedAt ? call(() => base().gte('created_at', startedAt)) : Promise.resolve({ data: [], error: null }),
+  ])
+  if (active.error) return { data: null, error: active.error }
+  const row = active.data?.[0] || (recent.error ? null : recent.data?.[0]) || null
+  return { data: row ? mapBillRow(row) : null, error: null }
 }
 
 export async function listWaiters(tableId) {
@@ -110,6 +130,19 @@ export async function submitReview({ userId, dishId, rating, body }) {
 /* ---------------------------------------------------------------- realtime */
 
 let channelSeq = 0
+
+/** Live updates for the bills of one table (a bill opened, requested, paid, cancelled). The filter is the single
+ *  table id, so nothing crosses restaurants. Returns an unsubscribe function. */
+export function subscribeTableBills({ tableId, onChange }) {
+  try {
+    const ch = supabase.channel(`bl-table-${tableId}-${++channelSeq}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `table_id=eq.${tableId}` }, onChange)
+      .subscribe()
+    return () => { try { supabase.removeChannel(ch) } catch { /* already gone */ } }
+  } catch {
+    return () => {}
+  }
+}
 
 /** Live updates for one bill: bills (id), bill_shares + payment_intents (bill_id) and the table row (session
  *  ended). Every filter is a single id, so nothing crosses restaurants. Returns an unsubscribe function. */

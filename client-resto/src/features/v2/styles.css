@@ -200,7 +200,7 @@
 .v2-bill-head-right { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
 .v2-bill-head-right .v2-money { font-size: 1rem; }
 .v2-bill-tip { font-size: 0.76rem; color: var(--gold); font-weight: 600; }
-.v2-bill-foot { display: flex; justify-content: flex-end; }
+.v2-bill-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
 
 .v2-progress {
   -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border: 0;
@@ -435,3 +435,30 @@ a.v2-mytips:focus-visible { outline: 2px solid var(--accent); outline-offset: 2p
 .v2-mytips-figures .v2-money { font-size: 1.25rem; color: var(--gold); }
 .v2-mytips-go { font-size: 0.78rem; font-weight: 600; color: var(--t2); white-space: nowrap; }
 .v2-mytips--error { font-size: 0.8rem; color: var(--red); background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); }
+
+/* ── Phones: touch targets ──
+   Money, tips, QR sheet and settings controls are at least var(--tap) (44px, token in src/index.css) tall at phone
+   widths: buttons, chips (filters, ranges, tabs), fields, the per-page segments, checkbox rows, icon buttons, the
+   banner close and the on / off switch. The desktop layout stays compact. */
+@media (max-width: 768px) {
+  .v2-page .btn, .v2-page .chip, .v2-page input.input, .v2-page select.input, .v2-confirm .btn { min-height: var(--tap); }
+  .v2-segment { min-height: var(--tap); min-width: var(--tap); }
+  .v2-icon-btn { width: var(--tap); height: var(--tap); }
+  .v2-check { min-height: var(--tap); }
+  .v2-check input { width: 20px; height: 20px; }
+  .v2-switch-row, .v2-day-switch { min-height: var(--tap); }
+  .v2-banner-close {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    min-width: var(--tap); min-height: var(--tap); margin: -0.6rem -0.5rem -0.6rem 0;
+  }
+  /* The switch button itself is the 44px target (no longer a 22px track with an enlarged hit area): the
+     track is drawn by ::before, the knob keeps its 16px size. */
+  .v2-switch, .v2-switch.is-on { width: 52px; height: var(--tap); background: transparent; }
+  .v2-switch::after { display: none; }
+  .v2-switch::before {
+    content: ''; position: absolute; left: 6px; right: 6px; top: calc(50% - 11px); height: 22px;
+    border-radius: 100px; background: var(--s4); transition: background 0.2s var(--ease-out);
+  }
+  .v2-switch.is-on::before { background: var(--accent); }
+  .v2-switch-knob { top: calc(50% - 8px); left: 9px; }
+}

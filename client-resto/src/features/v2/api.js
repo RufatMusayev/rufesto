@@ -185,6 +185,12 @@ export async function closeBill(billId) {
   return run(() => supabase.rpc('close_bill', { p_bill_id: billId }))
 }
 
+/** Cancels an unpaid bill (managers and admins; refused once a share is paid: bill_has_payments). */
+export async function voidBill(billId) {
+  // CONTRACT: void_bill(p_bill_id, p_reason) -> { bill_id, status: 'void' } (sql/42d, sql/47 F-V2-16)
+  return run(() => supabase.rpc('void_bill', { p_bill_id: billId, p_reason: null }))
+}
+
 export function subscribeBills(restaurantId, resync) {
   // CONTRACT: bills and payment_intents are in supabase_realtime and carry restaurant_id (sql/42, 43);
   // a share only changes together with its intent / bill, so these two cover bill_shares.

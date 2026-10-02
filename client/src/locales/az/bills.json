@@ -21,6 +21,8 @@
   "coveredBy": "{{name}} bütün masanın hesabını ödəyir.",
   "coveredByOther": "Başqa biri bütün masanın hesabını ödəyir.",
   "newOrdersNote": "Daha yeni sifarişlər bu hesabda yoxdur və ayrıca hesablanacaq.",
+  "newOrdersOpen": "Bu hesab açıldıqdan sonra masanızda yeni sifarişlər verilib.",
+  "addNewOrders": "Onları bu hesaba əlavə et",
 
   "summaryTitle": "Hesab xülasəsi",
   "discount": "Endirim",
@@ -115,7 +117,8 @@
   "endedBody": "Resepsiyada ödəmisinizsə, hər şey qaydasındadır.",
   "notFoundTitle": "Hesab tapılmadı",
   "notFoundBody": "O, başqa masaya aid ola bilər və ya artıq mövcud deyil.",
-  "voidTitle": "Bu hesab ləğv edilib",
+  "voidTitle": "Bu hesab işçi heyəti tərəfindən ləğv edilib",
+  "startNewBill": "Yeni hesab aç",
   "voidBody": "Səhv olduğunu düşünürsünüzsə, işçilərə müraciət edin.",
 
   "signInTitle": "Hesabı görmək üçün daxil olun",

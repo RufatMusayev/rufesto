@@ -18,6 +18,7 @@ const BY_MESSAGE = {
   not_staff_payable: 'errNotStaffPayable',
   bill_closed:       'errBillClosed',
   bill_settled:      'errBillClosed',
+  bill_has_payments: 'errBillHasPayments',
 }
 
 // 42P01 undefined_table, 42883 undefined_function, PGRST205 table not in the

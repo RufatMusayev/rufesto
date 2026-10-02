@@ -10,7 +10,7 @@ const METHOD_KEY = { card: 'methodCard', reception: 'methodReception', cash: 'me
 // the DEMO badge appears only on card shares taken through the demo provider,
 // never on cash or reception. A share nobody has chosen a method for yet has
 // no method pill.
-export default function ShareRow({ share, busy, onMarkPaid }) {
+export default function ShareRow({ share, busy, onMarkPaid, voided = false }) {
   const { t } = useTranslation('v2')
   const showDemo = share.isDemo && share.method === 'card'
   return (
@@ -30,11 +30,13 @@ export default function ShareRow({ share, busy, onMarkPaid }) {
             <Money value={share.amount} strong />
             <span className="v2-share-state v2-share-state--paid">✓ {t('sharePaid')}</span>
           </>
+        ) : voided ? (
+          <span className="v2-share-state">{formatPrice(share.amount)}</span>
         ) : (
           <span className="v2-share-state v2-share-state--owes">{t('shareOwes', { amount: formatPrice(share.amount) })}</span>
         )}
       </div>
-      {share.canMarkPaid && (
+      {share.canMarkPaid && !voided && (
         <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onMarkPaid(share)}>
           {busy && <span className="spinner" aria-hidden="true" />}
           {t('markPaid')}

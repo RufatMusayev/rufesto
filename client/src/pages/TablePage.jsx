@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
-import { useCart } from '../contexts/CartContext'
+import { useCart, useTableLookup } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
@@ -46,6 +46,15 @@ export default function TablePage() {
   const [codeError, setCodeError] = useState('')
   const [paymentState, setPaymentState] = useState(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  // The table lives on the server: a new tab (or another device) learns it from my_table_session, so the
+  // "no active table" screen waits until that read has answered.
+  const lookingForTable = useTableLookup()
+  // A table that arrives after this screen mounted starts a load: never paint the empty page before it.
+  const [seenTable, setSeenTable] = useState(tableId)
+  if (seenTable !== tableId) {
+    setSeenTable(tableId)
+    if (tableId) setLoading(true)
+  }
 
   // Realtime callbacks outlive the render that created them: read the visit start via a ref.
   const startedAtRef = useRef(startedAt)
@@ -212,7 +221,7 @@ export default function TablePage() {
     setPaymentState(null)
   }
 
-  if (loading) return <TableSkeleton />
+  if (loading || lookingForTable) return <TableSkeleton />
   if (!tableId) return (
     <>
       <div className="table-empty-banner"><ActiveBookingBanner /></div>

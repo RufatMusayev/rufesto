@@ -97,7 +97,15 @@ export function CartProvider({ children }) {
   const [cartError, setCartError] = useState('')
   const { session, loading: authLoading } = useAuth()
   const { t } = useTranslation('cart')
-  const validatedRef = useRef(false)
+  // false until the first my_table_session() read of this sign-in has answered (pages that need to know
+  // "is this guest seated?" wait for it instead of trusting an empty sessionStorage in a fresh tab).
+  const [synced, setSynced] = useState(false)
+  // epochRef counts local table changes (claim / leave); syncSeqRef counts server reads. A read applies only if
+  // nothing newer happened meanwhile, so a slow answer never undoes a fresh claim or a newer read.
+  const epochRef = useRef(0)
+  const syncSeqRef = useRef(0)
+  const lastReadRef = useRef(0)       // when the last server read answered (ms), see ensureTableSession
+  const userId = session?.user?.id || null
 
   const total    = state.items.reduce((s, i) => s + (Number(i.dish.price) || 0) * i.qty, 0)
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
@@ -131,6 +139,7 @@ export function CartProvider({ children }) {
   // Sets the local session only. Table state itself is now owned server-side by the
   // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
   function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt) {
+    epochRef.current += 1
     dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt })
     saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost)
   }
@@ -145,19 +154,38 @@ export function CartProvider({ children }) {
     return { data }
   }
 
-  // Re-reads the caller's own table session from the server (source of truth for
-  // pending/active/host) and syncs local state — clears the table locally if the
-  // session no longer exists (e.g. the host declined, or it was ended).
+  // Re-reads the caller's own table session from the server (source of truth for pending/active/host and for
+  // the table itself) and syncs local state: it hydrates a tab that carries nothing (new tab, other device,
+  // browser restarted) and clears the table locally if the session no longer exists (e.g. the host declined,
+  // or it was ended). sessionStorage is only a cache of this answer. A failed read changes nothing.
   async function refreshTableSession() {
-    const { data, error } = await supabase.rpc('my_table_session')
+    const mine = ++syncSeqRef.current
+    const epoch = epochRef.current
+    let res
+    try { res = await supabase.rpc('my_table_session') } catch (error) { return { error } }
+    const { data, error } = res
     if (error) return { error }
+    lastReadRef.current = Date.now()
+    // A newer read, or a table claimed / left in this tab meanwhile, wins over this answer.
+    if (mine !== syncSeqRef.current || epoch !== epochRef.current) return { data: data ?? null }
     if (!data) {
-      dispatch({ type: 'CLEAR_TABLE' })
-      clearSession()
+      // Only when a table is held: CLEAR_TABLE also empties the cart, which a table-less guest may be filling.
+      if (stateRef.current.tableId) {
+        dispatch({ type: 'CLEAR_TABLE' })
+        clearSession()
+      }
       return { data: null }
     }
     setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null)
     return { data }
+  }
+
+  // For the screens that only make sense when seated (/bill, /table): when no table is held, read the server once
+  // more (the guest may have been seated in another tab or on another device since this tab booted), unless a
+  // server read answered a moment ago. Always resolves.
+  function ensureTableSession() {
+    if (!userId || stateRef.current.tableId || Date.now() - lastReadRef.current < 3000) return Promise.resolve()
+    return refreshTableSession().then(() => {}, () => {})
   }
 
   // Reads only the visit start (my_table_session().started_at) for the CURRENT table, without
@@ -174,6 +202,7 @@ export function CartProvider({ children }) {
 
   async function clearTable(release = false) {
     const tid = state.tableId
+    epochRef.current += 1
     // On an explicit end (not when staff already freed the table), ask the server to
     // free the table — never UPDATE `tables` directly from the client.
     if (release && tid) {
@@ -210,37 +239,33 @@ export function CartProvider({ children }) {
     return { order: { id: row.order_id, total: Number(row.total) || 0 } }
   }
 
-  // On app load, if sessionStorage carried a table session over, confirm it's still
-  // valid server-side (RLS may have expired/released it) and clear it locally if not.
+  // On app load and whenever the signed-in user changes: ask the server whether this guest is seated and make
+  // the context match it (hydrate a table this tab does not know yet, drop a cached one that is gone).
+  // Signed out: no table. sessionStorage only makes the first paint instant.
   useEffect(() => {
-    if (authLoading || validatedRef.current) return
-    validatedRef.current = true
-    if (!state.tableId) return
-    if (!session) {
-      dispatch({ type: 'CLEAR_TABLE' })
-      clearSession()
+    if (authLoading) return
+    if (!userId) {
+      if (stateRef.current.tableId) {
+        dispatch({ type: 'CLEAR_TABLE' })
+        clearSession()
+      }
+      setSynced(true)
       return
     }
     let cancelled = false
-    supabase.rpc('my_table_session').then(({ data, error }) => {
-      if (cancelled) return
-      if (error || !data) {
-        dispatch({ type: 'CLEAR_TABLE' })
-        clearSession()
-      } else {
-        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id, sessionStatus: data.session_status, isHost: data.is_host, startedAt: data.started_at ?? null })
-        saveSession(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
-      }
-    })
+    setSynced(false)
+    refreshTableSession().finally(() => { if (!cancelled) setSynced(true) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, session])
+  }, [authLoading, userId])
 
   return (
     <CartContext.Provider value={{
       items: state.items, total, itemCount,
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
       sessionStatus: state.sessionStatus, isHost: state.isHost, startedAt: state.startedAt,
+      // A table in hand (cache or server) is enough to render; otherwise wait for the first server read.
+      tableReady: synced || !!state.tableId,
       open, setOpen,
       placing,
       cartError, clearCartError,
@@ -250,6 +275,7 @@ export function CartProvider({ children }) {
       setTable,
       claimTable,
       refreshTableSession,
+      ensureTableSession,
       syncStartedAt,
       clearTable,
       placeOrder,
@@ -261,3 +287,28 @@ export function CartProvider({ children }) {
 }
 
 export const useCart = () => useContext(CartContext)
+
+/**
+ * true while it is still unknown whether this guest is seated: auth is still loading, the first server read of the
+ * app boot has not answered, or the extra read ensureTableSession makes on a visit without a table is running. /bill and
+ * /table show their skeleton meanwhile instead of "Nothing to pay yet" / "No active table".
+ */
+export function useTableLookup() {
+  const { session, loading: authLoading } = useAuth()
+  const { tableId, tableReady, ensureTableSession } = useContext(CartContext)
+  const userId = session?.user?.id || null
+  const [asking, setAsking] = useState(true)
+
+  useEffect(() => {
+    if (authLoading) return
+    if (!userId || tableId) { setAsking(false); return }
+    if (!tableReady) return           // the boot read is still running; its answer arrives as tableReady
+    let alive = true
+    ensureTableSession().then(() => { if (alive) setAsking(false) })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, userId, tableId, tableReady])
+
+  // while auth is still loading nobody knows yet whether there is a user (hence a table) at all
+  return !tableId && (authLoading || (!!userId && (asking || !tableReady)))
+}

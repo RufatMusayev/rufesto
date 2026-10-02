@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../../../components/ui'
@@ -20,8 +20,13 @@ import WaitingList from '../components/WaitingList'
 
 const ACTIVE = ['open', 'requested', 'paying']
 
-/** A loaded bill: who owes what, how to split it, tip, method, and the states after paying. */
-export default function BillView({ bill, tableId, tableEnded, reload }) {
+/**
+ * A loaded bill: who owes what, how to split it, tip, method, and the states after paying.
+ * `onOpenBill` asks the server for a bill again (the guest's own tap: Start a new bill after a void, Add new
+ * orders to an unsplit bill); `canOpenBill` is false when the guest is not seated (a deep link), where a new
+ * bill cannot be started.
+ */
+export default function BillView({ bill, tableId, tableEnded, reload, onOpenBill, canOpenBill = false }) {
   const { t, i18n } = useTranslation(['bills', 'common'])
   const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
   const navigate = useNavigate()
@@ -32,6 +37,8 @@ export default function BillView({ bill, tableId, tableEnded, reload }) {
   const [error, setError] = useState(null)          // { key } of the last failed payment attempt
   const [notice, setNotice] = useState('')
   const [leaving, setLeaving] = useState(false)
+  const [opening, setOpening] = useState(false)
+  const openingRef = useRef(false)              // a double tap asks once
 
   const active = ACTIVE.includes(bill.status)
   const myPayment = bill.myPayments.find(p => p.status === 'succeeded') || null
@@ -60,6 +67,13 @@ export default function BillView({ bill, tableId, tableEnded, reload }) {
     navigate('/')
   }
 
+  async function openBill() {
+    if (openingRef.current || !onOpenBill) return
+    openingRef.current = true
+    setOpening(true)
+    try { await onOpenBill() } finally { openingRef.current = false; setOpening(false) }
+  }
+
   async function onPay() {
     setError(null)
     setNotice('')
@@ -86,11 +100,24 @@ export default function BillView({ bill, tableId, tableEnded, reload }) {
     setSheetOpen(false)
   }
 
+  // Cancelled by staff: nothing is owed, so no people, shares or pay bar. Starting a new bill is the guest's call.
   if (bill.status === 'void') {
     return (
       <div className="bl-body">
-        <EmptyState icon="🚫" title={t('bills:voidTitle')} body={t('bills:voidBody')}
-          action={<Link to="/table" className="btn btn-ghost">{t('bills:backToTable')}</Link>} />
+        <section className="card state-panel bl-void" role="status">
+          <div className="state-icon state-icon-plain" aria-hidden="true">🚫</div>
+          <h2 className="state-title">{t('bills:voidTitle')}</h2>
+          <p className="state-body">{t('bills:voidBody')}</p>
+          <div className="state-actions">
+            {canOpenBill && onOpenBill ? (
+              <button type="button" className="btn btn-primary" disabled={opening} onClick={openBill}>
+                {opening ? <span className="spinner" aria-hidden="true" /> : null}
+                {t('bills:startNewBill')}
+              </button>
+            ) : null}
+            <Link to="/table" className="btn btn-ghost">{t('bills:backToTable')}</Link>
+          </div>
+        </section>
       </div>
     )
   }
@@ -111,7 +138,18 @@ export default function BillView({ bill, tableId, tableEnded, reload }) {
       ) : null}
 
       {active && bill.newOrdersPending > 0 && !ended ? (
-        <p className="bl-note" role="status">{t('bills:newOrdersNote')}</p>
+        // nobody has picked a split yet: the guest can add the newer orders to this bill (their tap, not automatic)
+        bill.status === 'open' && bill.shares.length === 0 && canOpenBill && onOpenBill ? (
+          <div className="bl-note" role="status">
+            <p>{t('bills:newOrdersOpen')}</p>
+            <button type="button" className="btn btn-ghost bl-note-action" disabled={opening} onClick={openBill}>
+              {opening ? <span className="spinner" aria-hidden="true" /> : null}
+              {t('bills:addNewOrders')}
+            </button>
+          </div>
+        ) : (
+          <p className="bl-note" role="status">{t('bills:newOrdersNote')}</p>
+        )
       ) : null}
 
       <PersonShares people={bill.people} lang={lang} />

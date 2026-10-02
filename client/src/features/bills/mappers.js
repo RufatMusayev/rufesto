@@ -112,6 +112,11 @@ export function mapBill(raw) {
   }
 }
 
+/** A row of the bills table (not the RPC view-model): just what the Table screen needs. */
+export function mapBillRow(r) {
+  return { id: r.id, status: STATUS[r.status] || r.status }
+}
+
 export function mapWaiter(w) {
   return {
     staffId: w.staff_id,

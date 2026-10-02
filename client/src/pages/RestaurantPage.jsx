@@ -15,6 +15,18 @@ import DishDetailSheet from '../components/DishDetailSheet'
 import FloorPlanSheet from '../components/FloorPlanSheet'
 import { BookWithFriendsButton } from '../features/bookings/mounts'
 
+// Seats, not tables: the capacities of the free tables over the capacities of all tables.
+function countSeats(tables) {
+  let free = 0
+  let total = 0
+  for (const t of tables) {
+    const seats = Number(t.capacity) || 0
+    total += seats
+    if (t.state === 'free') free += seats
+  }
+  return { free, total }
+}
+
 export default function RestaurantPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -78,11 +90,12 @@ export default function RestaurantPage() {
 
       const { data: tablesData } = await supabase
         .from('tables')
-        .select('id, state')
+        .select('id, state, capacity')
         .eq('restaurant_id', rest.id)
       if (tablesData && !cancelled) {
-        setSeatsTotal(tablesData.length)
-        setSeatsFree(tablesData.filter(t => t.state === 'free').length)
+        const seats = countSeats(tablesData)
+        setSeatsTotal(seats.total)
+        setSeatsFree(seats.free)
       }
 
       if (cancelled) { setLoading(false); return }
@@ -104,11 +117,12 @@ export default function RestaurantPage() {
           event: 'UPDATE', schema: 'public', table: 'tables',
           filter: `restaurant_id=eq.${rest.id}`,
         }, () => {
-          supabase.from('tables').select('id, state').eq('restaurant_id', rest.id)
+          supabase.from('tables').select('id, state, capacity').eq('restaurant_id', rest.id)
             .then(({ data }) => {
               if (data) {
-                setSeatsTotal(data.length)
-                setSeatsFree(data.filter(t => t.state === 'free').length)
+                const seats = countSeats(data)
+                setSeatsTotal(seats.total)
+                setSeatsFree(seats.free)
               }
             })
         })

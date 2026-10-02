@@ -200,7 +200,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
           color: s.color, flexShrink:0,
           fontFamily:"'Playfair Display', Georgia, serif",
         }}>
-          T{order.tables?.table_number || '?'}
+          {order.tables?.table_number || '?'}
         </div>
 
         <div style={{ flex:1, minWidth:0 }}>

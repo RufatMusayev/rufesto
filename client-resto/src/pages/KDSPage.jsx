@@ -156,7 +156,7 @@ function KDSTicket({ ticket, now, onAdvance, col }) {
   return (
     <div className={`kds-ticket ${urgencyClass}`}>
       <div className="kds-ticket-head">
-        <div className="kds-table-num">T{table}</div>
+        <div className="kds-table-num">{table}</div>
         <div className="kds-elapsed" style={{ color: urgency.color }}>
           {urgency.level === 'overdue' ? `⚠ ${elapsed}m` : `${elapsed}m`}
         </div>

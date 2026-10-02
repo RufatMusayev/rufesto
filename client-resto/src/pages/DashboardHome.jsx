@@ -177,7 +177,7 @@ export default function DashboardHome() {
               {tables.map(t => {
                 const tc = TABLE_COLORS[t.state] || TABLE_COLORS.cleared
                 return (
-                  <div key={t.id} title={`T${t.table_number} · ${t.state} · ${t.capacity} seats`} style={{
+                  <div key={t.id} title={`${t.table_number} · ${t.state} · ${t.capacity} seats`} style={{
                     aspectRatio: '1', borderRadius: 8,
                     background: tc.bg, border: `1.5px solid ${tc.border}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',

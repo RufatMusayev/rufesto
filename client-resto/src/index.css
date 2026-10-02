@@ -472,6 +472,37 @@ body.modal-open { overflow: hidden; }
   display: flex; align-items: center; color: var(--t3); transition: color 0.15s;
 }
 .code-chip-btn:hover { color: var(--t1); }
+.code-chip-btn.is-copied { color: var(--green); }
+
+/* Tables page: floor-plan cards. The card header is one row (number, name/meta, state pill, chevron); the
+   access-code chip sits on its own row underneath so neither can squeeze the other. Every fixed-width piece
+   is nowrap + flex-shrink 0, and the text column is the only part that can ellipsize. */
+.tbl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 0.75rem; }
+.tbl-card-top { padding: 0.85rem 1rem; cursor: pointer; }
+.tbl-card-row { display: flex; align-items: center; gap: 10px; }
+.tbl-card-num {
+  width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; border: 1.5px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 0.9rem; font-family: 'Playfair Display', Georgia, serif;
+}
+.tbl-card-main { flex: 1; min-width: 0; }
+.tbl-card-title { font-weight: 700; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbl-card-meta { display: flex; flex-wrap: wrap; column-gap: 6px; margin-top: 1px; font-size: 0.7rem; color: var(--t3); }
+.tbl-card-loc { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbl-card-amount { color: var(--t2); font-weight: 600; white-space: nowrap; }
+.tbl-card-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tbl-card-state {
+  font-size: 0.6rem; font-weight: 700; padding: 3px 8px; border-radius: 100px; border: 1px solid transparent;
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+}
+.tbl-card-chevron { flex-shrink: 0; transition: transform 0.2s; }
+.tbl-card-code-row { display: flex; align-items: center; gap: 4px; margin-top: 0.6rem; min-width: 0; }
+.tbl-card-code {
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--t2); background: var(--s3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
+}
+.tbl-card-code-row .code-chip-btn { flex-shrink: 0; }
 
 /* Print-only sheet for a table's QR code. Hidden on screen; while the QR modal
    is open (body.qr-printing) a print shows only this sheet. */

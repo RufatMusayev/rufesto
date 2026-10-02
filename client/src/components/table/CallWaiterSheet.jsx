@@ -99,11 +99,7 @@ export default function CallWaiterSheet({ tableId }) {
   return (
     <>
       <button
-        className="btn btn-ghost"
-        style={{
-          width: '100%', marginTop: 12, padding: '11px 0', fontSize: '0.86rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}
+        className="btn btn-ghost table-call-btn"
         onClick={() => { setError(''); setOpen(true) }}
         disabled={onCooldown}
       >

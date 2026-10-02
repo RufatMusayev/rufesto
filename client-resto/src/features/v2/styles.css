@@ -251,7 +251,7 @@
 /* ── Settings: hours ── */
 .v2-days { display: flex; flex-direction: column; gap: 0.5rem; }
 .v2-day {
-  display: grid; grid-template-columns: 9rem 8rem 1fr auto; align-items: center; gap: 0.75rem;
+  display: grid; grid-template-columns: 9rem 8rem minmax(0, 1fr); align-items: center; gap: 0.75rem;
   padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 10px; background: var(--s1);
 }
 .v2-day.is-invalid { border-color: var(--red); background: rgba(239, 68, 68, 0.06); }
@@ -263,6 +263,8 @@
 .v2-time { flex: 1 1 0; min-width: 7rem; max-width: 9.5rem; padding: 0.5rem 0.45rem 0.5rem 0.6rem; font-size: 0.92rem; }
 .v2-day-dash { color: var(--t3); }
 .v2-day-error { grid-column: 1 / -1; margin-top: 0; }
+/* "Copy times to all days" never shares a row with the inputs: its own row under them, on one line. */
+.v2-day-copy { grid-column: 3 / -1; justify-self: start; white-space: nowrap; }
 @media (max-width: 640px) {
   .v2-day { grid-template-columns: 1fr auto; }
   .v2-day-times { grid-column: 1 / -1; }

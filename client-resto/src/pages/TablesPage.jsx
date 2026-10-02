@@ -161,13 +161,13 @@ export default function TablesPage() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '0.75rem' }}>
+        <div className="tbl-grid">
           {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton" style={{ height: 140, borderRadius: 12 }} />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">🪑</div>{t('dashboard:noTablesMatch')}</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '0.75rem' }}>
+        <div className="tbl-grid">
           {filtered.map(t => (
             <TableCard key={t.id} table={t} orders={orders[t.id] || []}
               code={accessCodes[t.id]}
@@ -231,78 +231,57 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
       {/* Top accent bar */}
       <div style={{ height:2, background: s.color, opacity: 0.6 }} />
 
-      <div onClick={onToggle} style={{
-        padding:'0.85rem 1rem', cursor:'pointer',
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-      }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{
-            width:42, height:42, borderRadius:10,
-            background: s.bg, border:`1.5px solid ${s.border}`,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontWeight:900, fontSize:'0.9rem', color: s.color,
-            fontFamily:"'Playfair Display', Georgia, serif",
-          }}>
+      <div className="tbl-card-top" onClick={onToggle}>
+        <div className="tbl-card-row">
+          <div className="tbl-card-num" style={{ background: s.bg, borderColor: s.border, color: s.color }}>
             {table.table_number}
           </div>
-          <div>
-            <div style={{ fontWeight:700, fontSize:'0.88rem' }}>{t('dashboard:tableLabel', { number: table.table_number })}</div>
-            <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:1 }}>
-              {table.sections?.name || '—'} · {t('dashboard:seatsCount', { count: table.capacity })}
-              {orders.length > 0 && (
-                <span style={{ color:'var(--t2)', marginLeft:4 }}>· {formatPrice(totalSpend)}</span>
-              )}
+          <div className="tbl-card-main">
+            <div className="tbl-card-title">{t('dashboard:tableLabel', { number: table.table_number })}</div>
+            <div className="tbl-card-meta">
+              <span className="tbl-card-loc">{table.sections?.name || '—'} · {t('dashboard:seatsCount', { count: table.capacity })}</span>
+              {orders.length > 0 && <span className="tbl-card-amount">{formatPrice(totalSpend)}</span>}
             </div>
-            {code && (
-              <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
-                <span style={{
-                  fontFamily:"'JetBrains Mono','Courier New',monospace", fontSize:'0.62rem',
-                  fontWeight:600, color:'var(--t2)', background:'var(--s3)',
-                  border:'1px solid var(--border)', borderRadius:5,
-                  padding:'1px 6px', letterSpacing:0.3,
-                }}>{code}</span>
-                <button
-                  onClick={handleCopy}
-                  title={copied ? t('dashboard:codeCopied') : t('dashboard:copyCode')}
-                  style={{
-                    background:'none', border:'none', cursor:'pointer', padding:2,
-                    display:'flex', alignItems:'center', color: copied ? 'var(--green)' : 'var(--t3)',
-                    transition:'color 0.15s',
-                  }}
-                >
-                  {copied ? (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  ) : (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                  )}
-                </button>
-                <button className="code-chip-btn" onClick={e => { e.stopPropagation(); onShowQR(table) }}
-                  title={t('dashboard:qrShow')} aria-label={t('dashboard:qrShow')}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/>
-                  </svg>
-                </button>
-              </div>
-            )}
+          </div>
+          <div className="tbl-card-side">
+            <span className="tbl-card-state" style={{ background: s.bg, color: s.color, borderColor: s.border }}>
+              {tableStateLabel(t, table.state)}
+            </span>
+            <svg className="tbl-card-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
+              style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{
-            fontSize:'0.6rem', fontWeight:700, padding:'3px 8px', borderRadius:100,
-            background: s.bg, color: s.color, border:`1px solid ${s.border}`,
-            textTransform:'uppercase', letterSpacing:0.5,
-          }}>{tableStateLabel(t, table.state)}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.5" strokeLinecap="round"
-            style={{ transition:'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </div>
+        {code && (
+          <div className="tbl-card-code-row">
+            <span className="tbl-card-code" title={code}>{code}</span>
+            <button
+              className={`code-chip-btn${copied ? ' is-copied' : ''}`}
+              onClick={handleCopy}
+              title={copied ? t('dashboard:codeCopied') : t('dashboard:copyCode')}
+              aria-label={copied ? t('dashboard:codeCopied') : t('dashboard:copyCode')}
+            >
+              {copied ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              )}
+            </button>
+            <button className="code-chip-btn" onClick={e => { e.stopPropagation(); onShowQR(table) }}
+              title={t('dashboard:qrShow')} aria-label={t('dashboard:qrShow')}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {expanded && (

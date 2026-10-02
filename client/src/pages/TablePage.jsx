@@ -248,7 +248,7 @@ export default function TablePage() {
       {/* Gradient header */}
       <div style={{
         position: 'relative', overflow: 'hidden',
-        background: bgGrad, padding: '44px 16px 28px',
+        background: bgGrad, padding: '16px 16px 28px',
       }}>
         <div style={{
           position: 'absolute', inset: 0,
@@ -264,16 +264,8 @@ export default function TablePage() {
         }} />
 
         <div style={{ position: 'relative', maxWidth: 470, margin: '0 auto' }}>
-          <button onClick={() => navigate(-1)} style={{
-            position: 'absolute', top: -24, left: 0,
-            background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: 'none', borderRadius: '50%',
-            width: 34, height: 34, color: '#F5F0E8',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <svg viewBox="0 0 20 20" fill="currentColor" style={{ width: 16, height: 16 }}>
+          <button className="table-back-btn" onClick={() => navigate(-1)} aria-label={t('common:back')}>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
               <path fillRule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10z" clipRule="evenodd" />
             </svg>
           </button>

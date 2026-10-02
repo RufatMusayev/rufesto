@@ -164,6 +164,8 @@ export default function TablePage() {
       if (msg.includes('table_reserved')) setCodeError(t('booking:reservedByOther'))
       else if (msg.includes('join_declined')) setCodeError(t('booking:joinDeclined'))
       else if (msg.includes('too_many_requests')) setCodeError(t('booking:tooManyJoinRequests'))
+      else if (msg.includes('too_many_attempts')) setCodeError(t('table:errTooManyAttempts'))
+      else if (msg.includes('table_unavailable')) setCodeError(t('table:errTableUnavailable'))
       else setCodeError(t('table:errInvalidCode'))
       return
     }

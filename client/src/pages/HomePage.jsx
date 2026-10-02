@@ -57,10 +57,9 @@ export default function HomePage() {
             .eq('is_flagged', false)
             .order('created_at', { ascending: false })
             .limit(20),
-          // RLS only exposes active campaigns within their run window
-          supabase
-            .from('ad_campaigns')
-            .select(`*, ${rsrc()}(name, slug), dishes(id, name, price, photo, category, available, restaurant_id, avg_rating, review_count, ${rsrc()}(name, slug, cuisine_type))`),
+          // Active campaigns inside their run window, display columns only (no budget / spent).
+          // The table is not client-readable any more (sql/52): same row shape via the RPC.
+          supabase.rpc('public_ad_campaigns'),
         ])
 
         // A failed read must not look like an empty feed: show a retry notice instead.
@@ -926,6 +925,7 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
                 <input
                   type="text"
                   placeholder={t('addReply')}
+                  maxLength={500}
                   value={replyBody}
                   onChange={e => setReplyBody(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) submitReply(e) }}

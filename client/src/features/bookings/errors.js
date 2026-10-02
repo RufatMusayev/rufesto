@@ -1,4 +1,4 @@
-// Backend error codes (RAISE EXCEPTION 'code' in sql/41, 41b, 41c) -> i18n keys in the `bookings`
+// Backend error codes (RAISE EXCEPTION 'code' in sql/41, 41b, 41c, 52) -> i18n keys in the `bookings`
 // namespace. Raw error messages never reach the UI: every failure ends up as { code, key }.
 const KNOWN = [
   'not_authenticated', 'consent_required', 'restaurant_not_found', 'bookings_disabled',
@@ -7,7 +7,12 @@ const KNOWN = [
   'booking_exists', 'no_table_available', 'invalid_date', 'date_in_past', 'date_too_far',
   'invalid_code', 'invite_expired', 'booking_closed', 'booking_full', 'booking_not_found',
   'host_cannot_leave', 'not_host', 'booking_not_active', 'too_early', 'booking_expired',
-  'booking_not_cancellable', 'not_member', 'not_seated', 'outside_window', 'invites_disabled',
+  'booking_not_cancellable', 'outside_window', 'invites_disabled',
+  // claim_table_from_booking(booking, code) raises the claim_table errors too (a table QR / seat code)
+  'invalid_seat', 'seat_taken', 'table_reserved', 'scan_table_qr',
+  // sql/52c, 52d: attempt throttle on table / invite codes (returned as HTTP 400 with the PostgREST body, so
+  // supabase-js still gives error.message === 'too_many_attempts'), and a table held by someone else
+  'too_many_attempts', 'table_unavailable',
   // raised by this feature itself
   'no_session',
 ]

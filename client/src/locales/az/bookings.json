@@ -134,12 +134,8 @@
     "weHere": "Gəlmişik",
     "weHereEarly": "Əlçatan olacaq: {{when}}.",
     "weHereLate": "Rezervasiyanın vaxtı keçib.",
-    "weHereTitle": "Hamını masaya əyləşdirək?",
-    "weHereBody": "Qoşulan hər kəs birlikdə əyləşəcək və masadan sifariş verə biləcək.",
-    "weHereConfirm": "Bəli, gəlmişik",
     "goToTable": "Masamıza keç",
     "pendingNote": "Restoran tezliklə təsdiq edəcək.",
-    "waitingHost": "Təşkilatçının gəlişi gözlənilir",
     "invitedNote": "Siz dəvət olunmusunuz. Qoşulmaq üçün dəvət linkini açın.",
     "cancelledNote": "Bu rezervasiya ləğv edilib.",
     "cancel": "Rezervasiyanı ləğv et",
@@ -155,7 +151,10 @@
     "declineBody": "Təşkilatçı sizin gələ bilmədiyinizi görəcək.",
     "notFoundTitle": "Rezervasiya tapılmadı",
     "notFoundBody": "Silinmiş ola bilər və ya sizin üçün əlçatan deyil.",
-    "backToBookings": "Rezervasiyalarıma qayıt"
+    "backToBookings": "Rezervasiyalarıma qayıt",
+    "weHereHint": "Qeydiyyatdan keçmək üçün masanızdakı QR kodu skan edin.",
+    "memberScanHint": "Çatanda masadakı QR kodu skan edin",
+    "scanQr": "Masa QR-ını skan et"
   },
   "mine": {
     "emptyTitle": "Hələ rezervasiyanız yoxdur",
@@ -203,14 +202,19 @@
     "too_early": "Hələ tezdir. Qeydiyyat başlanğıcdan 30 dəqiqə əvvəl açılır.",
     "booking_expired": "Rezervasiyanın vaxtı keçib.",
     "booking_not_cancellable": "Bu rezervasiya artıq ləğv edilə bilməz.",
-    "not_member": "Siz bu rezervasiyanın iştirakçısı deyilsiniz",
-    "not_seated": "Təşkilatçı hələ qeydiyyatdan keçməyib — 'Gəlmişik' düyməsini gözləyin",
     "outside_window": "Qeydiyyat yalnız rezervasiya vaxtı ətrafında mümkündür",
     "invites_disabled": "Bu rezervasiya dəvətləri qəbul etmir.",
-    "no_session": "Masa sessiyanız tapılmadı. Təşkilatçıdan yenidən qeydiyyat etməsini xahiş edin.",
+    "no_session": "Masa sessiyanız tapılmadı. Masanızdakı QR kodu skan edin.",
     "generic": "Xəta baş verdi. Yenidən cəhd edin.",
     "network": "Serverə qoşulmaq alınmadı. İnternet bağlantınızı yoxlayıb yenidən cəhd edin.",
     "unavailable": "Rezervasiya hələ əlçatan deyil. Sonra yenidən cəhd edin.",
-    "not_allowed": "Bu əməliyyata icazəniz yoxdur."
+    "not_allowed": "Bu əməliyyata icazəniz yoxdur.",
+    "invalid_table_code": "Bu etibarlı masa QR kodu deyil. Masanızdakı kodu skan edin.",
+    "too_many_attempts": "Çox sayda yanlış kod daxil edilib. Bir neçə dəqiqə gözləyib yenidən cəhd edin.",
+    "table_unavailable": "Bu masa hazırda əlçatan deyil. İşçilərdən kömək istəyin.",
+    "invalid_seat": "Bu yer kodu etibarlı deyil. Masanızdakı kodu skan edin.",
+    "seat_taken": "Bu yer artıq tutulub. Başqa yer seçin.",
+    "table_reserved": "Bu masa başqası üçün rezerv olunub. İşçilərdən kömək istəyin.",
+    "scan_table_qr": "Çatanda masadakı QR kodu skan edin."
   }
 }

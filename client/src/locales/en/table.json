@@ -23,6 +23,8 @@
   "checking": "Checking...",
   "joinTable": "Join Table",
   "errInvalidCode": "Invalid table code. Check the code and try again.",
+  "errTooManyAttempts": "Too many wrong codes. Wait a few minutes and try again.",
+  "errTableUnavailable": "This table is not available right now. Ask a member of staff for help.",
   "settingUp": "Setting up...",
   "startDemoSession": "Start Demo Session",
   "demoHint": "Demo mode assigns a free table for testing",

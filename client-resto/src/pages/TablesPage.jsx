@@ -7,6 +7,7 @@ import { TABLE_COLORS, TABLE_STATE_TRANSITIONS } from '@shared/constants'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
+import { roleCan } from '../lib/roles'
 import { tableStateLabel } from '../components/waiter/waiterHelpers'
 import TableQRModal from '../components/TableQRModal'
 import { PrintAllQrButton } from '../features/v2/mounts'
@@ -18,6 +19,8 @@ const ACTIVE_ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 export default function TablesPage() {
   const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
+  // Table states are written by waiter, host, manager and admin; the DB refuses a cashier (sql/52b), so no buttons.
+  const canChangeState = roleCan(staffRow?.role, 'tableState')
   const [tables, setTables] = useState([])
   const [sections, setSections] = useState([])
   const [activeSection, setActiveSection] = useState(null)
@@ -173,6 +176,7 @@ export default function TablesPage() {
               code={accessCodes[t.id]}
               expanded={expanded === t.id} onToggle={() => setExpanded(expanded === t.id ? null : t.id)}
               onChangeState={changeState} updating={updating === t.id}
+              canChangeState={canChangeState}
               onShowQR={setQrTable} />
           ))}
         </div>
@@ -201,10 +205,10 @@ export default function TablesPage() {
   )
 }
 
-function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating, onShowQR }) {
+function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating, canChangeState, onShowQR }) {
   const { t } = useTranslation(['dashboard', 'common'])
   const s = TABLE_COLORS[table.state] || TABLE_COLORS.free
-  const transitions = TABLE_STATE_TRANSITIONS[table.state] || []
+  const transitions = canChangeState ? (TABLE_STATE_TRANSITIONS[table.state] || []) : []
   const totalSpend = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
   const [copied, setCopied] = useState(false)
 

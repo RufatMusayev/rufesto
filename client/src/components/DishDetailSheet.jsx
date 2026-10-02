@@ -661,6 +661,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                     className="input"
                     placeholder={t('menu:writeReviewPlaceholder')}
                     value={myBody}
+                    maxLength={1000}
                     onChange={e => setMyBody(e.target.value)}
                     style={{ flex: 1, fontSize: '0.82rem', padding: '9px 13px', borderRadius: 20 }}
                   />

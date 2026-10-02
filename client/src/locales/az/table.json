@@ -23,6 +23,8 @@
   "checking": "Yoxlanılır...",
   "joinTable": "Masaya Qoşul",
   "errInvalidCode": "Yanlış masa kodu. Kodu yoxlayıb yenidən cəhd edin.",
+  "errTooManyAttempts": "Çox sayda yanlış kod daxil edilib. Bir neçə dəqiqə gözləyib yenidən cəhd edin.",
+  "errTableUnavailable": "Bu masa hazırda əlçatan deyil. İşçilərdən kömək istəyin.",
   "settingUp": "Hazırlanır...",
   "startDemoSession": "Demo Sessiyaya Başla",
   "demoHint": "Demo rejimi test üçün boş masa təyin edir",

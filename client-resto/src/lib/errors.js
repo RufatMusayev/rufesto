@@ -18,12 +18,21 @@ export function writeError({ error, data }) {
   return null
 }
 
-// Exception codes the waiter / table RPCs raise (see sql/34); message == code.
+// Exception codes the waiter / table RPCs raise (see sql/34) and the guard triggers of sql/52 / 52b raise; message == code.
 const RPC_CODES = {
   not_open:    'waiterErrNotOpen',
   not_found:   'waiterErrNotFound',
   not_allowed: 'waiterErrNotAllowed',
+  invalid_booking_transition: 'errBookingTransition',
+  invalid_ticket_transition:  'errTicketTransition',
+  budget_locked:              'errBudgetLocked',
 }
+
+// Role-matrix refusals (sql/52b): the same answer as a refused RLS write, i.e. the caller's `permission` key.
+const PERMISSION_CODES = new Set([
+  'forbidden_status_change', 'forbidden_booking_edit', 'forbidden_table_edit',
+  'booking_identity_locked', 'table_identity_locked',
+])
 
 const str = v => (typeof v === 'string' ? v : '')
 
@@ -65,6 +74,7 @@ export function friendlyErrorKey(err, { fallback = 'actionFailed', permission = 
 
   if (code === 'NO_ROWS') return permission === 'errPermission' ? 'errNoChange' : permission
   if (RPC_CODES[message]) return RPC_CODES[message]
+  if (PERMISSION_CODES.has(message)) return permission
 
   if (/failed to fetch|networkerror|network request failed|load failed|fetch failed|timed out/.test(message)) return 'errNetwork'
   if (code === 'invalid_credentials' || /invalid login credentials/.test(message)) return 'errInvalidCredentials'

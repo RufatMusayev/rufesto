@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,6 +8,7 @@ import { bakuTodayStartISO } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
+import { roleCan } from '../lib/roles'
 
 // Real `order_status` values. `submitted` / `refunded` chips only appear while
 // there is an order in that status (or the chip is selected).
@@ -17,6 +18,8 @@ const OPTIONAL_FILTERS = ['submitted', 'refunded']
 const CANCELLABLE = ['open', 'submitted', 'preparing', 'ready']
 // Other orders in these statuses don't hold a table back from being cleared.
 const SETTLED = ['paid', 'cancelled', 'refunded'] // served = delivered but still unpaid
+// staff_guest_names() takes at most 200 ids per call (sql/52b).
+const NAME_CHUNK = 200
 
 // Marking an order paid fires the DB trigger that clears its table, and the table
 // state machine only allows that from awaiting_payment. So "Mark Paid" is offered
@@ -32,9 +35,17 @@ function markPaidBlockReason(order, orders) {
 }
 
 export default function OrdersPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
+  // Role matrix (sql/52b): served / cancelled for waiter, host, manager, admin; paid for cashier, manager, admin.
+  const role = staffRow?.role
+  const canFlow = roleCan(role, 'orderFlow')
+  const canPay = roleCan(role, 'orderPaid')
   const [orders, setOrders] = useState([])
+  // Guest names by user id. Only floor staff may ask, and only through the RPC: a waiter no longer reads `users`,
+  // and nobody here needs a guest's e-mail or phone. askedIds stops a realtime reload re-asking known guests.
+  const [guestNames, setGuestNames] = useState({})
+  const askedIds = useRef(new Set())
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
@@ -43,6 +54,8 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!restaurantId) return
+    askedIds.current = new Set()
+    setGuestNames({})
     loadOrders()
 
     const debouncedLoad = debounce(loadOrders, 400)
@@ -64,13 +77,28 @@ export default function OrdersPage() {
   async function loadOrders() {
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(table_number, state), users(name, email), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
+      .select('*, tables(table_number, state), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
       .eq('restaurant_id', restaurantId)
       .gte('placed_at', bakuTodayStartISO())
       .order('placed_at', { ascending: false })
 
     setOrders(data || [])
     setLoading(false)
+    loadGuestNames(data || [])
+  }
+
+  async function loadGuestNames(rows) {
+    const ids = [...new Set(rows.map(o => o.user_id).filter(id => id && !askedIds.current.has(id)))]
+    if (!ids.length) return
+    ids.forEach(id => askedIds.current.add(id))
+    const found = {}
+    for (let i = 0; i < ids.length; i += NAME_CHUNK) {
+      const chunk = ids.slice(i, i + NAME_CHUNK)
+      const { data, error } = await supabase.rpc('staff_guest_names', { p_restaurant_id: restaurantId, p_user_ids: chunk })
+      if (error) { chunk.forEach(id => askedIds.current.delete(id)); continue }   // retried on the next reload
+      for (const g of data || []) if (g?.user_id && g.name) found[g.user_id] = g.name
+    }
+    if (Object.keys(found).length) setGuestNames(prev => ({ ...prev, ...found }))
   }
 
   async function updateStatus(orderId, status) {
@@ -160,6 +188,9 @@ export default function OrdersPage() {
               onUpdateStatus={updateStatus}
               acting={acting === o.id}
               payBlock={markPaidBlockReason(o, orders)}
+              guestName={guestNames[o.user_id]}
+              canFlow={canFlow}
+              canPay={canPay}
             />
           ))}
         </div>
@@ -168,13 +199,16 @@ export default function OrdersPage() {
   )
 }
 
-function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock }) {
+function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock, guestName, canFlow, canPay }) {
   const { t } = useTranslation(['dashboard', 'common'])
   const s = orderStatusStyle(order.status)
   const items = order.order_items || []
   const time = order.placed_at
     ? new Date(order.placed_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     : ''
+  const showServed = canFlow && order.status === 'ready'
+  const showPaid = canPay && order.status === 'served'
+  const showCancel = canFlow && CANCELLABLE.includes(order.status)
 
   return (
     <div style={{
@@ -213,7 +247,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
             </span>
           </div>
           <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:2 }}>
-            {order.users?.name || order.users?.email || t('dashboard:guest')}
+            {guestName || t('dashboard:guest')}
           </div>
         </div>
 
@@ -282,28 +316,30 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
             <span style={{ color:'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
           </div>
 
+          {(showServed || showPaid || showCancel) && (
           <div style={{ display:'flex', gap:'0.35rem', marginTop:'0.75rem' }}>
-            {order.status === 'ready' && (
+            {showServed && (
               <button className="btn btn-primary btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'served')} disabled={acting}>
                 {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markServed')}
               </button>
             )}
-            {order.status === 'served' && (
+            {showPaid && (
               <button className="btn btn-ghost btn-sm" style={{ flex:1 }}
                 onClick={() => onUpdateStatus(order.id, 'paid')} disabled={acting || !!payBlock}
                 title={payBlock ? t(`dashboard:${payBlock}`) : undefined}>
                 {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markPaid')}
               </button>
             )}
-            {CANCELLABLE.includes(order.status) && (
+            {showCancel && (
               <button className="btn btn-danger btn-sm" style={{ minWidth:80 }}
                 onClick={() => onUpdateStatus(order.id, 'cancelled')} disabled={acting}>
                 {t('dashboard:cancel')}
               </button>
             )}
           </div>
-          {order.status === 'served' && payBlock && (
+          )}
+          {showPaid && payBlock && (
             <div className="order-pay-hint">{t(`dashboard:${payBlock}`)}</div>
           )}
         </div>

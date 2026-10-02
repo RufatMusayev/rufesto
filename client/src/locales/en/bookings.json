@@ -134,12 +134,8 @@
     "weHere": "We're here",
     "weHereEarly": "Available from {{when}}.",
     "weHereLate": "The booking time has passed.",
-    "weHereTitle": "Seat everyone at your table?",
-    "weHereBody": "Everyone who has joined will be seated together and can order from the table.",
-    "weHereConfirm": "Yes, we're here",
     "goToTable": "Go to our table",
     "pendingNote": "The restaurant will confirm shortly.",
-    "waitingHost": "Waiting for the host to check in",
     "invitedNote": "You're invited. Open the invite link to join.",
     "cancelledNote": "This booking was cancelled.",
     "cancel": "Cancel booking",
@@ -155,7 +151,10 @@
     "declineBody": "The host will see that you can't make it.",
     "notFoundTitle": "Booking not found",
     "notFoundBody": "It may have been removed, or it isn't yours to see.",
-    "backToBookings": "Back to my bookings"
+    "backToBookings": "Back to my bookings",
+    "weHereHint": "Scan the QR code on your table to check in.",
+    "memberScanHint": "Scan the table QR when you arrive",
+    "scanQr": "Scan table QR"
   },
   "mine": {
     "emptyTitle": "No bookings yet",
@@ -203,14 +202,19 @@
     "too_early": "It's too early to check in. Check-in opens 30 minutes before the start.",
     "booking_expired": "The booking time has passed.",
     "booking_not_cancellable": "This booking can't be cancelled any more.",
-    "not_member": "You are not part of this booking",
-    "not_seated": "The host hasn't checked in yet — wait for 'We're here'",
     "outside_window": "Check-in is only possible around the booking time",
     "invites_disabled": "This booking isn't accepting invites.",
-    "no_session": "We couldn't find your table session. Ask the host to check in again.",
+    "no_session": "We couldn't find your table session. Scan the QR code on your table.",
     "generic": "Something went wrong. Please try again.",
     "network": "Can't reach the server. Check your connection and try again.",
     "unavailable": "Booking isn't available yet. Please try again later.",
-    "not_allowed": "You can't do that."
+    "not_allowed": "You can't do that.",
+    "invalid_table_code": "That isn't a valid table QR code. Scan the code on your table.",
+    "too_many_attempts": "Too many wrong codes. Wait a few minutes and try again.",
+    "table_unavailable": "This table is not available right now. Ask a member of staff for help.",
+    "invalid_seat": "That seat code isn't valid. Scan the code on your table.",
+    "seat_taken": "That seat is already taken. Pick another seat.",
+    "table_reserved": "This table is reserved by someone else. Ask the staff for help.",
+    "scan_table_qr": "Scan the table QR when you arrive."
   }
 }

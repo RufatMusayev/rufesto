@@ -102,6 +102,7 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 0 0 0 3px rgba(139,45,66,0.18);
 }
 .input::placeholder { color: var(--t3); }
+.input:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Spinner / Skeleton ── */
 .spinner {
@@ -528,3 +529,4 @@ body.modal-open { overflow: hidden; }
   color: var(--warning); font-size: 0.8rem; line-height: 1.45;
 }
 .order-pay-hint { margin-top: 0.5rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }
+.field-hint { margin-top: 0.35rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }

@@ -54,7 +54,6 @@
 }
 .bk-notice-amber { background: rgba(139, 45, 66, 0.08); border-color: rgba(139, 45, 66, 0.15); color: var(--accent); }
 .bk-notice-red { background: rgba(163, 45, 45, 0.08); border-color: rgba(163, 45, 45, 0.2); color: var(--red); }
-.bk-waiting { font-size: 0.85rem; color: var(--note); text-align: center; padding: 8px 0; }
 .bk-reason { font-size: 0.78rem; color: var(--note); text-align: center; margin-top: 8px; line-height: 1.4; }
 
 /* wizard: the page fills the screen so each step's primary button rests at the bottom (above the 64px mobile

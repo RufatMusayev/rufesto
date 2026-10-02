@@ -7,7 +7,7 @@ import { dishReviewState, getBill, submitReview } from '../api'
 import { dishName } from '../mappers'
 
 const MAX_DISHES = 3
-const MAX_BODY = 300
+const MAX_BODY = 1000
 const flagKey = billId => `rufesto_review_prompt_${billId}`
 
 function wasDismissed(billId) {

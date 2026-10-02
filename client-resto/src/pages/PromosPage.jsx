@@ -351,6 +351,8 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
   // active/completed/cancelled, that status came from Activate/Pause/Cancel
   // (manager-only buttons on the card) and stays locked here.
   const statusLocked = isEdit && !FORM_STATUSES.includes(campaign.status)
+  // While a campaign is active its budget cannot change (sql/52 budget_locked): pause it first.
+  const budgetLocked = isEdit && campaign.status === 'active'
 
   useEffect(() => {
     document.body.classList.add('modal-open')
@@ -364,7 +366,7 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
   async function handleSave() {
     if (!form.name.trim()) { setError(t('errNameRequired')); return }
     if (!form.title.trim()) { setError(t('errTitleRequired')); return }
-    if (!form.budget || isNaN(Number(form.budget)) || Number(form.budget) <= 0) { setError(t('errBudgetPositive')); return }
+    if (!budgetLocked && (!form.budget || isNaN(Number(form.budget)) || Number(form.budget) <= 0)) { setError(t('errBudgetPositive')); return }
     if (form.daily_limit && (isNaN(Number(form.daily_limit)) || Number(form.daily_limit) <= 0)) { setError(t('errDailyLimitPositive')); return }
     if (!form.starts_at || !form.ends_at) { setError(t('errDatesRequired')); return }
     if (new Date(form.ends_at) <= new Date(form.starts_at)) { setError(t('errEndAfterStart')); return }
@@ -380,12 +382,13 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
       description: form.description.trim() || null,
       type: form.type,
       dish_id: form.dish_id || null,
-      budget: Number(form.budget),
       daily_limit: form.daily_limit ? Number(form.daily_limit) : null,
       starts_at: new Date(form.starts_at).toISOString(),
       ends_at: new Date(form.ends_at).toISOString(),
       status: form.status,
     }
+    // Not sent while locked: the stored budget stays as it is whatever the input shows.
+    if (!budgetLocked) row.budget = Number(form.budget)
 
     const err = isEdit
       ? writeError(await supabase.from('ad_campaigns').update(row).eq('id', campaign.id).select('id'))
@@ -467,7 +470,9 @@ function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
             <div>
               <label className="label">{t('budgetLabel')} *</label>
               <input className="input" type="number" step="0.01" min="0" value={form.budget}
+                disabled={budgetLocked} aria-describedby={budgetLocked ? 'promo-budget-hint' : undefined}
                 onChange={e => update('budget', e.target.value)} placeholder="0.00" />
+              {budgetLocked && <p id="promo-budget-hint" className="field-hint">{t('budgetLockedHint')}</p>}
             </div>
             <div>
               <label className="label">{t('dailyLimit')}</label>

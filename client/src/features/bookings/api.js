@@ -88,17 +88,15 @@ export async function cancelBooking(bookingId) {
   return rpc('cancel_booking', { p_booking_id: bookingId })
 }
 
-/** CONTRACT: claim_table_from_booking(p_booking_id) -> { booking_id, table_id, table_number, restaurant_id,
- *  session_status, is_host, moved, ... }. Host from 30 min before start; a member once the booking is seated. */
-export async function claimTableFromBooking(bookingId) {
-  const res = await rpc('claim_table_from_booking', { p_booking_id: bookingId })
+/** CONTRACT: claim_table_from_booking(p_booking_id, p_code) -> { booking_id, table_id, table_number, restaurant_id,
+ *  session_status, is_host, moved, ... }. HOST only, inside the window (30 min before start .. end). `code` is what the
+ *  guest scanned: the table's access code or a seat code `<code>-S<n>`; the host is seated at THAT physical table and the
+ *  booking is linked to it (no remote seating). Errors: the claim_table ones (invalid_code, invalid_seat, seat_taken,
+ *  table_reserved, ...) plus not_host, outside_window, booking_not_active. Members have no booking RPC: they scan the
+ *  table QR like any guest (CartContext.claimTable). */
+export async function claimTableFromBooking(bookingId, code) {
+  const res = await rpc('claim_table_from_booking', { p_booking_id: bookingId, p_code: code })
   return mapped(res, mapClaim)
-}
-
-/** CONTRACT: join_table_from_booking(p_booking_id) -> table session JSON. A joined member, once the host seated the
- *  booking and inside the time window. Errors: not_member, not_seated, outside_window, not_authenticated. */
-export async function joinTableFromBooking(bookingId) {
-  return rpc('join_table_from_booking', { p_booking_id: bookingId })
 }
 
 /* -------------------------------------------------------------------- reads */

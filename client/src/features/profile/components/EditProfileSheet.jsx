@@ -54,7 +54,7 @@ export default function EditProfileSheet({ open, onClose, profile, email }) {
         <div>
           <label className="label" htmlFor="pf-name">{t('profile:name')}</label>
           <input
-            id="pf-name" className="input" value={name} maxLength={60} autoComplete="name"
+            id="pf-name" className="input" value={name} maxLength={80} autoComplete="name"
             onChange={e => setName(e.target.value)} placeholder={t('profile:name')}
           />
         </div>

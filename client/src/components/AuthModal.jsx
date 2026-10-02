@@ -418,7 +418,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             <input
               className="input"
               placeholder={t('auth:yourName')}
-              required autoFocus
+              required autoFocus maxLength={80}
               value={name}
               onChange={e => setName(e.target.value)}
               style={{ marginBottom: '0.75rem' }}

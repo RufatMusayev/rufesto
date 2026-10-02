@@ -57,6 +57,8 @@ export default function TableClaimPage() {
       else if (msg.includes('join_declined')) setError(t('booking:joinDeclined'))
       else if (msg.includes('too_many_requests')) setError(t('booking:tooManyJoinRequests'))
       else if (msg.includes('invalid_code')) setError(t('table:errInvalidCode'))
+      else if (msg.includes('too_many_attempts')) setError(t('table:errTooManyAttempts'))
+      else if (msg.includes('table_unavailable')) setError(t('table:errTableUnavailable'))
       else setError(t('booking:errClaimFailed'))
       return
     }

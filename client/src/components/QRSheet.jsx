@@ -8,7 +8,12 @@ import useEscapeClose from './ui/useEscapeClose'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
-export default function QRSheet({ onClose }) {
+//
+// Optional `onCode(code)`: the caller does the claiming itself (e.g. a booking host seating the booking at the
+// scanned table via claim_table_from_booking). The sheet then only reads the code and calls it; it resolves
+// { error: 'translated text' } (shown, scanner restarts) or { data: { restaurant_name, table_number, session_status } }
+// (shown on the success screen, then onClose).
+export default function QRSheet({ onClose, onCode }) {
   const { t } = useTranslation(['booking', 'table', 'common'])
   const { session } = useAuth()
   const { claimTable } = useCart()
@@ -23,6 +28,8 @@ export default function QRSheet({ onClose }) {
   const [manualMode, setManualMode] = useState(false)
   const scannerRef = useRef(null)
   const closeTimerRef = useRef(null)
+  const onCodeRef = useRef(onCode)
+  onCodeRef.current = onCode
   useEscapeClose(onClose)
 
   useEffect(() => {
@@ -90,6 +97,21 @@ export default function QRSheet({ onClose }) {
     }
     setError('')
     setLoading(true)
+
+    if (onCodeRef.current) {
+      const res = await onCodeRef.current(code)
+      setLoading(false)
+      if (res?.error) {
+        setError(res.error)
+        if (!manualMode) setScanning(true)
+        return
+      }
+      setResult(res?.data ?? null)
+      setDone(true)
+      closeTimerRef.current = setTimeout(onClose, 1400)
+      return
+    }
+
     const { data, error: claimErr } = await claimTable(code)
     setLoading(false)
 
@@ -98,6 +120,8 @@ export default function QRSheet({ onClose }) {
       if (msg.includes('table_reserved')) setError(t('booking:reservedByOther'))
       else if (msg.includes('not_authenticated')) setError(t('booking:errNotAuthenticated'))
       else if (msg.includes('invalid_code')) setError(t('table:errInvalidCode'))
+      else if (msg.includes('too_many_attempts')) setError(t('table:errTooManyAttempts'))
+      else if (msg.includes('table_unavailable')) setError(t('table:errTableUnavailable'))
       else if (msg.includes('join_declined')) setError(t('booking:joinDeclined'))
       else if (msg.includes('too_many_requests')) setError(t('booking:tooManyJoinRequests'))
       else setError(t('booking:errClaimFailed'))

@@ -64,6 +64,7 @@ export const mapJoined = d => ({
 export const mapClaim = d => ({
   tableId: d.table_id,
   restaurantId: d.restaurant_id,
+  restaurantName: d.restaurant_name || null,
   bookingId: d.booking_id,
   sessionStatus: d.session_status,
   isHost: !!d.is_host,
@@ -71,16 +72,22 @@ export const mapClaim = d => ({
   moved: !!d.moved,
 })
 
-export const mapMember = m => ({
-  userId: m.user_id,
-  name: m.name || null,
-  photo: m.profile_photo || null,
-  status: m.status,                  // invited | joined | arrived | left | declined
-  isHost: !!m.is_host,
-  phone: m.phone || null,            // filled by the server for the host and staff only
-  joinedAt: m.joined_at || null,
-  arrivedAt: m.arrived_at || null,
-})
+export const mapMember = m => {
+  // `arrived` (group_booking_detail) = holds a table session at the booking's table. It wins over a stale 'joined'
+  // status but never over left / declined.
+  const arrived = ['joined', 'arrived'].includes(m.status) && (!!m.arrived || m.status === 'arrived')
+  return {
+    userId: m.user_id,
+    name: m.name || null,
+    photo: m.profile_photo || null,
+    status: arrived ? 'arrived' : m.status,   // invited | joined | arrived | left | declined
+    arrived,
+    isHost: !!m.is_host,
+    phone: m.phone || null,                   // filled by the server for the host and staff only
+    joinedAt: m.joined_at || null,
+    arrivedAt: m.arrived_at || null,
+  }
+}
 
 /** group_booking_detail -> the booking screen's data */
 export const mapDetail = d => {

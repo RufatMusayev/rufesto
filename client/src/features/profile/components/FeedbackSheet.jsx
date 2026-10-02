@@ -59,14 +59,14 @@ export default function FeedbackSheet({ open, onClose, userId, defaultName, defa
           <p className="pf-hint pf-hint-top">{userId ? t('feedbackPromptUser') : t('feedbackPromptGuest')}</p>
           <div>
             <label className="label" htmlFor="pf-fb-name">{t('fbName')}</label>
-            <input id="pf-fb-name" className="input" value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
+            <input id="pf-fb-name" className="input" value={name} maxLength={80} onChange={e => setName(e.target.value)} autoComplete="name" />
           </div>
           <div>
             <label className="label" htmlFor="pf-fb-email">
               {t('fbEmail')} <span className="pf-optional">{t('fbEmailOptional')}</span>
             </label>
             <input
-              id="pf-fb-email" className="input" type="email" value={email} autoComplete="email"
+              id="pf-fb-email" className="input" type="email" value={email} maxLength={254} autoComplete="email"
               onChange={e => setEmail(e.target.value)} placeholder={t('fbEmailPlaceholder')}
             />
           </div>
@@ -87,7 +87,7 @@ export default function FeedbackSheet({ open, onClose, userId, defaultName, defa
           <div>
             <label className="label" htmlFor="pf-fb-msg">{t('fbMessage')}</label>
             <textarea
-              id="pf-fb-msg" className="input pf-textarea" rows={4} value={message} maxLength={2000}
+              id="pf-fb-msg" className="input pf-textarea" rows={4} value={message} maxLength={1000}
               onChange={e => setMessage(e.target.value)} placeholder={t('fbMessagePlaceholder')}
             />
           </div>

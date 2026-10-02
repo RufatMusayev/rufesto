@@ -1,10 +1,13 @@
 // v2 bills & payments (WP3): claim the free QA table, order, pay the bill with the demo card (double-tapped:
 // exactly one payment), open the receipt, leave the table. @guest, needs QA_TABLE_CODE (a free Bella Roma table).
-// Serial: test 1 leaves an order on the table session, test 2 re-claims it (idempotent), orders again and pays
+// Serial: test 2 leaves an order on the table session, test 3 re-claims it (idempotent), orders again and pays
 // everything, so a green run ends with a settled bill and a free table. Orders/bills stay as history rows.
+// beforeAll/afterAll reset the table over the API (cancel the guest's draft orders, leave, manager release) so a
+// failed run can't leave stacked sessions or open orders behind for the next one.
 const { test, expect } = require('../support/fixtures')
 const { CONSUMER_URL, creds, tableCode } = require('../support/env')
 const { signInGuest } = require('../support/guest')
+const { openAs, resetTable } = require('../support/v2')
 
 const url = path => CONSUMER_URL + path
 
@@ -30,11 +33,10 @@ async function orderOneDish(page) {
   await add.click()
   const place = page.getByRole('button', { name: /^Place Order/ })
   if (!(await place.isVisible({ timeout: 3_000 }).catch(() => false))) await page.getByRole('button', { name: 'Open cart' }).click()
-  // placeOrder() is two client requests (orders, then order_items). Navigating away between them leaves an empty
-  // open order that keeps the table in awaiting_payment, so wait for the second one before doing anything else.
-  const items = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/order_items/.test(r.url()))
+  // placeOrder() is one atomic RPC (place_order) since sql/46; wait for it before doing anything else.
+  const placed = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/place_order/.test(r.url()))
   await place.click()   // adding a dish opens the cart sheet by itself on the current build
-  expect((await items).ok(), 'order_items insert').toBe(true)
+  expect((await placed).ok(), 'place_order rpc').toBe(true)
 }
 
 test.describe('v2 bills', { tag: ['@guest', '@consumer', '@v2'] }, () => {
@@ -42,21 +44,29 @@ test.describe('v2 bills', { tag: ['@guest', '@consumer', '@v2'] }, () => {
   test.skip(!creds.guest || !tableCode, 'set QA_GUEST_* and QA_TABLE_CODE (a free table at Trattoria Bella Roma)')
   test.beforeEach(async ({ page }) => { await signInGuest(page, creds.guest) })
 
+  const reset = async (browser, testInfo) => {
+    const guest = await openAs(browser, testInfo, creds.guest)
+    const mgr = creds.manager ? await openAs(browser, testInfo, creds.manager) : null
+    try {
+      if (!mgr) throw new Error('set QA_MANAGER_* so the table can be reset')
+      const { state } = await resetTable(guest.page, guest, mgr, tableCode)
+      expect(['free', 'cleared'], 'QA table state after reset').toContain(state)
+    } finally {
+      await guest.close()
+      await mgr?.close()
+    }
+  }
+  test.beforeAll(async ({ browser }, testInfo) => { await reset(browser, testInfo) })
+  test.afterAll(async ({ browser }, testInfo) => { await reset(browser, testInfo) })
+
   test('a freshly claimed table starts with no orders', async ({ page }) => {
-    // APP BUG (pre-v2, TablePage.jsx load()): orders are read by table_id + user_id only, with no session or
-    // bill filter, so a guest who sits at the same table again sees every earlier order (even `paid` ones) and an
-    // inflated "Session Total" / "View bill" amount. Remove test.fail() once the query is scoped to the session.
-    // (Passes unexpectedly on a database where this guest never ordered at the QA table.)
-    test.fail()
+    // Regression: TablePage once listed every earlier order of the guest at this table (even `paid` ones).
     await claimTable(page)
     await expect(page.getByText('No orders yet')).toBeVisible({ timeout: 5_000 })
   })
 
   test('placing an order shows the "Order placed!" confirmation', async ({ page }) => {
-    // APP BUG (pre-v2, CartSheet.jsx + CartContext.jsx): placeOrder() calls setOpen(false), and CartSheet returns
-    // null while !open BEFORE it reaches its `ordered` panel, so the confirmation never renders. Remove test.fail()
-    // once CartSheet checks `ordered` first (or the context stops closing the cart).
-    test.fail()
+    // Regression: placeOrder() used to close the cart before CartSheet could show its `ordered` panel.
     await claimTable(page)
     await orderOneDish(page)
     await expect(page.getByText('Order placed!')).toBeVisible({ timeout: 5_000 })

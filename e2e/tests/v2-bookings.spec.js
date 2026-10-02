@@ -30,7 +30,7 @@ test.describe('v2 bookings', { tag: ['@guest', '@consumer', '@v2'] }, () => {
     const mgr = await openAs(browser, testInfo, creds.manager)
     const anon = await openAnon(browser, testInfo)
     let bookingId = null
-    await cancelStale(page, host)
+    await cancelStale(page, host)   // live bookings of an earlier aborted run would block the same slot
 
     try {
       let code
@@ -97,10 +97,9 @@ test.describe('v2 bookings', { tag: ['@guest', '@consumer', '@v2'] }, () => {
       })
       expect(watch.consoleErrors, 'console errors for the host').toEqual([])
     } finally {
-      if (bookingId) {
-        await rpc(page, mgr, 'leave_group_booking', { p_booking_id: bookingId })
-        await rpc(page, host, 'cancel_booking', { p_booking_id: bookingId })
-      }
+      // also covers a failure before bookingId was read (booking created, URL step failed)
+      if (bookingId) await rpc(page, mgr, 'leave_group_booking', { p_booking_id: bookingId })
+      await cancelStale(page, host)
       await mgr.close()
       await anon.close()
     }

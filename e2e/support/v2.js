@@ -44,13 +44,44 @@ function tinyPng(w = 16, h = 20) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
 }
 
+const authHeaders = who => ({
+  apikey: who.supabase.anonKey, Authorization: `Bearer ${who.session.access_token}`, 'Content-Type': 'application/json',
+})
+
 /** Call a Supabase RPC as a signed-in `who` ({ session, supabase } from signInGuest/openAs). Used only for cleanup. */
 async function rpc(page, who, name, args = {}) {
-  const res = await page.request.post(`${who.supabase.url}/rest/v1/rpc/${name}`, {
-    headers: { apikey: who.supabase.anonKey, Authorization: `Bearer ${who.session.access_token}`, 'Content-Type': 'application/json' },
-    data: args,
-  })
+  const res = await page.request.post(`${who.supabase.url}/rest/v1/rpc/${name}`, { headers: authHeaders(who), data: args })
   return { ok: res.ok(), status: res.status(), body: await res.text() }
 }
 
-Object.assign(module.exports, { tinyPng, rpc })
+/** PostgREST read/patch as `who`; resolves to the parsed rows ([] on any error, so cleanup never throws). */
+async function rest(page, who, method, path, data) {
+  const res = await page.request.fetch(`${who.supabase.url}/rest/v1/${path}`, { method, headers: authHeaders(who), data })
+  const json = await res.json().catch(() => null)
+  return Array.isArray(json) ? json : []
+}
+
+const held = state => !['free', 'cleared'].includes(state)
+
+/**
+ * Put the QA table back to a clean state over the API (session tokens only, no UI, no password typing).
+ * As the guest: cancel the guest's draft orders at the table, then leave_table. If the table is still held
+ * (a stale session of someone else, awaiting_payment), the manager releases it: release_table, then what the
+ * dashboard's Tables page does, state = 'free', whose end_table_party trigger closes every open session.
+ */
+async function resetTable(page, guest, manager, tableCode) {
+  const [code] = await rest(page, manager, 'GET', `table_access_codes?access_code=eq.${encodeURIComponent(tableCode)}&select=table_id`)
+  if (!code) throw new Error(`QA_TABLE_CODE ${tableCode} is not a table of the manager's restaurant`)
+  const tableId = code.table_id
+  const state = async () => (await rest(page, manager, 'GET', `tables?id=eq.${tableId}&select=state`))[0]?.state
+  const open = await rest(page, guest, 'GET', `orders?table_id=eq.${tableId}&user_id=eq.${guest.session.user.id}&status=in.(open,submitted)&select=id`)
+  for (const o of open) await rpc(page, guest, 'cancel_order_draft', { p_order_id: o.id })   // refused once the kitchen started: fine
+  await rpc(page, guest, 'leave_table', { p_table_id: tableId })
+  if (held(await state())) {
+    await rpc(page, manager, 'release_table', { p_table_id: tableId })
+    if (held(await state())) await rest(page, manager, 'PATCH', `tables?id=eq.${tableId}`, { state: 'free' })
+  }
+  return { tableId, state: await state() }
+}
+
+Object.assign(module.exports, { tinyPng, rpc, resetTable })

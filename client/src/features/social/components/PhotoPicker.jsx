@@ -35,7 +35,7 @@ export default function PhotoPicker({ value, onChange, onError, disabled = false
       {value ? (
         <>
           <img src={value.url} alt={t('newPost.previewAlt')} />
-          <button type="button" className="soc-photo-clear" aria-label={t('newPost.removePhoto')} onClick={() => onChange(null)} disabled={disabled}>
+          <button type="button" className="soc-photo-clear hit-ext" aria-label={t('newPost.removePhoto')} onClick={() => onChange(null)} disabled={disabled}>
             <CloseIcon size={14} />
           </button>
         </>

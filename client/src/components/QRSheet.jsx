@@ -4,6 +4,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { sanitizeTableCode } from '../lib/pendingClaim'
+import useEscapeClose from './ui/useEscapeClose'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
@@ -22,6 +23,7 @@ export default function QRSheet({ onClose }) {
   const [manualMode, setManualMode] = useState(false)
   const scannerRef = useRef(null)
   const closeTimerRef = useRef(null)
+  useEscapeClose(onClose)
 
   useEffect(() => {
     return () => clearTimeout(closeTimerRef.current)
@@ -183,7 +185,7 @@ export default function QRSheet({ onClose }) {
                 }}>
                   {t('booking:scanTitle')}
                 </h2>
-                <button className="icon-btn" onClick={onClose}>
+                <button className="icon-btn" onClick={onClose} aria-label={t('common:close')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>

@@ -51,7 +51,7 @@ export default function ReviewCard({ item, index = 0, showActions = true }) {
   return (
     <article className="feed-post stagger-item soc-review" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <header className="soc-post-head soc-review-head">
-        <Link to={`/u/${item.user.id}`} aria-label={name}><Avatar name={item.user.name} src={item.user.photo} size={36} /></Link>
+        <Link to={`/u/${item.user.id}`} className="soc-post-author" aria-label={name}><Avatar name={item.user.name} src={item.user.photo} size={36} /></Link>
         <div className="soc-post-who">
           <div className="soc-post-line">
             <Link to={`/u/${item.user.id}`} className="soc-post-name">{name}</Link>

@@ -89,7 +89,7 @@ export default function AppLayout() {
                 onClick={() => navigate('/notifications')}
                 aria-label={t('nav:notifications')}
                 className="icon-btn"
-                style={{ width: 38, height: 38, color: 'var(--t1)', position: 'relative' }}
+                style={{ color: 'var(--t1)', position: 'relative' }}
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -97,7 +97,7 @@ export default function AppLayout() {
                 </svg>
                 {unreadCount > 0 && (
                   <span style={{
-                    position: 'absolute', top: 4, right: 4,
+                    position: 'absolute', top: 6, right: 6,
                     minWidth: 16, height: 16, borderRadius: 100,
                     background: 'var(--accent)', color: '#F5F0E8',
                     fontSize: '0.6rem', fontWeight: 700,
@@ -114,7 +114,7 @@ export default function AppLayout() {
                 onClick={toggle}
                 aria-label={t('nav:toggleTheme')}
                 className="icon-btn"
-                style={{ width: 38, height: 38, color: 'var(--t1)' }}
+                style={{ color: 'var(--t1)' }}
               >
                 {theme === 'dark' ? (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">

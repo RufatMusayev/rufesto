@@ -4,11 +4,13 @@ import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+import useEscapeClose from './ui/useEscapeClose'
 
 export default function DishDetailSheet({ dish, onClose }) {
   const { t, i18n } = useTranslation(['menu', 'common'])
   const { addDish, tableId, cartError, clearCartError } = useCart()
   const { session } = useAuth()
+  useEscapeClose(onClose)
   const [reviews, setReviews] = useState([])
   const [ingredients, setIngredients] = useState([])
   const [allergens, setAllergens] = useState([])
@@ -221,7 +223,8 @@ export default function DishDetailSheet({ dish, onClose }) {
           <button
             onClick={onClose}
             className="icon-btn"
-            style={{ width: 30, height: 30, color: 'var(--t2)' }}
+            aria-label={t('common:close')}
+            style={{ color: 'var(--t2)' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -348,7 +351,6 @@ export default function DishDetailSheet({ dish, onClose }) {
           <button
             className="icon-btn"
             onClick={toggleLike}
-            style={{ width: 30, height: 30 }}
           >
             <svg viewBox="0 0 24 24"
               className={likePop ? 'like-btn-active' : undefined}
@@ -372,7 +374,7 @@ export default function DishDetailSheet({ dish, onClose }) {
           <button
             className="icon-btn"
             onClick={() => setShowReviewForm(f => !f)}
-            style={{ width: 30, height: 30, color: 'var(--t1)' }}
+            style={{ color: 'var(--t1)' }}
           >
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.7" style={{ width: 24, height: 24, stroke: 'currentColor' }}>
               <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
@@ -386,7 +388,7 @@ export default function DishDetailSheet({ dish, onClose }) {
           <button
             className="icon-btn"
             onClick={() => { if (!saved) setSavePop(true); handleToggleSave() }}
-            style={{ width: 30, height: 30, color: saved ? 'var(--accent)' : 'var(--t1)' }}
+            style={{ color: saved ? 'var(--accent)' : 'var(--t1)' }}
           >
             <svg viewBox="0 0 24 24"
               className={savePop ? 'like-btn-active' : undefined}
@@ -475,7 +477,7 @@ export default function DishDetailSheet({ dish, onClose }) {
         {/* Ingredients */}
         {ingredients.length > 0 && (
           <div style={{ padding: '0 14px 12px' }}>
-            <button onClick={() => setShowIngredients(!showIngredients)} style={{
+            <button className="tap-text" onClick={() => setShowIngredients(!showIngredients)} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 0,
               fontSize: '0.76rem', fontWeight: 600, color: 'var(--t2)',
               display: 'flex', alignItems: 'center', gap: 5,
@@ -611,9 +613,9 @@ export default function DishDetailSheet({ dish, onClose }) {
               ))}
             </div>
             {!showReviewForm && reviews.length > 3 && (
-              <button onClick={() => setShowReviewForm(true)} style={{
+              <button className="tap-text" onClick={() => setShowReviewForm(true)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '0.76rem', color: 'var(--t3)', padding: '0 0 8px',
+                fontSize: '0.76rem', color: 'var(--t3)', padding: 0,
                 fontWeight: 500,
               }}>
                 {t('menu:viewAllReviews', { count: reviews.length })}
@@ -629,7 +631,7 @@ export default function DishDetailSheet({ dish, onClose }) {
             borderTop: '1px solid var(--border)',
           }}>
             {!showReviewForm ? (
-              <button onClick={() => setShowReviewForm(true)} style={{
+              <button className="tap-text" onClick={() => setShowReviewForm(true)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '0.8rem', color: 'var(--t3)', padding: 0, fontWeight: 500,
               }}>
@@ -642,7 +644,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                   display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center',
                 }}>
                   {[1, 2, 3, 4, 5].map(n => (
-                    <button key={n} type="button" onClick={() => setMyRating(n)} style={{
+                    <button key={n} type="button" className="tap" onClick={() => setMyRating(n)} style={{
                       background: 'none', border: 'none',
                       fontSize: '1.4rem', cursor: 'pointer', padding: 2,
                       color: n <= myRating ? 'var(--gold)' : 'var(--border-strong)',
@@ -680,12 +682,12 @@ export default function DishDetailSheet({ dish, onClose }) {
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
                     aria-label={t('menu:addPhoto')}
+                    className="tap"
                     style={{
-                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                      borderRadius: '50%', flexShrink: 0,
                       background: myPhoto ? 'var(--gold)' : 'var(--s2)',
                       border: '1px solid var(--border)', cursor: 'pointer',
                       fontSize: '0.95rem', lineHeight: 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     📷
@@ -706,6 +708,7 @@ export default function DishDetailSheet({ dish, onClose }) {
                     }} />
                     <button
                       type="button"
+                      className="hit-ext"
                       aria-label={t('menu:removePhoto')}
                       onClick={() => {
                         URL.revokeObjectURL(myPhotoPreview)

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import useEscapeClose from './ui/useEscapeClose'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
@@ -19,6 +20,7 @@ const RESEND_COOLDOWN = 60 // seconds
  */
 export default function AuthModal({ onClose, onSuccess }) {
   const { t } = useTranslation(['auth', 'common'])
+  useEscapeClose(() => onClose?.())
   const { sendOtp, verifyOtp, signInWithOAuth, signInWithPassword, updateUserMeta, session, updateProfile } = useAuth()
 
   // Steps: 'email' -> 'otp' -> 'profile' (only for new users). 'password' is dev-only.
@@ -176,7 +178,8 @@ export default function AuthModal({ onClose, onSuccess }) {
         <button
           className="icon-btn"
           onClick={onClose}
-          style={{ position: 'absolute', top: 14, right: 14 }}
+          aria-label={t('common:close')}
+          style={{ position: 'absolute', top: 6, right: 6 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -212,6 +215,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             {/* OAuth buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: '1.25rem' }}>
               <button
+                className="tap-h"
                 onClick={() => handleOAuth('google')}
                 style={{
                   width: '100%', padding: '11px', borderRadius: 12,
@@ -230,6 +234,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                 {t('auth:continueWithGoogle')}
               </button>
               <button
+                className="tap-h"
                 onClick={() => handleOAuth('apple')}
                 style={{
                   width: '100%', padding: '11px', borderRadius: 12,
@@ -277,6 +282,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             {import.meta.env.DEV && (
               <button
                 type="button"
+                className="tap"
                 onClick={() => { setStep('password'); setError('') }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
@@ -319,6 +325,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             </button>
             <button
               type="button"
+              className="tap"
               onClick={() => { setStep('email'); setPassword(''); setError('') }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -359,6 +366,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
+                className="tap-text"
                 disabled={resendCooldown > 0}
                 style={{
                   background: 'none', border: 'none',
@@ -385,6 +393,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               <span style={{ color: 'var(--border)', lineHeight: '1.5' }}>|</span>
               <button
                 type="button"
+                className="tap-text"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: '0.78rem', color: 'var(--t3)', fontFamily: 'inherit',

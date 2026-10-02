@@ -572,7 +572,7 @@ a.btn { text-decoration: none; }
    call-waiter button keeps a gap to the order list / empty-orders card below it. */
 .table-back-btn {
   display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
-  width: 34px; height: 34px; border: none; border-radius: 50%; cursor: pointer; color: #F5F0E8;
+  width: var(--tap); height: var(--tap); border: none; border-radius: 50%; cursor: pointer; color: #F5F0E8;
   background: rgba(0,0,0,0.45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .table-call-btn {
@@ -589,3 +589,71 @@ a.btn { text-decoration: none; }
 .cart-placed-ref { font-family: 'DM Mono', monospace; font-size: 0.82rem; font-weight: 600; color: var(--t2); }
 .cart-placed-total { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 800; color: var(--accent); }
 .cart-placed-actions { display: flex; flex-direction: column; gap: 8px; }
+
+
+/* ---- Tap targets ------------------------------------------------------------------------------
+   Every control a finger can hit is at least 44x44 CSS px (WCAG 2.5.5 / Apple HIG). Icon buttons grow
+   everywhere (their glyph stays centred, only the hit area changes); text buttons, chips, fields and
+   slots grow on touch screens and at phone widths, so the desktop sidebar layout stays compact.
+   min-width / min-height win over the width / height a component sets inline, so a 30px icon button
+   that predates this rule is still 44px. */
+:root { --tap: 44px; }
+
+.icon-btn { min-width: var(--tap); min-height: var(--tap); }
+/* a centred icon / emoji / glyph button that is not an .icon-btn */
+.tap { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); }
+/* only the height: for a button that is already as wide as it needs to be (pills, tabs, full-width actions) */
+.tap-h { min-height: var(--tap); }
+/* a text link or text-only button; the text keeps its place, the box around it is 44px tall */
+.tap-text { display: inline-flex; align-items: center; min-height: var(--tap); }
+/* a small corner control (photo remove, clear x) keeps its look; this grows its hit area 12px each way.
+   The element must already be positioned. */
+.hit-ext::after { content: ''; position: absolute; inset: -12px; }
+
+@media (max-width: 768px), (pointer: coarse) {
+  .btn, .chip, .slot-btn, input.input, select.input { min-height: var(--tap); }
+}
+
+/* bottom nav links: the icon + dot stack is ~31px, the link around it is a full 44px */
+.bottom-nav > a { min-height: var(--tap); }
+
+/* EN / AZ switch (components/LanguageSwitcher): compact in the desktop sidebar, 44px on a phone */
+.lang-switcher { display: flex; gap: 4px; align-items: center; }
+.lang-btn {
+  padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent;
+  color: var(--color-text-muted, #888); font-size: 12px; font-weight: 400; letter-spacing: 0.05em;
+  cursor: pointer; transition: all 0.15s;
+}
+.lang-btn.active {
+  border-color: var(--color-gold, #C49A2C); background: var(--color-gold-alpha, rgba(196,154,44,0.15));
+  color: var(--color-gold, #C49A2C); font-weight: 700;
+}
+.lang-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 768px), (pointer: coarse) {
+  .lang-btn { min-width: var(--tap); min-height: var(--tap); }
+}
+
+/* Cart sheet item rows (components/CartSheet): thumb, name + unit price, line total, and a second line
+   for the quantity controls so that -, + and remove can each be a full 44px target. */
+.cart-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
+.cart-info { flex: 1; min-width: 0; }
+.cart-name { font-size: 0.86rem; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cart-unit { font-family: 'DM Mono', monospace; font-size: 0.76rem; color: var(--t3); }
+.cart-line-total { font-family: 'DM Mono', monospace; font-size: 0.86rem; font-weight: 600; color: var(--t1); min-width: 56px; text-align: right; }
+.cart-qty { flex-basis: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.cart-qty-num { min-width: 28px; text-align: center; font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 700; }
+.cart-qty-btn {
+  display: flex; align-items: center; justify-content: center; position: relative; isolation: isolate;
+  width: var(--tap); height: var(--tap); border: none; border-radius: 50%; background: none;
+  color: var(--t1); font-size: 1.1rem; cursor: pointer;
+}
+/* the visible control stays a 30px circle; the button around it is the 44px target */
+.cart-qty-btn::before {
+  content: ''; position: absolute; inset: 7px; border-radius: 50%; z-index: -1;
+  border: 1px solid var(--border); background: var(--s3);
+}
+.cart-qty-add { color: #F5F0E8; }
+.cart-qty-add::before { border: none; background: var(--accent); }
+.cart-qty-del { color: var(--red); font-size: 0.78rem; margin-left: 8px; }
+.cart-qty-del::before { border-color: rgba(239,68,68,0.15); background: rgba(239,68,68,0.08); }
+.cart-qty-btn:active::before { filter: brightness(0.9); }

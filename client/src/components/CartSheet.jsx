@@ -5,6 +5,7 @@ import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from './AuthModal'
+import useEscapeClose from './ui/useEscapeClose'
 
 export default function CartSheet() {
   const { t } = useTranslation(['cart', 'common'])
@@ -17,6 +18,7 @@ export default function CartSheet() {
   const [error,    setError]    = useState('')
   const [submitted, setSubmitted] = useState(false)
   const { handleProps, sheetStyle } = useSwipeDismiss(() => setOpen(false))
+  useEscapeClose(() => setOpen(false), open)
   // Tracks "place the order as soon as we're signed in" across the AuthModal round trip.
   // A plain closure passed as AuthModal's onSuccess would capture whatever `session`
   // was in scope when the modal opened (still null) — by the time verifyOtp resolves,
@@ -112,7 +114,7 @@ export default function CartSheet() {
               }}>
                 {t('cart:yourOrder')}
               </h2>
-              <button onClick={() => setOpen(false)} className="icon-btn">
+              <button onClick={() => setOpen(false)} className="icon-btn" aria-label={t('common:close')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -130,10 +132,7 @@ export default function CartSheet() {
                 {/* Items list */}
                 <div style={{ marginBottom: '1rem' }}>
                   {items.map(({ dish, qty }) => (
-                    <div key={dish.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 0', borderBottom: '1px solid var(--border)',
-                    }}>
+                    <div key={dish.id} className="cart-row">
                       {/* Dish icon / photo */}
                       <div style={{
                         width: 40, height: 40, borderRadius: 8,
@@ -150,73 +149,42 @@ export default function CartSheet() {
                       </div>
 
                       {/* Name + unit price */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '0.86rem', fontWeight: 600, color: 'var(--t1)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>
-                          {dish.name}
-                        </div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.76rem', color: 'var(--t3)' }}>
-                          {formatPrice(dish.price)}
-                        </div>
+                      <div className="cart-info">
+                        <div className="cart-name">{dish.name}</div>
+                        <div className="cart-unit">{formatPrice(dish.price)}</div>
                       </div>
 
-                      {/* Qty controls */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {/* Line total */}
+                      <span className="cart-line-total">{formatPrice(dish.price * qty)}</span>
+
+                      {/* Qty controls: their own line, so each button can be a full 44px */}
+                      <div className="cart-qty">
                         <button
+                          type="button"
+                          className="cart-qty-btn"
                           onClick={() => decrement(dish.id)}
-                          style={{
-                            width: 26, height: 26, borderRadius: '50%',
-                            border: '1px solid var(--border)', background: 'var(--s3)',
-                            color: 'var(--t1)', fontSize: '1rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer',
-                          }}
+                          aria-label={t('cart:decrease', { name: dish.name })}
                         >
                           −
                         </button>
-                        <span style={{
-                          fontFamily: "'DM Mono', monospace",
-                          fontSize: '0.86rem', minWidth: 20, textAlign: 'center', fontWeight: 700,
-                        }}>
-                          {qty}
-                        </span>
+                        <span className="cart-qty-num">{qty}</span>
                         <button
+                          type="button"
+                          className="cart-qty-btn cart-qty-add"
                           onClick={() => addDish(dish)}
-                          style={{
-                            width: 26, height: 26, borderRadius: '50%',
-                            border: 'none', background: 'var(--accent)',
-                            color: '#F5F0E8', fontSize: '1rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer',
-                          }}
+                          aria-label={t('cart:increase', { name: dish.name })}
                         >
                           +
                         </button>
                         <button
+                          type="button"
+                          className="cart-qty-btn cart-qty-del"
                           onClick={() => remove(dish.id)}
-                          style={{
-                            width: 26, height: 26, borderRadius: '50%',
-                            background: 'rgba(239,68,68,0.08)',
-                            border: '1px solid rgba(239,68,68,0.15)',
-                            color: 'var(--red)', fontSize: '0.7rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer',
-                          }}
+                          aria-label={t('cart:remove', { name: dish.name })}
                         >
                           ✕
                         </button>
                       </div>
-
-                      {/* Line total */}
-                      <span style={{
-                        fontFamily: "'DM Mono', monospace",
-                        fontSize: '0.86rem', fontWeight: 600, color: 'var(--t1)',
-                        minWidth: 56, textAlign: 'right',
-                      }}>
-                        {formatPrice(dish.price * qty)}
-                      </span>
                     </div>
                   ))}
                 </div>

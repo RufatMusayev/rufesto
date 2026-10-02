@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCart } from '../../../contexts/CartContext'
+import useEscapeClose from '../../../components/ui/useEscapeClose'
 import useFloorPlan from '../useFloorPlan'
 import { useCellSize, useMySeat } from '../hooks'
 import { COLS, layoutFloor } from '../layout'
@@ -26,11 +27,7 @@ export default function FloorSheet({ restaurant, onClose, onReserve }) {
   const cell = useCellSize(stageRef, COLS)
   const seat = useMySeat(cart.tableId)
 
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   const tables = plan?.tables
   const sectionList = useMemo(() => {

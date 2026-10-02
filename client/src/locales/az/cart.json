@@ -16,5 +16,8 @@
   "errDishUnavailable": "Yeməklərdən biri indicə əlçatmaz oldu. Onu səbətdən çıxarıb yenidən cəhd edin.",
   "errPlaceFailed": "Sifarişiniz verilə bilmədi. Səbətiniz saxlanılıb, yenidən cəhd edin.",
   "orderRef": "Sifariş №{{ref}}",
-  "goToTable": "Masama keç"
+  "goToTable": "Masama keç",
+  "decrease": "{{name}} sayını azalt",
+  "increase": "{{name}} sayını artır",
+  "remove": "{{name}} sifarişdən çıxar"
 }

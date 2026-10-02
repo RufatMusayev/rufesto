@@ -351,7 +351,7 @@ export default function TablePage() {
 
         {/* Browse menu CTA */}
         {tableInfo?.restaurants?.slug && !paymentState && (
-          <Link to={`/restaurant/${tableInfo.restaurants.slug}`} style={{
+          <Link to={`/restaurant/${tableInfo.restaurants.slug}`} className="tap-h" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             width: '100%', padding: '11px 0', marginBottom: 20,
             background: 'var(--accent)', color: 'var(--t1)', fontWeight: 700,
@@ -716,6 +716,7 @@ function EmptyTableState({
           <button
             onClick={onStartDemo}
             disabled={demoLoading}
+            className="tap-h"
             style={{
               background: 'none', border: '1px solid var(--border)', borderRadius: 8,
               padding: '10px 24px', fontSize: '0.82rem', color: 'var(--t3)',

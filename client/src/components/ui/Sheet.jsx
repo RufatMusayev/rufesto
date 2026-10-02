@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import useEscapeClose from './useEscapeClose'
 
 // Bottom sheet on top of .overlay + .sheet. Closes on Esc, overlay click, the close button
 // and a swipe down on the handle (>= 110px or a fast flick, same thresholds as CartSheet).
@@ -50,17 +51,15 @@ export default function Sheet({ open, onClose, title, children, footer }) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   const { handleProps, sheetStyle } = useSwipeDismiss(() => onCloseRef.current?.())
+  useEscapeClose(() => onCloseRef.current?.(), open)
 
   useEffect(() => {
     if (!open) return undefined
     const previous = document.activeElement
     openSheets += 1
     document.body.classList.add('modal-open')
-    const onKey = e => { if (e.key === 'Escape') onCloseRef.current?.() }
-    document.addEventListener('keydown', onKey)
     ref.current?.focus({ preventScroll: true })
     return () => {
-      document.removeEventListener('keydown', onKey)
       openSheets = Math.max(0, openSheets - 1)
       if (openSheets === 0) document.body.classList.remove('modal-open')
       if (previous && typeof previous.focus === 'function') previous.focus({ preventScroll: true })

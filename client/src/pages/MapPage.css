@@ -67,6 +67,16 @@
 /* Keep Leaflet's zoom buttons (bottom-right) above the chip row instead of hidden behind it. */
 .map-page--chips .leaflet-control-zoom { margin-bottom: 76px; }
 
+/* Zoom +/-: Leaflet draws them 30px; a finger needs 44. (leaflet.css loads first, so this wins the tie.) */
+.map-page .leaflet-bar a {
+  width: var(--tap); height: var(--tap); line-height: var(--tap);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; text-indent: 0;
+}
+/* Popup close X keeps its 24px look; the invisible ring around it makes the hit area 44px. */
+.map-page .leaflet-container a.leaflet-popup-close-button { overflow: visible; }
+.map-page .leaflet-popup-close-button::after { content: ''; position: absolute; inset: -10px; }
+
 /* Cuisine colours, shared by the on-map pin and the chip dot. */
 .map-pin, .map-dot {
   --pin: #8B2D42;
@@ -91,7 +101,7 @@
 .map-popup-meta { font-size: 11px; color: #8B6B5A; }
 /* .map-popup prefix: must outrank leaflet.css's ".leaflet-container a" link colour. */
 .map-popup .map-popup-link {
-  display: inline-block; margin-top: 8px; padding: 6px 16px;
+  display: inline-flex; align-items: center; justify-content: center; margin-top: 8px; min-height: var(--tap); padding: 0 20px;
   background: #8B2D42; color: #F5F0E8;
   border-radius: 8px; font-size: 11px; font-weight: 700; text-decoration: none;
   font-family: 'DM Sans', system-ui;

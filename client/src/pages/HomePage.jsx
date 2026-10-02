@@ -9,6 +9,7 @@ import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
 import LoadError from '../components/LoadError'
 import { HomeTabs } from '../features/social/mounts'
+import './HomePage.css'
 
 export default function HomePage() {
   const [restaurants, setRestaurants] = useState([])
@@ -343,7 +344,7 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
       <div style={{
         display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 10,
       }}>
-        <Link to={`/restaurant/${r.slug}`} style={{ flexShrink: 0 }}>
+        <Link to={`/restaurant/${r.slug}`} className="tap" style={{ flexShrink: 0 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10,
             background: cuisineBackground(r.cuisine_type),
@@ -353,14 +354,12 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
             {emoji}
           </div>
         </Link>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Link to={`/restaurant/${r.slug}`} style={{ display: 'block' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>{r.name}</span>
-          </Link>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
+        <Link to={`/restaurant/${r.slug}`} className="feed-who">
+          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>{r.name}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
             {r.address}, {r.city}
-          </div>
-        </div>
+          </span>
+        </Link>
         {open && <span className="open-indicator">{t('common:open')}</span>}
         <button className="icon-btn" style={{ width: 28, height: 28, color: 'var(--t1)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -511,7 +510,7 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
           </span>
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <Link to={`/restaurant/${r.slug}`} style={{
+          <Link to={`/restaurant/${r.slug}`} className="tap-text" style={{
             fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600,
           }}>
             {t('feed:viewMenuArrow')}
@@ -898,6 +897,7 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
                   />
                   <button
                     onClick={clearReplyPhoto}
+                    className="hit-ext"
                     style={{
                       position: 'absolute', top: -6, right: -6,
                       width: 20, height: 20, borderRadius: '50%',
@@ -963,6 +963,7 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
                 <button
                   onClick={submitReply}
                   disabled={submitting || (!replyBody.trim() && !replyPhoto)}
+                  className="tap"
                   style={{
                     height: 36, borderRadius: 18,
                     padding: '0 16px',
@@ -1004,9 +1005,10 @@ function CommentThread({ comments, loading, replyCount, onHide }) {
         </span>
         <button
           onClick={onHide}
+          className="tap-text"
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: '0.72rem', color: 'var(--t3)', padding: '4px 0',
+            fontSize: '0.72rem', color: 'var(--t3)', padding: 0,
             transition: 'color 150ms',
           }}
         >

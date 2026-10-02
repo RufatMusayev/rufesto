@@ -233,6 +233,8 @@ export default function RestaurantPage() {
           </span>
           <button
             onClick={clearCartError}
+            className="tap"
+            aria-label={t('common:close')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: 'rgba(252,165,165,0.6)', padding: 0, flexShrink: 0,
@@ -250,7 +252,7 @@ export default function RestaurantPage() {
         background: 'rgba(0,0,0,0.52)', backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%',
-        width: 36, height: 36, color: '#F5F0E8',
+        width: 44, height: 44, color: '#F5F0E8',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer', transition: 'background 150ms var(--ease-out)',
       }}>
@@ -412,7 +414,7 @@ export default function RestaurantPage() {
             aria-label={t('restaurant:floorPlan')}
             title={t('restaurant:floorPlan')}
             style={{
-              width: 38, padding: '8px 0', borderRadius: 10, flexShrink: 0,
+              width: 44, padding: '8px 0', borderRadius: 10, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
@@ -427,6 +429,7 @@ export default function RestaurantPage() {
           <button
             onClick={handleFollow}
             disabled={followLoading}
+            className="tap-h"
             style={{
               flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10,
               border: `1.5px solid ${isFollowing ? 'var(--sage)' : 'var(--accent)'}`,
@@ -482,7 +485,7 @@ export default function RestaurantPage() {
         borderBottom: '1px solid var(--border)',
         marginTop: 12, maxWidth: 470, margin: '10px auto 0',
       }}>
-        <button onClick={() => setViewMode('grid')} style={{
+        <button className="tap-h" onClick={() => setViewMode('grid')} style={{
           flex: 1, padding: '10px 0', background: 'none', border: 'none',
           borderBottom: viewMode === 'grid' ? '2px solid var(--t1)' : '2px solid transparent',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -500,7 +503,7 @@ export default function RestaurantPage() {
             <rect x="14" y="14" width="7" height="7" rx="0.5" />
           </svg>
         </button>
-        <button onClick={() => setViewMode('list')} style={{
+        <button className="tap-h" onClick={() => setViewMode('list')} style={{
           flex: 1, padding: '10px 0', background: 'none', border: 'none',
           borderBottom: viewMode === 'list' ? '2px solid var(--t1)' : '2px solid transparent',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -680,6 +683,7 @@ function GridTile({ dish, index, onClick, isSeatedHere, onAddToCart }) {
       {dish.available && isSeatedHere && (
         <button
           onClick={e => { e.stopPropagation(); onAddToCart(dish) }}
+          className="hit-ext"
           style={{
             position: 'absolute', top: 6, right: 6, zIndex: 5,
             width: 26, height: 26, borderRadius: '50%',
@@ -808,8 +812,9 @@ function ListDishCard({ dish, index, onClick }) {
       {dish.available && tableId && (
         <button
           onClick={e => { e.stopPropagation(); addDish(dish) }}
+          className="hit-ext"
           style={{
-            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+            position: 'relative', width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
             background: 'var(--s3)', border: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: 'var(--t2)',
@@ -861,7 +866,7 @@ function FilterBar({ filters, setFilters, dishes }) {
       {available.map(f => {
         const active = filters.includes(f.key)
         return (
-          <button key={f.key} onClick={() => toggle(f.key)} style={{
+          <button key={f.key} className="tap-h" onClick={() => toggle(f.key)} style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 12px', borderRadius: 100,
             border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
@@ -881,7 +886,7 @@ function FilterBar({ filters, setFilters, dishes }) {
         )
       })}
       {filters.length > 0 && (
-        <button onClick={() => setFilters([])} style={{
+        <button className="tap-h" onClick={() => setFilters([])} style={{
           padding: '4px 12px', borderRadius: 100,
           border: '1px solid var(--border)',
           background: 'transparent', color: 'var(--t3)',

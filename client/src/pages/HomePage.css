@@ -1,0 +1,8 @@
+/* Home feed (pages/HomePage.jsx). */
+
+/* Restaurant card header: the name + address block is one link, as tall as a finger needs. */
+.feed-who {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  min-height: var(--tap);
+}

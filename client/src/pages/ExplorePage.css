@@ -1,0 +1,15 @@
+/* Explore (pages/ExplorePage.jsx): dietary filter pills in a sideways-scrolling row. */
+.ex-pills {
+  display: flex; gap: 6px; padding: 4px 16px;
+  overflow-x: auto; border-bottom: 1px solid var(--border);
+}
+.ex-pill {
+  flex-shrink: 0; white-space: nowrap;
+  min-height: var(--tap); padding: 0 16px; border-radius: 100px; border: none;
+  background: var(--s3); color: var(--t3);
+  font-size: 0.76rem; font-weight: 600; cursor: pointer;
+  transition: background-color 150ms var(--ease-out), color 150ms, transform 120ms var(--ease-out);
+}
+.ex-pill:active { transform: scale(0.97); }
+.ex-pill.active { background: var(--accent); color: #F5F0E8; }
+.ex-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

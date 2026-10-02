@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
+import './ExplorePage.css'
 import DishDetailSheet from '../components/DishDetailSheet'
 import LoadError from '../components/LoadError'
 
@@ -114,23 +115,14 @@ export default function ExplorePage() {
       </div>
 
       {/* Filter pills */}
-      <div className="no-scrollbar" style={{
-        display: 'flex', gap: 6, padding: '10px 16px',
-        overflowX: 'auto', borderBottom: '1px solid var(--border)',
-      }}>
+      <div className="no-scrollbar ex-pills">
         {FILTERS.map(f => (
           <button
             key={f.id}
+            type="button"
+            className={`ex-pill${filter === f.id ? ' active' : ''}`}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            style={{
-              flexShrink: 0, padding: '5px 14px', borderRadius: 100,
-              border: 'none', cursor: 'pointer',
-              background: filter === f.id ? 'var(--accent)' : 'var(--s3)',
-              color: filter === f.id ? '#F5F0E8' : 'var(--t3)',
-              fontSize: '0.76rem', fontWeight: 600,
-              transition: 'background 150ms var(--ease-out), color 150ms',
-              whiteSpace: 'nowrap',
-            }}
           >
             {f.label}
           </button>

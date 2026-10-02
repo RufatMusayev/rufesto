@@ -16,5 +16,8 @@
   "errDishUnavailable": "One of the dishes just became unavailable. Remove it from your cart and try again.",
   "errPlaceFailed": "We couldn't place your order. Your cart is saved, please try again.",
   "orderRef": "Order #{{ref}}",
-  "goToTable": "Go to my table"
+  "goToTable": "Go to my table",
+  "decrease": "Remove one {{name}}",
+  "increase": "Add one more {{name}}",
+  "remove": "Remove {{name}} from the order"
 }

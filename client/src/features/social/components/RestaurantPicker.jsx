@@ -32,7 +32,7 @@ export default function RestaurantPicker({ value, onChange, disabled = false }) 
         <span className="soc-picked-chip">
           <span aria-hidden="true">{cuisineEmoji(value.cuisine_type)}</span>
           <span className="soc-picked-name">{value.name}</span>
-          <button type="button" className="soc-picked-x" aria-label={t('newPost.clearRestaurant')} onClick={() => onChange(null)} disabled={disabled}>
+          <button type="button" className="soc-picked-x hit-ext" aria-label={t('newPost.clearRestaurant')} onClick={() => onChange(null)} disabled={disabled}>
             <CloseIcon size={12} />
           </button>
         </span>

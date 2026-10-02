@@ -9,7 +9,7 @@ export default function CommentRow({ comment, canDelete = false, onDelete }) {
   const name = cleanDisplayName(comment.user.name)
   return (
     <div className={`soc-comment${comment.pending ? ' soc-comment-pending' : ''}`}>
-      <Link to={`/u/${comment.user.id}`} aria-label={name}>
+      <Link to={`/u/${comment.user.id}`} className="soc-comment-author" aria-label={name}>
         <Avatar name={comment.user.name} src={comment.user.photo} size={28} />
       </Link>
       <div className="soc-comment-main">

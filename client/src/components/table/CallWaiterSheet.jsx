@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
+import useEscapeClose from '../ui/useEscapeClose'
 
 const COOLDOWN_MS = 2 * 60 * 1000
 
@@ -18,6 +19,7 @@ const KINDS = [
 export default function CallWaiterSheet({ tableId }) {
   const { t } = useTranslation(['table', 'common'])
   const [open, setOpen] = useState(false)
+  useEscapeClose(() => setOpen(false), open)
   const [calling, setCalling] = useState(false)
   const [error, setError] = useState('')
   const [activeRequest, setActiveRequest] = useState(null)
@@ -116,7 +118,7 @@ export default function CallWaiterSheet({ tableId }) {
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 700, color: 'var(--t1)' }}>
                   {t('table:callWaiterTitle')}
                 </h2>
-                <button onClick={() => setOpen(false)} className="icon-btn">
+                <button onClick={() => setOpen(false)} className="icon-btn" aria-label={t('common:close')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
@@ -65,11 +65,29 @@ function buildPopupContent(r, t, go) {
   return wrap
 }
 
+// Tears a Leaflet map down without leaving anything that fires later. map.remove() only cancels
+// pan/flyTo animations; an animated ZOOM (a chip tap, the +/- buttons, a pinch) also arms a
+// 250 ms setTimeout inside Leaflet that calls _move() on the map. Once remove() has deleted the
+// map pane that call throws "Cannot read properties of undefined (reading '_leaflet_pos')", which
+// is what leaving the page right after tapping a restaurant chip used to do. So: stop the
+// animations, finish a running zoom transition while the panes still exist (the timer then
+// returns at its first line), close the popup, and only then remove the map.
+function disposeMap(m) {
+  try {
+    m.stop()
+    if (m._animatingZoom) m._onZoomTransitionEnd()
+    m.closePopup()
+  } catch { /* half-built map: remove() below still runs */ }
+  m.off()
+  m.remove()
+}
+
 export default function MapPage() {
   const { t } = useTranslation(['map', 'common'])
   const navigate = useNavigate()
   const containerRef = useRef(null)
   const markersRef = useRef({})
+  const mountedRef = useRef(true)
   const navigateRef = useRef(navigate)
   const [map, setMap] = useState(null)
   const [restaurants, setRestaurants] = useState([])
@@ -97,11 +115,14 @@ export default function MapPage() {
   }, [])
 
   // One Leaflet map per mount. Everything it attaches to the window/document is released in the
-  // cleanup, and map.remove() tears down the panes, handlers, tile loading and animations, so
-  // leaving the page leaves nothing behind and coming back starts from a clean container.
-  useEffect(() => {
+  // cleanup, and disposeMap() stops its animations and removes it, so leaving the page leaves
+  // nothing behind and coming back starts from a clean container. It is a layout effect on
+  // purpose: its cleanup runs while React is tearing the page down, before the container <div>
+  // is detached, so a pan/zoom animation can never outlive the DOM it draws into.
+  useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
+    mountedRef.current = true
 
     const m = L.map(el, { zoomControl: false }).setView(BAKU_CENTER, 13)
 
@@ -125,10 +146,12 @@ export default function MapPage() {
     setMap(m)
 
     return () => {
+      mountedRef.current = false
+      markersRef.current = {}
       ro?.disconnect()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('pageshow', refit)
-      m.remove()
+      disposeMap(m)
       setMap(null)
     }
   }, [])
@@ -154,12 +177,15 @@ export default function MapPage() {
     markersRef.current = markers
 
     return () => {
-      group.remove()
+      // On unmount the map is already disposed (and its layers with it); only a re-render that
+      // swaps the restaurant list or the language has a live group to take down.
+      if (mountedRef.current) group.remove()
       markersRef.current = {}
     }
   }, [map, restaurants, t])
 
   function focusRestaurant(r) {
+    if (!mountedRef.current) return
     setSelected(r.id)
     if (!map) return
     map.setView([r.latitude, r.longitude], 16)

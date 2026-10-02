@@ -138,7 +138,7 @@
 .bl-review-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .bl-review-dish { font-size: 0.86rem; font-weight: 600; min-width: 0; }
 .bl-stars { display: flex; gap: 2px; }
-.bl-star { width: 36px; height: 40px; background: none; border: none; cursor: pointer; font-size: 1.5rem; line-height: 1; color: var(--border-strong); transition: color 100ms var(--ease-out), transform 100ms var(--ease-out); }
+.bl-star { width: var(--tap); height: var(--tap); background: none; border: none; cursor: pointer; font-size: 1.5rem; line-height: 1; color: var(--border-strong); transition: color 100ms var(--ease-out), transform 100ms var(--ease-out); }
 .bl-star:active { transform: scale(0.9); }
 .bl-star:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 8px; }
 .bl-star-on { color: var(--gold); }
@@ -169,7 +169,7 @@
 .bl-receipt-actions { display: flex; gap: 8px; }
 .bl-receipt-actions .btn { flex: 1; }
 .bl-receipt-link {
-  display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px;
+  display: flex; align-items: center; gap: 8px; min-height: var(--tap); padding: 10px 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--s2); color: var(--t1);
   font-size: 0.82rem; font-weight: 600; text-decoration: none;
 }

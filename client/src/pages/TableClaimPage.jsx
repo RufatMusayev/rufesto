@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { clearPendingClaim, rememberPendingClaim, sanitizeTableCode } from '../lib/pendingClaim'
 import AuthModal from '../components/AuthModal'
+import { claimErrorMessage } from '../features/dinein/mounts'
 
 // Landing page for the table QR deep link  https://<host>/t/<table_code>.
 // Opening a link must never seat anyone by itself: signed-in guests get a "Join this table?"
@@ -51,15 +52,7 @@ export default function TableClaimPage() {
     if (!mounted.current) return
     setClaiming(false)
     if (claimErr) {
-      const msg = claimErr.message || ''
-      if (msg.includes('not_authenticated')) setError(t('booking:errNotAuthenticated'))
-      else if (msg.includes('table_reserved')) setError(t('booking:reservedByOther'))
-      else if (msg.includes('join_declined')) setError(t('booking:joinDeclined'))
-      else if (msg.includes('too_many_requests')) setError(t('booking:tooManyJoinRequests'))
-      else if (msg.includes('invalid_code')) setError(t('table:errInvalidCode'))
-      else if (msg.includes('too_many_attempts')) setError(t('table:errTooManyAttempts'))
-      else if (msg.includes('table_unavailable')) setError(t('table:errTableUnavailable'))
-      else setError(t('booking:errClaimFailed'))
+      setError(claimErrorMessage(claimErr, t))
       return
     }
     navigate('/table', { replace: true })

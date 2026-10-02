@@ -11,6 +11,7 @@ import { roleCan } from '../lib/roles'
 import { tableStateLabel } from '../components/waiter/waiterHelpers'
 import TableQRModal from '../components/TableQRModal'
 import { PrintAllQrButton } from '../features/v2/mounts'
+import ActionBanner from '../components/ActionBanner'
 
 // Active-orders window for the table floor: 24h is generous for a single
 // dine-in visit while still dropping stale open orders from earlier days.
@@ -119,17 +120,7 @@ export default function TablesPage() {
         </div>
       </div>
 
-      {actionError && (
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
-          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
-          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
-          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
-        }}>
-          <span>{actionError}</span>
-          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
-        </div>
-      )}
+      {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       {sections.length > 1 && (
         <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '0.75rem' }} className="no-scrollbar">
@@ -316,7 +307,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
               {transitions.map(next => {
                 const ns = TABLE_COLORS[next] || TABLE_COLORS.free
                 return (
-                  <button key={next} onClick={() => onChangeState(table.id, next)}
+                  <button key={next} className="tbl-state-btn" onClick={() => onChangeState(table.id, next)}
                     disabled={updating}
                     style={{
                       flex:1, padding:'0.45rem 0.5rem', borderRadius:8,

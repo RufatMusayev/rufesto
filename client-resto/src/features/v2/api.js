@@ -28,10 +28,11 @@ function checkWrite(res) {
 
 // ───────────────────────── Group bookings ─────────────────────────
 // View-models
-//   GroupSummary { code, capacity, joined, expiresAt }   (null when the booking has no invite)
+//   GroupSummary { code, capacity, joined, expiresAt }   (null when the booking has no invite, or its invite link is switched off)
 //   GroupDetail  { members: [{ id, name, phone, status: 'invited'|'joined'|'arrived', isHost }] }
-// CONTRACT: booking_invites(booking_id, code, max_members, expires_at) and booking_members(booking_id, status)
-//           are readable by staff of the booking's restaurant (sql/41 policies);
+// CONTRACT: booking_invites(booking_id, code, max_members, expires_at, enabled) and booking_members(booking_id, status)
+//           are readable by staff of the booking's restaurant (sql/41 policies); enabled = false (sql/50, invites switched
+//           off by the host) means the code is dead, so the booking shows no group panel;
 //           group_booking_detail(p_booking_id) gives staff the members with name and phone (sql/41c).
 
 let pendingSummaries = null
@@ -48,10 +49,14 @@ async function flushSummaries() {
   const { items } = pendingSummaries
   pendingSummaries = null
   const ids = [...new Set(items.map(i => i.bookingId))]
-  const [inv, mem] = await Promise.all([
-    run(() => supabase.from('booking_invites').select('booking_id, code, max_members, expires_at').in('booking_id', ids)),
+  const [inv0, mem] = await Promise.all([
+    run(() => supabase.from('booking_invites').select('booking_id, code, max_members, expires_at, enabled').in('booking_id', ids)),
     run(() => supabase.from('booking_members').select('booking_id, status').in('booking_id', ids)),
   ])
+  // 42703 undefined_column: sql/50 (the enabled flag) is not deployed here, so every invite is a live one.
+  const inv = inv0.error?.code === '42703'
+    ? await run(() => supabase.from('booking_invites').select('booking_id, code, max_members, expires_at').in('booking_id', ids))
+    : inv0
   const error = inv.error || mem.error
   const invites = new Map((inv.data || []).map(r => [r.booking_id, r]))
   const joined = new Map()
@@ -62,7 +67,7 @@ async function flushSummaries() {
   for (const { bookingId, resolve } of items) {
     const invite = invites.get(bookingId)
     if (error) resolve({ data: null, error })
-    else if (!invite) resolve({ data: null, error: null })
+    else if (!invite || invite.enabled === false) resolve({ data: null, error: null })
     else resolve({
       data: { code: invite.code, capacity: invite.max_members, joined: joined.get(bookingId) || 0, expiresAt: invite.expires_at },
       error: null,

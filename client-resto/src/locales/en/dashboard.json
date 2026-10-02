@@ -109,7 +109,7 @@
   "bookingsTitle": "Bookings",
   "bookingCount_one": "{{count}} booking",
   "bookingCount_other": "{{count}} bookings",
-  "bookingFilterAll": "All ({{count}})",
+  "bookingFilterAll": "All ({{count}}{{more}})",
   "noBookings": "No bookings",
   "loadingBookings": "Loading bookings…",
   "unknownGuest": "Unknown guest",
@@ -269,5 +269,14 @@
   "qrFailed": "Couldn't generate the QR code. Please try again.",
   "markPaidNeedsBill": "Can be marked paid once the table is Awaiting Pay (the guest has asked for the bill).",
   "markPaidOthersOpen": "Other orders on this table are still in progress. Serve or cancel them first.",
-  "qrHostUnavailable": "QR links are only available from the resto.* dashboard host"
+  "qrHostUnavailable": "QR links are only available from the resto.* dashboard host",
+  "bookingsUpcoming": "Upcoming",
+  "bookingsPast": "Past",
+  "bookingsLoadMore": "Load more",
+  "dishNameAz": "Name (Azerbaijani)",
+  "dishNameAzPlaceholder": "Azerbaijani name shown to Azerbaijani-speaking guests",
+  "dishDescriptionAz": "Description (Azerbaijani)",
+  "dishDescriptionAzPlaceholder": "Azerbaijani description",
+  "navLanguage": "Language",
+  "navAccountMenu": "Account and settings"
 }

@@ -70,5 +70,15 @@
   "claimSignInBody": "Daxil olun, sizi indicə skan etdiyiniz masaya oturdaq.",
   "claimConfirmTitle": "Bu masaya qoşulursunuz?",
   "claimConfirmBody": "Sizi bu masaya oturdacağıq və telefonunuzdan sifariş verə biləcəksiniz.",
-  "claimJoin": "Qoşul"
+  "claimJoin": "Qoşul",
+  "statusSubmitted": "Mətbəxə göndərildi",
+  "statusPaid": "Ödənilib",
+  "statusRefunded": "Geri qaytarılıb",
+  "timelineLabel": "Sifarişin gedişi",
+  "dishFallback": "Yemək",
+  "seatNo": "Stul {{n}}",
+  "errInvalidSeat": "Bu masada belə stul yoxdur. Öz stulunuzdakı kodu skan edin və ya masa kodunu daxil edin.",
+  "errSeatTaken": "Bu stul artıq tutulub. Başqa stul seçin və ya masanın ümumi kodunu daxil edin.",
+  "orderCancelledNote": "Sifariş #{{number}} restoran tərəfindən ləğv edildi.",
+  "tableCleared": "Masa təmizlənib. Aşağıdan hesabınıza və ya qəbzinizə baxın, sonra masadan ayrılın."
 }

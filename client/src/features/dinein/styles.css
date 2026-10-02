@@ -1,0 +1,112 @@
+/* Dine-in: amounts (cart, "Order placed", table screen), order cards with their status timeline, seat chips. */
+
+/* ---- amounts ---------------------------------------------------------------------------------------------- */
+.dn-money { font-family: 'DM Mono', monospace; font-variant-numeric: tabular-nums; }
+.dn-totals { display: flex; flex-direction: column; gap: 5px; font-size: 0.82rem; color: var(--t2); }
+.dn-totals-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dn-totals-total {
+  margin-top: 4px; padding-top: 9px; border-top: 1px solid var(--border);
+  font-size: 1rem; font-weight: 800; color: var(--t1);
+}
+.dn-totals-total .dn-money { color: var(--accent); }
+.dn-totals-note { margin-top: 6px; font-size: 0.72rem; line-height: 1.4; color: var(--note); }
+
+.dn-cart-totals {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 1rem;
+}
+.dn-placed {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 1rem; text-align: left;
+}
+.dn-placed-ref {
+  margin-bottom: 10px; font-family: 'DM Mono', monospace; font-size: 0.82rem; font-weight: 600; color: var(--t2);
+}
+.dn-session-card {
+  margin-top: 16px; background: var(--s2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+}
+.dn-session-title {
+  margin-bottom: 12px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--note);
+}
+
+/* ---- order card ------------------------------------------------------------------------------------------- */
+.dn-order {
+  --dn-tone: var(--blue); --dn-ring: rgba(59, 130, 246, 0.28);
+  position: relative; overflow: hidden;
+  background: var(--s2); border: 1px solid var(--border); border-radius: 12px;
+}
+.dn-order::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--dn-tone); opacity: 0.6; }
+.dn-order.is-preparing { --dn-tone: var(--warning); --dn-ring: rgba(186, 117, 23, 0.3); }
+.dn-order.is-ready, .dn-order.is-served { --dn-tone: var(--pill-green-fg); --dn-ring: rgba(34, 197, 94, 0.25); }
+.dn-order.is-paid { --dn-tone: var(--note); --dn-ring: transparent; }
+.dn-order.is-cancelled, .dn-order.is-refunded { --dn-tone: var(--red); --dn-ring: transparent; }
+
+.dn-order-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.dn-order-no {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--s3); border: 1px solid var(--border);
+  font-size: 0.7rem; font-weight: 800; color: var(--t2);
+}
+.dn-order-title { flex: 1; min-width: 0; }
+.dn-order-name { font-size: 0.84rem; font-weight: 700; color: var(--t1); }
+.dn-order-time { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--note); }
+
+.dn-order-items { list-style: none; padding: 4px 14px 6px; }
+.dn-order-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.dn-order-emoji {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; background: var(--s3); font-size: 1rem;
+}
+.dn-order-item-main { flex: 1; min-width: 0; }
+.dn-order-item-name { font-size: 0.82rem; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-order-item-qty { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--note); }
+.dn-order-item > .dn-money { flex-shrink: 0; font-size: 0.82rem; font-weight: 600; color: var(--t1); }
+.dn-order-foot { padding: 10px 14px 12px; }
+
+/* ---- status timeline: Placed > Preparing > Ready > Served ------------------------------------------------- */
+.dn-timeline { display: flex; list-style: none; padding: 2px 10px 6px; }
+.dn-step { position: relative; flex: 1 1 0; min-width: 0; display: flex; justify-content: center; padding-bottom: 20px; }
+.dn-step::before {
+  content: ''; position: absolute; top: 4px; right: 50%; width: 100%; height: 2px; background: var(--border-strong);
+}
+.dn-step:first-child::before { display: none; }
+.dn-step::after {
+  content: attr(data-label); position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.64rem; line-height: 1.3; color: var(--note);
+}
+.dn-step-dot { position: relative; z-index: 1; width: 10px; height: 10px; border-radius: 50%; background: var(--s4); }
+.dn-step.is-done::before, .dn-step.is-current::before { background: var(--dn-tone); }
+.dn-step.is-done .dn-step-dot { background: var(--dn-tone); }
+.dn-step.is-current .dn-step-dot { background: var(--dn-tone); box-shadow: 0 0 0 4px var(--dn-ring); }
+.dn-step.is-current::after { color: var(--t1); font-weight: 700; }
+.dn-order.is-open .dn-step.is-current .dn-step-dot,
+.dn-order.is-submitted .dn-step.is-current .dn-step-dot,
+.dn-order.is-preparing .dn-step.is-current .dn-step-dot { animation: statusPulse 1.6s ease-in-out infinite; }
+
+/* ---- notices on the table screen -------------------------------------------------------------------------- */
+.dn-notices { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.dn-notice {
+  padding: 10px 12px; border-radius: 10px; font-size: 0.8rem; line-height: 1.45;
+  color: var(--t2); background: var(--s2); border: 1px solid var(--border); border-left: 3px solid var(--red);
+}
+.dn-cleared {
+  margin-bottom: 16px; padding: 14px 16px; border-radius: 12px; font-size: 0.84rem; line-height: 1.5;
+  color: var(--t2); background: var(--s2); border: 1px solid var(--border);
+}
+
+/* ---- seat chip -------------------------------------------------------------------------------------------- */
+.dn-seat {
+  display: inline-flex; align-items: center; flex-shrink: 0; padding: 2px 8px; border-radius: 100px;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;
+  color: var(--t2); background: var(--s3); border: 1px solid var(--border);
+}
+.dn-seat.is-mine { color: var(--gold); background: rgba(196, 154, 44, 0.12); border-color: rgba(196, 154, 44, 0.3); }
+.dn-table-seat { margin-top: 6px; }
+.dn-table-seat .dn-seat { color: #F5F0E8; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.22); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dn-step.is-current .dn-step-dot { animation: none !important; }
+}

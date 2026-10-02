@@ -109,7 +109,7 @@
   "bookingsTitle": "Rezervasiyalar",
   "bookingCount_one": "{{count}} rezervasiya",
   "bookingCount_other": "{{count}} rezervasiya",
-  "bookingFilterAll": "Hamısı ({{count}})",
+  "bookingFilterAll": "Hamısı ({{count}}{{more}})",
   "noBookings": "Rezervasiya yoxdur",
   "loadingBookings": "Rezervasiyalar yüklənir…",
   "unknownGuest": "Naməlum qonaq",
@@ -269,5 +269,14 @@
   "qrFailed": "QR kod yaradıla bilmədi. Yenidən cəhd edin.",
   "markPaidNeedsBill": "Masa \"Ödəniş Gözləyir\" vəziyyətinə keçdikdən sonra (qonaq hesab istədikdə) ödənilmiş kimi işarələnə bilər.",
   "markPaidOthersOpen": "Bu masadakı digər sifarişlər hələ davam edir. Əvvəlcə onları təqdim edin və ya ləğv edin.",
-  "qrHostUnavailable": "QR keçidləri yalnız resto.* panel ünvanından əlçatandır"
+  "qrHostUnavailable": "QR keçidləri yalnız resto.* panel ünvanından əlçatandır",
+  "bookingsUpcoming": "Gələcək",
+  "bookingsPast": "Keçmiş",
+  "bookingsLoadMore": "Daha çox yüklə",
+  "dishNameAz": "Ad (azərbaycanca)",
+  "dishNameAzPlaceholder": "Azərbaycanca danışan qonaqlara göstərilən ad",
+  "dishDescriptionAz": "Təsvir (azərbaycanca)",
+  "dishDescriptionAzPlaceholder": "Azərbaycanca təsvir",
+  "navLanguage": "Dil",
+  "navAccountMenu": "Hesab və tənzimləmələr"
 }

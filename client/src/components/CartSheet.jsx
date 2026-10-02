@@ -6,12 +6,15 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from './AuthModal'
 import useEscapeClose from './ui/useEscapeClose'
+import { OrderTotals, priceOrder, ratesFromAnswer, useOrderRates } from '../features/dinein/mounts'
 
 export default function CartSheet() {
   const { t } = useTranslation(['cart', 'common'])
-  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, tableId } = useCart()
+  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, tableId, restaurantId } = useCart()
   const { session } = useAuth()
   const navigate = useNavigate()
+  // What the order will cost (VAT and any service charge included), the rule the server applies on place_order.
+  const rates = useOrderRates(restaurantId || items[0]?.dish?.restaurant_id || null)
   const [showAuth, setShowAuth] = useState(false)
   // Set to { id, total } once place_order succeeds: the sheet stays open and shows the confirmation.
   const [placed,   setPlaced]   = useState(null)
@@ -60,7 +63,12 @@ export default function CartSheet() {
     submitOrder()
   }
 
-  const grand = total
+  const priced = priceOrder(total, rates)
+  const grand = priced.total
+
+  const placedRates = placed
+    ? ratesFromAnswer({ subtotal: placed.subtotal, tax_amount: placed.taxAmount, service_charge: placed.serviceCharge })
+    : null
 
   if (placed) return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && setOpen(false)}>
@@ -84,9 +92,13 @@ export default function CartSheet() {
             {t('cart:orderPlacedHint')}
           </p>
         </div>
-        <div className="cart-placed-summary">
-          <span className="cart-placed-ref">{t('cart:orderRef', { ref: String(placed.id).slice(0, 8).toUpperCase() })}</span>
-          <span className="cart-placed-total">{formatPrice(placed.total)}</span>
+        <div className="dn-placed">
+          <div className="dn-placed-ref">{t('cart:orderRef', { ref: String(placed.id).slice(0, 8).toUpperCase() })}</div>
+          <OrderTotals
+            subtotal={placed.subtotal} tax={placed.taxAmount} service={placed.serviceCharge} total={placed.total}
+            taxPct={placedRates?.taxRate ?? null} servicePct={placedRates?.serviceRate ?? null}
+            totalClass="cart-placed-total"
+          />
         </div>
         <div className="cart-placed-actions">
           <button className="btn btn-primary" onClick={() => { setOpen(false); navigate('/table') }}>
@@ -189,20 +201,13 @@ export default function CartSheet() {
                   ))}
                 </div>
 
-                {/* Total */}
-                <div style={{
-                  background: 'var(--s2)', borderRadius: 10,
-                  padding: '12px 14px', border: '1px solid var(--border)',
-                  marginBottom: '1rem',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}>
-                  <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--t2)' }}>{t('common:total')}</span>
-                  <span style={{
-                    fontFamily: "'DM Mono', monospace",
-                    fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)',
-                  }}>
-                    {formatPrice(grand)}
-                  </span>
+                {/* Subtotal, VAT (+ service) and what the guest will pay */}
+                <div className="dn-cart-totals">
+                  <OrderTotals
+                    subtotal={priced.subtotal} tax={priced.tax} service={priced.service} total={priced.total}
+                    taxPct={priced.taxRate} servicePct={priced.serviceRate}
+                    estimate={!rates.exact}
+                  />
                 </div>
 
                 {error && (

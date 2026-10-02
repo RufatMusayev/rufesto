@@ -26,13 +26,13 @@ const ACTIVE = ['open', 'requested', 'paying']
  * orders to an unsplit bill); `canOpenBill` is false when the guest is not seated (a deep link), where a new
  * bill cannot be started.
  */
-export default function BillView({ bill, tableId, tableEnded, reload, onOpenBill, canOpenBill = false }) {
+export default function BillView({ bill, tableId, tableEnded, reload, onPaid, onOpenBill, canOpenBill = false }) {
   const { t, i18n } = useTranslation(['bills', 'common'])
   const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
   const navigate = useNavigate()
   const cart = useCart()
   const plan = usePayPlan(bill, tableId)
-  const actions = usePayActions({ bill, plan, tableId, reload })
+  const actions = usePayActions({ bill, plan, tableId, reload, onPaid })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [error, setError] = useState(null)          // { key } of the last failed payment attempt
   const [notice, setNotice] = useState('')
@@ -42,9 +42,11 @@ export default function BillView({ bill, tableId, tableEnded, reload, onOpenBill
 
   const active = ACTIVE.includes(bill.status)
   const myPayment = bill.myPayments.find(p => p.status === 'succeeded') || null
-  const myPaid = bill.status === 'paid' || bill.myShare?.status === 'paid'
+  const myPaid = bill.status === 'paid' || bill.myShare?.status === 'paid' || !!myPayment
   const reception = actions.reception
-  const ended = tableEnded && !myPaid
+  // "Session ended" only when nothing of mine was paid and no payment is running: a table cleared by the payment
+  // itself must never turn a successful (or still settling) payment into that message.
+  const ended = tableEnded && !myPaid && !actions.processing
   const canPay = active && !myPaid && !reception && !ended
   const others = bill.shares.filter(s => s.status === 'pending' && s.userId !== bill.people.find(p => p.isMe)?.userId)
 

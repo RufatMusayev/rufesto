@@ -270,6 +270,9 @@ a { text-decoration: none; color: inherit; }
 }
 
 .kds-ticket {
+  /* flex-shrink 0: the ticket sits in a flex column with a scrolling max-height; without it a long column squashes
+     every ticket to its 2 px border and the buttons cannot be pressed */
+  flex-shrink: 0;
   background: var(--s3); border-radius: 12px; overflow: hidden;
   border: 1.5px solid var(--border);
   transition: border-color 0.25s, box-shadow 0.25s, transform 160ms var(--ease-out);
@@ -387,10 +390,12 @@ a { text-decoration: none; color: inherit; }
 }
 .dash-mobile-nav-wrap {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+  /* the scrolling nav and the pinned "More" button sit side by side */
+  flex-direction: row;
   background: var(--bg); border-top: 1px solid var(--border); z-index: 60;
 }
 .dash-mobile-nav {
-  position: relative; display: flex; height: 100%;
+  position: relative; display: flex; height: 100%; flex: 1 1 auto; min-width: 0;
   justify-content: flex-start; align-items: center;
   /* admin/manager have 11 entries: scroll sideways instead of squeezing the labels */
   overflow-x: auto; scrollbar-width: none;
@@ -406,7 +411,7 @@ a { text-decoration: none; color: inherit; }
   background: linear-gradient(to right, var(--bg) 40%, transparent);
 }
 .dash-mobile-nav-wrap::after {
-  content: '\203A'; right: 0; justify-content: flex-end; padding-right: 6px;
+  content: '\203A'; right: 60px; justify-content: flex-end; padding-right: 6px;
   background: linear-gradient(to left, var(--bg) 40%, transparent);
 }
 .dash-mobile-nav-wrap.has-more-left::before, .dash-mobile-nav-wrap.has-more-right::after { display: flex; }
@@ -418,6 +423,13 @@ a { text-decoration: none; color: inherit; }
   padding: 4px 6px; border-radius: 6px; transition: color 0.15s;
 }
 .dash-mobile-nav-item.active { color: var(--accent); }
+/* "More" (language, theme, Sign Out): pinned at the right end of the bottom bar */
+.dash-mobile-more {
+  flex: 0 0 60px; justify-content: center; height: 100%;
+  background: var(--bg); border: 0; border-left: 1px solid var(--border); border-radius: 0;
+  font-family: inherit; cursor: pointer;
+}
+.dash-mobile-more:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .dash-mobile-nav-item svg { width: 20px; height: 20px; }
 
 .dash-grid { display: grid; grid-template-columns: 1fr 280px; gap: 1.25rem; }
@@ -438,7 +450,7 @@ a { text-decoration: none; color: inherit; }
   .dash-layout { flex-direction: column; }
   .dash-sidebar { display: none; }
   .dash-mobile-head { display: flex; }
-  .dash-mobile-nav-wrap { display: block; }
+  .dash-mobile-nav-wrap { display: flex; }
   .dash-content { margin-left: 0; padding-bottom: 64px; min-width: 0; }
 }
 
@@ -549,3 +561,108 @@ body.modal-open { overflow: hidden; }
 }
 .order-pay-hint { margin-top: 0.5rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }
 .field-hint { margin-top: 0.35rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }
+
+/* ── Action banner (a failed action above a page's content) ── */
+.action-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 0.6rem 0.85rem; border-radius: 10px; margin-bottom: 0.85rem;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+  color: var(--red); font-size: 0.8rem; font-weight: 500;
+}
+.action-banner-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; }
+
+/* ── Small controls: icon buttons, dialog close, availability switch, language buttons ── */
+.icon-btn {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; border: none; background: none;
+  color: var(--t3); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover { color: var(--t1); background: var(--s3); }
+.icon-btn-danger:hover { color: var(--red); background: rgba(163,45,45,0.08); }
+.icon-btn:focus-visible, .modal-close:focus-visible, .avail-toggle:focus-visible, .lang-btn:focus-visible, .code-chip-btn:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.modal-close { background: none; border: none; color: var(--t3); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 4px; }
+.modal-close:hover { color: var(--t1); }
+
+.avail-toggle {
+  position: relative; width: 50px; height: 28px; flex-shrink: 0; border-radius: 100px; border: none;
+  background: var(--s4); cursor: pointer; transition: background 0.22s;
+}
+.avail-toggle.is-on { background: var(--green); }
+.avail-toggle:disabled { opacity: 0.5; cursor: wait; }
+.avail-toggle-knob {
+  position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  transition: left 0.22s var(--ease-out);
+}
+.avail-toggle.is-on .avail-toggle-knob { left: calc(100% - 25px); }
+
+.lang-switcher { display: flex; gap: 4px; align-items: center; }
+.lang-btn {
+  padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent;
+  color: #888; font-size: 12px; font-weight: 400; letter-spacing: 0.05em; cursor: pointer;
+  transition: all 0.15s;
+}
+.lang-btn.active { border-color: #C49A2C; background: rgba(196,154,44,0.15); color: #C49A2C; font-weight: 700; }
+
+.bk-views { display: flex; gap: 0.4rem; overflow-x: auto; margin-bottom: 0.75rem; }
+.bk-load-more { width: 100%; margin-top: 0.25rem; }
+.login-theme-btn { background: none; border: none; color: var(--t3); font-size: 0.75rem; cursor: pointer; padding: 0.4rem 0.75rem; }
+
+/* ── Phone "More" sheet (components/layout/MobileMoreSheet.jsx) ── */
+.overlay-sheet { align-items: flex-end; }
+.modal.more-sheet {
+  width: 100%; max-width: 520px; border-radius: 16px 16px 0 0;
+  padding: 0.25rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  animation: sheetIn 0.24s var(--ease-out);
+}
+@keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.more-sheet-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
+.more-sheet-badge { width: 36px; height: 36px; font-size: 0.85rem; }
+.more-sheet-who { flex: 1; min-width: 0; }
+.more-sheet-name { font-weight: 700; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-sheet-role { font-size: 0.72rem; font-weight: 600; color: var(--green); text-transform: capitalize; }
+.more-sheet-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: var(--tap); padding: 0.3rem 0; }
+.more-sheet-field { flex-direction: column; align-items: stretch; justify-content: center; gap: 0.35rem; }
+.more-sheet-label { font-size: 0.8rem; font-weight: 500; color: var(--t2); }
+.more-sheet-label-icon { display: inline-flex; align-items: center; gap: 0.7rem; }
+.more-sheet-label-icon svg, .more-sheet-action svg { width: 18px; height: 18px; flex-shrink: 0; }
+.more-sheet-action {
+  width: 100%; justify-content: flex-start; gap: 0.7rem; padding: 0.3rem 0.25rem; text-align: left;
+  background: none; border: none; border-radius: 8px; color: var(--t1);
+  font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer;
+}
+.more-sheet-action:hover { background: var(--s3); }
+.more-sheet-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.more-sheet-signout { color: var(--red); }
+
+/* ── Phones: touch targets ──
+   Every control on the legacy pages (Orders, Kitchen, Tables, Menu, Promos, Bookings, Waiter, Login) and in their
+   dialogs is at least var(--tap) (44px) tall, as the v2 pages already are (features/v2/styles.css). The desktop
+   layout stays compact. */
+@media (max-width: 768px) {
+  .dash-content .btn, .dash-content .chip, .overlay .btn, .overlay .chip, .login-page .btn,
+  .dash-content input.input, .dash-content select.input, .overlay input.input, .overlay select.input, .login-page input.input,
+  .kds-advance-btn, .tbl-state-btn, .lang-btn, .login-theme-btn, .more-sheet-action { min-height: var(--tap); }
+  .icon-btn, .modal-close, .qr-modal-close, .action-banner-close { min-width: var(--tap); min-height: var(--tap); }
+  .icon-btn { width: var(--tap); height: var(--tap); }
+  .lang-btn { min-width: var(--tap); }
+  .modal-close, .qr-modal-close, .action-banner-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .code-chip-btn { min-width: var(--tap); min-height: var(--tap); justify-content: center; }
+  .tbl-card-code-row { gap: 0; }
+  /* the on / off switch: the button is the 44px target, the track is drawn by ::before (same idea as .v2-switch) */
+  .avail-toggle { width: 52px; height: var(--tap); background: transparent; }
+  .avail-toggle.is-on { background: transparent; }
+  .avail-toggle::before {
+    content: ''; position: absolute; left: 1px; right: 1px; top: calc(50% - 14px); height: 28px;
+    border-radius: 100px; background: var(--s4); transition: background 0.22s;
+  }
+  .avail-toggle.is-on::before { background: var(--green); }
+  .avail-toggle-knob { left: 4px; }
+  .avail-toggle.is-on .avail-toggle-knob { left: calc(100% - 26px); }
+  .v2-group-toggle { min-height: var(--tap); }
+  .v2-member-phone { display: inline-flex; align-items: center; min-height: var(--tap); }
+}

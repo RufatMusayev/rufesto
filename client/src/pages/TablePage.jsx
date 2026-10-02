@@ -5,17 +5,24 @@ import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
 import { useCart, useTableLookup } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice, cuisineEmoji, cuisineBackground, categoryEmoji } from '../lib/helpers'
+import { formatPrice, cuisineEmoji, cuisineBackground } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
 import { BillEntry } from '../features/bills/mounts'
 import { ActiveBookingBanner } from '../features/bookings/mounts'
 import PendingJoin from '../components/table/PendingJoin'
 import TableParty from '../components/table/TableParty'
 import CallWaiterSheet from '../components/table/CallWaiterSheet'
+import {
+  LIVE_STATUSES, OrderCard, OrderTotals, SeatChip, claimErrorMessage, ratesFromOrders,
+} from '../features/dinein/mounts'
 
-// Orders that belong to the guest's CURRENT visit: still in flight or served, never paid /
-// cancelled / refunded ones left over from an earlier visit to the same table.
-const CURRENT_VISIT_STATUSES = ['open', 'submitted', 'preparing', 'ready', 'served']
+// Orders that belong to the guest's CURRENT visit: still in flight or served, plus the ones staff cancelled
+// (told to the guest as a notice, not listed as orders); never paid / refunded ones left over from an earlier
+// visit to the same table.
+const CURRENT_VISIT_STATUSES = [...LIVE_STATUSES, 'cancelled']
+
+// Safety net for a dropped realtime connection: re-read the orders now and then while the screen is open.
+const ORDERS_POLL_MS = 20000
 
 // `startedAt` = table_sessions.started_at of the current visit (my_table_session().started_at).
 // When it is not known the status filter alone applies. `orders` has no created_at column;
@@ -33,7 +40,7 @@ function fetchVisitOrders(tableId, userId, startedAt) {
 
 export default function TablePage() {
   const { t } = useTranslation(['table', 'booking', 'common'])
-  const { tableId, restaurantId, setTable, claimTable, clearTable, sessionStatus, startedAt, syncStartedAt } = useCart()
+  const { tableId, restaurantId, setTable, claimTable, clearTable, sessionStatus, startedAt, syncStartedAt, seatNo } = useCart()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [tableInfo, setTableInfo] = useState(null)
@@ -72,6 +79,7 @@ export default function TablePage() {
     if (!tableId || sessionStatus === 'pending') { setLoading(false); return }
 
     let orderChannel
+    let ordersPoll
     let kdsChannel
     let tableChannel
     let cancelled = false
@@ -112,7 +120,12 @@ export default function TablePage() {
           event: '*', schema: 'public', table: 'orders',
           filter: `table_id=eq.${tableId}`,
         }, () => refetchOrders())
-        .subscribe()
+        .subscribe(status => {
+          if (status === 'SUBSCRIBED') refetchOrders()   // catch up on whatever happened before the channel came up
+        })
+      ordersPoll = setInterval(() => {
+        if (document.visibilityState === 'visible') refetchOrders()
+      }, ORDERS_POLL_MS)
 
       kdsChannel = supabase
         .channel(`kds-updates-${tableId}`)
@@ -134,10 +147,14 @@ export default function TablePage() {
           // merge only the fields we actually render — never access_code/qr_code_token.
           const { state, table_number, capacity } = payload.new
           setTableInfo(prev => prev ? { ...prev, state, table_number, capacity } : prev)
-          if (state === 'free' || state === 'cleared') {
+          if (state === 'free') {
             clearTable()
             setTableInfo(null)
             setOrders([])
+          } else if (state === 'cleared') {
+            // The bill was settled and staff cleared the table. The guest's session is still theirs until they
+            // tap Leave: keep the table (receipt, review prompt and Leave stay reachable) instead of dropping it.
+            refetchOrders()
           }
         })
         .subscribe()
@@ -147,6 +164,7 @@ export default function TablePage() {
     return () => {
       cancelled = true
       if (orderChannel) supabase.removeChannel(orderChannel)
+      if (ordersPoll) clearInterval(ordersPoll)
       if (kdsChannel) supabase.removeChannel(kdsChannel)
       if (tableChannel) supabase.removeChannel(tableChannel)
     }
@@ -169,13 +187,7 @@ export default function TablePage() {
     const { error } = await claimTable(code)
     setCodeLoading(false)
     if (error) {
-      const msg = error.message || ''
-      if (msg.includes('table_reserved')) setCodeError(t('booking:reservedByOther'))
-      else if (msg.includes('join_declined')) setCodeError(t('booking:joinDeclined'))
-      else if (msg.includes('too_many_requests')) setCodeError(t('booking:tooManyJoinRequests'))
-      else if (msg.includes('too_many_attempts')) setCodeError(t('table:errTooManyAttempts'))
-      else if (msg.includes('table_unavailable')) setCodeError(t('table:errTableUnavailable'))
-      else setCodeError(t('table:errInvalidCode'))
+      setCodeError(claimErrorMessage(error, t))
       return
     }
     setCodeInput('')
@@ -236,19 +248,25 @@ export default function TablePage() {
   )
   if (sessionStatus === 'pending') return <PendingJoin tableId={tableId} />
 
-  const allItems = orders.flatMap(o => o.order_items || [])
-  const sessionSubtotal = orders.reduce((s, o) => s + (o.subtotal || 0), 0)
-  const sessionTax = orders.reduce((s, o) => s + (o.tax_amount || 0), 0)
-  const sessionService = orders.reduce((s, o) => s + (o.service_charge || 0), 0)
-  const sessionTotal = orders.reduce((s, o) => s + (o.total_amount || 0), 0)
+  // `orders` also holds the ones staff cancelled: those are a notice, never a card, never part of the amounts.
+  const liveOrders = orders.filter(o => o.status !== 'cancelled')
+  const cancelledNotes = orders
+    .map((o, i) => ({ id: o.id, number: i + 1, status: o.status }))
+    .filter(o => o.status === 'cancelled')
+  const allItems = liveOrders.flatMap(o => o.order_items || [])
+  const sessionSubtotal = liveOrders.reduce((s, o) => s + (o.subtotal || 0), 0)
+  const sessionTax = liveOrders.reduce((s, o) => s + (o.tax_amount || 0), 0)
+  const sessionService = liveOrders.reduce((s, o) => s + (o.service_charge || 0), 0)
+  const sessionTotal = liveOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
   // Labels show the restaurant's actual configured rate, derived from the server-computed
   // amounts (orders.tax_amount / service_charge), never a hardcoded percentage — different
   // restaurants can have different restaurant_settings.tax_rate / service_charge.
-  const sessionTaxPct = sessionSubtotal > 0 ? Math.round((sessionTax / sessionSubtotal) * 100) : 0
-  const sessionServicePct = sessionSubtotal > 0 ? Math.round((sessionService / sessionSubtotal) * 100) : 0
+  const rates = ratesFromOrders(liveOrders)
+  // The bill was settled and staff cleared the table, but the guest has not left yet.
+  const tableCleared = tableInfo?.state === 'cleared'
 
-  const allServed = orders.length > 0 && orders.every(o =>
-    o.status === 'served' || o.status === 'done' || o.status === 'ready'
+  const allServed = liveOrders.length > 0 && liveOrders.every(o =>
+    o.status === 'served' || o.status === 'ready'
   )
 
   const emoji = tableInfo?.restaurants ? cuisineEmoji(tableInfo.restaurants.cuisine_type) : '🍽️'
@@ -308,6 +326,7 @@ export default function TablePage() {
                 {tableInfo?.restaurants?.name && ` · ${tableInfo.restaurants.name}`}
                 {tableInfo?.sections?.name && ` · ${tableInfo.sections.name}`}
               </div>
+              {seatNo ? <div className="dn-table-seat"><SeatChip seatNo={seatNo} /></div> : null}
             </div>
 
             <div style={{
@@ -336,7 +355,7 @@ export default function TablePage() {
             paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)',
           }}>
             {[
-              { val: orders.length, label: t('table:statOrders') },
+              { val: liveOrders.length, label: t('table:statOrders') },
               { val: allItems.length, label: t('table:statItems') },
               { val: formatPrice(sessionTotal), label: t('table:statTotal'), accent: true },
             ].map(s => (
@@ -361,7 +380,7 @@ export default function TablePage() {
       <div style={{ maxWidth: 470, margin: '0 auto', padding: '16px 16px 40px' }}>
 
         {/* Browse menu CTA */}
-        {tableInfo?.restaurants?.slug && !paymentState && (
+        {tableInfo?.restaurants?.slug && !paymentState && !tableCleared && (
           <Link to={`/restaurant/${tableInfo.restaurants.slug}`} className="tap-h" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             width: '100%', padding: '11px 0', marginBottom: 20,
@@ -377,13 +396,24 @@ export default function TablePage() {
         )}
 
         {/* Who's at the table + join requests (host only) */}
-        {!paymentState && <TableParty tableId={tableId} />}
+        {!paymentState && !tableCleared && <TableParty tableId={tableId} />}
 
         {/* Call waiter */}
-        {!paymentState && <CallWaiterSheet tableId={tableId} />}
+        {!paymentState && !tableCleared && <CallWaiterSheet tableId={tableId} />}
+
+        {/* Orders staff cancelled: said once, the order itself is gone from the list */}
+        {cancelledNotes.length > 0 && (
+          <div className="dn-notices" role="status">
+            {cancelledNotes.map(n => (
+              <p key={n.id} className="dn-notice">{t('table:orderCancelledNote', { number: n.number })}</p>
+            ))}
+          </div>
+        )}
+
+        {tableCleared && <p className="dn-cleared" role="status">{t('table:tableCleared')}</p>}
 
         {/* Orders */}
-        {orders.length === 0 ? (
+        {liveOrders.length === 0 ? (tableCleared ? null : (
           <div style={{
             textAlign: 'center', padding: '3rem 1.5rem',
             background: 'var(--s2)', borderRadius: 12,
@@ -399,54 +429,29 @@ export default function TablePage() {
                 : t('table:noOrdersHintSignedOut')}
             </p>
           </div>
-        ) : (
+        )) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {orders.map((order, idx) => (
-              <OrderCard key={order.id} order={order} index={idx} number={idx + 1} />
-            ))}
+            {orders.map((order, idx) => (order.status === 'cancelled' ? null : (
+              <OrderCard key={order.id} order={order} number={idx + 1} rates={rates} />
+            )))}
           </div>
         )}
 
-        {/* Session summary */}
-        {orders.length > 0 && (
-          <div style={{
-            marginTop: 16, background: 'var(--s2)', borderRadius: 12,
-            padding: '14px 16px', border: '1px solid var(--border)',
-          }}>
-            <div style={{
-              fontSize: '0.68rem', fontWeight: 700, color: 'var(--t3)',
-              textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
-            }}>
-              {t('table:sessionTotal')}
-            </div>
-            {[
-              [t('common:subtotal'), sessionSubtotal],
-              [t('common:vatPct', { pct: sessionTaxPct }), sessionTax],
-              [t('common:servicePct', { pct: sessionServicePct }), sessionService],
-            ].map(([label, val]) => (
-              <div key={label} style={{
-                display: 'flex', justifyContent: 'space-between',
-                fontSize: '0.82rem', color: 'var(--t2)', marginBottom: 5,
-              }}>
-                <span>{label}</span>
-                <span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(val)}</span>
-              </div>
-            ))}
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--border)',
-              fontWeight: 800, fontSize: '1.05rem',
-            }}>
-              <span>{t('common:total')}</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>
-                {formatPrice(sessionTotal)}
-              </span>
-            </div>
+        {/* Session summary: the server's amounts, VAT and service charge itemised */}
+        {liveOrders.length > 0 && (
+          <div className="dn-session-card">
+            <div className="dn-session-title">{t('table:sessionTotal')}</div>
+            <OrderTotals
+              subtotal={sessionSubtotal} tax={sessionTax} service={sessionService} total={sessionTotal}
+              taxPct={rates?.taxRate ?? null} servicePct={rates?.serviceRate ?? null}
+            />
           </div>
         )}
 
         {/* Payment section: the v2 bill screen (split, tip, pay) replaces the old PaymentSheet. */}
-        {allServed && orders.length > 0 && <BillEntry total={sessionTotal} />}
+        {((allServed && liveOrders.length > 0) || tableCleared) && (
+          <BillEntry total={liveOrders.length > 0 ? sessionTotal : undefined} />
+        )}
 
         {/* End session */}
         <button onClick={handleEndSession} className="btn btn-danger" style={{ width: '100%', marginTop: 12 }}>
@@ -455,165 +460,6 @@ export default function TablePage() {
       </div>
     </div>
   )
-}
-
-function useStatusConfig(t) {
-  return {
-    open:      { label: t('table:statusPlaced'),    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.18)', accent: 'rgba(59,130,246,0.5)'  },
-    preparing: { label: t('table:statusPreparing'), color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.18)', accent: 'rgba(245,158,11,0.5)'  },
-    ready:     { label: t('table:statusReady'),     color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-    served:    { label: t('table:statusServed'),    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-    done:      { label: t('table:statusServed'),    color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.18)',  accent: 'rgba(34,197,94,0.5)'   },
-    cancelled: { label: t('table:statusCancelled'), color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)', accent: 'rgba(239,68,68,0.5)'   },
-  }
-}
-
-function OrderCard({ order, index, number }) {
-  const { t } = useTranslation(['table', 'common'])
-  const STATUS_CONFIG = useStatusConfig(t)
-  const status = order.status || 'open'
-  const s = STATUS_CONFIG[status] || STATUS_CONFIG.open
-  const items = order.order_items || []
-  const time = order.placed_at
-    ? new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : ''
-
-  return (
-    <div className="stagger-item" style={{
-      background: 'var(--s2)', borderRadius: 12,
-      border: '1px solid var(--border)', overflow: 'hidden',
-      animationDelay: `${index * 0.08}s`,
-      position: 'relative',
-    }}>
-      {/* Status accent bar */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: s.accent,
-      }} />
-
-      {/* Order header */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '12px 14px 8px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{
-            width: 30, height: 30, borderRadius: '50%', background: 'var(--s3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.7rem', fontWeight: 800, color: 'var(--t2)',
-            border: '1px solid var(--border)',
-          }}>
-            #{number}
-          </span>
-          <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--t1)' }}>{t('table:orderNumber', { number })}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t3)' }}>{time}</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <StatusDot status={status} color={s.color} />
-          <span style={{
-            padding: '3px 9px', borderRadius: 100,
-            fontSize: '0.6rem', fontWeight: 700,
-            background: s.bg, color: s.color,
-            border: `1px solid ${s.border}`,
-            textTransform: 'uppercase', letterSpacing: 0.6,
-          }}>
-            {s.label}
-          </span>
-        </div>
-      </div>
-
-      {/* Items list */}
-      <div style={{ padding: '4px 14px 6px' }}>
-        {items.map(item => (
-          <div key={item.id} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '7px 0',
-            borderBottom: '1px solid var(--border)',
-          }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: 8, background: 'var(--s3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1rem', flexShrink: 0,
-            }}>
-              {categoryEmoji(item.dishes?.category)}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: '0.82rem', fontWeight: 500, color: 'var(--t1)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {item.dishes?.name || 'Dish'}
-              </div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.68rem', color: 'var(--t3)' }}>
-                {item.quantity}x {formatPrice(item.unit_price)}
-              </div>
-            </div>
-            <span style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: '0.82rem', color: 'var(--t1)', fontWeight: 600, flexShrink: 0,
-            }}>
-              {formatPrice(item.unit_price * item.quantity)}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Order total */}
-      <div style={{
-        padding: '10px 14px',
-        display: 'flex', justifyContent: 'space-between',
-        fontSize: '0.84rem',
-      }}>
-        <span style={{ color: 'var(--t3)', fontWeight: 600 }}>{t('table:orderTotal')}</span>
-        <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)', fontWeight: 800 }}>
-          {formatPrice(order.total_amount)}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function StatusDot({ status, color }) {
-  if (status === 'served' || status === 'done') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-    )
-  }
-  if (status === 'preparing') {
-    return (
-      <span style={{
-        width: 8, height: 8, borderRadius: '50%',
-        background: color, display: 'inline-block',
-        animation: 'statusShimmer 1.2s ease-in-out infinite alternate',
-      }} />
-    )
-  }
-  if (status === 'ready') {
-    return (
-      <span style={{
-        width: 8, height: 8, borderRadius: '50%',
-        background: color, display: 'inline-block',
-        animation: 'statusPulse 1.5s ease-in-out infinite',
-        boxShadow: `0 0 6px ${color}`,
-      }} />
-    )
-  }
-  if (status === 'open') {
-    return (
-      <span style={{
-        width: 8, height: 8, borderRadius: '50%',
-        background: color, display: 'inline-block',
-        animation: 'statusPulse 2s ease-in-out infinite',
-        boxShadow: `0 0 6px ${color}`,
-      }} />
-    )
-  }
-  return null
 }
 
 function EmptyTableState({

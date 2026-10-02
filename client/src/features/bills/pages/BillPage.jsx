@@ -98,7 +98,7 @@ export default function BillPage() {
     body = (
       <BillView
         key={bill.id} bill={bill} tableId={tableId}
-        tableEnded={live.tableEnded} reload={live.reload}
+        tableEnded={live.tableEnded} reload={live.reload} onPaid={live.markPaid}
         onOpenBill={openBill}
         canOpenBill={!!tableId}
       />

@@ -43,5 +43,6 @@
   "retry": "Try again",
   "notFoundTitle": "Page not found",
   "notFoundBody": "This link may be mistyped or cut off, or the page has moved.",
-  "browseRestaurants": "Browse restaurants"
+  "browseRestaurants": "Browse restaurants",
+  "verifiedVisit": "Verified visit"
 }

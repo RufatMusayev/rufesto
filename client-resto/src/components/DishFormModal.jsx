@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useId, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji } from '@shared/helpers'
 import { dishPhotoPath } from '../lib/storage'
 import { friendlyError, writeError } from '../lib/errors'
+import useDialog from '../lib/useDialog'
 
 // Thrown inside handleSave with a message that is already translated and safe
 // to show; anything else caught there goes through friendlyError().
@@ -11,10 +12,24 @@ class FormError extends Error {}
 
 const CATEGORIES = ['starter', 'soup', 'salad', 'main', 'side', 'dessert', 'beverage', 'alcoholic', 'kids']
 
+// The localised copy lives in dishes.name_i18n / desc_i18n (what the consumer app shows in the guest's language,
+// through localizeDish) and in the older name_az / description_az columns; the form writes both. Keys of other
+// languages are kept; a patch value that is empty removes its key.
+function mergeI18n(existing, patch) {
+  const out = { ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}) }
+  for (const [lang, text] of Object.entries(patch)) {
+    if (text) out[lang] = text
+    else delete out[lang]
+  }
+  return out
+}
+
 export default function DishFormModal({ dish, sections, restaurantId, onClose, onSaved }) {
   const { t } = useTranslation('dashboard')
   const isEdit = !!dish
   const fileRef = useRef(null)
+  const uid = useId()
+  const fid = key => `${uid}-${key}`
 
   const DIETARY = [
     { key: 'is_vegan', label: t('dietaryVegan'), icon: '🌱' },
@@ -25,7 +40,9 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
 
   const [form, setForm] = useState({
     name: dish?.name || '',
+    name_az: dish?.name_az || dish?.name_i18n?.az || '',
     description: dish?.description || '',
+    description_az: dish?.description_az || dish?.desc_i18n?.az || '',
     price: dish?.price?.toString() || '',
     category: dish?.category || 'main',
     menu_section_id: dish?.menu_section_id || sections[0]?.id || '',
@@ -45,11 +62,8 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const objectUrlRef = useRef(null)
-
-  useEffect(() => {
-    document.body.classList.add('modal-open')
-    return () => document.body.classList.remove('modal-open')
-  }, [])
+  // Escape, focus trap and page scroll lock; Escape does nothing while a save is running.
+  const dialogRef = useDialog(() => { if (!saving) onClose() })
 
   // Revoke any blob: preview URL we created, whether the modal is saved,
   // cancelled or the photo is cleared before save.
@@ -127,9 +141,17 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
         photoUrl = null
       }
 
+      const name = form.name.trim()
+      const description = form.description.trim()
+      const nameAz = form.name_az.trim()
+      const descriptionAz = form.description_az.trim()
       const row = {
-        name: form.name.trim(),
-        description: form.description.trim() || null,
+        name,
+        name_az: nameAz || null,
+        description: description || null,
+        description_az: descriptionAz || null,
+        name_i18n: mergeI18n(dish?.name_i18n, { en: name, az: nameAz }),
+        desc_i18n: mergeI18n(dish?.desc_i18n, { en: description, az: descriptionAz }),
         price: Number(form.price),
         category: form.category,
         menu_section_id: form.menu_section_id || null,
@@ -176,24 +198,21 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
   }
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" onClick={e => e.target === e.currentTarget && !saving && onClose()}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={fid('title')}>
         <div style={{ padding: '1.25rem 1.25rem 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+            <h2 id={fid('title')} style={{ fontSize: '1.1rem', fontWeight: 800 }}>
               {isEdit ? t('dishFormEditTitle') : t('dishFormAddTitle')}
             </h2>
-            <button onClick={onClose} style={{
-              background: 'none', border: 'none', color: 'var(--t3)',
-              fontSize: '1.2rem', cursor: 'pointer', padding: 4,
-            }}>✕</button>
+            <button type="button" className="modal-close" onClick={onClose} aria-label={t('common:close')}>✕</button>
           </div>
         </div>
 
         <div style={{ padding: '0 1.25rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Photo */}
-          <div>
-            <label className="label">{t('photo')}</label>
+          <div role="group" aria-labelledby={fid('photo')}>
+            <span id={fid('photo')} className="label">{t('photo')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{
                 width: 80, height: 80, borderRadius: 10,
@@ -202,45 +221,53 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
                 overflow: 'hidden', flexShrink: 0,
               }}>
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: '2rem' }}>{categoryEmoji(form.category)}</span>
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                <button type="button" className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                   onClick={() => fileRef.current?.click()}>
                   {photoPreview ? t('change') : t('upload')}
                 </button>
                 {photoPreview && (
-                  <button className="btn btn-danger" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                  <button type="button" className="btn btn-danger" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                     onClick={handleRemovePhoto}>{t('remove')}</button>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} aria-label={t('photo')} />
             </div>
           </div>
 
           {/* Name */}
           <div>
-            <label className="label">{t('name')} *</label>
-            <input className="input" value={form.name} onChange={e => update('name', e.target.value)}
+            <label className="label" htmlFor={fid('name')}>{t('name')} *</label>
+            <input id={fid('name')} className="input" value={form.name} onChange={e => update('name', e.target.value)}
               placeholder={t('dishNamePlaceholder')} />
+          </div>
+
+          {/* Name in Azerbaijani */}
+          <div>
+            <label className="label" htmlFor={fid('name-az')}>{t('dishNameAz')}</label>
+            <input id={fid('name-az')} className="input" lang="az" value={form.name_az}
+              onChange={e => update('name_az', e.target.value)} placeholder={t('dishNameAzPlaceholder')} />
           </div>
 
           {/* Price */}
           <div>
-            <label className="label">{t('priceLabel')} *</label>
-            <input className="input" type="number" step="0.01" min="0" value={form.price}
+            <label className="label" htmlFor={fid('price')}>{t('priceLabel')} *</label>
+            <input id={fid('price')} className="input" type="number" step="0.01" min="0" value={form.price}
               onChange={e => update('price', e.target.value)} placeholder="0.00" />
           </div>
 
           {/* Category */}
-          <div>
-            <label className="label">{t('category')} *</label>
+          <div role="group" aria-labelledby={fid('category')}>
+            <span id={fid('category')} className="label">{t('category')} *</span>
             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
               {CATEGORIES.map(c => (
-                <button key={c} className={`chip${form.category === c ? ' active' : ''}`}
+                <button type="button" key={c} className={`chip${form.category === c ? ' active' : ''}`}
+                  aria-pressed={form.category === c}
                   onClick={() => update('category', c)}
                   style={{ fontSize: '0.72rem', padding: '0.3rem 0.65rem' }}>
                   {categoryEmoji(c)} {t(`cat${c.charAt(0).toUpperCase() + c.slice(1)}`)}
@@ -251,8 +278,8 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
 
           {/* Section */}
           <div>
-            <label className="label">{t('menuSection')}</label>
-            <select className="input" value={form.menu_section_id}
+            <label className="label" htmlFor={fid('section')}>{t('menuSection')}</label>
+            <select id={fid('section')} className="input" value={form.menu_section_id}
               onChange={e => update('menu_section_id', e.target.value)}
               style={{ cursor: 'pointer' }}>
               <option value="">{t('none')}</option>
@@ -262,18 +289,27 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
 
           {/* Description */}
           <div>
-            <label className="label">{t('description')}</label>
-            <textarea className="input" rows={2} value={form.description}
+            <label className="label" htmlFor={fid('description')}>{t('description')}</label>
+            <textarea id={fid('description')} className="input" rows={2} value={form.description}
               onChange={e => update('description', e.target.value)}
               placeholder={t('descDishPlaceholder')} style={{ resize: 'vertical' }} />
           </div>
 
-          {/* Dietary */}
+          {/* Description in Azerbaijani */}
           <div>
-            <label className="label">{t('dietary')}</label>
+            <label className="label" htmlFor={fid('description-az')}>{t('dishDescriptionAz')}</label>
+            <textarea id={fid('description-az')} className="input" lang="az" rows={2} value={form.description_az}
+              onChange={e => update('description_az', e.target.value)}
+              placeholder={t('dishDescriptionAzPlaceholder')} style={{ resize: 'vertical' }} />
+          </div>
+
+          {/* Dietary */}
+          <div role="group" aria-labelledby={fid('dietary')}>
+            <span id={fid('dietary')} className="label">{t('dietary')}</span>
             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
               {DIETARY.map(d => (
-                <button key={d.key} className={`chip${form[d.key] ? ' active' : ''}`}
+                <button type="button" key={d.key} className={`chip${form[d.key] ? ' active' : ''}`}
+                  aria-pressed={!!form[d.key]}
                   onClick={() => update(d.key, !form[d.key])}
                   style={{ fontSize: '0.72rem', padding: '0.3rem 0.65rem' }}>
                   {d.icon} {d.label}
@@ -285,18 +321,18 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
           {/* Extra details row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
             <div>
-              <label className="label">{t('prepMin')}</label>
-              <input className="input" type="number" min="0" value={form.prep_time_min}
+              <label className="label" htmlFor={fid('prep')}>{t('prepMin')}</label>
+              <input id={fid('prep')} className="input" type="number" min="0" value={form.prep_time_min}
                 onChange={e => update('prep_time_min', e.target.value)} placeholder="–" />
             </div>
             <div>
-              <label className="label">{t('calories')}</label>
-              <input className="input" type="number" min="0" value={form.calories}
+              <label className="label" htmlFor={fid('calories')}>{t('calories')}</label>
+              <input id={fid('calories')} className="input" type="number" min="0" value={form.calories}
                 onChange={e => update('calories', e.target.value)} placeholder="–" />
             </div>
             <div>
-              <label className="label">{t('sortOrder')}</label>
-              <input className="input" type="number" min="0" value={form.sort_order}
+              <label className="label" htmlFor={fid('sort')}>{t('sortOrder')}</label>
+              <input id={fid('sort')} className="input" type="number" min="0" value={form.sort_order}
                 onChange={e => update('sort_order', e.target.value)} />
             </div>
           </div>
@@ -309,12 +345,12 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
             {t('featuredDish')}
           </label>
 
-          {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem' }}>{error}</p>}
+          {error && <p role="alert" style={{ color: 'var(--red)', fontSize: '0.78rem' }}>{error}</p>}
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
-            <button className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? <><span className="spinner" /> {t('saving')}</> : isEdit ? t('saveChanges') : t('addDish')}
             </button>
           </div>

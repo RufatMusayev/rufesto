@@ -8,7 +8,8 @@ import LoadError from './LoadError'
 import MemberTable from './MemberTable'
 
 // Mounted by pages/BookingsPage.jsx inside each booking card. Renders nothing
-// for a solo booking (no invite) or while the summary is loading; for a group
+// for a solo booking (no invite), a booking whose invite link is switched off
+// (booking_invites.enabled = false) or while the summary is loading; for a group
 // booking it shows "Group · n of N joined" and expands to the invite code and
 // the member list (live while open).
 export default function GroupBookingPanel({ booking }) {

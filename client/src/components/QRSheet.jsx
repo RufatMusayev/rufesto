@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { sanitizeTableCode } from '../lib/pendingClaim'
 import useEscapeClose from './ui/useEscapeClose'
+import { claimErrorMessage } from '../features/dinein/mounts'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
@@ -75,7 +76,8 @@ export default function QRSheet({ onClose, onCode }) {
     if (link) {
       try { return sanitizeTableCode(decodeURIComponent(link[1])) } catch { return null }
     }
-    const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+    // a token may carry a chair suffix (<token>-S3): keep it, claim_table seats the guest on that chair
+    const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-S\d{1,3})?/i)
     return uuid ? uuid[0] : null
   }
 
@@ -116,15 +118,7 @@ export default function QRSheet({ onClose, onCode }) {
     setLoading(false)
 
     if (claimErr) {
-      const msg = claimErr.message || ''
-      if (msg.includes('table_reserved')) setError(t('booking:reservedByOther'))
-      else if (msg.includes('not_authenticated')) setError(t('booking:errNotAuthenticated'))
-      else if (msg.includes('invalid_code')) setError(t('table:errInvalidCode'))
-      else if (msg.includes('too_many_attempts')) setError(t('table:errTooManyAttempts'))
-      else if (msg.includes('table_unavailable')) setError(t('table:errTableUnavailable'))
-      else if (msg.includes('join_declined')) setError(t('booking:joinDeclined'))
-      else if (msg.includes('too_many_requests')) setError(t('booking:tooManyJoinRequests'))
-      else setError(t('booking:errClaimFailed'))
+      setError(claimErrorMessage(claimErr, t))
       if (!manualMode) setScanning(true)
       return
     }

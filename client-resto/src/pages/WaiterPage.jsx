@@ -9,6 +9,7 @@ import CallsTab from '../components/waiter/CallsTab'
 import MyTablesTab from '../components/waiter/MyTablesTab'
 import AllTablesTab from '../components/waiter/AllTablesTab'
 import { MyTipsCard } from '../features/v2/mounts'
+import ActionBanner from '../components/ActionBanner'
 
 // Safety-net refresh for events realtime can't deliver (see the effect below).
 const FALLBACK_POLL_MS = 60000
@@ -161,17 +162,7 @@ export default function WaiterPage() {
         </div>
       </div>
 
-      {actionError && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-          padding: '0.6rem 0.85rem', borderRadius: 10, marginBottom: '0.85rem',
-          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-          color: 'var(--red)', fontSize: '0.8rem', fontWeight: 500,
-        }}>
-          <span>{actionError}</span>
-          <button onClick={() => setActionError('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
-        </div>
-      )}
+      {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       <MyTipsCard />
 

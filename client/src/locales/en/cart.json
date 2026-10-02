@@ -19,5 +19,6 @@
   "goToTable": "Go to my table",
   "decrease": "Remove one {{name}}",
   "increase": "Add one more {{name}}",
-  "remove": "Remove {{name}} from the order"
+  "remove": "Remove {{name}} from the order",
+  "rateEstimate": "Estimate: the exact amount is confirmed when you place the order."
 }

@@ -6,6 +6,7 @@ import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName }
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import useEscapeClose from './ui/useEscapeClose'
+import VerifiedPill from './ui/VerifiedPill'
 import './DishDetailSheet.css'
 
 export default function DishDetailSheet({ dish, onClose }) {
@@ -590,11 +591,12 @@ export default function DishDetailSheet({ dish, onClose }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2,
+                      display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 7px', marginBottom: 2,
                     }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--t1)' }}>
                         {cleanDisplayName(r.users?.name)}
                       </span>
+                      {r.is_verified && <VerifiedPill />}
                       <span style={{
                         fontFamily: "'DM Mono', monospace",
                         fontSize: '0.66rem', color: 'var(--gold)', letterSpacing: 0.5,

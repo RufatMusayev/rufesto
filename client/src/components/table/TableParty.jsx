@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { SeatChip } from '../../features/dinein/mounts'
 
 // The realtime channel below only sees this guest's own session row (RLS), so other guests
 // joining or leaving only show up through this poll (join requests also arrive via notifications).
@@ -127,6 +128,7 @@ export default function TableParty({ tableId }) {
                 {t('table:hostBadge')}
               </span>
             )}
+            <SeatChip seatNo={m.seat_no} mine={m.is_me} />
           </div>
         ))}
       </div>
@@ -140,6 +142,7 @@ export default function TableParty({ tableId }) {
             {pendingMembers.map(m => (
               <div key={m.session_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: '0.84rem', color: 'var(--t1)', flex: 1 }}>{m.name}</span>
+                <SeatChip seatNo={m.seat_no} />
                 <button
                   onClick={() => respond(m.session_id, true)}
                   disabled={respondingId === m.session_id}

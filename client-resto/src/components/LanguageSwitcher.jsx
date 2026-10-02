@@ -3,28 +3,20 @@ import { SUPPORTED_LANGS } from '../lib/i18n'
 
 const LANG_LABELS = { en: 'EN', az: 'AZ' }
 
+// EN / AZ buttons. Styles: .lang-switcher / .lang-btn in index.css (a full touch target on phones).
 export default function LanguageSwitcher({ className = '' }) {
   const { i18n } = useTranslation()
   const current = i18n.language?.slice(0, 2) || 'en'
 
   return (
-    <div className={`lang-switcher ${className}`} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+    <div className={`lang-switcher ${className}`}>
       {SUPPORTED_LANGS.map(lang => (
         <button
           key={lang}
+          type="button"
+          className={`lang-btn${current === lang ? ' active' : ''}`}
+          aria-pressed={current === lang}
           onClick={() => i18n.changeLanguage(lang)}
-          style={{
-            padding: '3px 8px',
-            borderRadius: '6px',
-            border: current === lang ? '1px solid #C49A2C' : '1px solid transparent',
-            background: current === lang ? 'rgba(196,154,44,0.15)' : 'transparent',
-            color: current === lang ? '#C49A2C' : '#888',
-            fontSize: '12px',
-            fontWeight: current === lang ? 700 : 400,
-            cursor: 'pointer',
-            letterSpacing: '0.05em',
-            transition: 'all 0.15s',
-          }}
         >
           {LANG_LABELS[lang]}
         </button>

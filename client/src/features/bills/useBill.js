@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getBill, openMyBill, subscribeBill } from './api'
+import { applySettlement } from './settlement'
 
 const POLL_MS = 20000
 const EVENT_DEBOUNCE_MS = 250
+// Realtime can be up and still silent (the WebSocket opens, no event arrives). While a payment is in flight or just
+// went through, the bill is therefore re-read on a short timer whatever the channel says.
+const PAYMENT_POLL_MS = 5000
+const PAYMENT_WATCH_MS = 60000
 
 // error code -> screen status
 const STATUS_FOR = {
@@ -26,12 +31,19 @@ const failure = error => ({ status: STATUS_FOR[error.code] || 'error', bill: nul
  * already on screen by id, so a bill staff voided or closed stays what it is: void shows the cancelled screen,
  * settled shows the receipt, and nothing is created behind the guest's back.
  *
+ * Paying: `markPaid({ intent, settle })` puts the settlement the RPCs returned on screen at once (see
+ * settlement.js). From then on, and while a payment intent of mine is pending, the bill is also re-read every 5 s
+ * until the server confirms it (a settled bill, or one minute), so a missing realtime event never leaves an
+ * "Open + Pay" screen behind a payment that went through.
+ *
  * status: 'loading' | 'ready' | 'nothing' | 'ended' | 'notFound' | 'signedout' | 'error'
  * Background refreshes never replace a loaded bill with an error.
  */
 export default function useBill({ billId, tableId, enabled = true }) {
   const [state, setState] = useState({ status: 'loading', bill: null, error: null })
   const [tableEnded, setTableEnded] = useState(false)
+  const [watching, setWatching] = useState(false)      // just paid: poll fast until the server confirms
+  const watchTimer = useRef(null)
   const idRef = useRef(billId || null)
   const billRef = useRef(null)
   const seq = useRef(0)
@@ -53,6 +65,7 @@ export default function useBill({ billId, tableId, enabled = true }) {
     idRef.current = res.data.id
     billRef.current = res.data
     setState({ status: 'ready', bill: res.data, error: null })
+    if (res.data.status === 'paid') setWatching(false)     // the server itself says settled: nothing left to confirm
   }, [billId, enabled])
 
   const loadRef = useRef(load)
@@ -75,6 +88,22 @@ export default function useBill({ billId, tableId, enabled = true }) {
     return res
   }, [])
 
+  // My demo payment went through: show it now. A read that started before this answer must not bring the old
+  // bill back, so it is dropped (seq); the next read (the caller's reload, the poll, realtime) confirms it.
+  const markPaid = useCallback(({ intent, settle }) => {
+    const next = applySettlement(billRef.current, { intent, settle })
+    if (!next || next === billRef.current) return
+    seq.current += 1
+    idRef.current = next.id
+    billRef.current = next
+    setState({ status: 'ready', bill: next, error: null })
+    setWatching(true)
+    clearTimeout(watchTimer.current)
+    watchTimer.current = setTimeout(() => setWatching(false), PAYMENT_WATCH_MS)
+  }, [])
+
+  useEffect(() => () => clearTimeout(watchTimer.current), [])
+
   // first load / bill changed
   useEffect(() => {
     idRef.current = billId || null
@@ -86,6 +115,17 @@ export default function useBill({ billId, tableId, enabled = true }) {
 
   const liveId = state.bill?.id || null
   const liveTable = state.bill?.table?.id || tableId || null
+  const paymentPending = !!state.bill?.myPayments?.some(p => p.status === 'requires_action')
+  const fastPoll = paymentPending || watching
+
+  // a payment is pending or just succeeded: re-read on a short timer, whatever the realtime channel does
+  useEffect(() => {
+    if (!liveId || !fastPoll) return undefined
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') loadRef.current(true)
+    }, PAYMENT_POLL_MS)
+    return () => clearInterval(timer)
+  }, [liveId, fastPoll])
 
   useEffect(() => {
     if (!liveId) return undefined
@@ -111,7 +151,8 @@ export default function useBill({ billId, tableId, enabled = true }) {
       onTableEnded: async () => {
         clearTimeout(timer)
         await loadRef.current(true)
-        if (alive) setTableEnded(true)
+        // a settled bill is never "session ended": it shows the receipt until the guest taps Leave
+        if (alive && billRef.current?.status !== 'paid') setTableEnded(true)
       },
       onStatus: status => {
         if (status === 'SUBSCRIBED') stopPoll()
@@ -135,5 +176,6 @@ export default function useBill({ billId, tableId, enabled = true }) {
     reload: () => load(true),
     retry: () => load(false),
     openMine,
+    markPaid,
   }
 }

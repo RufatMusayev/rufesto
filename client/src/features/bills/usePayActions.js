@@ -28,7 +28,7 @@ function pendingReception(bill) {
  * The two ways to pay. Each guards itself with a ref so a double tap runs once: the demo path creates one
  * payment intent per tap (and the server updates that same intent if it is called again for the share).
  *
- *   payDemo()   -> { error } | { changed: amount } | { ok: true }
+ *   payDemo()   -> { error } | { changed: amount } | { ok: true, settled }
  *   askStaff()  -> { error } | { ok: true }
  *
  * `reception` ({ amount } | null) is "waiting for staff". The server decides: a pending reception intent in
@@ -36,7 +36,7 @@ function pendingReception(bill) {
  * that returns the intent; every bill snapshot without a pending intent (e.g. after someone replanned the
  * split, which cancels it) clears it, so a guest is never stuck on "waiting for staff".
  */
-export default function usePayActions({ bill, plan, tableId, reload }) {
+export default function usePayActions({ bill, plan, tableId, reload, onPaid }) {
   const busy = useRef(false)
   const [processing, setProcessing] = useState(false)
   const [local, setReception] = useState(() => (bill ? readReception(bill.id) : null))
@@ -67,10 +67,13 @@ export default function usePayActions({ bill, plan, tableId, reload }) {
       await reload()
       return { changed: intent.data.amount }
     }
+    reload()          // the intent (and the split it planned) now exists: let the screen hold it, not awaited
     await sleep(Math.max(0, DEMO_PROCESSING_MS - (Date.now() - started)))
     const settled = await settleDemo(intent.data.intentId)
+    if (settled.error) { await reload(); return { error: settled.error } }
+    // Paid: render the settled panel from the RPC answer now, the re-read below only confirms it.
+    onPaid?.({ intent: intent.data, settle: settled.data })
     await reload()
-    if (settled.error) return { error: settled.error }
     return { ok: true, settled: settled.data }
   })
 

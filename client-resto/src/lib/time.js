@@ -25,3 +25,13 @@ export function bakuTodayStartISO(date = new Date()) {
 export function localeTag(lang) {
   return lang && lang.startsWith('az') ? 'az-AZ' : 'en-GB'
 }
+
+/** Day and month of an instant on the Baku calendar, e.g. "3 Oct" (the restaurant's clock, not the viewer's). */
+export function bakuDayLabel(value, lang) {
+  return new Date(value).toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', timeZone: BAKU_TZ })
+}
+
+/** Wall-clock time of an instant in Baku, 24 hour, e.g. "14:00". */
+export function bakuTimeLabel(value, lang) {
+  return new Date(value).toLocaleTimeString(localeTag(lang), { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BAKU_TZ })
+}

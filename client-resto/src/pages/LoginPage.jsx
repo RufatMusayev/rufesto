@@ -36,7 +36,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
+    <div className="login-page" style={{
       minHeight: '100vh', background: 'var(--bg)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '2rem',
@@ -117,10 +117,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-          <button onClick={toggle} style={{
-            background: 'none', border: 'none', color: 'var(--t3)',
-            fontSize: '0.75rem', cursor: 'pointer',
-          }}>
+          <button type="button" className="login-theme-btn" onClick={toggle}>
             {theme === 'dark' ? t('dashboard:navLight') : t('dashboard:navDark')}
           </button>
         </div>

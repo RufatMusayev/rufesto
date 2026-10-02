@@ -4,11 +4,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
 import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
-import { bakuTodayStartISO } from '../lib/time'
+import { bakuTodayStartISO, bakuTimeLabel } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import { roleCan } from '../lib/roles'
+import ActionBanner from '../components/ActionBanner'
 
 // Real `order_status` values. `submitted` / `refunded` chips only appear while
 // there is an order in that status (or the chip is selected).
@@ -147,17 +148,7 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {actionError && (
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
-          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
-          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
-          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
-        }}>
-          <span>{actionError}</span>
-          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
-        </div>
-      )}
+      {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         {FILTERS.map(f => {
@@ -200,12 +191,11 @@ export default function OrdersPage() {
 }
 
 function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock, guestName, canFlow, canPay }) {
-  const { t } = useTranslation(['dashboard', 'common'])
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const s = orderStatusStyle(order.status)
   const items = order.order_items || []
-  const time = order.placed_at
-    ? new Date(order.placed_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
-    : ''
+  // Restaurant time (Baku), like "today" above, whatever zone the viewer's device is set to.
+  const time = order.placed_at ? bakuTimeLabel(order.placed_at, i18n.language) : ''
   const showServed = canFlow && order.status === 'ready'
   const showPaid = canPay && order.status === 'served'
   const showCancel = canFlow && CANCELLABLE.includes(order.status)

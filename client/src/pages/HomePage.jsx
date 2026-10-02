@@ -9,6 +9,7 @@ import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
 import LoadError from '../components/LoadError'
 import PostMenu from '../components/PostMenu'
+import VerifiedPill from '../components/ui/VerifiedPill'
 import { HomeTabs, useRequireAuth } from '../features/social/mounts'
 import './HomePage.css'
 
@@ -746,6 +747,7 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
               <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--t1)', lineHeight: 1.3 }}>
                 {cleanDisplayName(rev.users?.name)}
               </span>
+              {rev.is_verified && <VerifiedPill />}
               <span style={{ fontSize: '0.72rem', color: 'var(--t3)', fontFamily: "'DM Mono', monospace" }}>
                 · {timeAgo(rev.created_at, i18n.language)}
               </span>

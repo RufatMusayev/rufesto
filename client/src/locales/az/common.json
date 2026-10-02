@@ -43,5 +43,6 @@
   "retry": "Yenidən cəhd et",
   "notFoundTitle": "Səhifə tapılmadı",
   "notFoundBody": "Keçid səhv yazılmış və ya yarımçıq ola bilər, ya da səhifə köçürülüb.",
-  "browseRestaurants": "Restoranlara bax"
+  "browseRestaurants": "Restoranlara bax",
+  "verifiedVisit": "Təsdiqlənmiş ziyarət"
 }

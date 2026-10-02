@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { BOOKING_STATUS_STYLE } from '@shared/constants'
-import { localeTag } from '../lib/time'
+import { bakuDayLabel, bakuTimeLabel, bakuTodayStartISO } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
+import { roleCan } from '../lib/roles'
+import ActionBanner from '../components/ActionBanner'
 import { GroupBookingPanel } from '../features/v2/mounts'
 
 // Real `booking_status` values. `no_show` is set by the mark_no_shows() job, so
@@ -24,18 +26,29 @@ const STATUS_STYLE = {
   no_show: { bg: 'rgba(239,68,68,0.08)', color: 'var(--red)' },
 }
 
+// Rows per page. "Load more" raises the limit by this much; one extra row is asked for to know whether more exist.
+const PAGE_SIZE = 50
+
 export default function BookingsPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, staffRow } = useAuth()
   const { t, i18n } = useTranslation(['dashboard', 'common'])
+  // A guest's phone number is for the front of house; the e-mail address is never loaded or shown (docs/CLIENT_RESTO_DASHBOARD.md 1.10).
+  const showPhone = roleCan(staffRow?.role, 'guestPhone')
   const [bookings, setBookings] = useState([])
   const [filter,   setFilter]   = useState('all')
+  const [view,     setView]     = useState('upcoming')   // 'upcoming' = from the start of today (Baku) on, soonest first; 'past' = before today, latest first
+  const [limit,    setLimit]    = useState(PAGE_SIZE)
+  const [hasMore,  setHasMore]  = useState(false)
   const [loading,  setLoading]  = useState(true)
   const [actionError, setActionError] = useState('')
 
+  // The realtime handler is created once, so what load() needs to know now is read from refs.
+  const queryRef = useRef({ view, limit, showPhone })
+  queryRef.current = { view, limit, showPhone }
+  const requestSeq = useRef(0)
+
   useEffect(() => {
     if (!restaurantId) return
-    load()
-
     // Guests booking from the app, the cancel/no-show jobs and other staff all
     // write `bookings`; debounced so a burst is one reload.
     const debouncedLoad = debounce(load, 400)
@@ -50,15 +63,38 @@ export default function BookingsPage() {
     return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
+  // A different view or a bigger page is a fresh query.
+  useEffect(() => {
+    if (restaurantId) load()
+  }, [restaurantId, view, limit])
+
   async function load() {
-    const { data } = await supabase
+    const q = queryRef.current
+    const seq = ++requestSeq.current
+    const upcoming = q.view === 'upcoming'
+    const today = bakuTodayStartISO()
+    let query = supabase
       .from('bookings')
-      .select('*, users!bookings_user_id_fkey(name, email, phone), tables(table_number)')
+      .select(`*, users!bookings_user_id_fkey(name${q.showPhone ? ', phone' : ''}), tables(table_number)`)
       .eq('restaurant_id', restaurantId)
-      .order('reserved_from', { ascending: false })
-      .limit(50)
-    setBookings(data || [])
+    query = upcoming ? query.gte('reserved_from', today) : query.lt('reserved_from', today)
+    const { data } = await query
+      .order('reserved_from', { ascending: upcoming })
+      .limit(q.limit + 1)
+    if (seq !== requestSeq.current) return   // a newer request (another view / page size) has taken over
+    const rows = data || []
+    setHasMore(rows.length > q.limit)
+    setBookings(rows.slice(0, q.limit))
     setLoading(false)
+  }
+
+  function switchView(next) {
+    if (next === view) return
+    setLoading(true)
+    setBookings([])
+    setHasMore(false)
+    setLimit(PAGE_SIZE)
+    setView(next)
   }
 
   async function updateStatus(id, status) {
@@ -72,6 +108,7 @@ export default function BookingsPage() {
   }
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter)
+  const more = hasMore ? '+' : ''
 
   return (
     <div style={{ padding: '1.25rem' }}>
@@ -82,19 +119,18 @@ export default function BookingsPage() {
         </span>
       </div>
 
-      {actionError && (
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
-          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
-          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
-          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
-        }}>
-          <span>{actionError}</span>
-          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
-        </div>
-      )}
+      {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
-      <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
+      <div className="no-scrollbar bk-views" role="group" aria-label={t('dashboard:bookingsTitle')}>
+        {['upcoming', 'past'].map(v => (
+          <button key={v} type="button" className={`chip${view === v ? ' active' : ''}`}
+            aria-pressed={view === v} onClick={() => switchView(v)}>
+            {t(v === 'upcoming' ? 'dashboard:bookingsUpcoming' : 'dashboard:bookingsPast')}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
         {STATUSES.map(s => {
           const cnt = s === 'all' ? bookings.length : bookings.filter(b => b.status === s).length
           if (OPTIONAL_STATUSES.includes(s) && cnt === 0 && filter !== s) return null
@@ -102,8 +138,8 @@ export default function BookingsPage() {
             <button key={s} className={`chip${filter === s ? ' active' : ''}`}
               onClick={() => setFilter(s)}>
               {s === 'all'
-                ? t('dashboard:bookingFilterAll', { count: cnt })
-                : `${t(`dashboard:${STATUS_LABEL_KEYS[s]}`)} (${cnt})`}
+                ? t('dashboard:bookingFilterAll', { count: cnt, more })
+                : `${t(`dashboard:${STATUS_LABEL_KEYS[s]}`)} (${cnt}${more})`}
             </button>
           )
         })}
@@ -111,13 +147,14 @@ export default function BookingsPage() {
 
       {loading ? (
         <div style={{ color: 'var(--t3)' }}>{t('dashboard:loadingBookings')}</div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !hasMore ? (
         <div className="empty"><div className="empty-icon">📋</div>{t('dashboard:noBookings')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(b => {
             const sc = STATUS_STYLE[b.status] || STATUS_STYLE.pending
-            const dt = new Date(b.reserved_from)
+            // The restaurant's clock (Baku), not the viewer's: a 14:00 slot reads 14:00 on a phone set to another zone.
+            const guestPhone = showPhone ? b.users?.phone : null
             return (
               <div key={b.id} style={{
                 background:'var(--s2)', borderRadius:14,
@@ -136,9 +173,9 @@ export default function BookingsPage() {
                       <div style={{ fontWeight:700, fontSize:'0.92rem' }}>
                         {b.users?.name || t('dashboard:unknownGuest')}
                       </div>
-                      <div style={{ fontSize:'0.72rem', color:'var(--t2)', marginTop:2 }}>
-                        {b.users?.email || b.users?.phone || '—'}
-                      </div>
+                      {guestPhone && (
+                        <div style={{ fontSize:'0.72rem', color:'var(--t2)', marginTop:2 }}>{guestPhone}</div>
+                      )}
                     </div>
                     <span style={{
                       fontSize:'0.62rem', fontWeight:700, padding:'3px 9px', borderRadius:100,
@@ -149,9 +186,9 @@ export default function BookingsPage() {
 
                   <div style={{ display:'flex', gap:'0.65rem', fontSize:'0.8rem', color:'var(--t2)', marginBottom:'0.5rem', flexWrap:'wrap', alignItems:'center' }}>
                     <span style={{ fontWeight:600, color:'var(--t1)' }}>
-                      {dt.toLocaleDateString(localeTag(i18n.language), { day:'numeric', month:'short' })}
+                      {bakuDayLabel(b.reserved_from, i18n.language)}
                     </span>
-                    <span>{t('dashboard:atTime', { time: dt.toLocaleTimeString(localeTag(i18n.language), { hour:'2-digit', minute:'2-digit' }) })}</span>
+                    <span>{t('dashboard:atTime', { time: bakuTimeLabel(b.reserved_from, i18n.language) })}</span>
                     <span>·</span>
                     <span>{t('dashboard:bookingGuests', { count: b.party_size })}</span>
                     {b.tables?.table_number && <span>· {t('common:tableLabel', { number: b.tables.table_number })}</span>}
@@ -185,6 +222,11 @@ export default function BookingsPage() {
               </div>
             )
           })}
+          {hasMore && (
+            <button type="button" className="btn btn-ghost bk-load-more" onClick={() => setLimit(l => l + PAGE_SIZE)}>
+              {t('dashboard:bookingsLoadMore')}
+            </button>
+          )}
         </div>
       )}
     </div>

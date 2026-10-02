@@ -6,6 +6,11 @@ import { KDS_STATUS } from '@shared/constants'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
+import ActionBanner from '../components/ActionBanner'
+
+// A ticket whose order is already closed is not the kitchen's any more. The database completes or cancels those
+// tickets itself (sql/53); until it has, or where that is not deployed, the board hides them as well.
+const CLOSED_ORDER = ['cancelled', 'paid', 'refunded']
 
 function ticketUrgency(minutesElapsed) {
   if (minutesElapsed < 5)  return { level: 'fresh',   color: 'var(--green)' }
@@ -19,7 +24,13 @@ export default function KDSPage() {
   const { t } = useTranslation(['dashboard', 'common'])
   const [tickets, setTickets] = useState([])
   const [actionError, setActionError] = useState('')
-  const now = useNow(10000)
+  // Tickets with a write in flight. A ref (not state) so that a second click in the same tick is already refused;
+  // `pendingIds` mirrors it for the disabled look.
+  const pendingRef = useRef(new Set())
+  const [pendingIds, setPendingIds] = useState(() => new Set())
+  // How far the database clock is ahead of this device's, learned from the timestamps it wrote.
+  const skewRef = useRef(0)
+  const [now, refreshNow] = useNow(10000)
 
   const COLUMNS = [
     { status: 'new',       label: t('colNew'),       color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  textColor: '#fff' },
@@ -45,16 +56,33 @@ export default function KDSPage() {
   async function loadTickets() {
     const { data } = await supabase
       .from('kds_tickets')
-      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, category), orders(id, tables(table_number)))`)
+      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, category), orders(id, status, tables(table_number)))`)
       .eq('restaurant_id', restaurantId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('priority', { ascending: false })
-    setTickets(data || [])
+    const rows = (data || []).filter(tk => !CLOSED_ORDER.includes(tk.order_items?.orders?.status))
+    skewRef.current = serverClockSkew(rows)
+    // A ticket being advanced right now keeps its local (optimistic) state: a reload that was already in flight
+    // would otherwise drop it back into its old column, or bring back one the kitchen has just finished.
+    setTickets(prev => rows.flatMap(row => {
+      if (!pendingRef.current.has(row.id)) return [row]
+      const local = prev.find(p => p.id === row.id)
+      return local ? [local] : []
+    }))
+    refreshNow()
+  }
+
+  function setPending(id, on) {
+    if (on) pendingRef.current.add(id)
+    else pendingRef.current.delete(id)
+    setPendingIds(new Set(pendingRef.current))
   }
 
   async function advance(ticket) {
     const next = KDS_STATUS[ticket.status]?.next
-    if (!next) return
+    if (!next || pendingRef.current.has(ticket.id)) return
+    setPending(ticket.id, true)
+    refreshNow()
     const update = { status: next }
     if (next === 'preparing') update.started_at = new Date().toISOString()
     if (next === 'done') update.completed_at = new Date().toISOString()
@@ -64,8 +92,17 @@ export default function KDSPage() {
       : prev.map(t => t.id === ticket.id ? { ...t, ...update } : t)
     )
 
-    const error = writeError(await supabase.from('kds_tickets').update(update).eq('id', ticket.id).select('id'))
-    if (error) {
+    const res = await supabase.from('kds_tickets').update(update).eq('id', ticket.id).select('id, started_at')
+    const error = writeError(res)
+    if (!error) {
+      // The database stamps started_at from its own clock (sql/53); show that value, not this device's.
+      const serverStart = res.data?.[0]?.started_at
+      if (serverStart && next === 'preparing') {
+        // A server time ahead of this device's clock means the device lags: carry that into the elapsed times.
+        skewRef.current = Math.max(skewRef.current, Date.parse(serverStart) - Date.now())
+        setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, started_at: serverStart } : t))
+      }
+    } else {
       // revert: put the ticket back exactly as it was before the optimistic change
       setTickets(prev => prev.some(t => t.id === ticket.id)
         ? prev.map(t => t.id === ticket.id ? ticket : t)
@@ -73,9 +110,11 @@ export default function KDSPage() {
       )
       setActionError(friendlyError(error, t))
     }
+    setPending(ticket.id, false)
   }
 
   const allEmpty = tickets.length === 0
+  const boardNow = now + skewRef.current
 
   return (
     <div style={{ padding: '1.25rem', minHeight: '100vh' }}>
@@ -92,17 +131,7 @@ export default function KDSPage() {
         </span>
       </div>
 
-      {actionError && (
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
-          padding:'0.6rem 0.85rem', borderRadius:10, marginBottom:'0.85rem',
-          background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
-          color:'var(--red)', fontSize:'0.8rem', fontWeight:500,
-        }}>
-          <span>{actionError}</span>
-          <button onClick={() => setActionError('')} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', fontSize:'1rem', lineHeight:1 }}>✕</button>
-        </div>
-      )}
+      {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       <div className="kds-board">
         {allEmpty ? (
@@ -128,7 +157,8 @@ export default function KDSPage() {
                 {colTickets.length === 0
                   ? <div className="kds-empty-col">{t('allClear')}</div>
                   : colTickets.map(t => (
-                      <KDSTicket key={t.id} ticket={t} now={now} col={col} onAdvance={() => advance(t)} />
+                      <KDSTicket key={t.id} ticket={t} now={boardNow} col={col}
+                        busy={pendingIds.has(t.id)} onAdvance={() => advance(t)} />
                     ))
                 }
               </div>
@@ -140,7 +170,7 @@ export default function KDSPage() {
   )
 }
 
-function KDSTicket({ ticket, now, onAdvance, col }) {
+function KDSTicket({ ticket, now, onAdvance, col, busy }) {
   const { t } = useTranslation(['dashboard', 'common'])
   const meta = KDS_STATUS[ticket.status]
   const item = ticket.order_items
@@ -149,7 +179,8 @@ function KDSTicket({ ticket, now, onAdvance, col }) {
   // order_item in the same transaction, so order_items.created_at is the
   // ticket's real creation time. started_at (once set) is more precise.
   const since = ticket.started_at || item?.created_at
-  const elapsed = since ? Math.floor((now - new Date(since)) / 60000) : 0
+  // Never negative: `now` can be one tick old, and the timestamp can come from a clock a little ahead of it.
+  const elapsed = since ? Math.max(0, Math.floor((now - new Date(since)) / 60000)) : 0
   const urgency = ticketUrgency(elapsed)
   const urgencyClass = urgency.level === 'overdue' ? 'urgency-overdue' : urgency.level === 'late' ? 'urgency-late' : ''
 
@@ -178,7 +209,9 @@ function KDSTicket({ ticket, now, onAdvance, col }) {
       </div>
       {meta?.next && (
         <div className="kds-ticket-footer">
-          <button className="kds-advance-btn" onClick={onAdvance}
+          {/* detail > 1 is the 2nd click of a double-click: the list has already re-flowed, so it would hit the next ticket */}
+          <button className="kds-advance-btn" onClick={e => { if (e.detail > 1) return; onAdvance() }}
+            disabled={busy} aria-busy={busy || undefined}
             style={{ background: col.color, color: col.textColor }}>
             {ticket.status === 'new' ? t('kdsStartPreparing') : ticket.status === 'preparing' ? t('kdsMarkReady') : t('kdsDone')} →
           </button>
@@ -188,12 +221,27 @@ function KDSTicket({ ticket, now, onAdvance, col }) {
   )
 }
 
+/** Device clock, refreshed every `interval` ms and on demand: [now, refreshNow]. */
 function useNow(interval = 10000) {
   const [now, setNow] = useState(Date.now())
-  const ref = useRef()
+  const refresh = useRef(() => setNow(Date.now())).current
   useEffect(() => {
-    ref.current = setInterval(() => setNow(Date.now()), interval)
-    return () => clearInterval(ref.current)
-  }, [interval])
-  return now
+    const id = setInterval(refresh, interval)
+    return () => clearInterval(id)
+  }, [interval, refresh])
+  return [now, refresh]
+}
+
+// Clock-skew guard. order_items.created_at is written by the database, so a device whose clock runs behind sees it
+// "in the future". The newest such timestamp cannot be later than the real time, so the amount it is ahead of this
+// device's clock is added to `now`. (started_at is written by a staff device and is not used: another device's clock
+// would skew this one.) Never negative: a clock that runs ahead cannot be told from a long wait, and the elapsed time
+// is clamped at 0 anyway.
+function serverClockSkew(rows) {
+  let newest = 0
+  for (const tk of rows) {
+    const ms = tk.order_items?.created_at ? Date.parse(tk.order_items.created_at) : NaN
+    if (ms > newest) newest = ms
+  }
+  return newest ? Math.max(0, newest - Date.now()) : 0
 }

@@ -2,18 +2,26 @@ import { createContext, useContext, useEffect, useReducer, useRef, useState } fr
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { ratesFromAnswer } from '../features/dinein/pricing'
+import { rememberRates } from '../features/dinein/useOrderRates'
 
 const CartContext = createContext(null)
 
 function loadSession() {
   try {
     const raw = sessionStorage.getItem('rufesto_table_session')
-    return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false }
-  } catch { return { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false } }
+    return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, seatNo: null }
+  } catch { return { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, seatNo: null } }
 }
 
-function saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost) {
-  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId, sessionStatus, isHost }))
+function saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo) {
+  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo }))
+}
+
+// The chair (table_sessions.seat_no) as a positive integer, or null (no chair / unknown).
+function normSeat(v) {
+  const n = Number(v)
+  return Number.isInteger(n) && n > 0 ? n : null
 }
 
 function clearSession() {
@@ -59,11 +67,15 @@ function cartReducer(state, action) {
         startedAt: action.startedAt !== undefined
           ? action.startedAt
           : (action.tableId === state.tableId ? state.startedAt : null),
+        // The chair of this session (claim_table / my_table_session seat_no). `undefined` = caller doesn't know.
+        seatNo: action.seatNo !== undefined
+          ? action.seatNo
+          : (action.tableId === state.tableId ? state.seatNo : null),
       }
     case 'SET_STARTED_AT':
       return { ...state, startedAt: action.startedAt }
     case 'CLEAR_TABLE':
-      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, startedAt: null, items: [] }
+      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, startedAt: null, seatNo: null, items: [] }
     default:
       return state
   }
@@ -87,6 +99,7 @@ export function CartProvider({ children }) {
     activeBookingId: savedSession.activeBookingId,
     sessionStatus: savedSession.sessionStatus ?? null,
     isHost: savedSession.isHost ?? false,
+    seatNo: normSeat(savedSession.seatNo),
     // Not persisted: my_table_session() is the source of truth and re-supplies it on load.
     startedAt: null,
   })
@@ -138,10 +151,14 @@ export function CartProvider({ children }) {
 
   // Sets the local session only. Table state itself is now owned server-side by the
   // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
-  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt) {
+  // `seatNo` (optional, last): the guest's chair; left out = keep the one known for the same table.
+  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt, seatNo) {
     epochRef.current += 1
-    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt })
-    saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost)
+    const seat = seatNo !== undefined
+      ? normSeat(seatNo)
+      : (tableId === stateRef.current.tableId ? stateRef.current.seatNo : null)
+    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt, seatNo: seat })
+    saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seat)
   }
 
   // Claims a table by scanned QR token or typed access code via the claim_table RPC,
@@ -150,7 +167,7 @@ export function CartProvider({ children }) {
   async function claimTable(code) {
     const { data, error } = await supabase.rpc('claim_table', { p_code: code })
     if (error) return { error }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at, data.seat_no ?? null)
     return { data }
   }
 
@@ -176,7 +193,7 @@ export function CartProvider({ children }) {
       }
       return { data: null }
     }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null, data.seat_no ?? null)
     return { data }
   }
 
@@ -236,7 +253,20 @@ export function CartProvider({ children }) {
     if (!row?.order_id) return { error: t('errPlaceFailed') }
 
     dispatch({ type: 'CLEAR' })
-    return { order: { id: row.order_id, total: Number(row.total) || 0 } }
+    // The server's own amounts (recalculate_order_total): the confirmation shows exactly these, and the rates behind
+    // them make the next cart an exact preview instead of an estimate.
+    const money = v => (v == null ? null : Number(v))
+    const order = {
+      id: row.order_id,
+      total: Number(row.total) || 0,
+      subtotal: money(row.subtotal),
+      taxAmount: money(row.tax_amount),
+      serviceCharge: money(row.service_charge),
+    }
+    rememberRates(stateRef.current.restaurantId, ratesFromAnswer({
+      subtotal: order.subtotal, tax_amount: order.taxAmount, service_charge: order.serviceCharge,
+    }))
+    return { order }
   }
 
   // On app load and whenever the signed-in user changes: ask the server whether this guest is seated and make
@@ -263,7 +293,7 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items: state.items, total, itemCount,
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
-      sessionStatus: state.sessionStatus, isHost: state.isHost, startedAt: state.startedAt,
+      sessionStatus: state.sessionStatus, isHost: state.isHost, startedAt: state.startedAt, seatNo: state.seatNo,
       // A table in hand (cache or server) is enough to render; otherwise wait for the first server read.
       tableReady: synced || !!state.tableId,
       open, setOpen,

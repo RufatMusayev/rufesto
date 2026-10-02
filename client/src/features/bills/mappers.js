@@ -129,6 +129,7 @@ export function mapIntent(raw) {
   return {
     intentId: raw.intent_id,
     billId: raw.bill_id,
+    shareId: raw.share_id ?? null,
     status: raw.status,
     provider: raw.provider,
     amount: num(raw.amount),

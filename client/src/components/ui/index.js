@@ -1,6 +1,7 @@
 export { default as Avatar } from './Avatar'
 export { default as Sheet } from './Sheet'
 export { default as Pill } from './Pill'
+export { default as VerifiedPill } from './VerifiedPill'
 export { default as EmptyState } from './EmptyState'
 export { default as MoneyText } from './MoneyText'
 export { default as useEscapeClose } from './useEscapeClose'

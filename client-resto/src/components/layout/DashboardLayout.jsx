@@ -6,6 +6,7 @@ import { canAccess } from '../../lib/roles'
 import LanguageSwitcher from '../LanguageSwitcher'
 import v2Nav from '../../features/v2/nav'
 import MobileNav from './MobileNav'
+import { ExitIcon, MoonIcon, SunIcon } from './navIcons'
 
 export default function DashboardLayout() {
   const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
@@ -53,7 +54,7 @@ export default function DashboardLayout() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
               <span className="dash-live-dot" style={{ width: 5, height: 5 }} />
               <span className="dash-resto-role" style={{ marginTop: 0, color: 'var(--green)', fontSize: '0.62rem', fontWeight: 600 }}>
-                {staffRow?.role || t('staff')}
+                {staffRow?.role ? t(`v2:role_${staffRow.role}`, { defaultValue: staffRow.role }) : t('staff')}
               </span>
             </div>
           </div>
@@ -124,13 +125,4 @@ function BookingsIcon() {
 }
 function WaiterIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10 21a2 2 0 0 0 4 0" /></svg>
-}
-function ExitIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-}
-function SunIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
-}
-function MoonIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" /></svg>
 }

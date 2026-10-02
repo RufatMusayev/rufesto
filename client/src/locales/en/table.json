@@ -70,5 +70,15 @@
   "claimSignInBody": "Sign in and we'll seat you at the table you just scanned.",
   "claimConfirmTitle": "Join this table?",
   "claimConfirmBody": "We'll seat you here, and you can order from your phone.",
-  "claimJoin": "Join"
+  "claimJoin": "Join",
+  "statusSubmitted": "Sent to kitchen",
+  "statusPaid": "Paid",
+  "statusRefunded": "Refunded",
+  "timelineLabel": "Order progress",
+  "dishFallback": "Dish",
+  "seatNo": "Seat {{n}}",
+  "errInvalidSeat": "That seat doesn't exist at this table. Scan the code on your own seat or enter the table code.",
+  "errSeatTaken": "That seat is already taken. Pick another seat or enter the plain table code.",
+  "orderCancelledNote": "Order #{{number}} was cancelled by the restaurant.",
+  "tableCleared": "This table has been cleared. Open your bill or receipt below, then leave the table when you are done."
 }

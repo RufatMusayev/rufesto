@@ -7,7 +7,7 @@ const forceEnglish = url => ({ origin: new URL(url).origin, localStorage: [{ nam
 
 // Consumer specs: the app people use on phones. The `mobile` project runs exactly these (the dashboard
 // specs stay desktop-only) plus the mobile-only checklist.
-const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist)\.spec\.js$/
+const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist|feat-social|feat-profile|feat-notifications|feat-bookings|feat-discovery|feat-table|feat-bills)\.spec\.js$/
 
 module.exports = defineConfig({
   testDir: './tests',

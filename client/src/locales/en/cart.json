@@ -11,5 +11,10 @@
   "openCart": "Open cart",
   "crossRestaurantError": "This table is at a different restaurant. You can only order from the restaurant your table belongs to.",
   "pendingBlocked": "You're waiting for the host to let you in — you can't order yet.",
-  "rollbackFailed": "We couldn't place your order and couldn't fully undo it. Your cart is saved — please tell your waiter before ordering again."
+  "errNoSession": "You're not seated at a table. Scan the table's QR code to order.",
+  "errEmptyOrder": "Your cart is empty. Add something before placing an order.",
+  "errDishUnavailable": "One of the dishes just became unavailable. Remove it from your cart and try again.",
+  "errPlaceFailed": "We couldn't place your order. Your cart is saved, please try again.",
+  "orderRef": "Order #{{ref}}",
+  "goToTable": "Go to my table"
 }

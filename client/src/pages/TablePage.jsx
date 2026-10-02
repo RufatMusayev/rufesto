@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
@@ -13,9 +13,27 @@ import PendingJoin from '../components/table/PendingJoin'
 import TableParty from '../components/table/TableParty'
 import CallWaiterSheet from '../components/table/CallWaiterSheet'
 
+// Orders that belong to the guest's CURRENT visit: still in flight or served, never paid /
+// cancelled / refunded ones left over from an earlier visit to the same table.
+const CURRENT_VISIT_STATUSES = ['open', 'submitted', 'preparing', 'ready', 'served']
+
+// `startedAt` = table_sessions.started_at of the current visit (my_table_session().started_at).
+// When it is not known the status filter alone applies. `orders` has no created_at column;
+// placed_at (server default now()) is the equivalent creation timestamp.
+function fetchVisitOrders(tableId, userId, startedAt) {
+  let q = supabase
+    .from('orders')
+    .select('*, order_items(*, dishes(name, category, price))')
+    .eq('table_id', tableId)
+    .eq('user_id', userId)
+    .in('status', CURRENT_VISIT_STATUSES)
+  if (startedAt) q = q.gte('placed_at', startedAt)
+  return q.order('placed_at', { ascending: true })
+}
+
 export default function TablePage() {
   const { t } = useTranslation(['table', 'booking', 'common'])
-  const { tableId, restaurantId, setTable, claimTable, clearTable, sessionStatus } = useCart()
+  const { tableId, restaurantId, setTable, claimTable, clearTable, sessionStatus, startedAt, syncStartedAt } = useCart()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [tableInfo, setTableInfo] = useState(null)
@@ -29,14 +47,13 @@ export default function TablePage() {
   const [paymentState, setPaymentState] = useState(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
+  // Realtime callbacks outlive the render that created them: read the visit start via a ref.
+  const startedAtRef = useRef(startedAt)
+  startedAtRef.current = startedAt
+
   function refetchOrders() {
     if (!session || !tableId) return
-    supabase
-      .from('orders')
-      .select('*, order_items(*, dishes(name, category, price))')
-      .eq('table_id', tableId)
-      .eq('user_id', session.user.id)
-      .order('placed_at', { ascending: true })
+    fetchVisitOrders(tableId, session.user.id, startedAtRef.current)
       .then(({ data }) => setOrders(data || []))
   }
 
@@ -68,12 +85,11 @@ export default function TablePage() {
       }
 
       if (session) {
-        const { data } = await supabase
-          .from('orders')
-          .select('*, order_items(*, dishes(name, category, price))')
-          .eq('table_id', tableId)
-          .eq('user_id', session.user.id)
-          .order('placed_at', { ascending: true })
+        // A booking/QR path may have seated the guest without the visit start; fetch it once
+        // so earlier (paid) orders at this table never show up in this visit.
+        const started = startedAtRef.current || await syncStartedAt()
+        if (cancelled) return
+        const { data } = await fetchVisitOrders(tableId, session.user.id, started)
         if (cancelled) return
         setOrders(data || [])
       }

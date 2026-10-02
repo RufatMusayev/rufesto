@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, categoryEmoji, dishBackground } from '../lib/helpers'
@@ -7,10 +8,12 @@ import AuthModal from './AuthModal'
 
 export default function CartSheet() {
   const { t } = useTranslation(['cart', 'common'])
-  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, restaurantId, tableId, activeBookingId } = useCart()
+  const { items, total, open, setOpen, remove, decrement, addDish, placeOrder, placing, tableId } = useCart()
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [showAuth, setShowAuth] = useState(false)
-  const [ordered,  setOrdered]  = useState(false)
+  // Set to { id, total } once place_order succeeds: the sheet stays open and shows the confirmation.
+  const [placed,   setPlaced]   = useState(null)
   const [error,    setError]    = useState('')
   const [submitted, setSubmitted] = useState(false)
   const { handleProps, sheetStyle } = useSwipeDismiss(() => setOpen(false))
@@ -27,10 +30,10 @@ export default function CartSheet() {
     if (submitted) return
     setSubmitted(true)
     setError('')
-    const { error: err, order } = await placeOrder(restaurantId, tableId, activeBookingId)
+    const { error: err, order } = await placeOrder(tableId)
     setSubmitted(false)
     if (err) { setError(err); return }
-    if (order) setOrdered(true)
+    if (order) setPlaced(order)
   }
 
   useEffect(() => {
@@ -42,6 +45,12 @@ export default function CartSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
+  // Any way of closing the sheet (overlay, swipe, X) must also drop the confirmation, so the
+  // next open shows the cart again instead of a stale "Order placed" panel.
+  useEffect(() => {
+    if (!open) setPlaced(null)
+  }, [open])
+
   if (!open) return null
 
   function handlePlace() {
@@ -51,8 +60,8 @@ export default function CartSheet() {
 
   const grand = total
 
-  if (ordered) return (
-    <div className="overlay" onClick={() => { setOrdered(false); setOpen(false) }}>
+  if (placed) return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && setOpen(false)}>
       <div className="sheet" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
         <div className="sheet-handle" />
         <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
@@ -73,10 +82,18 @@ export default function CartSheet() {
             {t('cart:orderPlacedHint')}
           </p>
         </div>
-        <button className="btn btn-primary" style={{ width: '100%' }}
-          onClick={() => { setOrdered(false); setOpen(false) }}>
-          {t('common:done')}
-        </button>
+        <div className="cart-placed-summary">
+          <span className="cart-placed-ref">{t('cart:orderRef', { ref: String(placed.id).slice(0, 8).toUpperCase() })}</span>
+          <span className="cart-placed-total">{formatPrice(placed.total)}</span>
+        </div>
+        <div className="cart-placed-actions">
+          <button className="btn btn-primary" onClick={() => { setOpen(false); navigate('/table') }}>
+            {t('cart:goToTable')}
+          </button>
+          <button className="btn btn-ghost" onClick={() => setOpen(false)}>
+            {t('common:done')}
+          </button>
+        </div>
       </div>
     </div>
   )

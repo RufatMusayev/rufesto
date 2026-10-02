@@ -558,3 +558,9 @@ a.btn { text-decoration: none; }
 /* Active-booking banner above the no-table empty state (features/bookings ActiveBookingBanner) */
 .table-empty-banner { max-width: 400px; margin: 0 auto; padding: 16px 16px 0; }
 .table-empty-banner:empty { display: none; }
+
+/* Cart sheet "order placed" confirmation (components/CartSheet) */
+.cart-placed-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--s2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 1rem; text-align: left; }
+.cart-placed-ref { font-family: 'DM Mono', monospace; font-size: 0.82rem; font-weight: 600; color: var(--t2); }
+.cart-placed-total { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 800; color: var(--accent); }
+.cart-placed-actions { display: flex; flex-direction: column; gap: 8px; }

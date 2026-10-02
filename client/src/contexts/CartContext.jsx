@@ -54,12 +54,29 @@ function cartReducer(state, action) {
         activeBookingId: action.activeBookingId,
         sessionStatus: action.sessionStatus ?? null,
         isHost: action.isHost ?? false,
+        // Start of this visit (table_sessions.started_at). `undefined` = caller doesn't know:
+        // keep the known value for the same table, otherwise unknown (null).
+        startedAt: action.startedAt !== undefined
+          ? action.startedAt
+          : (action.tableId === state.tableId ? state.startedAt : null),
       }
+    case 'SET_STARTED_AT':
+      return { ...state, startedAt: action.startedAt }
     case 'CLEAR_TABLE':
-      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, items: [] }
+      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, startedAt: null, items: [] }
     default:
       return state
   }
+}
+
+// Maps place_order's RAISE EXCEPTION texts to translated messages (cart namespace).
+function placeOrderErrorMessage(error, t) {
+  const msg = error?.message || ''
+  if (msg.includes('no_session'))       return t('errNoSession')
+  if (msg.includes('empty_order'))      return t('errEmptyOrder')
+  if (msg.includes('dish_unavailable')) return t('errDishUnavailable')
+  console.error('place_order failed:', msg)
+  return t('errPlaceFailed')
 }
 
 export function CartProvider({ children }) {
@@ -70,7 +87,11 @@ export function CartProvider({ children }) {
     activeBookingId: savedSession.activeBookingId,
     sessionStatus: savedSession.sessionStatus ?? null,
     isHost: savedSession.isHost ?? false,
+    // Not persisted: my_table_session() is the source of truth and re-supplies it on load.
+    startedAt: null,
   })
+  const stateRef = useRef(state)
+  stateRef.current = state
   const [open, setOpen]       = useState(false)
   const [placing, setPlacing] = useState(false)
   const [cartError, setCartError] = useState('')
@@ -109,8 +130,8 @@ export function CartProvider({ children }) {
 
   // Sets the local session only. Table state itself is now owned server-side by the
   // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
-  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false) {
-    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost })
+  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt) {
+    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt })
     saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost)
   }
 
@@ -120,7 +141,7 @@ export function CartProvider({ children }) {
   async function claimTable(code) {
     const { data, error } = await supabase.rpc('claim_table', { p_code: code })
     if (error) return { error }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at)
     return { data }
   }
 
@@ -135,8 +156,20 @@ export function CartProvider({ children }) {
       clearSession()
       return { data: null }
     }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null)
     return { data }
+  }
+
+  // Reads only the visit start (my_table_session().started_at) for the CURRENT table, without
+  // touching or clearing the local session (the dev demo table has no server session). Used by
+  // TablePage to scope the order list to this visit when a path (e.g. a booking) seated the guest
+  // without supplying it. Resolves to the ISO timestamp, or null when unknown.
+  async function syncStartedAt() {
+    const { data, error } = await supabase.rpc('my_table_session')
+    if (error || !data || data.table_id !== stateRef.current.tableId) return null
+    const startedAt = data.started_at ?? null
+    if (startedAt) dispatch({ type: 'SET_STARTED_AT', startedAt })
+    return startedAt
   }
 
   async function clearTable(release = false) {
@@ -151,63 +184,30 @@ export function CartProvider({ children }) {
     clearSession()
   }
 
-  async function placeOrder(restaurantId, tableId, bookingId = null) {
+  // Places the whole cart as ONE atomic server-side call (place_order RPC): the order and its
+  // items are created together or not at all, so a navigation/crash mid-request can no longer
+  // leave an empty open order blocking the table. Prices are resolved server-side from the
+  // dishes table — only dish ids and quantities are sent. The cart stays open (CartSheet shows
+  // the confirmation); the cart items are cleared on success and kept on any error so the
+  // guest can simply retry.
+  async function placeOrder(tableId = state.tableId) {
     if (!session || state.items.length === 0) return { error: t('notReady') }
     if (state.sessionStatus === 'pending') return { error: t('pendingBlocked') }
     setPlacing(true)
 
-    const subtotal = total
-
-    const { data: order, error: orderErr } = await supabase
-      .from('orders')
-      .insert({
-        restaurant_id: restaurantId,
-        table_id:      tableId,
-        user_id:       session.user.id,
-        booking_id:    bookingId,
-        status:        'open',
-        subtotal,
-        tax_amount:     0,
-        service_charge: 0,
-        total_amount:   subtotal,
-        placed_at:     new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (orderErr) { setPlacing(false); return { error: orderErr.message } }
-
-    const orderItems = state.items.map(i => ({
-      order_id:   order.id,
-      dish_id:    i.dish.id,
-      quantity:   i.qty,
-      unit_price: i.dish.price,
-    }))
-
-    const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-
-    if (itemsErr) {
-      // Roll the half-created order back server-side: `authenticated` has no DELETE grant on
-      // `orders`, so a direct delete would fail silently and leave an orphan (item-less) order
-      // on the table. The cart is kept either way so the guest can simply retry.
-      const { error: cancelErr } = await supabase.rpc('cancel_order_draft', { p_order_id: order.id })
-      if (cancelErr?.code === 'PGRST202') {
-        // The RPC isn't deployed on this database yet (pre sql/36): keep the old behaviour,
-        // attempt the direct delete and ignore its result.
-        await supabase.from('orders').delete().eq('id', order.id)
-      } else if (cancelErr) {
-        setPlacing(false)
-        console.error('cancel_order_draft failed:', cancelErr.message)
-        return { error: t('rollbackFailed') }
-      }
-      setPlacing(false)
-      return { error: itemsErr.message }
-    }
-
+    const { data, error } = await supabase.rpc('place_order', {
+      p_table_id: tableId,
+      p_items: state.items.map(i => ({ dish_id: i.dish.id, qty: i.qty })),
+      p_notes: null,
+    })
     setPlacing(false)
+
+    if (error) return { error: placeOrderErrorMessage(error, t) }
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row?.order_id) return { error: t('errPlaceFailed') }
+
     dispatch({ type: 'CLEAR' })
-    setOpen(false)
-    return { order }
+    return { order: { id: row.order_id, total: Number(row.total) || 0 } }
   }
 
   // On app load, if sessionStorage carried a table session over, confirm it's still
@@ -228,7 +228,7 @@ export function CartProvider({ children }) {
         dispatch({ type: 'CLEAR_TABLE' })
         clearSession()
       } else {
-        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id, sessionStatus: data.session_status, isHost: data.is_host })
+        dispatch({ type: 'SET_TABLE', tableId: data.table_id, restaurantId: data.restaurant_id, activeBookingId: data.booking_id, sessionStatus: data.session_status, isHost: data.is_host, startedAt: data.started_at ?? null })
         saveSession(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host)
       }
     })
@@ -240,7 +240,7 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items: state.items, total, itemCount,
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
-      sessionStatus: state.sessionStatus, isHost: state.isHost,
+      sessionStatus: state.sessionStatus, isHost: state.isHost, startedAt: state.startedAt,
       open, setOpen,
       placing,
       cartError, clearCartError,
@@ -250,6 +250,7 @@ export function CartProvider({ children }) {
       setTable,
       claimTable,
       refreshTableSession,
+      syncStartedAt,
       clearTable,
       placeOrder,
       clear: () => dispatch({ type: 'CLEAR' }),

@@ -11,5 +11,10 @@
   "openCart": "Səbəti aç",
   "crossRestaurantError": "Bu masa başqa restorana aiddir. Yalnız masanızın olduğu restorandan sifariş verə bilərsiniz.",
   "pendingBlocked": "Masa sahibinin sizi buraxmasını gözləyirsiniz — hələ sifariş verə bilməzsiniz.",
-  "rollbackFailed": "Sifarişiniz verilmədi və tam geri qaytarıla bilmədi. Səbətiniz saxlanılıb — yenidən sifariş verməzdən əvvəl ofisiantınıza bildirin."
+  "errNoSession": "Siz masa arxasında deyilsiniz. Sifariş vermək üçün masanın QR kodunu skan edin.",
+  "errEmptyOrder": "Səbətiniz boşdur. Sifariş verməzdən əvvəl nəsə əlavə edin.",
+  "errDishUnavailable": "Yeməklərdən biri indicə əlçatmaz oldu. Onu səbətdən çıxarıb yenidən cəhd edin.",
+  "errPlaceFailed": "Sifarişiniz verilə bilmədi. Səbətiniz saxlanılıb, yenidən cəhd edin.",
+  "orderRef": "Sifariş №{{ref}}",
+  "goToTable": "Masama keç"
 }

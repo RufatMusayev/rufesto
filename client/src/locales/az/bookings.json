@@ -1,39 +1,41 @@
 {
   "navBookings": "Rezervasiyalar",
-  "bookWithFriends": "Dostlarla rezerv et",
-  "withFriends": "Dostlarla",
+  "reserve": "Masa ayır",
   "partyOf": "{{n}} qonaq",
   "signIn": {
     "title": "Davam etmək üçün daxil olun",
-    "body": "Rezervasiyalar hesabınıza bağlıdır ki, dostlar qoşula bilsin və restoran sizinlə əlaqə saxlaya bilsin.",
+    "body": "Rezervasiyalar hesabınıza bağlıdır ki, restoran sizinlə əlaqə saxlaya bilsin və dostlar qoşula bilsin.",
     "button": "Daxil ol"
   },
   "wizard": {
-    "title": "Dostlarla rezervasiya",
+    "title": "Masa ayır",
     "stepOf": "Addım {{n}} / {{total}}",
     "pickDate": "Tarixi seçin",
     "today": "Bu gün",
     "partySize": "Qonaq sayı",
     "fewer": "Qonaqları azalt",
     "more": "Qonaqları artır",
-    "guests": "qonaq",
+    "guests_one": "qonaq",
+    "guests_other": "qonaq",
     "next": "Davam et",
     "pickTime": "Vaxtı seçin",
+    "whoTitle": "Kimlər gəlir?",
     "closedDay": "Restoran bu tarixdə bağlıdır.",
     "anotherDay": "Başqa gün seçin",
     "noSlots": "Bu gün seçdiyiniz qonaq sayı üçün boş masa yoxdur.",
     "unavailableHint": "Solğun vaxtlar doludur və ya çox yaxındır.",
     "signInToContinue": "Davam etmək üçün daxil olun",
     "signInTitle": "Rezervasiya üçün daxil olun",
-    "signInBody": "Dostlarınızın qoşulması və restoranın sizinlə əlaqə saxlaması üçün hesab lazımdır.",
+    "signInBody": "Restoranın sizinlə əlaqə saxlaması və dostlarınızın qoşulması üçün hesab lazımdır.",
     "create": "Rezerv et və link al",
+    "request": "Rezervasiya sorğusu göndər",
     "creating": "Rezervasiya yaradılır…",
     "changeTime": "Başqa vaxt seçin",
     "notFoundTitle": "Restoran tapılmadı",
     "notFoundBody": "Bu restoran rezervasiya üçün əlçatan deyil.",
     "browse": "Restoranlara bax",
-    "disabledTitle": "Qrup rezervasiyası əlçatan deyil",
-    "disabledBody": "Bu restoran hazırda onlayn qrup rezervasiyası qəbul etmir.",
+    "disabledTitle": "Onlayn rezervasiya əlçatan deyil",
+    "disabledBody": "Bu restoran hazırda onlayn rezervasiya qəbul etmir.",
     "backToRestaurant": "Restorana qayıt"
   },
   "summary": {
@@ -41,7 +43,18 @@
     "date": "Tarix",
     "time": "Vaxt",
     "party": "Qonaqlar",
-    "guests": "{{n}} qonaq"
+    "guests_one": "{{count}} qonaq",
+    "guests_other": "{{count}} qonaq",
+    "friends": "Dostlar",
+    "inviteOn": "Dəvət linki",
+    "inviteOff": "Dəvət yoxdur"
+  },
+  "who": {
+    "inviteTitle": "Dostları dəvət et",
+    "inviteBody_one": "Paylaşmaq üçün link alın. Bir dost bu rezervasiyaya qoşula bilər.",
+    "inviteBody_other": "Paylaşmaq üçün link alın. {{count}} dosta qədər bu rezervasiyaya qoşula bilər.",
+    "onHint": "Rezerv edən kimi linki alacaqsınız.",
+    "offHint": "Adınıza {{count}} nəfərlik masa paylaşma linki olmadan rezerv olunacaq."
   },
   "form": {
     "name": "Adınız",
@@ -56,7 +69,11 @@
   "created": {
     "title": "Rezervasiya yaradıldı",
     "pendingNote": "Restoran tezliklə təsdiq edəcək. Dostlarınızın qoşulması üçün linki paylaşın.",
-    "view": "Rezervasiyaya bax"
+    "view": "Rezervasiyaya bax",
+    "requestTitle": "Sorğu göndərildi",
+    "requestNote": "Restoran rezervasiyanızı təsdiqləyəcək. Statusu profilinizdə Rezervasiyalar bölməsində izləyə bilərsiniz.",
+    "confirmedTitle": "Rezervasiya təsdiqləndi",
+    "confirmedNote": "Masanız təsdiqlənib. Sizi gözləyirik."
   },
   "invite": {
     "title": "Dostlarınızı dəvət edin",
@@ -106,7 +123,7 @@
   "detail": {
     "title": "Rezervasiya",
     "signInTitle": "Rezervasiyanı görmək üçün daxil olun",
-    "signInBody": "Qrup rezervasiyaları hesabınıza bağlıdır.",
+    "signInBody": "Rezervasiyalar hesabınıza bağlıdır.",
     "members": "Kimlər gəlir",
     "openSeat": "Boş yer",
     "moreSeats": "+{{n}} daha",
@@ -155,7 +172,7 @@
     "not_authenticated": "Davam etmək üçün daxil olun.",
     "consent_required": "Adınızı və telefonunuzu restoranla paylaşmağa razılıq verin.",
     "restaurant_not_found": "Bu restoran əlçatan deyil.",
-    "bookings_disabled": "Bu restoran hazırda onlayn qrup rezervasiyası qəbul etmir.",
+    "bookings_disabled": "Bu restoran hazırda onlayn rezervasiya qəbul etmir.",
     "invalid_party_size": "Bu qonaq sayı qəbul edilmir. Başqa say seçin.",
     "invalid_name": "2-80 simvolluq ad daxil edin.",
     "invalid_phone": "Telefon nömrəsi düzgün görünmür.",
@@ -188,7 +205,7 @@
     "no_session": "Masa sessiyanız tapılmadı. Təşkilatçıdan yenidən qeydiyyat etməsini xahiş edin.",
     "generic": "Xəta baş verdi. Yenidən cəhd edin.",
     "network": "Serverə qoşulmaq alınmadı. İnternet bağlantınızı yoxlayıb yenidən cəhd edin.",
-    "unavailable": "Qrup rezervasiyası hələ əlçatan deyil. Sonra yenidən cəhd edin.",
+    "unavailable": "Rezervasiya hələ əlçatan deyil. Sonra yenidən cəhd edin.",
     "not_allowed": "Bu əməliyyata icazəniz yoxdur."
   }
 }

@@ -1,0 +1,190 @@
+/* Profile screen. Prefix pf-. Tokens only; the gold tint is the same rgba as Pill tone="gold". */
+
+.pf-page { max-width: 470px; margin: 0 auto; padding: 16px 0 80px; }
+
+/* ------------------------------------------------------------ header card */
+.pf-head { margin: 0 16px; }
+/* burgundy wash with a gold glow where the avatar sits */
+.pf-cover {
+  height: 72px; opacity: 0.55;
+  background: radial-gradient(90% 150% at 50% 115%, rgba(196,154,44,0.7), transparent 65%), var(--accent);
+}
+.pf-head-body { display: flex; flex-direction: column; align-items: center; padding: 0 16px 16px; text-align: center; }
+.pf-avatar { position: relative; margin-top: -40px; }
+.pf-name { max-width: 100%; margin-top: 10px; font-size: 1.35rem; line-height: 1.25; color: var(--t1); overflow-wrap: anywhere; }
+
+.pf-credits {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 10px 5px 12px;
+  border-radius: 100px; border: 1px solid rgba(196,154,44,0.4); background: rgba(196,154,44,0.12);
+  color: var(--gold); font-size: 0.8rem; font-weight: 600;
+  transition: transform var(--t-fast), background-color var(--t-ui);
+}
+.pf-credits:active { transform: scale(0.97); }
+
+.pf-stats { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-top: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pf-stat { padding: 10px 4px; border: none; background: none; color: inherit; font-family: inherit; transition: background-color var(--t-ui); }
+.pf-stat + .pf-stat { border-left: 1px solid var(--border); }
+.pf-stat:active { background: var(--s3); }
+.pf-stat .pf-stat-num { font-family: 'DM Mono', 'Courier New', monospace; font-size: 1.15rem; font-weight: 700; }
+.pf-stat-sk { width: 32px; height: 20px; margin: 0 auto 3px; }
+
+.pf-actions { display: flex; gap: 8px; width: 100%; margin-top: 14px; }
+.pf-action { flex: 1; min-width: 0; min-height: 40px; padding: 0 8px; white-space: nowrap; }
+.pf-gear { flex: 0 0 44px; min-height: 40px; padding: 0; }
+.pf-friends-slot { flex: 1; min-width: 0; display: flex; }
+/* FriendsEntry is the social feature's list row; here it is restyled as a button of the action row. */
+.pf-friends-slot .soc-entry {
+  flex: 1; min-width: 0; justify-content: center; gap: 8px; min-height: 40px; padding: 0 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--s3);
+  transition: background-color var(--t-ui), transform var(--t-fast);
+}
+.pf-friends-slot .soc-entry:active { transform: scale(0.97); }
+.pf-friends-slot .soc-entry-label { flex: 0 1 auto; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.pf-friends-slot .soc-entry-icon, .pf-friends-slot .soc-entry-chev { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .pf-friends-slot .soc-entry:hover { background: var(--s4); }
+  .pf-credits:hover { background: rgba(196,154,44,0.2); }
+  .pf-stat:hover { background: var(--s3); }
+}
+
+.pf-credits:focus-visible, .pf-stat:focus-visible, .pf-tab:focus-visible, .pf-card:focus-visible,
+.pf-row-link:focus-visible, .pf-tile:focus-visible, .pf-set-row:focus-visible, .pf-switch:focus-visible,
+.pf-rate-btn:focus-visible, .pf-link-btn:focus-visible, .pf-friends-slot .soc-entry:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.pf-stat:focus-visible { outline-offset: -2px; }
+
+.pf-sk-avatar { width: 77px; height: 77px; border-radius: 50%; }
+.pf-sk-name { width: 150px; height: 22px; margin-top: 10px; }
+.pf-sk-pill { width: 120px; height: 28px; margin-top: 8px; border-radius: 100px; }
+.pf-sk-stats { width: 100%; height: 58px; margin-top: 14px; border-radius: 0; }
+.pf-sk-actions { width: 100%; height: 40px; margin-top: 14px; border-radius: 8px; }
+
+/* ------------------------------------------------------------------- tabs */
+/* Sticks under the 56px app header on mobile (--sticky-top), at the top on desktop. */
+.pf-tabs-bar {
+  position: sticky; top: var(--sticky-top); z-index: 40; margin-top: 12px; padding: 8px 16px;
+  background: var(--bg); border-bottom: 1px solid var(--border); scroll-margin-top: var(--sticky-top);
+}
+.pf-seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; border: 1px solid var(--border); background: var(--s2); }
+.pf-tab {
+  flex: 0 0 38px; min-width: 0; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0; border: none; border-radius: 9px; background: transparent; color: var(--t2);
+  font-family: inherit; font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+  transition: background-color var(--t-ui), color var(--t-ui), transform var(--t-fast);
+}
+.pf-tab:active { transform: scale(0.97); }
+.pf-tab.active { flex: 1 1 auto; padding: 0 10px; background: var(--t1); color: var(--bg); }
+.pf-tab-label { display: none; overflow: hidden; text-overflow: ellipsis; }
+.pf-tab.active .pf-tab-label { display: inline; }
+.pf-tab svg { flex-shrink: 0; }
+
+/* ----------------------------------------------------------------- panels */
+.pf-panel { min-height: 220px; padding: 16px; }
+.pf-list { display: flex; flex-direction: column; gap: 8px; }
+.pf-error { color: var(--red); font-size: 0.82rem; line-height: 1.4; }
+
+/* own posts: edge to edge like /u/:id */
+.pf-grid { margin: 0 -16px; }
+.pf-tile { display: block; position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: var(--s3); }
+.pf-tile img { width: 100%; height: 100%; object-fit: cover; }
+.pf-tile-sk { border-radius: 0; }
+.pf-tile-missing { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--t3); }
+.pf-tile-text {
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+  padding: 10px; font-size: 0.72rem; line-height: 1.35; color: var(--t2);
+}
+.pf-tile-new {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px;
+  border: 1.5px dashed var(--border-strong); background: transparent; color: var(--t2);
+  font-size: 0.7rem; font-weight: 600; text-align: center; cursor: pointer;
+}
+
+/* list rows (reviews, saved, visits) */
+.pf-sk-row { height: 64px; border-radius: 12px; }
+.pf-sk-tall { height: 88px; }
+.pf-card { display: block; color: inherit; }
+.pf-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; }
+.pf-row-link { flex: 1; min-width: 0; align-items: center; border-radius: 12px; }
+.pf-thumb { width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.3rem; }
+.pf-thumb-logo { overflow: hidden; background: var(--s3); }
+.pf-thumb-logo img { width: 100%; height: 100%; object-fit: cover; }
+.pf-row-main { flex: 1; min-width: 0; }
+.pf-row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.pf-row-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 700; color: var(--t1); }
+.pf-row-sub { margin-top: 1px; font-size: 0.72rem; color: var(--t3); }
+.pf-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.pf-row-meta .pf-row-sub { margin-top: 0; font-size: 0.75rem; }
+.pf-row-text { margin-top: 4px; font-size: 0.82rem; line-height: 1.4; color: var(--t2); overflow-wrap: anywhere; }
+.pf-row-pill { margin-top: 6px; }
+.pf-stars { flex-shrink: 0; font-size: 0.78rem; letter-spacing: 1px; color: var(--gold); }
+.pf-soldout { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; color: var(--red); }
+.pf-saved { display: flex; align-items: center; }
+.pf-remove { flex-shrink: 0; margin-right: 4px; color: var(--t3); }
+.pf-visit-end { display: flex; align-items: center; gap: 4px; flex-shrink: 0; align-self: center; color: var(--t3); }
+
+/* ----------------------------------------------------------------- sheets */
+.pf-form { display: flex; flex-direction: column; gap: 14px; }
+.pf-readonly { padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--s2); color: var(--t2); font-size: 0.88rem; overflow-wrap: anywhere; }
+.pf-hint { margin-top: 6px; font-size: 0.76rem; line-height: 1.45; color: var(--t3); }
+.pf-hint-top { margin-top: 0; }
+.pf-optional { font-weight: 400; color: var(--t3); }
+.pf-textarea { min-height: 96px; resize: vertical; font-family: inherit; }
+.pf-sheet-actions { display: flex; gap: 8px; }
+.pf-sheet-actions .btn { flex: 1; padding: 0.7rem 1rem; }
+.pf-block { width: 100%; padding: 0.7rem 1rem; }
+
+.pf-set-list { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.pf-set-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 2px;
+  border: none; border-bottom: 1px solid var(--border); background: none; color: var(--t1);
+  font-family: inherit; font-size: 0.9rem; text-align: left;
+}
+.pf-set-icon { display: flex; flex-shrink: 0; color: var(--t2); }
+.pf-set-label { flex: 1; min-width: 0; font-weight: 500; }
+.pf-set-link { cursor: pointer; }
+.pf-set-link > svg:last-child { flex-shrink: 0; color: var(--t3); }
+.pf-set-danger .pf-set-icon, .pf-set-danger .pf-set-label { color: var(--red); }
+.pf-delete-note { margin-top: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: 0.82rem; line-height: 1.5; color: var(--t2); }
+.pf-delete-note .btn { margin-top: 10px; }
+.pf-signout { margin-top: 20px; }
+
+.pf-switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; border: none; border-radius: 14px; background: var(--s4); transition: background-color var(--t-ui); }
+.pf-switch.on { background: var(--accent); }
+.pf-switch-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #F5F0E8; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform var(--t-ui); }
+.pf-switch.on .pf-switch-knob { transform: translateX(20px); }
+
+.pf-credits-sum { display: flex; align-items: flex-end; gap: 28px; }
+.pf-credits-num { font-size: 1.6rem; font-weight: 800; line-height: 1.2; color: var(--gold); }
+.pf-credits-num-muted { color: var(--t2); }
+.pf-credits-label { font-size: 0.68rem; color: var(--t3); }
+.pf-credits-tier { margin-left: auto; padding-bottom: 4px; }
+.pf-sheet-sub { margin: 18px 0 6px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--t3); }
+.pf-sk-tx { height: 40px; margin-bottom: 6px; border-radius: 8px; }
+.pf-tx-list { list-style: none; }
+.pf-tx { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.pf-tx-name { font-size: 0.84rem; font-weight: 500; color: var(--t1); }
+.pf-tx-time { font-size: 0.68rem; color: var(--t3); }
+.pf-tx-delta { font-size: 0.86rem; font-weight: 700; }
+.pf-tx-delta.pos { color: var(--sage-text); }
+.pf-tx-delta.neg { color: var(--red); }
+
+.pf-rate { display: flex; gap: 2px; }
+.pf-rate-btn { padding: 2px 4px; border: none; background: none; font-size: 1.6rem; line-height: 1; color: var(--t3); transition: color var(--t-fast), transform var(--t-fast); }
+.pf-rate-btn.on { color: var(--gold); }
+.pf-rate-btn:active { transform: scale(0.9); }
+.pf-thanks { padding: 12px 0 4px; text-align: center; }
+.pf-thanks-icon { width: 48px; height: 48px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--sage); border-radius: 50%; background: rgba(77,124,63,0.12); color: var(--sage-text); }
+.pf-thanks .btn { margin-top: 12px; }
+
+/* ------------------------------------------------------------- signed out */
+.pf-signedout { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 16px 0; padding: 32px 24px; text-align: center; }
+.pf-signedout-icon { font-size: 2.6rem; line-height: 1; }
+.pf-signedout-title { font-size: 1.4rem; color: var(--t1); }
+.pf-signedout-body { font-size: 0.86rem; line-height: 1.6; color: var(--t2); }
+.pf-signedout-cta { margin-top: 4px; padding: 12px 32px; font-size: 0.9rem; }
+.pf-link-btn { padding: 8px; border: none; background: none; font-size: 0.8rem; color: var(--t2); text-decoration: underline; text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-tab, .pf-credits, .pf-stat, .pf-switch, .pf-switch-knob, .pf-rate-btn { transition: none; }
+}

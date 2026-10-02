@@ -1,747 +1,98 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useTheme } from '../contexts/ThemeContext'
-import { supabase } from '../lib/supabase'
-import { rsrc } from '../lib/publicSource'
-import { formatPrice, timeAgo, categoryEmoji, dishBackground } from '../lib/helpers'
 import AuthModal from '../components/AuthModal'
-import LoadError from '../components/LoadError'
-import { FriendsEntry } from '../features/social/mounts'
-import { MyBookingsTab as BookingsTab } from '../features/bookings/mounts'
+// FriendsEntry (features/social) is hosted inside ProfileHeader's action row.
+import { MyBookingsTab } from '../features/bookings/mounts'
+import '../features/profile/styles.css'
+import { useProfileData } from '../features/profile/hooks'
+import ProfileHeader from '../features/profile/components/ProfileHeader'
+import HeaderSkeleton from '../features/profile/components/HeaderSkeleton'
+import SignedOutCard from '../features/profile/components/SignedOutCard'
+import ProfileTabs, { TAB_IDS, tabDomId, panelDomId } from '../features/profile/components/ProfileTabs'
+import PostsPanel from '../features/profile/components/PostsPanel'
+import ReviewsPanel from '../features/profile/components/ReviewsPanel'
+import SavedPanel from '../features/profile/components/SavedPanel'
+import VisitsPanel from '../features/profile/components/VisitsPanel'
+import EditProfileSheet from '../features/profile/components/EditProfileSheet'
+import SettingsSheet from '../features/profile/components/SettingsSheet'
+import CreditsSheet from '../features/profile/components/CreditsSheet'
+import FeedbackSheet from '../features/profile/components/FeedbackSheet'
 
-function FeedbackForm({ userId, defaultName, defaultEmail }) {
-  const { t } = useTranslation(['profile', 'common'])
-  const [fbName,    setFbName]    = useState(defaultName || '')
-  const [fbEmail,   setFbEmail]   = useState(defaultEmail || '')
-  const [fbMsg,     setFbMsg]     = useState('')
-  const [fbRating,  setFbRating]  = useState(0)
-  const [fbLoading, setFbLoading] = useState(false)
-  const [fbError,   setFbError]   = useState('')
-  const [fbDone,    setFbDone]    = useState(false)
-
-  async function handleFeedback(e) {
-    e.preventDefault()
-    if (!fbName.trim()) return setFbError(t('profile:errNameRequired'))
-    if (!fbRating)      return setFbError(t('profile:errSelectRating'))
-    if (!fbMsg.trim())  return setFbError(t('profile:errWriteMessage'))
-    setFbError('')
-    setFbLoading(true)
-    const { error } = await supabase.from('feedback').insert({
-      user_id: userId || null,
-      name: fbName.trim(),
-      email: fbEmail.trim() || null,
-      message: fbMsg.trim(),
-      rating: fbRating || null,
-    })
-    setFbLoading(false)
-    if (error) return setFbError(error.message || t('profile:errSendFailed'))
-    setFbDone(true)
-    setFbMsg('')
-    setFbRating(0)
-  }
-
-  if (fbDone) return (
-    <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-      <div style={{
-        width: 48, height: 48, borderRadius: '50%',
-        background: 'rgba(77,124,63,0.12)', border: '1px solid var(--sage)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 12px',
-      }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      </div>
-      <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{t('profile:feedbackThanks')}</div>
-      <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>{t('profile:feedbackThanksHint')}</p>
-      <button className="btn btn-ghost" onClick={() => setFbDone(false)}>{t('profile:sendAnother')}</button>
-    </div>
-  )
-
-  return (
-    <form onSubmit={handleFeedback}>
-      <label className="label">{t('profile:fbName')}</label>
-      <input className="input" value={fbName} onChange={e => setFbName(e.target.value)}
-        placeholder={t('profile:fbName')} style={{ marginBottom: '0.75rem' }} />
-
-      <label className="label">{t('profile:fbEmail')} <span style={{ color: 'var(--t4)', fontWeight: 400 }}>{t('profile:fbEmailOptional')}</span></label>
-      <input className="input" type="email" value={fbEmail} onChange={e => setFbEmail(e.target.value)}
-        placeholder={t('profile:fbEmailPlaceholder')} style={{ marginBottom: '0.75rem' }} />
-
-      <label className="label">{t('profile:fbRating')}</label>
-      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
-        {[1, 2, 3, 4, 5].map(n => (
-          <button key={n} type="button" onClick={() => setFbRating(fbRating === n ? 0 : n)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
-              fontSize: '1.5rem', color: n <= fbRating ? 'var(--gold)' : 'var(--s4)',
-              transition: 'color 0.15s',
-            }}>
-            &#9733;
-          </button>
-        ))}
-      </div>
-
-      <label className="label">{t('profile:fbMessage')}</label>
-      <textarea className="input" value={fbMsg} onChange={e => setFbMsg(e.target.value)}
-        placeholder={t('profile:fbMessagePlaceholder')} rows={4}
-        style={{ marginBottom: '0.75rem', resize: 'vertical', fontFamily: 'inherit' }} />
-
-      {fbError && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{fbError}</p>}
-
-      <button className="btn btn-primary" type="submit" style={{ width: '100%' }} disabled={fbLoading}>
-        {fbLoading ? t('profile:sending') : t('profile:sendFeedback')}
-      </button>
-    </form>
-  )
-}
-
-const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
-
+/** Profile: header card (avatar, credits, counters, actions), sticky tabs, one panel per tab, and the sheets. */
 export default function ProfilePage() {
-  const { t } = useTranslation(['profile', 'auth', 'common'])
-  const { session, profile, signOut, updateProfile } = useAuth()
-  const { theme, toggle: toggleTheme } = useTheme()
+  const navigate = useNavigate()
+  const { session, profile, loading } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const [sheet, setSheet] = useState(null) // null | 'edit' | 'settings' | 'credits' | 'feedback'
   const [showAuth, setShowAuth] = useState(false)
-  const [tab,      setTab]      = useState('profile')
-  const [editing,  setEditing]  = useState(false)
-  const [name,     setName]     = useState(profile?.name || '')
-  const [editPhone, setEditPhone] = useState(profile?.phone || '')
-  const [editError, setEditError] = useState('')
-  const [saving,   setSaving]   = useState(false)
 
-  async function handleSave() {
-    if (!name.trim()) { setEditError(t('profile:errNameRequired')); return }
-    const trimmedPhone = editPhone.trim()
-    if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
-      setEditError(t('profile:errInvalidPhone'))
-      return
-    }
-    setEditError('')
-    setSaving(true)
-    const { error } = await updateProfile({ name: name.trim(), phone: trimmedPhone || null })
-    setSaving(false)
-    if (error) { setEditError(error.message || t('profile:errSaveFailed')); return }
-    setEditing(false)
+  const userId = session?.user?.id || null
+  const requested = params.get('tab')
+  const tab = TAB_IDS.includes(requested) ? requested : 'posts'
+  const data = useProfileData(userId, tab)
+
+  useEffect(() => { if (!session) setSheet(null) }, [session])
+
+  const closeSheet = () => setSheet(null)
+  function selectTab(id) {
+    setParams(id === 'posts' ? {} : { tab: id }, { replace: true })
+  }
+  function jumpToTab(id) {
+    selectTab(id)
+    const bar = document.getElementById('pf-tabs')
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    bar?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' })
   }
 
-  if (!session) return (
-    <div style={{ maxWidth: 470, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 16 }}>🍽️</div>
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, marginBottom: 8, color: 'var(--t1)' }}>
-          {t('auth:welcomeToRufesto')}
-        </h2>
-        <p style={{ fontSize: '0.86rem', color: 'var(--t2)', lineHeight: 1.6, marginBottom: 24 }}>
-          {t('auth:signInPrompt')}
-        </p>
-        <button onClick={() => setShowAuth(true)} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '0.9rem' }}>
-          {t('auth:signIn')}
-        </button>
+  if (loading) return <div className="pf-page"><HeaderSkeleton /></div>
+
+  if (!session) {
+    return (
+      <div className="pf-page">
+        <SignedOutCard onSignIn={() => setShowAuth(true)} onFeedback={() => setSheet('feedback')} />
+        <FeedbackSheet open={sheet === 'feedback'} onClose={closeSheet} />
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
-
-      <div style={{ margin: '0 16px 24px' }}>
-        <div className="card" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
-            {t('profile:shareFeedback')}
-          </h3>
-          <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-            {t('profile:feedbackPromptGuest')}
-          </p>
-          <FeedbackForm />
-        </div>
-      </div>
-
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-    </div>
-  )
-
-  const TABS = [
-    { id: 'profile',  label: t('profile:tabProfile')  },
-    { id: 'reviews',  label: t('profile:tabReviews')  },
-    { id: 'orders',   label: t('profile:tabOrders')   },
-    { id: 'bookings', label: t('profile:tabBookings') },
-    { id: 'saved',    label: t('profile:tabSaved')    },
-  ]
-
-  return (
-    <div style={{ maxWidth: 470, margin: '0 auto', paddingBottom: 80 }}>
-      {/* Profile header */}
-      <div style={{ padding: '24px 16px 16px', textAlign: 'center' }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'var(--s4)', margin: '0 auto 12px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1.8rem', fontWeight: 700, color: 'var(--accent)',
-          border: '2px solid var(--border-strong)',
-          overflow: 'hidden',
-        }}>
-          {profile?.profile_photo ? (
-            <img src={profile.profile_photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            (profile?.name || session.user?.email || 'U')[0].toUpperCase()
-          )}
-        </div>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-          {profile?.name || t('profile:yourProfile')}
-        </h1>
-        <p style={{ fontSize: '0.78rem', color: 'var(--t3)' }}>{profile?.email || session.user?.email}</p>
-
-        <PointsBadge userId={session.user.id} />
-      </div>
-
-      {/* Tab navigation */}
-      <div className="no-scrollbar" style={{
-        display: 'flex', gap: 0,
-        borderBottom: '1px solid var(--border)',
-        padding: '0 16px', overflowX: 'auto',
-      }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              flexShrink: 0, padding: '10px 16px',
-              border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: '0.8rem', fontWeight: tab === t.id ? 700 : 500,
-              color: tab === t.id ? 'var(--t1)' : 'var(--t3)',
-              borderBottom: `2px solid ${tab === t.id ? 'var(--accent)' : 'transparent'}`,
-              transition: 'color 150ms, border-color 150ms',
-              whiteSpace: 'nowrap',
-              marginBottom: -1,
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: '16px' }}>
-        {tab === 'profile' && (
-          <div>
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-              {/* Email (always shown, read-only) */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('profile:email')}</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--t2)' }}>{profile?.email || session.user.email}</div>
-              </div>
-
-              {/* Phone display (when not editing) */}
-              {!editing && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--t4)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('profile:phone')}</div>
-                  <div style={{ fontSize: '0.85rem', color: profile?.phone ? 'var(--t2)' : 'var(--t4)' }}>
-                    {profile?.phone || t('profile:notSet')}
-                  </div>
-                </div>
-              )}
-
-              {editing ? (
-                <div>
-                  <label className="label" style={{ fontSize: '0.72rem' }}>{t('profile:name')}</label>
-                  <input className="input" placeholder={t('profile:name')} value={name}
-                    onChange={e => setName(e.target.value)} style={{ marginBottom: '0.75rem' }} />
-                  <label className="label" style={{ fontSize: '0.72rem' }}>{t('profile:phone')}</label>
-                  <input className="input" type="tel" placeholder="+994 50 123 4567" value={editPhone}
-                    onChange={e => setEditPhone(e.target.value)} style={{ marginBottom: '0.75rem' }} />
-                  {editError && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{editError}</p>}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-                      {saving ? t('common:saving') : t('common:save')}
-                    </button>
-                    <button className="btn btn-ghost" onClick={() => { setEditing(false); setEditError('') }}>{t('common:cancel')}</button>
-                  </div>
-                </div>
-              ) : (
-                <button className="btn btn-ghost" style={{ width: '100%' }}
-                  onClick={() => { setEditing(true); setName(profile?.name || ''); setEditPhone(profile?.phone || ''); setEditError('') }}>
-                  {t('profile:editProfile')}
-                </button>
-              )}
-            </div>
-
-            <PointsCard userId={session.user.id} />
-
-            {/* Settings */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
-              <FriendsEntry />
-              {/* Theme toggle row */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 0', borderBottom: '1px solid var(--border)',
-              }}>
-                <span style={{ fontSize: '0.86rem', color: 'var(--t1)', fontWeight: 500 }}>
-                  {theme === 'dark' ? t('profile:darkMode') : t('profile:lightMode')}
-                </span>
-                <button onClick={toggleTheme} style={{
-                  width: 48, height: 28, borderRadius: 14,
-                  background: theme === 'dark' ? 'var(--accent)' : 'var(--s4)',
-                  border: 'none', cursor: 'pointer', position: 'relative',
-                  transition: 'background 0.2s',
-                }}>
-                  <div style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: 'var(--bg)',
-                    position: 'absolute', top: 3,
-                    left: theme === 'dark' ? 23 : 3,
-                    transition: 'left 0.2s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.65rem',
-                  }}>
-                    {theme === 'dark' ? '🌙' : '☀️'}
-                  </div>
-                </button>
-              </div>
-
-              <button className="btn btn-danger" style={{ width: '100%', marginTop: 16 }} onClick={signOut}>
-                {t('profile:signOut')}
-              </button>
-            </div>
-
-            <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>
-                {t('profile:shareFeedback')}
-              </h3>
-              <p style={{ fontSize: '0.82rem', color: 'var(--t3)', marginBottom: '1rem' }}>
-                {t('profile:feedbackPromptUser')}
-              </p>
-              <FeedbackForm userId={session.user.id} defaultName={profile?.name} defaultEmail={profile?.email} />
-            </div>
-          </div>
-        )}
-
-        {tab === 'reviews'  && <ReviewsTab  userId={session.user.id} />}
-        {tab === 'orders'   && <OrdersTab   userId={session.user.id} />}
-        {tab === 'bookings' && <BookingsTab userId={session.user.id} />}
-        {tab === 'saved'    && <SavedTab    userId={session.user.id} />}
-      </div>
-    </div>
-  )
-}
-
-function PointsBadge({ userId }) {
-  const { t } = useTranslation('profile')
-  const [points, setPoints] = useState(null)
-
-  useEffect(() => {
-    supabase
-      .from('loyalty_accounts')
-      .select('points, tier')
-      .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setPoints(data) })
-      .catch(() => {})
-  }, [userId])
-
-  if (!points || !points.points) return null
-
-  return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      marginTop: 10, padding: '5px 14px', borderRadius: 100,
-      background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
-    }}>
-      <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>
-      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
-        {t('profile:creditsBadge', { count: points.points })}
-      </span>
-    </div>
-  )
-}
-
-function OrdersTab({ userId }) {
-  const { t, i18n } = useTranslation(['profile', 'common'])
-  const [orders,  setOrders]  = useState([])
-  const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(new Set())
-
-  useEffect(() => {
-    supabase
-      .from('orders')
-      .select('*, order_items(quantity, unit_price, special_request, dishes(name, category)), tables(table_number)')
-      .eq('user_id', userId)
-      .order('placed_at', { ascending: false })
-      .limit(20)
-      .then(({ data }) => { setOrders(data || []); setLoading(false) })
-  }, [userId])
-
-  function toggleExpand(id) {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    )
   }
 
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-      {[1,2,3].map(i => (
-        <div key={i} className="skeleton" style={{ height: 72, borderRadius: 12 }} />
-      ))}
-    </div>
-  )
-
-  if (!orders.length) return (
-    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🧾</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noOrders')}</div>
-      <div style={{ fontSize: '0.82rem' }}>{t('profile:noOrdersHint')}</div>
-    </div>
-  )
-
-  const STATUS_COLOR = {
-    open:      { color: 'var(--accent)',  bg: 'rgba(245,158,11,0.08)' },
-    submitted: { color: '#3b82f6',        bg: 'rgba(59,130,246,0.08)' },
-    preparing: { color: 'var(--warning)', bg: 'rgba(186,117,23,0.08)' },
-    ready:     { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
-    served:    { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
-    done:      { color: 'var(--t3)',      bg: 'var(--s3)'             },
-    completed: { color: 'var(--sage)',    bg: 'var(--sage-bg)'        },
-    cancelled: { color: 'var(--red)',     bg: 'rgba(239,68,68,0.08)'  },
-  }
+  const countsLoading = data.counts.status === 'idle' || data.counts.status === 'loading'
+  const email = profile?.email || session.user?.email || ''
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {orders.map(o => {
-        const sc   = STATUS_COLOR[o.status] || STATUS_COLOR.open
-        const open = expanded.has(o.id)
-        return (
-          <div key={o.id} className="card stagger-item" style={{ padding: '1rem', cursor: 'pointer' }}
-            onClick={() => toggleExpand(o.id)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--t1)' }}>
-                {t('profile:itemCount', { count: o.order_items?.length || 0 })}
-                {o.tables?.table_number && (
-                  <span style={{ color: 'var(--t3)', fontWeight: 400 }}> · {t('common:tableLabel', { number: o.tables.table_number })}</span>
-                )}
-              </div>
-              <span style={{
-                fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
-                background: sc.bg, color: sc.color,
-              }}>{o.status.toUpperCase()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--t3)' }}>
-              <span style={{ fontFamily: "'DM Mono', monospace" }}>{timeAgo(o.placed_at, i18n.language)}</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
-            </div>
+    <div className="pf-page">
+      <ProfileHeader
+        name={profile?.name}
+        email={email}
+        photo={profile?.profile_photo}
+        counts={data.counts.data}
+        countsLoading={countsLoading}
+        credits={data.credits.data}
+        onEdit={() => setSheet('edit')}
+        onSettings={() => setSheet('settings')}
+        onCredits={() => setSheet('credits')}
+        onStat={jumpToTab}
+        onFriends={() => navigate('/friends')}
+      />
 
-            {open && o.order_items?.length > 0 && (
-              <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                {o.order_items.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '0.3rem' }}>
-                    <span style={{ color: 'var(--t1)' }}>{item.quantity}× {item.dishes?.name}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--t3)' }}>{formatPrice(item.unit_price * item.quantity)}</span>
-                  </div>
-                ))}
-                <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>{t('common:subtotal')}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.subtotal)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    {/* Percentage derived from the order's own server-computed amounts —
-                        never a hardcoded rate, since restaurants configure their own tax/service. */}
-                    <span>{t('common:taxPct', { pct: o.subtotal > 0 ? Math.round((o.tax_amount / o.subtotal) * 100) : 0 })}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.tax_amount)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--t4)' }}>
-                    <span>{t('common:servicePct', { pct: o.subtotal > 0 ? Math.round((o.service_charge / o.subtotal) * 100) : 0 })}</span><span style={{ fontFamily: "'DM Mono', monospace" }}>{formatPrice(o.service_charge)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, marginTop: 4 }}>
-                    <span>{t('common:total')}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--accent)' }}>{formatPrice(o.total_amount)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div style={{ textAlign: 'right', fontSize: '0.7rem', color: 'var(--t4)', marginTop: 6 }}>
-              {open ? t('profile:collapse') : t('profile:details')}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+      <ProfileTabs value={tab} onChange={selectTab} />
 
-function txReasonLabel(reason, t) {
-  if (reason === 'review_posted') return t('profile:txReviewPosted')
-  if (reason === 'redeemed') return t('profile:txRedeemed')
-  if (!reason) return t('profile:txAdjustment')
-  const label = reason.replace(/_/g, ' ')
-  return label[0].toUpperCase() + label.slice(1)
-}
-
-function PointsCard({ userId }) {
-  const { t, i18n } = useTranslation('profile')
-  const [account, setAccount] = useState(null)
-  const [transactions, setTransactions] = useState([])
-
-  useEffect(() => {
-    supabase
-      .from('loyalty_accounts')
-      .select('points, tier, points_earned, points_spent')
-      .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data }) => setAccount(data || { points: 0, tier: 'bronze', points_earned: 0, points_spent: 0 }))
-      .catch(() => setAccount({ points: 0, tier: 'bronze', points_earned: 0, points_spent: 0 }))
-
-    supabase
-      .from('loyalty_transactions')
-      .select('id, delta, reason, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10)
-      .then(({ data }) => setTransactions(data || []))
-      .catch(() => {})
-  }, [userId])
-
-  if (!account) return null
-
-  const TIER_COLORS = {
-    bronze:   { color: '#CD7F32', bg: 'rgba(205,127,50,0.08)' },
-    silver:   { color: '#A0A0A0', bg: 'rgba(160,160,160,0.08)' },
-    gold:     { color: 'var(--gold)', bg: 'rgba(196,154,44,0.08)' },
-    platinum: { color: '#8FA8B8', bg: 'rgba(143,168,184,0.08)' },
-  }
-  const tc = TIER_COLORS[account.tier] || TIER_COLORS.bronze
-
-  return (
-    <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '1.2rem' }}>🪙</span>
-          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--t1)' }}>{t('profile:restoCredits')}</span>
-        </div>
-        <span style={{
-          fontSize: '0.62rem', fontWeight: 700, padding: '3px 8px', borderRadius: 100,
-          background: tc.bg, color: tc.color, textTransform: 'uppercase', letterSpacing: 0.5,
-        }}>
-          {account.tier}
-        </span>
+      <div className="pf-panel" role="tabpanel" id={panelDomId(tab)} aria-labelledby={tabDomId(tab)}>
+        {tab === 'posts' && <PostsPanel resource={data.posts} />}
+        {tab === 'bookings' && <MyBookingsTab userId={userId} />}
+        {tab === 'reviews' && <ReviewsPanel resource={data.reviews} />}
+        {tab === 'saved' && <SavedPanel resource={data.saved} />}
+        {tab === 'visits' && <VisitsPanel resource={data.visits} />}
       </div>
-      <div style={{ display: 'flex', gap: 24 }}>
-        <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--gold)' }}>
-            {account.points}
-          </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{t('profile:creditsAvailable')}</div>
-        </div>
-        <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.5rem', fontWeight: 900, color: 'var(--t2)' }}>
-            {account.points_earned}
-          </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{t('profile:creditsEarned')}</div>
-        </div>
-      </div>
-      <p style={{ fontSize: '0.72rem', color: 'var(--t4)', marginTop: 10 }}>
-        {t('profile:creditsRule')}
-      </p>
 
-      {transactions.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
-          <div style={{
-            fontSize: '0.68rem', fontWeight: 700, color: 'var(--t4)',
-            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
-          }}>
-            {t('profile:recentActivity')}
-          </div>
-          {transactions.map(tx => (
-            <div key={tx.id} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '5px 0',
-            }}>
-              <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--t1)', fontWeight: 500 }}>
-                  {txReasonLabel(tx.reason, t)}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--t4)', fontFamily: "'DM Mono', monospace" }}>
-                  {timeAgo(tx.created_at, i18n.language)}
-                </div>
-              </div>
-              <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '0.82rem', fontWeight: 700,
-                color: tx.delta >= 0 ? 'var(--sage)' : 'var(--red)',
-              }}>
-                {tx.delta >= 0 ? `+${tx.delta}` : tx.delta}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ReviewsTab({ userId }) {
-  const { t, i18n } = useTranslation('profile')
-  const navigate = useNavigate()
-  const [reviews, setReviews] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    supabase
-      .from('reviews')
-      .select(`*, dishes(name, category, price, restaurant_id, ${rsrc()}(name, slug))`)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(30)
-      .then(({ data, error }) => {
-        if (error) { console.error('Reviews load failed:', error.message); setLoadError(true) }
-        else setReviews(data || [])
-        setLoading(false)
-      })
-  }, [userId, attempt])
-
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-      {[1,2,3].map(i => (
-        <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />
-      ))}
-    </div>
-  )
-
-  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
-
-  if (!reviews.length) return (
-    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>⭐</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noReviews')}</div>
-      <div style={{ fontSize: '0.82rem' }}>{t('profile:noReviewsHint')}</div>
-    </div>
-  )
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {reviews.map(r => (
-        <div key={r.id} className="card stagger-item" style={{ padding: '12px', cursor: 'pointer' }}
-          onClick={() => r.dishes?.restaurants?.slug && navigate(`/restaurant/${r.dishes.restaurants.slug}`)}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-              background: dishBackground(r.dishes?.category),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.3rem',
-            }}>
-              {categoryEmoji(r.dishes?.category)}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t1)' }}>
-                  {r.dishes?.name || 'Dish'}
-                </div>
-                <span style={{ color: 'var(--gold)', fontSize: '0.78rem', flexShrink: 0, marginLeft: 8 }}>
-                  {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
-                </span>
-              </div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.72rem', color: 'var(--t3)', marginTop: 1 }}>
-                {r.dishes?.restaurants?.name} · {timeAgo(r.created_at, i18n.language)}
-              </div>
-              {r.body && (
-                <p style={{ fontSize: '0.82rem', color: 'var(--t2)', marginTop: 4, lineHeight: 1.4 }}>
-                  {r.body}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function SavedTab({ userId }) {
-  const { t } = useTranslation(['profile', 'common'])
-  const navigate = useNavigate()
-  const [saved, setSaved] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    supabase
-      .from('saved_dishes')
-      .select(`*, dishes(id, name, category, price, available, restaurant_id, ${rsrc()}(name, slug))`)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) { console.error('Saved dishes load failed:', error.message); setLoadError(true) }
-        else setSaved(data || [])
-        setLoading(false)
-      })
-  }, [userId, attempt])
-
-  async function handleRemove(id) {
-    setSaved(prev => prev.filter(s => s.id !== id))
-    await supabase.from('saved_dishes').delete().eq('id', id)
-  }
-
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-      {[1,2,3].map(i => (
-        <div key={i} className="skeleton" style={{ height: 64, borderRadius: 12 }} />
-      ))}
-    </div>
-  )
-
-  if (loadError) return <LoadError onRetry={() => { setLoadError(false); setLoading(true); setAttempt(a => a + 1) }} />
-
-  if (!saved.length) return (
-    <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>🍽️</div>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('profile:noSaved')}</div>
-      <div style={{ fontSize: '0.82rem' }}>{t('profile:noSavedHint')}</div>
-    </div>
-  )
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {saved.map(s => {
-        const dish = s.dishes
-        if (!dish) return null
-        return (
-          <div key={s.id} className="card stagger-item" style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-            cursor: 'pointer',
-          }} onClick={() => dish.restaurants?.slug && navigate(`/restaurant/${dish.restaurants.slug}`)}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-              background: dishBackground(dish.category),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.3rem',
-              opacity: dish.available ? 1 : 0.5,
-            }}>
-              {categoryEmoji(dish.category)}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t1)' }}>
-                {dish.name}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
-                  {dish.restaurants?.name}
-                </span>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent)' }}>
-                  {formatPrice(dish.price)}
-                </span>
-                {!dish.available && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase' }}>{t('common:soldOut')}</span>
-                )}
-              </div>
-            </div>
-            <button onClick={e => { e.stopPropagation(); handleRemove(s.id) }} style={{
-              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        )
-      })}
+      <EditProfileSheet open={sheet === 'edit'} onClose={closeSheet} profile={profile} email={email} />
+      <SettingsSheet open={sheet === 'settings'} onClose={closeSheet} onFeedback={() => setSheet('feedback')} />
+      <CreditsSheet open={sheet === 'credits'} onClose={closeSheet} userId={userId} credits={data.credits.data} />
+      <FeedbackSheet
+        open={sheet === 'feedback'} onClose={closeSheet}
+        userId={userId} defaultName={profile?.name} defaultEmail={email}
+      />
     </div>
   )
 }

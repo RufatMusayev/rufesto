@@ -5,7 +5,8 @@ import { qrDataUrl } from '../qrImage'
 const CHUNK = 6
 
 /**
- * Generates QR images for `tables` ({ id, code }) in chunks of 6 so the page
+ * Generates QR images for `tables` ({ id, code }: table cards and seat cards from
+ * qrCards.js, `code` is the table code or `<code>-S<n>`) in chunks of 6 so the page
  * stays responsive. `images[id]` is a PNG data URL, 'error' or undefined
  * (pending). `progress` is { done, total } while generating, else null.
  * `retry(id)` regenerates one failed card.

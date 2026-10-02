@@ -1,0 +1,98 @@
+/* Map page.
+   The wrapper is its own stacking context (isolation: isolate). Leaflet's panes and controls use
+   z-index 400-1000; without a containing context those values live in the root context and paint
+   ABOVE the app shell (header 50, bottom nav 90, overlays/sheets/modals 200), so opening the auth
+   modal or the QR sheet from the bottom nav left the whole map showing on top of it. */
+.map-page {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.map-canvas { width: 100%; height: 100%; }
+
+/* Same 768px breakpoint as AppLayout (BottomNav <-> Sidebar). The map card sits between the
+   sticky header and the bottom nav, so its height is the dynamic viewport minus the chrome. */
+@media (max-width: 768px) {
+  .map-page {
+    height: calc(100vh - var(--nav-h) - var(--bottom-h) - 40px);
+    height: calc(100dvh - var(--nav-h) - var(--bottom-h) - 40px);
+    margin: 8px 8px 32px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* Search overlay */
+.map-search {
+  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg); border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+.map-search svg { flex-shrink: 0; }
+.map-search-text { font-size: 0.86rem; color: var(--t3); font-family: 'DM Sans', system-ui; }
+
+/* Restaurant chips along the bottom */
+.map-chips {
+  position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1000;
+  display: flex; gap: 8px; overflow-x: auto;
+  padding-bottom: 4px;
+}
+.map-chip {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  min-width: 160px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+.map-chip:active { transform: scale(0.97); }
+.map-chip.is-selected { background: var(--accent); border-color: var(--accent); }
+.map-chip-text { text-align: left; }
+.map-chip-name { font-size: 0.78rem; font-weight: 600; color: var(--t1); white-space: nowrap; }
+.map-chip-sub { font-size: 0.66rem; color: var(--t3); white-space: nowrap; }
+.map-chip.is-selected .map-chip-name { color: #F5F0E8; }
+.map-chip.is-selected .map-chip-sub { color: rgba(245, 240, 232, 0.7); }
+
+/* Keep Leaflet's zoom buttons (bottom-right) above the chip row instead of hidden behind it. */
+.map-page--chips .leaflet-control-zoom { margin-bottom: 76px; }
+
+/* Cuisine colours, shared by the on-map pin and the chip dot. */
+.map-pin, .map-dot {
+  --pin: #8B2D42;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--pin);
+  font-size: 15px; flex-shrink: 0;
+}
+.map-pin--italian,      .map-dot--italian      { --pin: #e74c3c; }
+.map-pin--azerbaijani,  .map-dot--azerbaijani  { --pin: #27ae60; }
+.map-pin--japanese,     .map-dot--japanese     { --pin: #3498db; }
+.map-dot { width: 36px; height: 36px; }
+.map-pin {
+  width: 36px; height: 36px;
+  border: 3px solid #F5F0E8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+/* Marker popup (DOM built in MapPage.jsx) */
+.map-popup { font-family: 'DM Sans', system-ui; text-align: center; min-width: 140px; padding: 4px 0; }
+.map-popup-name { font-family: 'Playfair Display', serif; font-size: 14px; color: #1a120e; }
+.map-popup-meta { font-size: 11px; color: #8B6B5A; }
+/* .map-popup prefix: must outrank leaflet.css's ".leaflet-container a" link colour. */
+.map-popup .map-popup-link {
+  display: inline-block; margin-top: 8px; padding: 6px 16px;
+  background: #8B2D42; color: #F5F0E8;
+  border-radius: 8px; font-size: 11px; font-weight: 700; text-decoration: none;
+  font-family: 'DM Sans', system-ui;
+}

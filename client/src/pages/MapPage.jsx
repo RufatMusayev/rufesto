@@ -8,6 +8,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
+import './MapPage.css'
 
 // Vite fingerprints/relocates these assets at build time, so Leaflet's own hardcoded
 // default-icon URLs (which assume a classic /images/ path next to leaflet.js) 404 unless
@@ -21,51 +22,43 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 })
 
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth <= 768)
-  useEffect(() => {
-    const h = () => setMobile(window.innerWidth <= 768)
-    window.addEventListener('resize', h)
-    return () => window.removeEventListener('resize', h)
-  }, [])
-  return mobile
-}
-
 const BAKU_CENTER = [40.4093, 49.8671]
 
-const CUISINE_COLORS = {
-  italian: '#e74c3c',
-  azerbaijani: '#27ae60',
-  japanese: '#3498db',
+// Whitelist of cuisines that have a colour in MapPage.css; anything else gets the default.
+// The result goes into a class name, so it must never echo owner-controlled text.
+const KNOWN_CUISINES = ['italian', 'azerbaijani', 'japanese']
+function cuisineKey(r) {
+  const c = r.cuisine_type?.toLowerCase()
+  return KNOWN_CUISINES.includes(c) ? c : 'default'
 }
 
 // Builds the marker popup as real DOM nodes (never innerHTML) so restaurant-owner-
 // controlled fields (name, cuisine, address) can never inject markup, and wires the
 // "view menu" link through react-router's navigate instead of a plain <a href> that
 // would force a full page reload.
-function buildPopupContent(r, t, navigate) {
+function buildPopupContent(r, t, go) {
   const wrap = document.createElement('div')
-  wrap.style.cssText = "font-family:'DM Sans',system-ui;text-align:center;min-width:140px;padding:4px 0;"
+  wrap.className = 'map-popup'
 
   const strong = document.createElement('strong')
-  strong.style.cssText = "font-family:'Playfair Display',serif;font-size:14px;color:#1a120e;"
+  strong.className = 'map-popup-name'
   strong.textContent = r.name
   wrap.appendChild(strong)
   wrap.appendChild(document.createElement('br'))
 
   const meta = document.createElement('span')
-  meta.style.cssText = 'font-size:11px;color:#8B6B5A;'
+  meta.className = 'map-popup-meta'
   meta.textContent = `${r.cuisine_type || ''} · ${r.address || 'Baku'}`
   wrap.appendChild(meta)
   wrap.appendChild(document.createElement('br'))
 
   const link = document.createElement('a')
+  link.className = 'map-popup-link'
   link.href = `/restaurant/${r.slug}`
   link.textContent = t('map:viewMenu')
-  link.style.cssText = "display:inline-block;margin-top:8px;padding:6px 16px;background:#8B2D42;color:#F5F0E8;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;font-family:'DM Sans',system-ui;"
   link.addEventListener('click', e => {
     e.preventDefault()
-    navigate(`/restaurant/${r.slug}`)
+    go(`/restaurant/${r.slug}`)
   })
   wrap.appendChild(link)
 
@@ -74,176 +67,135 @@ function buildPopupContent(r, t, navigate) {
 
 export default function MapPage() {
   const { t } = useTranslation(['map', 'common'])
-  const mapRef = useRef(null)
-  const mapInstance = useRef(null)
+  const navigate = useNavigate()
+  const containerRef = useRef(null)
   const markersRef = useRef({})
+  const navigateRef = useRef(navigate)
+  const [map, setMap] = useState(null)
   const [restaurants, setRestaurants] = useState([])
   const [selected, setSelected] = useState(null)
-  const navigate = useNavigate()
-  const isMobile = useIsMobile()
+
+  // react-router hands out a new navigate() on every location change; popups call it through a
+  // ref so the markers are not torn down and rebuilt just because the URL changed.
+  useEffect(() => { navigateRef.current = navigate }, [navigate])
 
   useEffect(() => {
+    let cancelled = false
     supabase
       .from(rsrc())
       .select('id, name, slug, cuisine_type, address, latitude, longitude')
       .eq('status', 'active')
       .then(({ data }) => {
+        if (cancelled) return
         // Never invent a marker position — restaurants without real coordinates are
         // left off the map (and out of the chip list, since a chip with no matching
         // marker would just center on a fake spot).
         const withCoords = (data || []).filter(r => r.latitude != null && r.longitude != null)
         setRestaurants(withCoords)
       })
+    return () => { cancelled = true }
   }, [])
 
+  // One Leaflet map per mount. Everything it attaches to the window/document is released in the
+  // cleanup, and map.remove() tears down the panes, handlers, tile loading and animations, so
+  // leaving the page leaves nothing behind and coming back starts from a clean container.
   useEffect(() => {
-    if (mapInstance.current || !mapRef.current) return
+    const el = containerRef.current
+    if (!el) return
 
-    const map = L.map(mapRef.current, {
-      zoomControl: false,
-    }).setView(BAKU_CENTER, 13)
+    const m = L.map(el, { zoomControl: false }).setView(BAKU_CENTER, 13)
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    L.control.zoom({ position: 'bottomright' }).addTo(m)
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
       maxZoom: 19,
-    }).addTo(map)
+    }).addTo(m)
 
-    mapInstance.current = map
+    // Leaflet only listens to window resize. The container also changes size without one (mobile
+    // address bar collapsing, on-screen keyboard, bottom nav/orientation changes, bfcache
+    // restore), and a stale size leaves grey/missing tiles and a mis-centred map.
+    const refit = () => m.invalidateSize({ animate: false })
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(refit) : null
+    ro?.observe(el)
+    const onVisible = () => { if (!document.hidden) refit() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', refit)
+
+    setMap(m)
 
     return () => {
-      map.remove()
-      mapInstance.current = null
+      ro?.disconnect()
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', refit)
+      m.remove()
+      setMap(null)
     }
   }, [])
 
   useEffect(() => {
-    if (!mapInstance.current) return
+    if (!map) return
 
-    const map = mapInstance.current
+    const group = L.layerGroup().addTo(map)
+    const markers = {}
 
     restaurants.forEach(r => {
-      const color = CUISINE_COLORS[r.cuisine_type?.toLowerCase()] || '#8B2D42'
-
       const icon = L.divIcon({
         className: '',
-        html: `<div style="
-          width:36px;height:36px;border-radius:50%;
-          background:${color};border:3px solid #F5F0E8;
-          box-shadow:0 4px 12px rgba(0,0,0,0.25);
-          display:flex;align-items:center;justify-content:center;
-          font-size:15px;cursor:pointer;
-          transition:transform 0.15s;
-        ">🍽</div>`,
+        html: `<div class="map-pin map-pin--${cuisineKey(r)}">🍽</div>`,
         iconSize: [36, 36],
         iconAnchor: [18, 18],
       })
 
-      const marker = L.marker([r.latitude, r.longitude], { icon })
-        .addTo(map)
-        .bindPopup(buildPopupContent(r, t, navigate))
-      markersRef.current[r.id] = marker
+      markers[r.id] = L.marker([r.latitude, r.longitude], { icon })
+        .bindPopup(buildPopupContent(r, t, path => navigateRef.current(path)))
+        .addTo(group)
     })
+    markersRef.current = markers
 
     return () => {
-      Object.values(markersRef.current).forEach(m => map.removeLayer(m))
+      group.remove()
       markersRef.current = {}
     }
-  }, [restaurants, navigate, t])
+  }, [map, restaurants, t])
+
+  function focusRestaurant(r) {
+    setSelected(r.id)
+    if (!map) return
+    map.setView([r.latitude, r.longitude], 16)
+    markersRef.current[r.id]?.openPopup()
+  }
 
   return (
-    <div style={{
-      position: 'relative',
-      height: isMobile
-        ? 'calc(100dvh - var(--nav-h) - var(--bottom-h) - 40px)'
-        : '100dvh',
-      overflow: 'hidden',
-      margin: isMobile ? '8px 8px 32px' : 0,
-      borderRadius: isMobile ? 16 : 0,
-      border: isMobile ? '1px solid var(--border)' : 'none',
-      boxShadow: isMobile ? '0 4px 24px rgba(0,0,0,0.12)' : 'none',
-    }}>
-      <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+    <div className={`map-page${restaurants.length > 0 ? ' map-page--chips' : ''}`}>
+      <div ref={containerRef} className="map-canvas" />
 
       {/* Search overlay */}
-      <div style={{
-        position: 'absolute', top: 12, left: 12, right: 12, zIndex: 1000,
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: 'var(--bg)', borderRadius: 12,
-          padding: '10px 14px',
-          border: '1px solid var(--border)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2">
-            <circle cx="10.5" cy="10.5" r="7.5" />
-            <line x1="16.5" y1="16.5" x2="22" y2="22" strokeLinecap="round" />
-          </svg>
-          <span style={{ fontSize: '0.86rem', color: 'var(--t3)', fontFamily: "'DM Sans', system-ui" }}>
-            {t('map:searchPlaceholder')}
-          </span>
-        </div>
+      <div className="map-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2">
+          <circle cx="10.5" cy="10.5" r="7.5" />
+          <line x1="16.5" y1="16.5" x2="22" y2="22" strokeLinecap="round" />
+        </svg>
+        <span className="map-search-text">{t('map:searchPlaceholder')}</span>
       </div>
 
       {/* Restaurant chips at bottom */}
       {restaurants.length > 0 && (
-        <div
-          className="no-scrollbar"
-          style={{
-            position: 'absolute', bottom: 12, left: 12, right: 12, zIndex: 1000,
-            display: 'flex', gap: 8, overflowX: 'auto',
-            paddingBottom: 4,
-          }}
-        >
-          {restaurants.map(r => {
-            const isSelected = selected === r.id
-            return (
-              <button
-                key={r.id}
-                onClick={() => {
-                  setSelected(r.id)
-                  if (mapInstance.current) {
-                    mapInstance.current.setView([r.latitude, r.longitude], 16)
-                    markersRef.current[r.id]?.openPopup()
-                  }
-                }}
-                style={{
-                  flex: '0 0 auto',
-                  background: isSelected ? 'var(--accent)' : 'var(--bg)',
-                  border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 12,
-                  padding: '10px 14px',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                  cursor: 'pointer',
-                  minWidth: 160,
-                  transition: 'all 150ms var(--ease-out)',
-                }}
-                onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-                onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: CUISINE_COLORS[r.cuisine_type?.toLowerCase()] || '#8B2D42',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '15px', flexShrink: 0,
-                }}>
-                  🍽
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: isSelected ? '#F5F0E8' : 'var(--t1)', whiteSpace: 'nowrap' }}>
-                    {r.name}
-                  </div>
-                  <div style={{ fontSize: '0.66rem', color: isSelected ? 'rgba(245,240,232,0.7)' : 'var(--t3)', whiteSpace: 'nowrap' }}>
-                    {r.cuisine_type || t('map:restaurant')}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+        <div className="map-chips no-scrollbar">
+          {restaurants.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              className={`map-chip${selected === r.id ? ' is-selected' : ''}`}
+              onClick={() => focusRestaurant(r)}
+            >
+              <div className={`map-dot map-dot--${cuisineKey(r)}`}>🍽</div>
+              <div className="map-chip-text">
+                <div className="map-chip-name">{r.name}</div>
+                <div className="map-chip-sub">{r.cuisine_type || t('map:restaurant')}</div>
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>

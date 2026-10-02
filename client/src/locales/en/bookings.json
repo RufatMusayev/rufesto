@@ -1,39 +1,41 @@
 {
   "navBookings": "Bookings",
-  "bookWithFriends": "Book with friends",
-  "withFriends": "With friends",
+  "reserve": "Reserve a table",
   "partyOf": "Party of {{n}}",
   "signIn": {
     "title": "Sign in to continue",
-    "body": "Bookings are tied to your account so friends can join and the restaurant can reach you.",
+    "body": "Bookings are tied to your account so the restaurant can reach you and friends can join.",
     "button": "Sign in"
   },
   "wizard": {
-    "title": "Book with friends",
+    "title": "Reserve a table",
     "stepOf": "Step {{n}} of {{total}}",
     "pickDate": "Choose a date",
     "today": "Today",
     "partySize": "Party size",
     "fewer": "Fewer guests",
     "more": "More guests",
-    "guests": "guests",
+    "guests_one": "guest",
+    "guests_other": "guests",
     "next": "Continue",
     "pickTime": "Choose a time",
+    "whoTitle": "Who's coming?",
     "closedDay": "The restaurant is closed on this date.",
     "anotherDay": "Try another day",
     "noSlots": "No tables are free on this day for your party size.",
     "unavailableHint": "Greyed-out times are full or too soon.",
     "signInToContinue": "Sign in to continue",
     "signInTitle": "Sign in to book",
-    "signInBody": "We need an account so your friends can join and the restaurant can reach you.",
+    "signInBody": "We need an account so the restaurant can reach you and friends can join.",
     "create": "Create booking & get link",
+    "request": "Request booking",
     "creating": "Creating booking…",
     "changeTime": "Choose another time",
     "notFoundTitle": "Restaurant not found",
     "notFoundBody": "This restaurant isn't available for booking.",
     "browse": "Browse restaurants",
-    "disabledTitle": "Group booking isn't available",
-    "disabledBody": "This restaurant isn't taking online group bookings right now.",
+    "disabledTitle": "Online booking isn't available",
+    "disabledBody": "This restaurant isn't taking online bookings right now.",
     "backToRestaurant": "Back to restaurant"
   },
   "summary": {
@@ -41,7 +43,18 @@
     "date": "Date",
     "time": "Time",
     "party": "Party",
-    "guests": "{{n}} guests"
+    "guests_one": "{{count}} guest",
+    "guests_other": "{{count}} guests",
+    "friends": "Friends",
+    "inviteOn": "Invite link",
+    "inviteOff": "Not inviting"
+  },
+  "who": {
+    "inviteTitle": "Invite friends",
+    "inviteBody_one": "Get a link to share. One friend can join this booking.",
+    "inviteBody_other": "Get a link to share. Up to {{count}} friends can join this booking.",
+    "onHint": "You'll get the link as soon as you book.",
+    "offHint": "We'll book a table for {{count}} under your name, without a share link."
   },
   "form": {
     "name": "Your name",
@@ -56,7 +69,11 @@
   "created": {
     "title": "Booking created",
     "pendingNote": "The restaurant will confirm shortly. Share the link so your friends can join.",
-    "view": "View booking"
+    "view": "View booking",
+    "requestTitle": "Request sent",
+    "requestNote": "The restaurant will confirm your booking. Follow its status under Bookings in your profile.",
+    "confirmedTitle": "Booking confirmed",
+    "confirmedNote": "Your table is confirmed. See you there."
   },
   "invite": {
     "title": "Invite your friends",
@@ -106,7 +123,7 @@
   "detail": {
     "title": "Booking",
     "signInTitle": "Sign in to see this booking",
-    "signInBody": "Group bookings are tied to your account.",
+    "signInBody": "Bookings are tied to your account.",
     "members": "Who's coming",
     "openSeat": "Open seat",
     "moreSeats": "+{{n}} more",
@@ -155,7 +172,7 @@
     "not_authenticated": "Sign in to continue.",
     "consent_required": "Please agree to share your name and phone with the restaurant.",
     "restaurant_not_found": "This restaurant isn't available.",
-    "bookings_disabled": "This restaurant isn't taking online group bookings right now.",
+    "bookings_disabled": "This restaurant isn't taking online bookings right now.",
     "invalid_party_size": "That party size isn't accepted here. Pick a different number of guests.",
     "invalid_name": "Enter a name between 2 and 80 characters.",
     "invalid_phone": "That phone number doesn't look right.",
@@ -188,7 +205,7 @@
     "no_session": "We couldn't find your table session. Ask the host to check in again.",
     "generic": "Something went wrong. Please try again.",
     "network": "Can't reach the server. Check your connection and try again.",
-    "unavailable": "Group booking isn't available yet. Please try again later.",
+    "unavailable": "Booking isn't available yet. Please try again later.",
     "not_allowed": "You can't do that."
   }
 }

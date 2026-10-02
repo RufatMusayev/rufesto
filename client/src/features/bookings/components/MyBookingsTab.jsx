@@ -59,7 +59,7 @@ export default function MyBookingsTab({ userId }) {
     return (
       <EmptyState
         icon="📅" title={t('bookings:mine.emptyTitle')} body={t('bookings:mine.emptyBody')}
-        action={<Link to="/explore" className="btn btn-primary">{t('bookings:bookWithFriends')}</Link>}
+        action={<Link to="/explore" className="btn btn-primary">{t('bookings:reserve')}</Link>}
       />
     )
   }

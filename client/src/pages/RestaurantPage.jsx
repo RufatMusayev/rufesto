@@ -10,10 +10,9 @@ import {
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import AuthModal from '../components/AuthModal'
-import BookingModal from '../components/BookingModal'
 import DishDetailSheet from '../components/DishDetailSheet'
 import FloorPlanSheet from '../components/FloorPlanSheet'
-import { BookWithFriendsButton } from '../features/bookings/mounts'
+import { ReserveButton } from '../features/bookings/mounts'
 
 // Seats, not tables: the capacities of the free tables over the capacities of all tables.
 function countSeats(tables) {
@@ -37,9 +36,7 @@ export default function RestaurantPage() {
   const [dishes, setDishes] = useState([])
   const [activeSection, setActiveSection] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showBook, setShowBook] = useState(false)
   const [showFloor, setShowFloor] = useState(false)
-  const [pickedTable, setPickedTable] = useState(null)
   const [dishDetail, setDishDetail] = useState(null)
   const [viewMode, setViewMode] = useState('grid')
   const [seatsFree, setSeatsFree] = useState(0)
@@ -408,14 +405,7 @@ export default function RestaurantPage() {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => { setPickedTable(null); setShowBook(true) }}
-            style={{ flex: 1, padding: '8px 0', fontSize: '0.82rem', fontWeight: 700, borderRadius: 10 }}
-          >
-            {t('restaurant:reserveTable')}
-          </button>
-          <BookWithFriendsButton restaurant={restaurant} />
+          <ReserveButton restaurant={restaurant} />
           <button
             className="btn btn-ghost"
             onClick={() => setShowFloor(true)}
@@ -562,21 +552,14 @@ export default function RestaurantPage() {
         <div style={{ height: 48 }} />
       </div>
 
-      {showBook && (
-        <BookingModal
-          restaurant={restaurant}
-          preselectedTable={pickedTable}
-          onClose={() => { setShowBook(false); setPickedTable(null) }}
-        />
-      )}
       {showFloor && (
         <FloorPlanSheet
           restaurant={restaurant}
           onClose={() => setShowFloor(false)}
-          onReserve={table => {
+          onReserve={() => {
+            // The one booking flow picks the table itself (create_group_booking), so the floor plan hands over to it.
             setShowFloor(false)
-            setPickedTable(table)
-            setShowBook(true)
+            navigate(`/book/${slug}`)
           }}
         />
       )}

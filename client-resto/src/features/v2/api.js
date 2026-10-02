@@ -196,13 +196,14 @@ export function subscribeBills(restaurantId, resync) {
 }
 
 // ───────────────────────── QR sheet ─────────────────────────
-// View-model: { tables: [{ id, number, sectionId, sectionName, code|null }], sections: [{ id, name }] }
+// View-model: { tables: [{ id, number, capacity, sectionId, sectionName, code|null }], sections: [{ id, name }] }
+// `capacity` drives the per-chair cards (seat QR = `<table code>-S<n>`, n = 1..capacity).
 
 export async function fetchQrData(restaurantId) {
   const [tablesRes, codesRes] = await Promise.all([
     // Explicit columns only: `tables` may carry access_code / qr_code_token, which
     // must never be selected from the client.
-    run(() => supabase.from('tables').select('id, table_number, section_id, sections(name)')
+    run(() => supabase.from('tables').select('id, table_number, capacity, section_id, sections(name)')
       .eq('restaurant_id', restaurantId).eq('is_active', true)),
     // access_code lives in the staff-only table_access_codes.
     run(() => supabase.from('table_access_codes').select('table_id, access_code').eq('restaurant_id', restaurantId)),
@@ -215,6 +216,7 @@ export async function fetchQrData(restaurantId) {
     .map(t => ({
       id: t.id,
       number: String(t.table_number),
+      capacity: Math.max(0, Math.floor(Number(t.capacity) || 0)),
       sectionId: t.section_id || '',
       sectionName: t.sections?.name || '',
       code: codes.get(t.id) || null,

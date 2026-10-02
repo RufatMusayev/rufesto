@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { MinusIcon, PlusIcon } from './Icons'
 
-/** Party size 2-20: big DM Mono number between a minus and a plus button. */
-export default function PartyStepper({ value, onChange, min = 2, max = 20 }) {
+/** Party size 1-12: big DM Mono number between a minus and a plus button. */
+export default function PartyStepper({ value, onChange, min = 1, max = 12 }) {
   const { t } = useTranslation('bookings')
   return (
     <div className="bk-stepper" role="group" aria-label={t('wizard.partySize')}>
@@ -14,7 +14,7 @@ export default function PartyStepper({ value, onChange, min = 2, max = 20 }) {
       </button>
       <div className="bk-stepper-value">
         <span className="bk-stepper-num font-mono" aria-live="polite">{value}</span>
-        <span className="bk-stepper-unit">{t('wizard.guests')}</span>
+        <span className="bk-stepper-unit">{t('wizard.guests', { count: value })}</span>
       </div>
       <button
         type="button" className="icon-btn bk-stepper-btn" aria-label={t('wizard.more')}

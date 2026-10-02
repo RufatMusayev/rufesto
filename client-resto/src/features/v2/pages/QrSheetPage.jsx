@@ -8,13 +8,14 @@ import { fetchQrData } from '../api'
 import { v2Error } from '../errors'
 import useLiveList from '../hooks/useLiveList'
 import useQrImages from '../hooks/useQrImages'
+import { buildQrCards } from '../qrCards'
 import EmptyBlock from '../components/EmptyBlock'
 import LoadError from '../components/LoadError'
 import PrintToolbar from '../components/PrintToolbar'
 import QrSheet from '../components/QrSheet'
 import '../styles.css'
 
-// Print one QR card per active table. Screen = preview of A4 sheets; print =
+// Print one QR card per active table (plus one per chair with "Per chair"). Screen = preview of A4 sheets; print =
 // a copy of the sheets portaled into <body> while `body.v2-qr-printing` hides
 // the app (same technique as components/TableQRModal.jsx, own class names).
 export default function QrSheetPage() {
@@ -26,6 +27,7 @@ export default function QrSheetPage() {
   const [section, setSection] = useState('all')
   const [perPage, setPerPage] = useState(6)
   const [showCode, setShowCode] = useState(true)
+  const [perChair, setPerChair] = useState(false)
 
   // null host mapping (not resto.* / localhost) means a QR would point nowhere.
   const linkable = !!tableQrUrl('x')
@@ -35,12 +37,13 @@ export default function QrSheetPage() {
     () => (data ? data.tables.filter(tb => section === 'all' || tb.sectionId === section) : []),
     [data, section],
   )
-  const printable = useMemo(() => visible.filter(tb => tb.code), [visible])
   const missing = visible.filter(tb => !tb.code)
-  const { images, progress, retry: retryImage } = useQrImages(printable, linkable)
+  // One card per table; "Per chair" adds one per seat after each table card (QR = <code>-S<n>).
+  const cards = useMemo(() => buildQrCards(visible, perChair), [visible, perChair])
+  const { images, progress, retry: retryImage } = useQrImages(cards, linkable)
 
-  const ready = linkable && printable.length > 0 && !progress
-    && printable.every(tb => images[tb.id] && images[tb.id] !== 'error')
+  const ready = linkable && cards.length > 0 && !progress
+    && cards.every(c => images[c.id] && images[c.id] !== 'error')
 
   // Hide the app for printing only while there is a sheet to print instead.
   useEffect(() => {
@@ -80,6 +83,8 @@ export default function QrSheetPage() {
             onPerPage={setPerPage}
             showCode={showCode}
             onShowCode={setShowCode}
+            perChair={perChair}
+            onPerChair={setPerChair}
             canPrint={ready}
             onPrint={() => window.print()}
           />
@@ -103,10 +108,14 @@ export default function QrSheetPage() {
             <p className="v2-muted" role="status">{t('qrGenerating', { done: progress.done, total: progress.total })}</p>
           )}
 
-          {linkable && printable.length > 0 && (
+          {perChair && cards.length > 0 && (
+            <p className="v2-muted" role="status">{t('qrPerChairCount', { count: cards.length })}</p>
+          )}
+
+          {linkable && cards.length > 0 && (
             <div className="v2-qr-preview">
               <QrSheet
-                tables={printable}
+                cards={cards}
                 images={images}
                 perPage={perPage}
                 showCode={showCode}
@@ -119,7 +128,7 @@ export default function QrSheetPage() {
           {ready && createPortal(
             <div className="v2-qr-print-root" aria-hidden="true">
               <QrSheet
-                tables={printable}
+                cards={cards}
                 images={images}
                 perPage={perPage}
                 showCode={showCode}

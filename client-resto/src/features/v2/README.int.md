@@ -22,3 +22,7 @@ Folder `client-resto/src/features/v2/` + `src/locales/{en,az}/v2.json`. Coded to
 - Staff tab: managers cannot read other staff rows or their names (`staff_read_own` only). Needs a policy or an RPC such as `restaurant_staff(p_restaurant_id)`; until then the tab lists the caller only. Swap the query in `api.js fetchStaffList`.
 - Realtime and writes need sql/43 applied (publication for `bills`, `payment_intents`, `booking_members`; manager writes on hours, closures, rules).
 - Live check (preview, manager login): `pages/BookingsPage.jsx` loads nothing since sql/41 (PGRST201: `bookings` to `users` is now ambiguous). Change its select to `users!bookings_user_id_fkey(name, email, phone)`; check other `bookings(... users(...))` embeds (consumer app too).
+
+**QR sheet, "Per chair" (floor/seat codes)**
+- `pages/QrSheetPage.jsx` has a "Per chair" checkbox (`components/PrintToolbar.jsx`). On: every table card is followed by one card per chair (`capacity` of them), labelled `T5 · seat 3`, QR = `<origin>/t/<access code>-S<n>` (`qrCards.js`: `buildQrCards`). The seat code is derived, nothing is stored; `claim_table` (sql/49) accepts it. Per page 1 / 4 / 6, the section filter and the access-code toggle apply to seat cards too. `fetchQrData` now also selects `tables.capacity`.
+- The Tables-page QR modal is `components/TableQRModal.jsx` (outside `features/v2`), so it has no per-chair toggle; "Print all QR codes" (`PrintAllQrButton` -> `/qr-sheet`) is the place for seat QRs.

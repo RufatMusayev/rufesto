@@ -29,6 +29,7 @@
 .v2-qr-img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
 .v2-qr-scan { font-size: var(--qr-hint); font-weight: 600; }
 .v2-qr-code { font-size: var(--qr-code); color: #4A3E35; }
+.v2-qr-card--seat .v2-qr-table { font-size: calc(var(--qr-table) * 0.84); }
 .v2-qr-code strong { font-family: 'JetBrains Mono', 'Courier New', monospace; color: #1A1210; letter-spacing: 0.1em; }
 .v2-qr-spinner { border-color: rgba(26, 18, 16, 0.15); border-top-color: #1A1210; }
 .v2-qr-fail { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; font-size: 0.74rem; color: #A32D2D; }

@@ -57,7 +57,21 @@
 .bk-waiting { font-size: 0.85rem; color: var(--note); text-align: center; padding: 8px 0; }
 .bk-reason { font-size: 0.78rem; color: var(--note); text-align: center; margin-top: 8px; line-height: 1.4; }
 
-/* wizard: progress dots, restaurant header */
+/* wizard: the page fills the screen so each step's primary button rests at the bottom (above the 64px mobile
+   nav) and stays there while the content scrolls (sticky) */
+.bk-wizard { display: flex; flex-direction: column; min-height: 100dvh; padding-bottom: 0; }
+.bk-wizard > .bk-body { flex: 1; padding-bottom: 0; }
+.bk-wizard .bk-step { flex: 1; }
+.bk-cta {
+  position: sticky; bottom: 0; z-index: 30; margin: auto -16px 0; padding: 12px 16px;
+  background: var(--bg); border-top: 1px solid var(--border);
+}
+@media (max-width: 768px) {
+  .bk-wizard { min-height: calc(100dvh - var(--nav-h) - var(--bottom-h)); }
+  .bk-cta { bottom: var(--bottom-h); }
+}
+
+/* progress dots, restaurant header */
 .bk-dots { display: flex; justify-content: center; gap: 8px; list-style: none; }
 .bk-dots li { width: 8px; height: 8px; border-radius: 50%; background: var(--s4); transition: background-color var(--t-ui), width var(--t-ui); }
 .bk-dots li.done { background: var(--t3); }
@@ -106,6 +120,29 @@
 .bk-slot-empty { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .bk-slot-empty .slot-hint { margin: 0; }
 .bk-load-error { padding: 1.5rem 0; }
+
+/* who's coming: invite switch */
+.bk-toggle { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; transition: border-color var(--t-ui), background-color var(--t-ui); }
+.bk-toggle.on { border-color: var(--accent); background: rgba(139, 45, 66, 0.08); }
+.bk-toggle-icon { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+.bk-toggle-text { flex: 1; min-width: 0; }
+.bk-toggle-title { display: block; font-size: 0.95rem; font-weight: 700; color: var(--t1); cursor: pointer; }
+.bk-toggle-body { font-size: 0.8rem; color: var(--t2); line-height: 1.45; margin-top: 4px; }
+.bk-switch {
+  position: relative; flex-shrink: 0; width: 46px; height: 28px; padding: 0; border-radius: 100px;
+  border: 1.5px solid var(--border-strong); background: var(--s4);
+  transition: background-color var(--t-ui), border-color var(--t-ui);
+}
+.bk-switch[aria-checked='true'] { background: var(--accent); border-color: var(--accent); }
+.bk-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bk-switch:disabled { opacity: 0.4; cursor: not-allowed; }
+.bk-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%;
+  background: #F5F0E8; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform var(--t-ui);
+}
+.bk-switch[aria-checked='true'] .bk-switch-knob { transform: translateX(18px); }
+.bk-who-hint { font-size: 0.8rem; color: var(--note); line-height: 1.45; }
 
 /* summary + form */
 .bk-summary { padding: 4px 16px; }
@@ -207,7 +244,7 @@
 .bk-row-note { font-size: 0.78rem; color: var(--accent); margin-top: 4px; font-style: italic; overflow-wrap: anywhere; }
 
 /* restaurant page button + table banner */
-.bk-friends-btn { flex: 0 0 auto; gap: 6px; padding: 8px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 10px; white-space: nowrap; }
+.bk-reserve-btn { flex: 1; min-width: 0; padding: 8px 0; font-size: 0.82rem; font-weight: 700; border-radius: 10px; white-space: nowrap; }
 .bk-banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: inherit; margin-bottom: 12px; }
 .bk-banner-icon { font-size: 1.4rem; }
 .bk-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 export const PER_PAGE_OPTIONS = [1, 4, 6]
 
 // Screen-only controls of the QR sheet: section filter, cards per page,
-// access-code toggle and the Print button.
+// access-code toggle, per-chair toggle and the Print button.
 export default function PrintToolbar({
-  sections, section, onSection, perPage, onPerPage, showCode, onShowCode, canPrint, onPrint,
+  sections, section, onSection, perPage, onPerPage, showCode, onShowCode, perChair, onPerChair, canPrint, onPrint,
 }) {
   const { t } = useTranslation('v2')
   return (
@@ -43,6 +43,11 @@ export default function PrintToolbar({
         <label className="v2-check">
           <input type="checkbox" checked={showCode} onChange={e => onShowCode(e.target.checked)} />
           <span>{t('showCode')}</span>
+        </label>
+
+        <label className="v2-check">
+          <input type="checkbox" checked={perChair} onChange={e => onPerChair(e.target.checked)} />
+          <span>{t('perChair')}</span>
         </label>
 
         <button type="button" className="btn btn-primary v2-print-btn" disabled={!canPrint} onClick={onPrint}>

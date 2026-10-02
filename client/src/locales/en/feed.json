@@ -18,5 +18,10 @@
   "promoted": "Promoted",
   "sponsored": "Sponsored",
   "viewDish": "View dish →",
-  "visitRestaurant": "Visit restaurant →"
+  "visitRestaurant": "Visit restaurant →",
+  "postOptions": "Post options",
+  "share": "Share",
+  "copyLink": "Copy link",
+  "linkCopied": "Link copied",
+  "copyFailed": "Couldn't copy the link"
 }

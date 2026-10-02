@@ -40,5 +40,8 @@
   "termsNotice": "Davam etməklə Şərtlər və Məxfilik Siyasətimizlə razılaşırsınız",
   "you": "siz",
   "loadError": "Yüklənmədi. Bağlantını yoxlayıb yenidən cəhd edin.",
-  "retry": "Yenidən cəhd et"
+  "retry": "Yenidən cəhd et",
+  "notFoundTitle": "Səhifə tapılmadı",
+  "notFoundBody": "Keçid səhv yazılmış və ya yarımçıq ola bilər, ya da səhifə köçürülüb.",
+  "browseRestaurants": "Restoranlara bax"
 }

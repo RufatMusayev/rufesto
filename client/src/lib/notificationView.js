@@ -21,7 +21,7 @@ const when = (iso, lang) => (iso ? `${formatBakuDate(iso, lang)}, ${formatBakuTi
 
 // type -> (payload, t, lang) => { key, vars, to }. `key` is a notifications-namespace i18n key.
 const V2 = {
-  friend_request:        p => ({ key: 'friend_request', vars: { name: p.name }, to: '/friends' }),
+  friend_request:        p => ({ key: 'friend_request', vars: { name: p.name }, to: '/friends?tab=requests' }),
   friend_accepted:       p => ({ key: 'friend_accepted', vars: { name: p.name }, to: p.user_id ? `/u/${enc(p.user_id)}` : '/friends' }),
   post_like:             p => ({ key: 'post_like', vars: { name: p.name }, to: p.post_id ? `/post/${enc(p.post_id)}` : null }),
   post_comment:          p => ({

@@ -76,6 +76,25 @@ export async function getCreditHistory(userId, limit = 10) {
   }
 }
 
+/** Where and when the credits for some bills were earned: Map(billId -> { restaurant, visitedAt }).
+ *  One row per paid bill in `visits` (own rows readable). A failure returns an empty map: the caller falls back to
+ *  a plain "Bill paid". */
+export async function getBillVisitInfo(userId, billIds) {
+  const ids = [...new Set(billIds)].filter(Boolean)
+  if (ids.length === 0) return new Map()
+  const { data, error } = await run(() => supabase
+    .from('visits')
+    .select(`bill_id, visited_at, ${rsrc()}(name)`)
+    .eq('user_id', userId)
+    .in('bill_id', ids))
+  const map = new Map()
+  if (error) return map
+  for (const v of data || []) {
+    if (v.bill_id) map.set(v.bill_id, { restaurant: v.restaurants?.name || null, visitedAt: v.visited_at || null })
+  }
+  return map
+}
+
 /* -------------------------------------------------------------------- tabs */
 
 /** Own posts as grid tiles (newest 30, photos already signed by the social feature). */

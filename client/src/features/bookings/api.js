@@ -65,7 +65,8 @@ export async function getInvitePreview(code) {
 }
 
 /** CONTRACT: join_group_booking(p_code, p_consent, p_name, p_phone) -> { booking_id, member_id, status, seated, table_id }.
- *  Idempotent. Name and phone default to the profile on the server, so the invite page does not send them.
+ *  Idempotent. The name defaults to the profile on the server; the invite page sends the phone (profile or typed, E.164
+ *  digits) so the restaurant always gets the number the consent text promises (booking_contacts).
  *  Raises `invites_disabled` when the host has turned the invite link off. */
 export async function joinGroupBooking({ code, consent, name = null, phone = null }) {
   const res = await rpc('join_group_booking', { p_code: code, p_consent: !!consent, p_name: name, p_phone: phone })

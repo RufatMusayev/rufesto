@@ -40,5 +40,8 @@
   "termsNotice": "By continuing you agree to our Terms & Privacy Policy",
   "you": "you",
   "loadError": "Couldn't load this. Check your connection and try again.",
-  "retry": "Try again"
+  "retry": "Try again",
+  "notFoundTitle": "Page not found",
+  "notFoundBody": "This link may be mistyped or cut off, or the page has moved.",
+  "browseRestaurants": "Browse restaurants"
 }

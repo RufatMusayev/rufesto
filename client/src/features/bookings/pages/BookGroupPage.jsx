@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../../../components/ui'
 import LoadError from '../../../components/LoadError'
 import { useAuth } from '../../../contexts/AuthContext'
 import { bakuDateString } from '../../../lib/bookingSlots'
+import { fetchFloorPlan } from '../../floor/api'
 import { createGroupBooking, getRestaurantBySlug } from '../api'
 import { SLOT_ERRORS } from '../errors'
 import { useRequireAuth } from '../hooks'
@@ -19,17 +20,20 @@ import SlotPicker, { allNotBookable } from '../components/SlotPicker'
 import InviteToggle from '../components/InviteToggle'
 import BookingSummary from '../components/BookingSummary'
 import ConfirmForm from '../components/ConfirmForm'
+import TableNote from '../components/TableNote'
 import CreatedPanel from '../components/CreatedPanel'
 
 const DAYS = 30
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // Party size is 1-12 (the server also enforces the restaurant's own maximum). From 3 guests the invite link is on by default.
 const DEFAULT_PARTY = 2
 const INVITE_DEFAULT_FROM = 3
 
 function useRestaurant(slug) {
-  const [state, setState] = useState({ loading: true, data: null, error: null })
+  const [state, setState] = useState({ loading: !!slug, data: null, error: null })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
+    if (!slug) { setState({ loading: false, data: null, error: null }); return undefined }   // /book without a restaurant
     let cancelled = false
     setState({ loading: true, data: null, error: null })
     getRestaurantBySlug(slug).then(({ data, error }) => {
@@ -38,6 +42,34 @@ function useRestaurant(slug) {
     return () => { cancelled = true }
   }, [slug, attempt])
   return [state, () => setAttempt(a => a + 1)]
+}
+
+/** The table the guest tapped on the floor plan ("Reserve this table" -> /book/:slug?table=<id>), for display only:
+ *  { number, section } or null. Its number comes with the navigation; a bare link looks it up in the floor plan. */
+function usePickedTable(restaurant) {
+  const location = useLocation()
+  const [params] = useSearchParams()
+  const raw = params.get('table')
+  const id = UUID_RE.test(raw || '') ? raw : null
+  const fromState = location.state?.table
+  const [table, setTable] = useState(null)
+
+  useEffect(() => {
+    if (!id || !restaurant) { setTable(null); return undefined }
+    if (fromState?.id === id && fromState.number) {
+      setTable({ number: String(fromState.number), section: fromState.section || null })
+      return undefined
+    }
+    let cancelled = false
+    fetchFloorPlan(restaurant.id).then(({ data }) => {
+      if (cancelled) return
+      const tb = data?.tables.find(x => x.id === id)
+      setTable(tb ? { number: tb.number, section: data.sections.find(s => s.id === tb.sectionId)?.name || null } : null)
+    })
+    return () => { cancelled = true }
+  }, [id, restaurant, fromState])
+
+  return table
 }
 
 /** `step` is 1 (when), 2 (who) or 3 (confirm); a party of one skips "who", so it has two dots. */
@@ -61,6 +93,7 @@ export default function BookGroupPage() {
   const { profile } = useAuth()
   const [rest, retryRest] = useRestaurant(slug)
   const restaurant = rest.data
+  const pickedTable = usePickedTable(restaurant)
 
   const today = useMemo(() => bakuDateString(), [])
   const [step, setStep] = useState(1)
@@ -98,7 +131,7 @@ export default function BookGroupPage() {
   // Every step starts at the top (step 1 is long, step 2 short).
   useEffect(() => { window.scrollTo(0, 0) }, [step, created])
 
-  const backTo = `/restaurant/${slug}`
+  const backTo = slug ? `/restaurant/${slug}` : '/'
   function back() {
     if (created) { navigate(backTo); return }
     if (step === 3) setStep(hasWho ? 2 : 1)
@@ -177,7 +210,9 @@ export default function BookGroupPage() {
   if (!restaurant) {
     return page(t('bookings:wizard.title'), (
       <EmptyState
-        icon="🔍" title={t('bookings:wizard.notFoundTitle')} body={t('bookings:wizard.notFoundBody')}
+        icon="🔍"
+        title={slug ? t('bookings:wizard.notFoundTitle') : t('bookings:wizard.noSlugTitle')}
+        body={slug ? t('bookings:wizard.notFoundBody') : t('bookings:wizard.noSlugBody')}
         action={<Link to="/explore" className="btn btn-ghost">{t('bookings:wizard.browse')}</Link>}
       />
     ))
@@ -200,6 +235,7 @@ export default function BookGroupPage() {
     <>
       <Dots step={step} hasWho={hasWho} />
       <RestaurantHeader restaurant={restaurant} />
+      <TableNote table={pickedTable} />
 
       {step === 1 && (
         <section className="bk-step">
@@ -250,6 +286,7 @@ export default function BookGroupPage() {
           <BookingSummary
             restaurantName={restaurant.name} dateLabel={formatDateStr(date, i18n.language)}
             timeLabel={time || ''} partySize={party}
+            tableLabel={pickedTable ? [pickedTable.number, pickedTable.section].filter(Boolean).join(' · ') : null}
             inviteLabel={hasWho ? t(withInvite ? 'bookings:summary.inviteOn' : 'bookings:summary.inviteOff') : null}
           />
           {!session && !authLoading ? (

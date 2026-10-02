@@ -8,9 +8,10 @@ import FriendRow, { RowSkeletons } from './FriendRow'
 import FriendButton from './FriendButton'
 import UserSearchInput from './UserSearchInput'
 
-const MIN_CHARS = 2
+// search_users returns [] below 3 characters (sql/47c), so the UI asks for 3 instead of showing a false "No one found".
+const MIN_CHARS = 3
 
-/** "Find" tab: debounced user search (300ms, 2+ characters) with an Add / Pending / Friends control per result. */
+/** "Find" tab: debounced user search (300ms, 3+ characters) with an Add / Pending / Friends control per result. */
 export default function FindPeople({ guard, onError, onRelationChange }) {
   const { t } = useTranslation('social')
   const [q, setQ] = useState('')

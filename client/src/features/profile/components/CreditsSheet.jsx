@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet, Pill } from '../../../components/ui'
 import LoadError from '../../../components/LoadError'
-import { timeAgo } from '../../../lib/helpers'
-import { getCreditHistory } from '../api'
+import { formatBakuDateLong } from '../../bookings/timeFormat'
+import { getCreditHistory, getBillVisitInfo } from '../api'
 
 const TIER_TONE = { bronze: 'amber', silver: 'gray', gold: 'gold', platinum: 'blue' }
+// loyalty_transactions.reason for a settled bill is `bill_paid:<bill id>`; the id is never shown.
+const BILL_REASON = /^bill_paid:([0-9a-f-]{36})$/i
 
-function reasonLabel(reason, t) {
+function reasonLabel(reason, t, bills) {
+  // Any `bill_paid...` reason is a settled bill; without a known restaurant it reads "Bill paid" (never the raw id).
+  if (typeof reason === 'string' && reason.startsWith('bill_paid')) {
+    const name = bills.get(BILL_REASON.exec(reason)?.[1])?.restaurant
+    return name ? t('txBillPaidAt', { name }) : t('txBillPaid')
+  }
   if (reason === 'review_posted') return t('txReviewPosted')
   if (reason === 'redeemed') return t('txRedeemed')
   if (!reason) return t('txAdjustment')
@@ -15,19 +22,29 @@ function reasonLabel(reason, t) {
   return text[0].toUpperCase() + text.slice(1)
 }
 
+/** The day shown for a movement: the visit day for a bill (the credit is booked when the bill settles), else when it was booked. */
+function txDate(tx, bills) {
+  const bill = BILL_REASON.exec(tx.reason || '')
+  return (bill && bills.get(bill[1])?.visitedAt) || tx.createdAt
+}
+
 /** Resto-Credits: balance, tier, how to earn, and the last ten movements. */
 export default function CreditsSheet({ open, onClose, userId, credits }) {
   const { t, i18n } = useTranslation('profile')
-  const [state, setState] = useState({ status: 'idle', rows: [] })
+  const [state, setState] = useState({ status: 'idle', rows: [], bills: new Map() })
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!open || !userId) return undefined
     let alive = true
-    setState({ status: 'loading', rows: [] })
-    getCreditHistory(userId).then(({ data, error }) => {
+    setState({ status: 'loading', rows: [], bills: new Map() })
+    getCreditHistory(userId).then(async ({ data, error }) => {
       if (!alive) return
-      setState(error ? { status: 'error', rows: [] } : { status: 'ready', rows: data })
+      if (error) { setState({ status: 'error', rows: [], bills: new Map() }); return }
+      // Restaurant and date of the bills behind "Bill paid" rows (one read, never blocks the list on failure).
+      const billIds = data.map(r => BILL_REASON.exec(r.reason || '')?.[1]).filter(Boolean)
+      const bills = await getBillVisitInfo(userId, billIds)
+      if (alive) setState({ status: 'ready', rows: data, bills })
     })
     return () => { alive = false }
   }, [open, userId, attempt])
@@ -64,8 +81,8 @@ export default function CreditsSheet({ open, onClose, userId, credits }) {
           {state.rows.map(tx => (
             <li key={tx.id} className="pf-tx">
               <div>
-                <div className="pf-tx-name">{reasonLabel(tx.reason, t)}</div>
-                <div className="pf-tx-time font-mono">{timeAgo(tx.createdAt, i18n.language)}</div>
+                <div className="pf-tx-name">{reasonLabel(tx.reason, t, state.bills)}</div>
+                <div className="pf-tx-time font-mono">{formatBakuDateLong(txDate(tx, state.bills), i18n.language)}</div>
               </div>
               <span className={`pf-tx-delta font-mono ${tx.delta >= 0 ? 'pos' : 'neg'}`}>
                 {tx.delta >= 0 ? `+${tx.delta}` : tx.delta}

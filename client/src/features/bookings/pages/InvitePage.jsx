@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../../../components/ui'
 import LoadError from '../../../components/LoadError'
+import { useAuth } from '../../../contexts/AuthContext'
+import { PHONE_FORMAT_EXAMPLE, normalizePhone } from '../../../lib/phone'
 import { joinGroupBooking } from '../api'
 import { useInvitePreview, useRequireAuth } from '../hooks'
 import { clearPendingInvite, rememberPendingInvite, sanitizeInviteCode } from '../pendingInvite'
@@ -27,6 +29,11 @@ export default function InvitePage() {
   const { preview, loading, error, reload } = useInvitePreview(code)
   const { session, authLoading, requireAuth, authModal } = useRequireAuth()
   const userId = session?.user?.id
+  const { profile } = useAuth()
+  // The consent sentence promises name AND phone, so the restaurant gets one: the profile's, or one typed here.
+  const profilePhone = normalizePhone(profile?.phone) || ''
+  const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState(null)        // i18n key under `bookings`
   const [consent, setConsent] = useState(false)
   const [consentError, setConsentError] = useState(false)
   const [joinError, setJoinError] = useState(null)
@@ -53,10 +60,14 @@ export default function InvitePage() {
     if (busy.current || !preview) return
     if (!requireAuth()) return
     if (!consent) { setConsentError(true); return }
+    const typed = profilePhone ? '' : normalizePhone(phone)
+    const sendPhone = profilePhone || typed
+    if (!sendPhone) { setPhoneError(typed === null ? 'form.errPhone' : 'form.errPhoneRequired'); return }
     busy.current = true
     setPending(true)
     setJoinError(null)
-    const { data, error: err } = await joinGroupBooking({ code, consent })
+    setPhoneError(null)
+    const { data, error: err } = await joinGroupBooking({ code, consent, phone: sendPhone })
     busy.current = false
     setPending(false)
     if (err) {
@@ -107,6 +118,21 @@ export default function InvitePage() {
   } else {
     action = (
       <div className="bk-join">
+        {!profilePhone ? (
+          <div className="bk-join-phone">
+            <label className="label" htmlFor="bk-join-phone">{t('bookings:form.phone')}</label>
+            <input
+              id="bk-join-phone" className="input" type="tel" inputMode="tel" autoComplete="tel" maxLength={20}
+              value={phone} disabled={pending} placeholder={PHONE_FORMAT_EXAMPLE}
+              onChange={e => { setPhone(e.target.value); setPhoneError(null) }}
+              onBlur={() => { const n = normalizePhone(phone); if (n) setPhone(n) }}
+              aria-invalid={!!phoneError} aria-describedby={phoneError ? 'bk-join-phone-err' : 'bk-join-phone-hint'}
+            />
+            {phoneError
+              ? <p id="bk-join-phone-err" className="bk-error" role="alert">{t(`bookings:${phoneError}`)}</p>
+              : <p id="bk-join-phone-hint" className="bk-hint">{t('bookings:invite.phoneHint')}</p>}
+          </div>
+        ) : null}
         <label className="bk-check bk-check-left">
           <input
             type="checkbox" checked={consent} disabled={pending}

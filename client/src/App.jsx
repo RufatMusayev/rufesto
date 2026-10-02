@@ -14,6 +14,7 @@ import NotificationsPage  from './pages/NotificationsPage'
 import MapPage            from './pages/MapPage'
 import TablePage          from './pages/TablePage'
 import TableClaimPage     from './pages/TableClaimPage'
+import NotFoundPage       from './pages/NotFoundPage'
 import socialRoutes       from './features/social/routes'
 import bookingsRoutes     from './features/bookings/routes'
 import billsRoutes        from './features/bills/routes'
@@ -40,6 +41,7 @@ export default function App() {
                 {socialRoutes}
                 {bookingsRoutes}
                 {billsRoutes}
+                <Route path="*"                 element={<NotFoundPage />}      />
               </Route>
             </Routes>
           </CartProvider>

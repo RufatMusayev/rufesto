@@ -1,5 +1,12 @@
 {
-  "searchPlaceholder": "Restaurants near you…",
+  "searchPlaceholder": "Search restaurants…",
+  "searchLabel": "Search restaurants on the map",
+  "locate": "My location",
+  "locating": "Finding your location…",
+  "locateDenied": "Location is turned off for this site. Allow it in your browser settings to see where you are.",
+  "locateFailed": "Couldn't find your location. Try again in a moment.",
+  "locateUnsupported": "This browser can't share your location.",
+  "noMatches": "No restaurant matches your search.",
   "viewMenu": "View Menu",
   "restaurant": "Restaurant"
 }

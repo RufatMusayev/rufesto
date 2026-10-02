@@ -33,6 +33,8 @@
     "changeTime": "Başqa vaxt seçin",
     "notFoundTitle": "Restoran tapılmadı",
     "notFoundBody": "Bu restoran rezervasiya üçün əlçatan deyil.",
+    "noSlugTitle": "Əvvəlcə restoran seçin",
+    "noSlugBody": "Bu keçiddə restoran yoxdur. Restoranı açın və “Masa ayır” düyməsinə toxunun.",
     "browse": "Restoranlara bax",
     "disabledTitle": "Onlayn rezervasiya əlçatan deyil",
     "disabledBody": "Bu restoran hazırda onlayn rezervasiya qəbul etmir.",
@@ -47,7 +49,12 @@
     "guests_other": "{{count}} qonaq",
     "friends": "Dostlar",
     "inviteOn": "Dəvət linki",
-    "inviteOff": "Dəvət yoxdur"
+    "inviteOff": "Dəvət yoxdur",
+    "table": "İstənilən masa"
+  },
+  "table": {
+    "picked": "Siz {{number}} nömrəli masanı seçdiniz.",
+    "pickedNote": "Yekun masanı restoran təyin edir, ona görə bu masanı zəmanət verə bilmirik."
   },
   "who": {
     "inviteTitle": "Dostları dəvət et",
@@ -64,6 +71,7 @@
     "consent": "Bu rezervasiya üçün adımı və telefonumu restoranla paylaş",
     "errName": "Adınızı daxil edin (2-80 simvol).",
     "errPhone": "Düzgün telefon nömrəsi daxil edin, məsələn +994 50 123 45 67.",
+    "errPhoneRequired": "Restoranın sizinlə əlaqə saxlaması üçün telefon nömrənizi əlavə edin.",
     "errConsent": "Davam etmək üçün qutunu işarələyin."
   },
   "created": {
@@ -105,7 +113,8 @@
     "enable": "Dostları dəvət et",
     "enableHint": "Dostların bu rezervasiyaya qoşulması üçün dəvət linkini aktiv edin.",
     "disabledTitle": "Bu rezervasiya dəvətləri qəbul etmir",
-    "disabledBody": "Təşkilatçı dəvət linkini söndürüb. Ondan linki yenidən aktiv etməsini xahiş edin."
+    "disabledBody": "Təşkilatçı dəvət linkini söndürüb. Ondan linki yenidən aktiv etməsini xahiş edin.",
+    "phoneHint": "Restoran bu rezervasiya ilə bağlı sizinlə əlaqə saxlamaq üçün istifadə edir."
   },
   "status": {
     "pending": "Gözləyir",

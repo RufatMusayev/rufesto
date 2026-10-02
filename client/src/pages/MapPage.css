@@ -36,8 +36,41 @@
   border: 1px solid var(--border);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
+.map-search { cursor: text; }
 .map-search svg { flex-shrink: 0; }
-.map-search-text { font-size: 0.86rem; color: var(--t3); font-family: 'DM Sans', system-ui; }
+.map-search-input {
+  flex: 1; min-width: 0; min-height: 24px;
+  border: none; outline: none; background: transparent; padding: 0;
+  font-size: 0.86rem; color: var(--t1); font-family: 'DM Sans', system-ui;
+  -webkit-appearance: none; appearance: none;
+}
+.map-search-input::placeholder { color: var(--t3); }
+.map-search:focus-within { border-color: var(--accent); }
+
+/* "My location" button under the search bar, and its status line (locating / denied / no match) */
+.map-locate {
+  position: absolute; top: 68px; right: 12px; z-index: 1000;
+  width: var(--tap); height: var(--tap);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); color: var(--t1);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.map-locate:active { transform: scale(0.95); }
+.map-locate:hover, .map-locate:focus-visible { color: var(--accent); }
+.map-notice {
+  position: absolute; top: 68px; left: 12px; right: 68px; z-index: 1000;
+  padding: 10px 14px;
+  background: var(--bg); color: var(--t2);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 0.8rem; line-height: 1.4; font-family: 'DM Sans', system-ui;
+}
+.map-notice--error { color: var(--red); border-color: rgba(163, 45, 45, 0.3); }
+/* The guest's own position (Leaflet circleMarker; CSS beats its presentation attributes) */
+.map-page .map-me { fill: var(--accent); fill-opacity: 0.9; stroke: #F5F0E8; stroke-width: 3; }
 
 /* Restaurant chips along the bottom */
 .map-chips {

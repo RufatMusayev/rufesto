@@ -72,7 +72,7 @@ export async function listRequests() {
 }
 
 export async function searchUsers(query) {
-  // CONTRACT: search_users(p_q text, >= 2 chars) -> [{ id, name, profile_photo, friendship_status }]
+  // CONTRACT: search_users(p_q text, >= 3 chars, shorter returns []) -> [{ id, name, profile_photo, friendship_status }]
   const { data, error } = await rpc('search_users', { p_q: query })
   if (error) return { data: null, error }
   return { data: (data || []).map(mapSearchRow), error: null }

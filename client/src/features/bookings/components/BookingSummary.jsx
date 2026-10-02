@@ -1,13 +1,14 @@
 import { useTranslation } from 'react-i18next'
 
-/** Compact summary card: restaurant, date, time, party (+ whether a friends link is created). Labels are formatted by the caller (Baku time). */
-export default function BookingSummary({ restaurantName, dateLabel, timeLabel, partySize, inviteLabel = null }) {
+/** Compact summary card: restaurant, date, time, party (+ the table picked on the floor plan, display only, + whether a friends link is created). Labels are formatted by the caller (Baku time). */
+export default function BookingSummary({ restaurantName, dateLabel, timeLabel, partySize, inviteLabel = null, tableLabel = null }) {
   const { t } = useTranslation('bookings')
   const rows = [
     ['summary.restaurant', restaurantName],
     ['summary.date', dateLabel],
     ['summary.time', timeLabel],
     ['summary.party', t('summary.guests', { count: partySize })],
+    ...(tableLabel ? [['summary.table', tableLabel]] : []),
     ...(inviteLabel ? [['summary.friends', inviteLabel]] : []),
   ]
   return (

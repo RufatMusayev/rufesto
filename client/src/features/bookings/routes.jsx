@@ -12,8 +12,11 @@ const page = el => <Suspense fallback={<PageFallback />}>{el}</Suspense>
 
 // Drop inside <Route element={<AppLayout />}>. All three are public routes (no auth redirect); each screen
 // handles the signed-out case itself (the invite page shows the preview, the others a sign-in card).
+// `/book` and `/b` without their parameter (a link cut off while copying) land on the same pages, which explain it.
 export default [
   <Route key="bk-book" path="/book/:slug" element={page(<BookGroupPage />)} />,
+  <Route key="bk-book-bare" path="/book" element={page(<BookGroupPage />)} />,
   <Route key="bk-invite" path="/b/:code" element={page(<InvitePage />)} />,
+  <Route key="bk-invite-bare" path="/b" element={page(<InvitePage />)} />,
   <Route key="bk-detail" path="/bookings/:id" element={page(<BookingDetailPage />)} />,
 ]

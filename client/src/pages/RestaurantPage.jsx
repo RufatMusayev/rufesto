@@ -559,10 +559,13 @@ export default function RestaurantPage() {
         <FloorPlanSheet
           restaurant={restaurant}
           onClose={() => setShowFloor(false)}
-          onReserve={() => {
+          onReserve={table => {
             // The one booking flow picks the table itself (create_group_booking), so the floor plan hands over to it.
+            // The picked table travels as ?table=<id> (+ its number in the router state) and is only shown there.
             setShowFloor(false)
-            navigate(`/book/${slug}`)
+            navigate(`/book/${slug}?table=${encodeURIComponent(table.id)}`, {
+              state: { table: { id: table.id, number: table.table_number, section: table.sections?.name || null } },
+            })
           }}
         />
       )}

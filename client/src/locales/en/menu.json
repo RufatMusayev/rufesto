@@ -20,6 +20,7 @@
   "addToOrder": "Add to Order · {{price}}",
   "enterTablePrompt": "Enter a table code on the Table tab to order",
   "exploreSearchPlaceholder": "Dishes, restaurants…",
+  "viewRestaurantMenu": "View menu →",
   "exploreFilterAll": "All",
   "exploreFilterAvailable": "Available",
   "exploreFilterVegan": "Vegan",

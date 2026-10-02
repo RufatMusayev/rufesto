@@ -18,5 +18,10 @@
   "promoted": "Reklam",
   "sponsored": "Sponsorlu",
   "viewDish": "Yeməyə bax →",
-  "visitRestaurant": "Restorana bax →"
+  "visitRestaurant": "Restorana bax →",
+  "postOptions": "Paylaşım seçimləri",
+  "share": "Paylaş",
+  "copyLink": "Linki kopyala",
+  "linkCopied": "Keçid kopyalandı",
+  "copyFailed": "Keçid kopyalanmadı"
 }

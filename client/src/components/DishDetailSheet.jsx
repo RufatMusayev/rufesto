@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import useEscapeClose from './ui/useEscapeClose'
+import './DishDetailSheet.css'
 
 export default function DishDetailSheet({ dish, onClose }) {
   const { t, i18n } = useTranslation(['menu', 'common'])
@@ -430,6 +432,12 @@ export default function DishDetailSheet({ dish, onClose }) {
               {dish.description || t('menu:categoryDish', { category: dish.category })}
             </span>
           </p>
+
+          {dish.restaurants?.slug && (
+            <Link to={`/restaurant/${dish.restaurants.slug}`} className="dds-menu-link tap-text">
+              {t('menu:viewRestaurantMenu')}
+            </Link>
+          )}
 
           {dish.calories && dish.prep_time_min && (
             <div style={{

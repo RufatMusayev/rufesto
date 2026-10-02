@@ -48,7 +48,7 @@
   "find": {
     "placeholder": "Search by name",
     "hint": "Search for guests by name to add them as friends.",
-    "minChars": "Type at least 2 letters.",
+    "minChars": "Type at least 3 letters.",
     "noResults": "No one found",
     "noResultsBody": "Check the spelling or try another name."
   },

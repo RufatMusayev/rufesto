@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
@@ -23,6 +23,10 @@ L.Icon.Default.mergeOptions({
 })
 
 const BAKU_CENTER = [40.4093, 49.8671]
+const NOTICE_MS = 6000
+
+// Geolocation error -> message key (map namespace). 1 = permission denied; 2 / 3 = no position / timeout.
+const geoErrorKey = err => (err?.code === 1 ? 'locateDenied' : 'locateFailed')
 
 // Whitelist of cuisines that have a colour in MapPage.css; anything else gets the default.
 // The result goes into a class name, so it must never echo owner-controlled text.
@@ -92,6 +96,19 @@ export default function MapPage() {
   const [map, setMap] = useState(null)
   const [restaurants, setRestaurants] = useState([])
   const [selected, setSelected] = useState(null)
+  const [query, setQuery] = useState('')
+  const [notice, setNotice] = useState(null)      // { kind: 'loading' | 'error', key } for the "my location" button
+  const meRef = useRef(null)
+  const noticeTimer = useRef(null)
+
+  // Search: restaurants whose name, cuisine or address contains the text; markers and chips follow it.
+  const needle = query.trim().toLowerCase()
+  const visible = useMemo(
+    () => (needle
+      ? restaurants.filter(r => [r.name, r.cuisine_type, r.address].some(v => (v || '').toLowerCase().includes(needle)))
+      : restaurants),
+    [restaurants, needle],
+  )
 
   // react-router hands out a new navigate() on every location change; popups call it through a
   // ref so the markers are not torn down and rebuilt just because the URL changed.
@@ -148,6 +165,8 @@ export default function MapPage() {
     return () => {
       mountedRef.current = false
       markersRef.current = {}
+      meRef.current = null
+      clearTimeout(noticeTimer.current)
       ro?.disconnect()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('pageshow', refit)
@@ -162,7 +181,7 @@ export default function MapPage() {
     const group = L.layerGroup().addTo(map)
     const markers = {}
 
-    restaurants.forEach(r => {
+    visible.forEach(r => {
       const icon = L.divIcon({
         className: '',
         html: `<div class="map-pin map-pin--${cuisineKey(r)}">🍽</div>`,
@@ -182,7 +201,40 @@ export default function MapPage() {
       if (mountedRef.current) group.remove()
       markersRef.current = {}
     }
-  }, [map, restaurants, t])
+  }, [map, visible, t])
+
+  // Typing in the search bar brings the matches into view (no animation: see disposeMap about timers).
+  useEffect(() => {
+    if (!map || !needle || visible.length === 0) return
+    const pts = visible.map(r => [r.latitude, r.longitude])
+    if (pts.length === 1) map.setView(pts[0], 16, { animate: false })
+    else map.fitBounds(pts, { padding: [70, 70], maxZoom: 16, animate: false })
+  }, [map, needle, visible])
+
+  function showNotice(next, autoHide) {
+    clearTimeout(noticeTimer.current)
+    setNotice(next)
+    if (autoHide) noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS)
+  }
+
+  // "My location": centre the map on the guest. Denied / unavailable / unsupported say so; the map keeps working.
+  function locateMe() {
+    if (!map) return
+    if (!('geolocation' in navigator)) { showNotice({ kind: 'error', key: 'locateUnsupported' }, true); return }
+    showNotice({ kind: 'loading', key: 'locating' }, false)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        if (!mountedRef.current) return
+        const at = [pos.coords.latitude, pos.coords.longitude]
+        meRef.current?.remove()
+        meRef.current = L.circleMarker(at, { radius: 8, className: 'map-me', interactive: false }).addTo(map)
+        map.setView(at, 15, { animate: false })
+        showNotice(null, false)
+      },
+      err => { if (mountedRef.current) showNotice({ kind: 'error', key: geoErrorKey(err) }, true) },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    )
+  }
 
   function focusRestaurant(r) {
     if (!mountedRef.current) return
@@ -193,22 +245,44 @@ export default function MapPage() {
   }
 
   return (
-    <div className={`map-page${restaurants.length > 0 ? ' map-page--chips' : ''}`}>
+    <div className={`map-page${visible.length > 0 ? ' map-page--chips' : ''}`}>
       <div ref={containerRef} className="map-canvas" />
 
-      {/* Search overlay */}
-      <div className="map-search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2">
+      {/* Search overlay: a real field, clicking anywhere on the bar focuses it */}
+      <label className="map-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" aria-hidden="true">
           <circle cx="10.5" cy="10.5" r="7.5" />
           <line x1="16.5" y1="16.5" x2="22" y2="22" strokeLinecap="round" />
         </svg>
-        <span className="map-search-text">{t('map:searchPlaceholder')}</span>
-      </div>
+        <input
+          type="search" className="map-search-input" value={query} autoComplete="off"
+          placeholder={t('map:searchPlaceholder')} aria-label={t('map:searchLabel')}
+          onChange={e => setQuery(e.target.value)}
+        />
+      </label>
+
+      <button type="button" className="map-locate" onClick={locateMe} aria-label={t('map:locate')} title={t('map:locate')}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+          <line x1="12" y1="1.5" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22.5" />
+          <line x1="1.5" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22.5" y2="12" />
+        </svg>
+      </button>
+
+      {notice && (
+        <div className={`map-notice map-notice--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+          {t(`map:${notice.key}`)}
+        </div>
+      )}
+      {needle && visible.length === 0 && !notice && (
+        <div className="map-notice" role="status">{t('map:noMatches')}</div>
+      )}
 
       {/* Restaurant chips at bottom */}
-      {restaurants.length > 0 && (
+      {visible.length > 0 && (
         <div className="map-chips no-scrollbar">
-          {restaurants.map(r => (
+          {visible.map(r => (
             <button
               key={r.id}
               type="button"

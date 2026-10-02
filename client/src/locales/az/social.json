@@ -48,7 +48,7 @@
   "find": {
     "placeholder": "Ada görə axtarın",
     "hint": "Qonaqları adla axtarıb dost kimi əlavə edin.",
-    "minChars": "Ən azı 2 hərf yazın.",
+    "minChars": "Ən azı 3 hərf yazın.",
     "noResults": "Heç kim tapılmadı",
     "noResultsBody": "Yazılışı yoxlayın və ya başqa ad cəhd edin."
   },

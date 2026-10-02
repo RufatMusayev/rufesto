@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
@@ -241,8 +242,15 @@ export default function ExplorePage() {
                 }}>
                   {dish.name}
                 </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginBottom: 6 }}>
-                  {dish.restaurants?.name}
+                <div className="ex-card-rest">
+                  {dish.restaurants?.slug ? (
+                    <Link
+                      to={`/restaurant/${dish.restaurants.slug}`} className="ex-rest-link"
+                      onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}
+                    >
+                      {dish.restaurants.name}
+                    </Link>
+                  ) : dish.restaurants?.name}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{

@@ -1,0 +1,16 @@
+/* Feed post options menu (components/PostMenu.jsx): the three-dots button and its small popover. */
+.pm-wrap { position: relative; flex-shrink: 0; }
+.pm-btn { width: 28px; height: 28px; color: var(--t1); }
+.pm-menu {
+  position: absolute; top: 100%; right: 0; z-index: 30;
+  min-width: 168px; padding: 4px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.pm-item {
+  display: flex; align-items: center; width: 100%;
+  min-height: var(--tap); padding: 0 12px;
+  background: none; border: none; border-radius: 8px;
+  font-size: 0.86rem; color: var(--t1); text-align: left; cursor: pointer;
+}
+.pm-item:hover, .pm-item:focus-visible { background: var(--s2); }

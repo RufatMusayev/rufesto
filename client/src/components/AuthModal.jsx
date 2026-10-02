@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import useEscapeClose from './ui/useEscapeClose'
+import { normalizePhone } from '../lib/phone'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
 const RESEND_COOLDOWN = 60 // seconds
 
 /**
@@ -101,8 +101,9 @@ export default function AuthModal({ onClose, onSuccess }) {
   async function handleSaveProfile(e) {
     e.preventDefault()
     if (!name.trim()) { setError(t('auth:errNameRequired')); return }
-    const trimmedPhone = phone.trim()
-    if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+    // public.users.phone only accepts E.164 digits: "+994 50 123 4567" is saved as "+994501234567".
+    const trimmedPhone = normalizePhone(phone)
+    if (trimmedPhone === null) {
       setError(t('auth:errInvalidPhone'))
       return
     }

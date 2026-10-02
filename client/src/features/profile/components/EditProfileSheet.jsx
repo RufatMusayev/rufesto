@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../../../components/ui'
 import { useAuth } from '../../../contexts/AuthContext'
+import { PHONE_FORMAT_EXAMPLE, normalizePhone } from '../../../lib/phone'
 
-const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/
 const FORM_ID = 'pf-edit-form'
 
 /** Small sheet to change the display name and phone. The email is shown read-only (only the guest sees it). */
@@ -27,13 +27,16 @@ export default function EditProfileSheet({ open, onClose, profile, email }) {
     e.preventDefault()
     if (saving) return
     const cleanName = name.trim()
-    const cleanPhone = phone.trim()
+    // The database stores E.164 digits only ("+994501234567"): spaces, dashes and brackets are removed here.
+    const cleanPhone = normalizePhone(phone)
     if (!cleanName) { setError(t('profile:errNameRequired')); return }
-    if (cleanPhone && !PHONE_REGEX.test(cleanPhone)) { setError(t('profile:errInvalidPhone')); return }
+    if (cleanPhone === null) { setError(t('profile:errInvalidPhone', { example: PHONE_FORMAT_EXAMPLE })); return }
     setError('')
     setSaving(true)
     const res = await updateProfile({ name: cleanName, phone: cleanPhone || null })
     setSaving(false)
+    if (res?.error?.code === '23505') { setError(t('profile:errPhoneTaken')); return }      // users_phone_key
+    if (res?.error?.code === '23514') { setError(t('profile:errInvalidPhone', { example: PHONE_FORMAT_EXAMPLE })); return }    // users_phone_check
     if (!res || res.error) { setError(t('profile:errSaveFailed')); return }
     onClose()
   }
@@ -61,9 +64,12 @@ export default function EditProfileSheet({ open, onClose, profile, email }) {
         <div>
           <label className="label" htmlFor="pf-phone">{t('profile:phone')}</label>
           <input
-            id="pf-phone" className="input" type="tel" value={phone} autoComplete="tel"
-            onChange={e => setPhone(e.target.value)} placeholder="+994 50 123 4567"
+            id="pf-phone" className="input" type="tel" inputMode="tel" value={phone} autoComplete="tel"
+            aria-describedby="pf-phone-hint" placeholder={PHONE_FORMAT_EXAMPLE}
+            onChange={e => setPhone(e.target.value)}
+            onBlur={() => { const n = normalizePhone(phone); if (n) setPhone(n) }}
           />
+          <p id="pf-phone-hint" className="pf-hint">{t('profile:phoneHint', { example: PHONE_FORMAT_EXAMPLE })}</p>
         </div>
         {email ? (
           <div>

@@ -13,6 +13,9 @@ import FriendButton from '../components/FriendButton'
 import ReviewCard from '../components/ReviewCard'
 import { CameraIcon } from '../components/Icons'
 
+// get_public_profile takes a uuid: anything else cannot exist, so it is "not found" without a request that would 400.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const byVerifiedThenNewest = (a, b) =>
   Number(b.verified) - Number(a.verified) || new Date(b.createdAt) - new Date(a.createdAt)
 
@@ -45,6 +48,7 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     if (authLoading) return undefined
+    if (!UUID_RE.test(id || '')) { setState({ loading: false, error: null, profile: null }); return undefined }
     let alive = true
     setState({ loading: true, error: null, profile: null })
     getPublicProfile(id).then(({ data, error }) => {

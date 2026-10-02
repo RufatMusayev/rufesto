@@ -204,6 +204,14 @@
 .bk-preview-status { margin-top: 12px; }
 .bk-join { margin-top: 20px; text-align: left; }
 .bk-join .state-actions { margin-top: 16px; }
+.bk-join-phone { margin-bottom: 8px; }
+.bk-table-note {
+  margin: 0; padding: 10px 14px;
+  background: var(--s2); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--t2); font-size: 0.82rem; line-height: 1.5;
+}
+.bk-table-note strong { color: var(--t1); }
+.bk-hint { color: var(--t3); font-size: 0.76rem; line-height: 1.4; margin-top: 6px; }
 .bk-invite-card > .bk-notice { margin-top: 20px; }
 .bk-invite-card > .state-actions { margin-top: 20px; }
 

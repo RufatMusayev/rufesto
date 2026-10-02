@@ -8,7 +8,8 @@ import { useAuth } from '../contexts/AuthContext'
 import DishDetailSheet from '../components/DishDetailSheet'
 import PromoCard from '../components/PromoCard'
 import LoadError from '../components/LoadError'
-import { HomeTabs } from '../features/social/mounts'
+import PostMenu from '../components/PostMenu'
+import { HomeTabs, useRequireAuth } from '../features/social/mounts'
 import './HomePage.css'
 
 export default function HomePage() {
@@ -30,6 +31,8 @@ export default function HomePage() {
   const [myLikedReviewIds, setMyLikedReviewIds] = useState(() => new Set())
   const [mySavedDishIds, setMySavedDishIds] = useState(() => new Set())
   const { session } = useAuth()
+  // One sign-in sheet for the whole feed: a signed-out like / save asks to sign in instead of toggling locally.
+  const { requireAuth, authModal } = useRequireAuth()
   const trackedImpressions = useRef(new Set())
 
   useEffect(() => {
@@ -183,6 +186,7 @@ export default function HomePage() {
                       initialLikeCount={reviewLikeCounts[item.id] || 0}
                       initialLiked={myLikedReviewIds.has(item.id)}
                       initialSaved={mySavedDishIds.has(item.dishes?.id || item.dish_id)}
+                      requireAuth={requireAuth}
                     />
                   : item._type === 'promo'
                     ? <PromoCard key={`promo-${item.id}`} campaign={item} index={i} onDishClick={setDishDetail} />
@@ -190,6 +194,7 @@ export default function HomePage() {
                         key={`rest-${item.id}`} restaurant={item} index={i} followedIds={followedIds}
                         initialLikeCount={restaurantLikeCounts[item.id] || 0}
                         initialLiked={myLikedRestaurantIds.has(item.id)}
+                        requireAuth={requireAuth}
                       />
               )}
               <div style={{ height: 80 }} />
@@ -200,6 +205,7 @@ export default function HomePage() {
         {dishDetail && (
           <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />
         )}
+        {authModal}
       </div>
     </HomeTabs>
   )
@@ -267,7 +273,7 @@ function StoriesBar({ restaurants, followedIds = [] }) {
   )
 }
 
-function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false, initialLikeCount = 0 }) {
+function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false, initialLikeCount = 0, requireAuth }) {
   const open = isRestaurantOpen(r.operating_hours)
   const today = getTodayHours(r.operating_hours)
   const emoji = cuisineEmoji(r.cuisine_type)
@@ -284,11 +290,11 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
   const tapCount = useRef(0)
 
   async function toggleLike() {
+    if (!requireAuth()) return
     const next = !liked
     setLiked(next)
     setLikeCount(c => c + (next ? 1 : -1))
     if (next) { setLikeAnimating(true); setTimeout(() => setLikeAnimating(false), 350) }
-    if (!session) return
     try {
       if (next) {
         const { error } = await supabase.from('likes').insert({
@@ -312,6 +318,7 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
     } else if (tapCount.current === 2) {
       clearTimeout(tapTimer.current)
       tapCount.current = 0
+      if (!requireAuth()) return
       if (!liked) toggleLike()
       setShowHeart(true)
       setTimeout(() => setShowHeart(false), 900)
@@ -319,9 +326,9 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
   }
 
   async function handleSave() {
+    if (!requireAuth()) return
     const next = !saved
     setSaved(next)
-    if (!session) return
     try {
       if (next) {
         const { error } = await supabase.from('user_follows').insert({ user_id: session.user.id, restaurant_id: r.id })
@@ -360,13 +367,7 @@ function FeedPost({ restaurant: r, index, followedIds = [], initialLiked = false
           </span>
         </Link>
         {open && <span className="open-indicator">{t('common:open')}</span>}
-        <button className="icon-btn" style={{ width: 28, height: 28, color: 'var(--t1)' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="1.5" />
-            <circle cx="12" cy="12" r="1.5" />
-            <circle cx="12" cy="19" r="1.5" />
-          </svg>
-        </button>
+        <PostMenu path={`/restaurant/${r.slug}`} title={r.name} />
       </div>
 
       {/* Post image */}
@@ -553,7 +554,7 @@ function buildFeed(reviews, restaurants, campaigns = []) {
   return withPromos
 }
 
-function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false, initialLikeCount = 0, initialSaved = false }) {
+function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false, initialLikeCount = 0, initialSaved = false, requireAuth }) {
   const dish = rev.dishes
   const restaurant = dish?.restaurants
   const { session, profile } = useAuth()
@@ -581,11 +582,11 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
 
   async function toggleLike(e) {
     e.stopPropagation()
+    if (!requireAuth()) return
     const next = !liked
     setLiked(next)
     setLikeCount(c => c + (next ? 1 : -1))
     if (next) { setLikeAnimating(true); setTimeout(() => setLikeAnimating(false), 350) }
-    if (!session) return
     try {
       if (next) {
         const { error } = await supabase.from('likes').insert({
@@ -605,9 +606,9 @@ function ReviewPostCard({ review: rev, index, onDishClick, initialLiked = false,
   async function handleToggleSave(e) {
     e.stopPropagation()
     if (!dish) return
+    if (!requireAuth()) return
     const next = !saved
     setSaved(next)
-    if (!session) return
     const dishId = dish.id || rev.dish_id
     try {
       if (next) {

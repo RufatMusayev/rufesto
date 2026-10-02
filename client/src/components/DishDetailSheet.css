@@ -1,0 +1,6 @@
+/* Dish sheet (components/DishDetailSheet.jsx): link from a dish to its restaurant's menu (shown when the dish row knows its restaurant). */
+.dds-menu-link {
+  margin-top: 4px;
+  font-size: 0.78rem; font-weight: 600; color: var(--accent);
+}
+.dds-menu-link:hover, .dds-menu-link:focus-visible { text-decoration: underline; }

@@ -54,12 +54,10 @@ export function canAccess(role, path) {
 // What each staff role may WRITE (and one thing it may see), mirrored from the database role matrix (sql/52b, V2-CONTRACT 12.2). UX only:
 // the DB refuses everything else (forbidden_status_change, RLS), so the dashboard just hides the buttons.
 //   orderFlow    orders.status other than paid / refunded (served, cancelled)
-//   orderPaid    orders.status -> paid (the cashier can do nothing else to an order)
 //   tableState   tables.state (a cashier or kitchen write is refused by policy)
 //   guestPhone   a guest's phone number on a booking card (never the e-mail address, for nobody)
 const ROLE_CAN = {
   orderFlow:  ['admin', 'manager', 'waiter', 'host'],
-  orderPaid:  ['admin', 'manager', 'cashier'],
   tableState: ['admin', 'manager', 'waiter', 'host'],
   guestPhone: ['admin', 'manager', 'host', 'cashier'],
 }

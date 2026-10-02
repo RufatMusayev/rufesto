@@ -75,10 +75,10 @@ function CallCard({ call, now, acting, onAck, onResolve }) {
           </div>
         </div>
 
-        {/* Bills are settled where orders are marked paid. */}
-        {call.kind === 'bill' && canAccess(staffRow?.role, '/orders') && (
-          <Link to="/orders" className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>
-            {t('dashboard:navOrders')}
+        {/* Bill requests are settled on the Bills page (admin, manager, cashier). */}
+        {call.kind === 'bill' && canAccess(staffRow?.role, '/bills') && (
+          <Link to={`/bills?table=${encodeURIComponent(call.tableId)}`} className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>
+            {t('v2:navBills')}
           </Link>
         )}
 

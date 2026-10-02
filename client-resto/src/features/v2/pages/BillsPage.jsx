@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
 import { closeBill, fetchBills, markSharePaid, subscribeBills, voidBill } from '../api'
@@ -50,7 +51,10 @@ export default function BillsPage() {
   const subscribe = useCallback(resync => subscribeBills(restaurantId, resync), [restaurantId])
   const { data, setData, error, loading, retry, reload } = useLiveList(load, subscribe, restaurantId)
 
-  const [filter, setFilter] = useState('active')
+  // /bills?table=<id> (the "Settle on Bills" link on a served order) narrows the list to that table's bills.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tableParam = searchParams.get('table') || ''
+  const [filter, setFilter] = useState(() => (tableParam ? 'all' : 'active'))
   const [actionError, setActionError] = useState('')
   const [busyShares, setBusyShares] = useState(() => new Set())
   const [confirm, setConfirm] = useState(null) // { kind: 'close' | 'void', bill }
@@ -61,9 +65,17 @@ export default function BillsPage() {
   const canVoid = VOID_ROLES.includes(staffRow?.role)
   const cancelConfirm = useCallback(() => setConfirm(null), [])
 
+  // A paid or older bill of that table must show too, so a table link starts on "all".
+  useEffect(() => { if (tableParam) setFilter('all') }, [tableParam])
+  const clearTable = useCallback(() => {
+    setFilter('active')
+    setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('table'); return next }, { replace: true })
+  }, [setSearchParams])
+
   const bills = data || []
-  const counts = { active: bills.filter(matches.active).length, paid: bills.filter(matches.paid).length, all: bills.length }
-  const visible = bills.filter(matches[filter])
+  const scoped = tableParam ? bills.filter(b => b.tableId === tableParam) : bills
+  const counts = { active: scoped.filter(matches.active).length, paid: scoped.filter(matches.paid).length, all: scoped.length }
+  const visible = scoped.filter(matches[filter])
 
   function setBusy(id, on) {
     setBusyShares(prev => {
@@ -138,6 +150,17 @@ export default function BillsPage() {
       ) : (
         <>
           <BillStats bills={bills} />
+
+          {tableParam && (
+            <div className="v2-table-filter">
+              <span>
+                {scoped.length > 0
+                  ? t('tableFilterOne', { table: t('common:tableLabel', { number: scoped[0].tableNumber }) })
+                  : t('tableFilterUnknown')}
+              </span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={clearTable}>{t('tableFilterClear')}</button>
+            </div>
+          )}
 
           <div className="v2-chips no-scrollbar" role="group" aria-label={t('billsTitle')}>
             {FILTERS.map(f => (

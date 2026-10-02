@@ -74,6 +74,9 @@ export function friendlyErrorKey(err, { fallback = 'actionFailed', permission = 
 
   if (code === 'NO_ROWS') return permission === 'errPermission' ? 'errNoChange' : permission
   if (RPC_CODES[message]) return RPC_CODES[message]
+  // sql/54: an order can only become paid through its table's bill. Checked before the generic 42501 / permission
+  // branches below, and by substring because Postgres may append details to the message.
+  if (message.includes('use_bill_settlement')) return 'errUseBillSettlement'
   if (PERMISSION_CODES.has(message)) return permission
 
   if (/failed to fetch|networkerror|network request failed|load failed|fetch failed|timed out/.test(message)) return 'errNetwork'

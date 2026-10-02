@@ -126,7 +126,7 @@ export function subscribeGroupMembers(bookingId, resync) {
 // ───────────────────────── Bills ─────────────────────────
 // View-model
 //   Bill  { id, status: 'open'|'requested'|'paying'|'paid'|'void', total, collected, createdAt,
-//           tableNumber, sectionName, shares: Share[], tips: [{ amount, waiterName }] }
+//           tableId, tableNumber, sectionName, shares: Share[], tips: [{ amount, waiterName }] }
 //   Share { id, intentId, intentStatus, name, amount, paid, method: 'card'|'reception'|'cash'|null, isDemo, canMarkPaid }
 // CONTRACT: restaurant_bills(p_restaurant_id, p_day, p_status) (sql/42d). Omitting p_day returns today's bills
 //   (Asia/Baku) plus any bill still open / requested / paying from an earlier day. The DB calls a finished bill
@@ -158,6 +158,7 @@ function mapBill(b) {
     total: Number(b.total) || 0,
     collected: Number(b.collected) || 0,
     createdAt: b.created_at,
+    tableId: b.table?.id ?? null,
     tableNumber: b.table?.label ?? '',
     sectionName: b.table?.section || '',
     shares: (b.shares || []).map(s => mapShare(s, active)),

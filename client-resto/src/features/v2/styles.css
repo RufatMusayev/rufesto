@@ -182,6 +182,11 @@
   .v2-stat .stat-label { font-size: 0.66rem; }
 }
 
+.v2-table-filter {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem; padding: 0.5rem 0.85rem; border-radius: 10px;
+  background: var(--s2); border: 1px solid var(--border); font-size: 0.8rem; color: var(--t2);
+}
 .v2-bill-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 0.75rem; align-items: start; }
 .v2-bill {
   --v2-status: var(--t3); background: var(--s2); border: 1px solid var(--border);

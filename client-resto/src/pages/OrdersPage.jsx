@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,7 +9,7 @@ import { bakuTodayStartISO, bakuTimeLabel } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
-import { roleCan } from '../lib/roles'
+import { canAccess, roleCan } from '../lib/roles'
 import ActionBanner from '../components/ActionBanner'
 
 // Real `order_status` values. `submitted` / `refunded` chips only appear while
@@ -17,31 +18,18 @@ const FILTERS = ['all', 'open', 'submitted', 'preparing', 'ready', 'served', 'pa
 const OPTIONAL_FILTERS = ['submitted', 'refunded']
 // Statuses a staff member can still cancel from.
 const CANCELLABLE = ['open', 'submitted', 'preparing', 'ready']
-// Other orders in these statuses don't hold a table back from being cleared.
-const SETTLED = ['paid', 'cancelled', 'refunded'] // served = delivered but still unpaid
 // staff_guest_names() takes at most 200 ids per call (sql/52b).
 const NAME_CHUNK = 200
-
-// Marking an order paid fires the DB trigger that clears its table, and the table
-// state machine only allows that from awaiting_payment. So "Mark Paid" is offered
-// only when the order has no table, or the table is awaiting payment and nothing
-// else on it is still in progress. Returns the i18n key of the reason it is not
-// available yet, or null when it is. `orders` is today's list (what this page loads).
-function markPaidBlockReason(order, orders) {
-  if (!order.table_id) return null
-  if (order.tables?.state !== 'awaiting_payment') return 'markPaidNeedsBill'
-  const othersInProgress = orders.some(o =>
-    o.id !== order.id && o.table_id === order.table_id && !SETTLED.includes(o.status))
-  return othersInProgress ? 'markPaidOthersOpen' : null
-}
 
 export default function OrdersPage() {
   const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
-  // Role matrix (sql/52b): served / cancelled for waiter, host, manager, admin; paid for cashier, manager, admin.
+  // Role matrix (sql/52b): served / cancelled for waiter, host, manager, admin. An order is never marked paid
+  // here: the DB only accepts that through the table's bill (sql/54, use_bill_settlement), so a served order
+  // links to Bills for the roles that can open it (admin, manager, cashier).
   const role = staffRow?.role
   const canFlow = roleCan(role, 'orderFlow')
-  const canPay = roleCan(role, 'orderPaid')
+  const canSettle = canAccess(role, '/bills')
   const [orders, setOrders] = useState([])
   // Guest names by user id. Only floor staff may ask, and only through the RPC: a waiter no longer reads `users`,
   // and nobody here needs a guest's e-mail or phone. askedIds stops a realtime reload re-asking known guests.
@@ -68,8 +56,6 @@ export default function OrdersPage() {
       // is what actually reflects item/KDS progress (started/ready/done) —
       // listen to that instead to keep expanded order rows live.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_tickets', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
-      // The Mark Paid button depends on the table's state (awaiting_payment).
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
 
     const stop = subscribeResync(ch, debouncedLoad)
     return () => { debouncedLoad.cancel(); stop() }
@@ -78,7 +64,7 @@ export default function OrdersPage() {
   async function loadOrders() {
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(table_number, state), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
+      .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
       .eq('restaurant_id', restaurantId)
       .gte('placed_at', bakuTodayStartISO())
       .order('placed_at', { ascending: false })
@@ -178,10 +164,9 @@ export default function OrdersPage() {
               onToggle={() => toggleExpand(o.id)}
               onUpdateStatus={updateStatus}
               acting={acting === o.id}
-              payBlock={markPaidBlockReason(o, orders)}
               guestName={guestNames[o.user_id]}
               canFlow={canFlow}
-              canPay={canPay}
+              canSettle={canSettle}
             />
           ))}
         </div>
@@ -190,14 +175,14 @@ export default function OrdersPage() {
   )
 }
 
-function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock, guestName, canFlow, canPay }) {
+function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestName, canFlow, canSettle }) {
   const { t, i18n } = useTranslation(['dashboard', 'common'])
   const s = orderStatusStyle(order.status)
   const items = order.order_items || []
   // Restaurant time (Baku), like "today" above, whatever zone the viewer's device is set to.
   const time = order.placed_at ? bakuTimeLabel(order.placed_at, i18n.language) : ''
   const showServed = canFlow && order.status === 'ready'
-  const showPaid = canPay && order.status === 'served'
+  const showSettle = canSettle && order.status === 'served'
   const showCancel = canFlow && CANCELLABLE.includes(order.status)
 
   return (
@@ -306,7 +291,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
             <span style={{ color:'var(--accent)' }}>{formatPrice(order.total_amount)}</span>
           </div>
 
-          {(showServed || showPaid || showCancel) && (
+          {(showServed || showSettle || showCancel) && (
           <div style={{ display:'flex', gap:'0.35rem', marginTop:'0.75rem' }}>
             {showServed && (
               <button className="btn btn-primary btn-sm" style={{ flex:1 }}
@@ -314,12 +299,11 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
                 {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markServed')}
               </button>
             )}
-            {showPaid && (
-              <button className="btn btn-ghost btn-sm" style={{ flex:1 }}
-                onClick={() => onUpdateStatus(order.id, 'paid')} disabled={acting || !!payBlock}
-                title={payBlock ? t(`dashboard:${payBlock}`) : undefined}>
-                {acting ? <span className="spinner" style={{ width:12, height:12 }} /> : t('dashboard:markPaid')}
-              </button>
+            {showSettle && (
+              <Link className="btn btn-ghost btn-sm" style={{ flex:1 }}
+                to={order.table_id ? `/bills?table=${encodeURIComponent(order.table_id)}` : '/bills'}>
+                {t('dashboard:settleOnBills')}
+              </Link>
             )}
             {showCancel && (
               <button className="btn btn-danger btn-sm" style={{ minWidth:80 }}
@@ -328,9 +312,6 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, payBlock
               </button>
             )}
           </div>
-          )}
-          {showPaid && payBlock && (
-            <div className="order-pay-hint">{t(`dashboard:${payBlock}`)}</div>
           )}
         </div>
       )}

@@ -559,7 +559,6 @@ body.modal-open { overflow: hidden; }
   background: rgba(186,117,23,0.1); border: 1px solid rgba(186,117,23,0.3);
   color: var(--warning); font-size: 0.8rem; line-height: 1.45;
 }
-.order-pay-hint { margin-top: 0.5rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }
 .field-hint { margin-top: 0.35rem; font-size: 0.7rem; line-height: 1.4; color: var(--t3); }
 
 /* ── Action banner (a failed action above a page's content) ── */

@@ -106,7 +106,7 @@ export default function BookingActions({ booking, onChanged }) {
         <WeHereButton startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} onClick={() => setSheet('weHere')} />
       ) : null}
       {live && isMember ? <p className="bk-waiting" role="status">{t('bookings:detail.waitingHost')}</p> : null}
-      {invitedOnly && (live || seated) ? <p className="bk-notice" role="status">{t('bookings:detail.invitedNote')}</p> : null}
+      {invitedOnly && (live || seated) && booking.invitesEnabled ? <p className="bk-notice" role="status">{t('bookings:detail.invitedNote')}</p> : null}
 
       {status === 'cancelled' ? <p className="bk-notice bk-notice-red" role="status">{t('bookings:detail.cancelledNote')}</p> : null}
 

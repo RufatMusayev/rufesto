@@ -30,6 +30,8 @@ export const mapCreated = d => ({
   startsAt: d.starts_at || null,
   endsAt: d.ends_at || null,
   partySize: Number(d.party_size) || 0,
+  // Only set when the RPC says so; the wizard knows its own switch and falls back to it.
+  invitesEnabled: d.invites_enabled == null ? null : !!d.invites_enabled,
 })
 
 /** get_group_booking_preview -> what the invite page shows (no contact details, ever) */
@@ -102,6 +104,8 @@ export const mapDetail = d => {
     myRole: d.my_role || (d.is_host ? 'host' : 'guest'),
     myStatus: d.my_status || null,
     invite,
+    // The host can switch the link off; a backend that does not send the flag yet means "on" (the old behaviour).
+    invitesEnabled: d.invites_enabled !== false,
     memberCount: Number(d.member_count) || 0,
     spotsLeft: Number(d.spots_left) || 0,
     members,
@@ -123,6 +127,7 @@ export const mapListRow = d => ({
   isGroup: !!d.is_group,
   memberCount: Number(d.member_count) || 0,
   inviteCode: d.invite_code || null,
+  invitesEnabled: d.invites_enabled !== false,
   tableNumber: d.table_number ?? null,
   note: d.note || null,
 })

@@ -101,7 +101,11 @@
     "cancelled": "Bu rezervasiya ləğv edilib.",
     "invalidTitle": "Bu dəvət artıq etibarlı deyil",
     "invalidBody": "Linkin vaxtı bitmiş və ya səhv yazılmış ola bilər. Dostunuzdan yeni link istəyin.",
-    "browse": "Restoranlara bax"
+    "browse": "Restoranlara bax",
+    "enable": "Dostları dəvət et",
+    "enableHint": "Dostların bu rezervasiyaya qoşulması üçün dəvət linkini aktiv edin.",
+    "disabledTitle": "Bu rezervasiya dəvətləri qəbul etmir",
+    "disabledBody": "Təşkilatçı dəvət linkini söndürüb. Ondan linki yenidən aktiv etməsini xahiş edin."
   },
   "status": {
     "pending": "Gözləyir",
@@ -202,6 +206,7 @@
     "not_member": "Siz bu rezervasiyanın iştirakçısı deyilsiniz",
     "not_seated": "Təşkilatçı hələ qeydiyyatdan keçməyib — 'Gəlmişik' düyməsini gözləyin",
     "outside_window": "Qeydiyyat yalnız rezervasiya vaxtı ətrafında mümkündür",
+    "invites_disabled": "Bu rezervasiya dəvətləri qəbul etmir.",
     "no_session": "Masa sessiyanız tapılmadı. Təşkilatçıdan yenidən qeydiyyat etməsini xahiş edin.",
     "generic": "Xəta baş verdi. Yenidən cəhd edin.",
     "network": "Serverə qoşulmaq alınmadı. İnternet bağlantınızı yoxlayıb yenidən cəhd edin.",

@@ -139,11 +139,12 @@ export default function BookGroupPage() {
     if (!validate()) return
     busy.current = true
     setPending(true)
-    // One RPC for every party size (1..max): the booking always gets an invite code on the server, `withInvite`
-    // only decides whether the guest is shown the share link right away or the plain confirmation.
+    // One RPC for every party size (1..max). `withInvite` (false when the switch is off or the party is 1) goes to
+    // the server as p_invites: the booking then has its link switched off, and the host can turn it on later.
     const { data, error } = await createGroupBooking({
       restaurantId: restaurant.id, date, time, partySize: party,
       note: form.note.trim(), name: form.name.trim(), phone: form.phone.trim(), consent: form.consent,
+      invites: withInvite,
     })
     busy.current = false
     setPending(false)

@@ -101,7 +101,11 @@
     "cancelled": "This booking was cancelled.",
     "invalidTitle": "This invite isn't valid anymore",
     "invalidBody": "The link may have expired or been mistyped. Ask your friend for a new one.",
-    "browse": "Browse restaurants"
+    "browse": "Browse restaurants",
+    "enable": "Invite friends",
+    "enableHint": "Turn on a link friends can use to join this booking.",
+    "disabledTitle": "This booking isn't accepting invites",
+    "disabledBody": "The host has turned off the invite link. Ask them to turn it back on."
   },
   "status": {
     "pending": "Pending",
@@ -202,6 +206,7 @@
     "not_member": "You are not part of this booking",
     "not_seated": "The host hasn't checked in yet — wait for 'We're here'",
     "outside_window": "Check-in is only possible around the booking time",
+    "invites_disabled": "This booking isn't accepting invites.",
     "no_session": "We couldn't find your table session. Ask the host to check in again.",
     "generic": "Something went wrong. Please try again.",
     "network": "Can't reach the server. Check your connection and try again.",

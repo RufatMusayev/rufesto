@@ -30,6 +30,7 @@ export default function InvitePage() {
   const [consent, setConsent] = useState(false)
   const [consentError, setConsentError] = useState(false)
   const [joinError, setJoinError] = useState(null)
+  const [invitesOff, setInvitesOff] = useState(false)     // the host switched the link off while this page was open
   const [pending, setPending] = useState(false)
   const busy = useRef(false)
 
@@ -59,6 +60,7 @@ export default function InvitePage() {
     busy.current = false
     setPending(false)
     if (err) {
+      if (err.code === 'invites_disabled') { setInvitesOff(true); return }
       setJoinError(err)
       if (REFRESH_ON.includes(err.code)) reload({ silent: true })
       return
@@ -81,6 +83,7 @@ export default function InvitePage() {
     )
   }
   if (error?.code === 'invalid_code') return <InvalidInvite />
+  if (error?.code === 'invites_disabled' || invitesOff) return <InvitesDisabled />
   if (error) {
     return <InviteShell><LoadError onRetry={reload} /></InviteShell>
   }
@@ -129,6 +132,18 @@ export default function InvitePage() {
       <PreviewCard preview={preview} />
       {action}
       {authModal}
+    </InviteShell>
+  )
+}
+
+function InvitesDisabled() {
+  const { t } = useTranslation('bookings')
+  return (
+    <InviteShell>
+      <EmptyState
+        icon="🔒" title={t('invite.disabledTitle')} body={t('invite.disabledBody')}
+        action={<Link to="/explore" className="btn btn-ghost">{t('invite.browse')}</Link>}
+      />
     </InviteShell>
   )
 }

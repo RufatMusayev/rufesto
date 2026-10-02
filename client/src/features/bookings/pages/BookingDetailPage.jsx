@@ -11,6 +11,7 @@ import RestaurantHeader from '../components/RestaurantHeader'
 import BookingStatusPill from '../components/BookingStatusPill'
 import MembersList from '../components/MembersList'
 import InviteCard from '../components/InviteCard'
+import EnableInvites from '../components/EnableInvites'
 import BookingActions from '../components/BookingActions'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -56,6 +57,7 @@ export default function BookingDetailPage() {
   const b = booking
   const joinedCount = b.members.filter(m => ['joined', 'arrived'].includes(m.status)).length
   const myUserId = session.user.id
+  const shareable = SHAREABLE.includes(b.status)
 
   return page(
     <>
@@ -80,11 +82,14 @@ export default function BookingDetailPage() {
         />
       ) : null}
 
-      {b.invite && SHAREABLE.includes(b.status) ? (
+      {b.invite && b.invitesEnabled && shareable ? (
         <InviteCard
           code={b.invite.code} joined={joinedCount} total={b.partySize}
           restaurantName={b.restaurant?.name || ''} startsAt={b.startsAt}
         />
+      ) : null}
+      {!b.invitesEnabled && b.isHost && b.partySize > 1 && shareable ? (
+        <EnableInvites bookingId={b.id} onEnabled={refetch} />
       ) : null}
 
       <BookingActions key={b.id} booking={b} onChanged={refetch} />

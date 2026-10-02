@@ -165,6 +165,10 @@
 .bk-created-card { padding: 1rem 1.25rem 1.5rem; }
 .bk-created-card .state-icon { color: var(--gold); margin-top: 0.5rem; }
 .bk-created-note { margin-top: 10px; }
+.bk-enable-invites { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bk-enable-invites .btn { gap: 8px; }
+.bk-enable-invites .bk-invite-hint { margin-bottom: 0; text-align: center; }
+.bk-enable-invites .bk-error { margin-top: 0; text-align: center; }
 .bk-invite { padding: 16px; }
 .bk-invite-hint { font-size: 0.8rem; color: var(--t2); line-height: 1.45; margin-bottom: 12px; }
 .bk-invite-link {

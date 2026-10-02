@@ -2,7 +2,7 @@
 // are set. Read-only: no ordering, nothing is booked, no table is claimed.
 const { test, expect } = require('../support/fixtures')
 const { CONSUMER_URL, creds } = require('../support/env')
-const { signInGuest, bakuDate } = require('../support/guest')
+const { signInGuest } = require('../support/guest')
 
 const url = path => CONSUMER_URL + path
 const timeSlots = page => page.getByRole('button', { name: /^\d{2}:\d{2}$/ })
@@ -16,26 +16,37 @@ test.describe('guest', { tag: ['@guest', '@consumer'] }, () => {
 
   test('signed-in guest sees their profile, not the sign-in prompt', async ({ page }) => {
     await page.goto(url('/profile'))
-    await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+    // Signed-in markers: older builds list "Sign out" on the page, the new profile keeps it in the Settings sheet
+    // and shows a "Settings" button instead.
+    await expect(page.getByRole('button', { name: 'Sign out' }).or(page.getByRole('button', { name: 'Settings', exact: true })).first()).toBeVisible()
     await expect(page.getByText('Welcome to Rufesto')).toHaveCount(0)
   })
 
-  test('opens a restaurant; the booking form offers time slots (nothing is submitted)', async ({ page }) => {
+  test('opens a restaurant; the booking wizard offers time slots (nothing is submitted)', async ({ page }) => {
     await page.goto(url('/'))
     await page.getByRole('link', { name: /view menu/i }).first().click()
     await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
-    await page.getByRole('button', { name: 'Reserve a Table' }).click()
-    await expect(page.getByRole('heading', { name: 'Reserve a Table' })).toBeVisible()
+    // The merged Reserve flow: one "Reserve a table" LINK to the /book/:slug wizard; its step 1 holds date, party size and slots.
+    const reserve = page.getByRole('link', { name: /^reserve a table$/i })
+    // FIXME(deploy pending): builds before the merged Reserve flow render a "Reserve a Table" button + modal instead.
+    const live = await reserve.waitFor({ timeout: 8_000 }).then(() => true, () => false)
+    test.fixme(!live, 'merged Reserve flow not deployed yet (preview still has the Reserve a Table modal button)')
+    await reserve.click()
+    await expect(page).toHaveURL(/\/book\/[\w-]+$/)
+    await expect(page.getByRole('heading', { name: 'Choose a time' })).toBeVisible()
 
-    // The restaurant may be closed on a given weekday; walk forward until a day has slots.
-    const date = page.locator('input[type="date"]')
+    // The restaurant may be closed on a given weekday, and today's earlier slots are greyed out (disabled):
+    // walk forward from today until a day has an enabled slot.
+    const free = page.locator('.slot-btn:enabled').first()
     let offered = false
-    for (let day = 1; day <= 7 && !offered; day++) {
-      await date.fill(bakuDate(day))
-      offered = await timeSlots(page).first().waitFor({ timeout: 3_000 }).then(() => true, () => false)
+    for (let day = 0; day <= 7 && !offered; day++) {
+      await page.locator('.bk-day').nth(day).click()
+      offered = await free.waitFor({ timeout: 3_000 }).then(() => true, () => false)
     }
     expect(offered, 'no bookable time slots in the next 7 days').toBe(true)
     expect(await timeSlots(page).count()).toBeGreaterThanOrEqual(1)
+    await free.click()   // picking a slot only enables Continue; nothing is booked
+    await expect(page.getByRole('button', { name: 'Continue' })).toBeEnabled()
   })
 
   test.describe('on a phone', () => {

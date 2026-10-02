@@ -17,14 +17,27 @@ cp .env.example .env     # optional, only needed for credentials or other target
 
 | Command | What runs |
 |---|---|
-| `npm test` | everything (specs without credentials skip themselves) |
+| `npm test` | everything on the desktop project (specs without credentials skip themselves) |
 | `npm run test:anon` | `@anon`: logged-out consumer + dashboard, always runnable |
 | `npm run test:guest` | `@guest`: needs `QA_GUEST_*` |
 | `npm run test:staff` | `@staff`: needs `QA_MANAGER_*` / `QA_WAITER_*` / `QA_KITCHEN_*` |
+| `npm run test:mobile` | the `mobile` project: every consumer spec on a Pixel 7 (touch) + the `@mobile` checklist, see below |
 | `npm run tour` | `@tour`: visual tour, writes numbered full-page PNGs to `report/tour/` (see below); not part of `npm test` |
 | `npm run report` | open the last HTML report (`e2e/report`) |
 
-Filter further with `npx playwright test --grep "@consumer"` or `--grep "@resto"`.
+Filter further with `npx playwright test --project=chromium --grep "@consumer"` or `--grep "@resto"`.
+
+### Projects: desktop and mobile
+
+| Project | Device | Runs |
+|---|---|---|
+| `chromium` | Desktop Chrome 1280x800 | every spec except `mobile-checklist` |
+| `mobile` | Pixel 7 (Chromium, isMobile + touch, 412x839; the app shows the bottom nav at <= 768px) | the consumer specs only (`anon-consumer`, `guest`, `v2-social`, `v2-bookings`, `v2-bills`) + `mobile-checklist`; the dashboard specs stay desktop-only |
+
+The `v2-*` specs write on the same QA accounts and the same QA table, so **never run the two projects at the same
+time**: every npm script picks one project (`npm test` = desktop, `npm run test:mobile` = phone). A bare
+`npx playwright test` starts both in parallel and the two copies of a v2 spec will collide. Extra browser contexts
+opened by the v2 specs (`openAs` / `openAnon`) inherit the project's viewport / touch settings.
 
 Targets default to preview: `CONSUMER_URL=https://rufat-server.com`,
 `RESTO_URL=https://resto.rufat-server.com`. A global setup pings both and aborts with a clear
@@ -36,13 +49,35 @@ message if either does not answer HTTP 200.
 |---|---|---|
 | `tests/anon-consumer.spec.js` | `@anon @consumer` | home (no console errors, restaurant cards), restaurant menu, map, reserve gate, `/t/:code`, `/profile` |
 | `tests/anon-resto.spec.js` | `@anon @resto` | staff login at `/`, SPA fallback for unknown routes, no console errors |
-| `tests/guest.spec.js` | `@guest @consumer` | sign in, profile, restaurant, booking time slots, table-code sheet |
+| `tests/guest.spec.js` | `@guest @consumer` | sign in, profile, restaurant, booking time slots (wizard step 1), table-code sheet |
 | `tests/staff.spec.js` | `@staff @resto` | manager / waiter / kitchen nav and route gating |
 | `tests/v2-social.spec.js` | `@guest @v2` | friend request + accept (2nd context as manager), post, feed, like, comment, unfriend |
 | `tests/v2-bookings.spec.js` | `@guest @v2` | group booking wizard, signed-out invite preview, manager joins/leaves, host cancels |
 | `tests/v2-bills.spec.js` | `@guest @v2` | `/t/<code>` claim, order, demo-card payment (double tap), receipt, leave; needs `QA_TABLE_CODE` |
 | `tests/v2-resto.spec.js` | `@staff @v2` | `/bills`, `/qr-sheet`, `/settings` tabs for the manager; waiter is redirected |
+| `tests/mobile-checklist.spec.js` | `@mobile @consumer` | `mobile` project only: feature-by-feature phone walk as review1 at 390x844, see below |
 | `tour.spec.js` | `@tour` | screenshot tour of the v2 flows: consumer at 390x844 as the QA guest, dashboard at 1280x800 as the QA manager; writes on the QA accounts and undoes it like the v2 specs; needs `QA_TABLE_CODE`; run with `npm run tour` (own config `playwright.tour.config.js`, outside `tests/`) |
+
+## Mobile checklist (`npm run test:mobile`)
+
+`tests/mobile-checklist.spec.js` walks the consumer app at 390x844 as the **review1** guest (Home Discover + Feed,
+Explore filters, Map and leaving it, restaurant menu / dish sheet / Reserve / floor plan, notifications, friends,
+`/t/<code>` join -> cart -> order -> bill -> demo pay -> leave, profile tabs, EN/AZ switch, dark/light, Azerbaijani
+copy). One test per feature. On every screen it asserts, softly (a screen reports all its problems): no horizontal
+overflow, no content cut off at the right edge, main headings inside their container, no new console errors, and that
+every control it taps is >= 40px tall (`getBoundingClientRect`), not covered by another element, and tappable with a
+touch event. Failing screens save a PNG in `test-results/<test>/` (small / covered targets are outlined in red); the
+HTML report lists every small target under annotations. Helpers: `support/mobile.js`.
+
+- Sign-in goes through the Supabase auth API like the other specs. review1's password is read at run time from
+  `docs/REVIEW-ACCOUNTS.md` (git-excluded) or `QA_REVIEW1_EMAIL` / `QA_REVIEW1_PASSWORD` in `.env`; nothing is copied into the suite.
+- The table test seats review1 at a *free* Bella Roma table other than `QA_TABLE_CODE` (found through the QA manager),
+  orders, pays with the demo card and leaves; the QA manager resets that table afterwards. It skips when no such table is free.
+- `document.documentElement.scrollWidth <= innerWidth` cannot fail in this app: `.main-content` is `overflow-x: clip` and
+  `body` is `overflow-x: hidden`, so wide content is cut off instead of widening the page. The walk therefore also looks
+  for interactive / text elements that straddle the right edge inside such a clipping ancestor.
+- Tap targets use touch events (`locator.tap()`), not mouse clicks; the page has `scroll-behavior: smooth`, so measure
+  after an instant scroll.
 
 Both apps are forced to English (`localStorage.rufesto_lang = 'en'`, seeded in
 `playwright.config.js`).
@@ -74,5 +109,8 @@ as `[failed network]` even when the test passes.
   renders an empty page). It runs automatically once the route is live.
 - Kitchen `/orders` bounce (staff): gated behind `QA_KITCHEN_LOCKDOWN_DEPLOYED=1` until the
   dashboard build with `kitchen: ['/kds']` ships. Remove the gate afterwards.
-- Booking time slots need a session (the modal starts on its sign-in step when logged out), so
-  that check lives in the guest spec; the anon spec asserts the sign-in gate instead.
+- `place_order` allows 5 orders per user and table in 10 minutes (`too_many_orders`, sql/47c). `v2-bills` places 2 per run, so
+  run the desktop and the mobile project at least ~5 minutes apart; a failure then shows the rpc body in the assertion message.
+- Reserve flow: the restaurant page has one "Reserve a table" link to the `/book/:slug` wizard (slots are public in step 1,
+  the sign-in is asked when going on to confirm). `anon-consumer` and `guest` become `fixme` at run time on a build that still
+  has the old Reserve modal, and run on their own once the merged flow is deployed.

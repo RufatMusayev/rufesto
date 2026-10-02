@@ -36,7 +36,10 @@ async function orderOneDish(page) {
   // placeOrder() is one atomic RPC (place_order) since sql/46; wait for it before doing anything else.
   const placed = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/place_order/.test(r.url()))
   await place.click()   // adding a dish opens the cart sheet by itself on the current build
-  expect((await placed).ok(), 'place_order rpc').toBe(true)
+  const res = await placed
+  // sql/47c rate limit: at most 5 orders per user and table in 10 minutes (`too_many_orders`). This spec places 2 per run,
+  // so a third run within 10 minutes of the first two (desktop + mobile + a rerun) fails here with that body.
+  expect(res.ok(), `place_order rpc: ${res.ok() ? '' : await res.text()}`).toBe(true)
 }
 
 test.describe('v2 bills', { tag: ['@guest', '@consumer', '@v2'] }, () => {

@@ -22,6 +22,19 @@ const pair = prefix => {
   return email && password ? { email, password } : null
 }
 
+/**
+ * A review account (docs/REVIEW-ACCOUNTS.md, preview only). Credentials come from QA_REVIEW<n>_EMAIL / _PASSWORD,
+ * or are read at run time from that git-excluded doc, so no password is ever copied into the suite.
+ */
+function reviewAccount(n) {
+  const fromEnv = pair(`QA_REVIEW${n}`)
+  if (fromEnv) return fromEnv
+  let raw
+  try { raw = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'REVIEW-ACCOUNTS.md'), 'utf8') } catch { return null }
+  const row = raw.split(/\r?\n/).map(l => l.split('|').map(c => c.trim())).find(c => c[1] === `review${n}@rufesto.test`)
+  return row && row[2] ? { email: row[1], password: row[2] } : null
+}
+
 module.exports = {
   CONSUMER_URL: strip(process.env.CONSUMER_URL || 'https://rufat-server.com'),
   RESTO_URL: strip(process.env.RESTO_URL || 'https://resto.rufat-server.com'),
@@ -30,6 +43,7 @@ module.exports = {
     manager: pair('QA_MANAGER'),
     waiter: pair('QA_WAITER'),
     kitchen: pair('QA_KITCHEN'),
+    review1: reviewAccount(1),   // Aysel R.: friends with review2 + review3, pending request from review4
   },
   supabaseOverride: process.env.QA_SUPABASE_URL && process.env.QA_SUPABASE_ANON_KEY
     ? { url: strip(process.env.QA_SUPABASE_URL), anonKey: process.env.QA_SUPABASE_ANON_KEY }

@@ -34,19 +34,28 @@ test.describe('v2 bookings', { tag: ['@guest', '@consumer', '@v2'] }, () => {
 
     try {
       let code
-      await test.step('wizard: tomorrow, party of 4, first free slot, submit', async () => {
+      // Merged Reserve flow: step 1 = date + party + slot, step 2 = "Who's coming?" (invite link), step 3 = confirm.
+      await test.step('wizard: party of 4, first free slot, invite link on, confirm, submit', async () => {
         await page.goto(url('/book/bella-roma'))
+        await expect(page.locator('.bk-stepper-num')).toHaveText('2')   // default party
+        const more = page.getByRole('button', { name: 'More guests' })
+        await more.click()
+        await more.click()
         await expect(page.locator('.bk-stepper-num')).toHaveText('4')
         let picked = false
         for (let day = 1; day <= 7 && !picked; day++) {   // the restaurant may be closed / full on a given weekday
+          const loaded = page.waitForResponse(r => /get_available_slots/.test(r.url()))
           await page.locator('.bk-day').nth(day).click()
-          await page.getByRole('button', { name: 'Continue' }).click()
-          const slot = page.locator('.slot-btn:enabled').first()
-          picked = await slot.waitFor({ timeout: 6_000 }).then(() => true, () => false)
-          if (picked) await slot.click()
-          else await page.getByRole('button', { name: 'Try another day' }).click()
+          await loaded
+          const slot = page.locator('.slot-btn:enabled')
+          await page.locator('.slot-btn, .bk-slot-empty').first().waitFor({ timeout: 6_000 }).catch(() => {})
+          picked = (await slot.count()) > 0
+          if (picked) await slot.first().click()
         }
         expect(picked, 'no bookable slot in the next 7 days').toBe(true)
+        await page.getByRole('button', { name: 'Continue' }).click()
+        await expect(page.getByRole('heading', { name: "Who's coming?" })).toBeVisible()
+        await expect(page.getByRole('switch', { name: 'Invite friends' })).toHaveAttribute('aria-checked', 'true')   // on by default from 3 guests
         await page.getByRole('button', { name: 'Continue' }).click()
         const phone = page.getByLabel('Phone number')
         if (!(await phone.inputValue())) await phone.fill(PHONE)

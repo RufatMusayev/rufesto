@@ -1,6 +1,12 @@
 // Helpers shared by the v2 specs (social, bookings, bills, resto).
 const { signInGuest } = require('./guest')
 
+/** The project's device settings (viewport, UA, isMobile, touch), so a second context looks like the first one. */
+const contextOptions = use => ({
+  storageState: use.storageState, viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
+  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch,
+})
+
 /**
  * A second, independent browser context signed in as `who` through the Supabase auth API
  * (never through a password field). Returns { page, session, supabase, close }.
@@ -8,7 +14,7 @@ const { signInGuest } = require('./guest')
 async function openAs(browser, testInfo, who) {
   const use = testInfo.project.use
   const context = await browser.newContext({
-    storageState: use.storageState, viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
+    ...contextOptions(use),
   })
   const page = await context.newPage()
   const { session, supabase } = await signInGuest(page, who)
@@ -19,7 +25,7 @@ async function openAs(browser, testInfo, who) {
 async function openAnon(browser, testInfo) {
   const use = testInfo.project.use
   const context = await browser.newContext({
-    storageState: use.storageState, viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
+    ...contextOptions(use),
   })
   return { context, page: await context.newPage(), close: () => context.close() }
 }
@@ -84,4 +90,4 @@ async function resetTable(page, guest, manager, tableCode) {
   return { tableId, state: await state() }
 }
 
-Object.assign(module.exports, { tinyPng, rpc, resetTable })
+Object.assign(module.exports, { tinyPng, rpc, rest, resetTable })

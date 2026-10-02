@@ -39,14 +39,35 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     await expect(page.locator('.leaflet-marker-icon').first()).toBeVisible()
   })
 
-  // The booking form (date + time slots) needs a session: BookingModal starts on its
-  // 'auth' step when logged out. The slots check lives in guest.spec.js.
-  test('reserve a table asks a logged-out visitor to sign in', async ({ page }) => {
+  // One "Reserve a table" LINK on the restaurant page opens the /book/:slug wizard. Date, party size and the free
+  // slots are public (step 1); the sign-in is asked when the visitor goes on to confirm: the "Continue" button
+  // turns into "Sign in to continue" and opens the sign-in sheet. Booking details are never shown signed out.
+  test('reserve a table opens the booking wizard and asks a logged-out visitor to sign in to confirm', async ({ page }) => {
     await page.goto(url('/restaurant/bella-roma'))
-    await page.getByRole('button', { name: 'Reserve a Table' }).click()
-    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /continue with email/i })).toBeVisible()
-    await expect(page.locator('input[type="date"]')).toHaveCount(0)
+    const reserve = page.getByRole('link', { name: /^reserve a table$/i })
+    // FIXME(deploy pending): builds before the merged Reserve flow render a "Reserve a Table" button + modal instead.
+    const live = await reserve.waitFor({ timeout: 8_000 }).then(() => true, () => false)
+    test.fixme(!live, 'merged Reserve flow not deployed yet (preview still has the Reserve a Table modal button)')
+
+    await expect(reserve).toHaveAttribute('href', '/book/bella-roma')
+    await reserve.click()
+    await expect(page).toHaveURL(url('/book/bella-roma'))
+    await expect(page.getByRole('heading', { name: 'Choose a time' })).toBeVisible()
+
+    // first bookable slot within a week, then Continue until the wizard needs a session
+    const slot = page.locator('.slot-btn:enabled').first()
+    for (let day = 0; day <= 7 && !(await slot.isVisible().catch(() => false)); day++) {
+      await page.locator('.bk-day').nth(day).click()
+      await slot.waitFor({ timeout: 3_000 }).catch(() => {})
+    }
+    await expect(slot, 'no bookable slot in the next 7 days').toBeVisible()
+    await slot.click()
+    const primary = page.locator('.bk-cta .btn')
+    const gate = page.getByRole('heading', { name: /welcome back|sign in to book/i }).first()
+    for (let step = 0; step < 3 && !(await gate.isVisible()); step++) await primary.click()
+    await expect(gate).toBeVisible()
+    await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()
+    await expect(page.getByLabel('Phone number')).toHaveCount(0)   // the contact form only exists for a signed-in guest
   })
 
   test('/t/:code while logged out shows the sign-in screen', async ({ page }) => {

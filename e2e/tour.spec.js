@@ -7,6 +7,8 @@
 // cleanup over the API when a step failed halfway, like the v2 specs do. The orders and the settled bill stay
 // behind as history rows, as in v2-bills.spec.js.
 // Dashboard shots are taken mid-flow (while the bill / order / table are live) and so are not in numeric order.
+// With QA_WAITER_* set the demo payment carries a 10 % tip for the QA waiter, so that 22-tips (manager, /tips) and
+// 22b-my-tips (waiter, /my-tips), taken once the bill is settled, show real numbers.
 const fs = require('fs')
 const path = require('path')
 const { test, expect } = require('@playwright/test')
@@ -158,11 +160,13 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
     const mctx = await newContext(browser, testInfo, MOBILE)
     const actx = await newContext(browser, testInfo, MOBILE)
     const dctx = await newContext(browser, testInfo, DESKTOP)
-    const [g, m, a, d] = await Promise.all([gctx.newPage(), mctx.newPage(), actx.newPage(), dctx.newPage()])
-    for (const [n, p] of [['guest', g], ['manager', m], ['anon', a], ['dash', d]]) watch(n, p)
+    const wctx = await newContext(browser, testInfo, DESKTOP)   // the QA waiter's dashboard (22b-my-tips); optional
+    const [g, m, a, d, w] = await Promise.all([gctx.newPage(), mctx.newPage(), actx.newPage(), dctx.newPage(), wctx.newPage()])
+    for (const [n, p] of [['guest', g], ['manager', m], ['anon', a], ['dash', d], ['waiter', w]]) watch(n, p)
     const guest = await signInGuest(g, creds.guest)
     const mgr = await signInGuest(m, creds.manager)
     await signInGuest(d, creds.manager)
+    const waiter = creds.waiter ? await signInGuest(w, creds.waiter) : null
 
     const caption = `${POST_PREFIX} ${Date.now()}`
     let bookingId = null
@@ -405,6 +409,20 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         const card = g.getByRole('radio', { name: /Card \(demo\)/ })
         await card.click()
         await expect(card).toHaveAttribute('aria-checked', 'true')
+        if (waiter) {   // a 10 % tip for the QA waiter, so 22-tips / 22b-my-tips have something to show
+          try {
+            const [table] = await rest(m, mgr, 'GET', `tables?id=eq.${tableId}&select=restaurant_id`)
+            const report = JSON.parse((await rpc(m, mgr, 'tip_report', { p_restaurant_id: table.restaurant_id })).body)
+            const staffId = report.waiters.find(x => x.user_id === waiter.session.user.id)?.staff_id
+            const listed = JSON.parse((await rpc(m, mgr, 'list_table_waiters', { p_table_id: tableId })).body)
+            const at = listed.findIndex(x => x.staff_id === staffId)   // the picker shows this list in this order, then "Whole team"
+            expect(at, 'the QA waiter is not offered for this table').toBeGreaterThanOrEqual(0)
+            await g.getByRole('radiogroup', { name: 'Add a tip' }).getByRole('radio', { name: /^10%/ }).click()
+            const radios = g.getByRole('radiogroup', { name: 'Who gets the tip?' }).getByRole('radio')
+            await radios.nth(at).click()
+            await expect(radios.nth(at)).toHaveAttribute('aria-checked', 'true')
+          } catch (err) { missed.push(`13: tip for the QA waiter: ${String(err.message || err).split('\n')[0]}`) }
+        }
         await g.getByRole('button', { name: /^Pay ₼/ }).click()
         await expect(g.getByRole('button', { name: /\(demo\)$/ })).toBeVisible()
         await shot(g, '13-demo-pay-sheet', { full: false })   // the pay sheet is an overlay
@@ -457,6 +475,23 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await shot(d, '20b-bills-paid')
       })
 
+      // ---- tips, once the bill is settled: the manager's per-waiter report and the waiter's own list
+      await soft('22-tips', async () => {
+        await d.goto(rurl('/tips'))
+        await expect(d.getByRole('heading', { level: 1, name: 'Tips' })).toBeVisible()
+        await expect(d.locator('.v2-tips-table')).toBeVisible()   // only rendered once the range has tips
+        await noSkeleton(d)
+        await shot(d, '22-tips')
+      })
+      await soft('22b-my-tips', async () => {
+        if (!waiter) { testInfo.annotations.push({ type: 'note', description: '22b-my-tips skipped: no QA_WAITER_* credentials' }); return }
+        await w.goto(rurl('/my-tips'))
+        await expect(w.getByRole('heading', { level: 1, name: 'My tips' })).toBeVisible()
+        await expect(w.locator('.v2-tip-list .v2-tip').first()).toBeVisible()
+        await noSkeleton(w)
+        await shot(w, '22b-my-tips')
+      })
+
       // ---- undo through the UI, like the specs: leave the table, cancel the booking, delete the post, unfriend
       await soft('cleanup: leave table', async () => {
         await g.goto(url(`/bill/${billId}`))
@@ -497,7 +532,7 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
       await quiet(() => rpc(g, guest, 'remove_friend', { p_user_id: mgr.session.user.id }))
       await quiet(() => resetTable(g, guest, mgr, tableCode))
       fs.writeFileSync(path.join(OUT, '_console.txt'), console_.join('\n') + (console_.length ? '\n' : ''))
-      await Promise.all([gctx, mctx, actx, dctx].map(c => c.close().catch(() => {})))
+      await Promise.all([gctx, mctx, actx, dctx, wctx].map(c => c.close().catch(() => {})))
     }
 
     console.log(`[tour] ${taken.length} screenshots in ${OUT}: ${taken.join(', ')}`)

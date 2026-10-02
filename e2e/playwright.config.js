@@ -34,7 +34,10 @@ module.exports = defineConfig({
   // The v2 specs write on the same QA accounts / QA table, so never run the two projects at the same
   // time: the npm scripts each pick one (`npm test` = desktop, `npm run test:mobile` = phone).
   projects: [
-    { name: 'chromium', testIgnore: /mobile-checklist\.spec\.js$/ },
+    // v2-tips uses the same QA table and QA guest as v2-bills, so it is its own project, run as the teardown of
+    // 'chromium': after every other desktop spec has finished (pass or fail), never in parallel with v2-bills.
+    { name: 'chromium', testIgnore: /(mobile-checklist|v2-tips)\.spec\.js$/, teardown: 'chromium-tips' },
+    { name: 'chromium-tips', testMatch: /v2-tips\.spec\.js$/ },
     // Pixel 7 = Chromium with isMobile + touch + 412x839 viewport (the app switches to the bottom nav at <= 768px).
     { name: 'mobile', testMatch: CONSUMER_SPECS, use: { ...devices['Pixel 7'] } },
   ],

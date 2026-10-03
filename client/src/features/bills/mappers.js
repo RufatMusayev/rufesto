@@ -94,6 +94,11 @@ export function mapBill(raw) {
     total: num(raw.total),
     foodTotal: num(raw.food_total),
     people,
+    // May the viewer choose how the bill is split? The server (sql/47, 52) honours a split only from the person
+    // who opened the bill, the table-session host and floor staff. The view-model has no opened_by / can_split
+    // field, so this is the table-session host flag of the viewer (people[].is_host with is_me); a mate who
+    // opened the bill but does not host is treated as a mate (the server would still accept them).
+    canSplit: people.some(p => p.isMe && p.isHost),
     modes: { own: num(raw.modes?.own), equal: num(raw.modes?.equal), all: num(raw.modes?.all) },
     memberCount: num(raw.member_count),
     newOrdersPending: num(raw.new_orders_pending),

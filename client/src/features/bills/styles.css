@@ -57,6 +57,7 @@
 .bl-option:active:not(:disabled) { transform: scale(0.98); }
 .bl-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bl-option:disabled { opacity: 0.45; cursor: not-allowed; }
+.bl-option-on:disabled { opacity: 1; cursor: default; }   /* the current plan stays readable when it cannot be changed */
 .bl-option-on { border-color: var(--accent); background: rgba(139, 45, 66, 0.08); }
 .bl-option-col { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 6px; }
 .bl-option-label { font-size: 0.86rem; font-weight: 600; }

@@ -95,6 +95,24 @@ export async function getBillVisitInfo(userId, billIds) {
   return map
 }
 
+/** What the credits for some reviews were earned on: Map(reviewId -> { dish, restaurant }). Own reviews are
+ *  readable. A failure (or a review that was deleted) leaves the id out: the caller shows a plain "Review posted". */
+export async function getReviewInfo(userId, reviewIds) {
+  const ids = [...new Set(reviewIds)].filter(Boolean)
+  if (ids.length === 0) return new Map()
+  const { data, error } = await run(() => supabase
+    .from('reviews')
+    .select(`id, dishes(name, ${rsrc()}(name))`)
+    .eq('user_id', userId)
+    .in('id', ids))
+  const map = new Map()
+  if (error) return map
+  for (const r of data || []) {
+    map.set(r.id, { dish: r.dishes?.name || null, restaurant: r.dishes?.restaurants?.name || null })
+  }
+  return map
+}
+
 /* -------------------------------------------------------------------- tabs */
 
 /** Own posts as grid tiles (newest 30, photos already signed by the social feature). */

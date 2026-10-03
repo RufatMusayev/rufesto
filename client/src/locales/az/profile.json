@@ -25,6 +25,8 @@
   "txBillPaid": "Hesab ödənildi",
   "txBillPaidAt": "{{name}} restoranında hesab ödənildi",
   "txReviewPosted": "Rəy paylaşıldı",
+  "txReviewPostedFor": "{{name}} üçün rəy paylaşıldı",
+  "txBonus": "Bonus kreditlər",
   "txRedeemed": "Ödənişdə istifadə edildi",
   "txAdjustment": "Düzəliş",
   "tier": {

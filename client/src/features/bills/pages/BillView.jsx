@@ -31,7 +31,7 @@ export default function BillView({ bill, tableId, tableEnded, reload, onPaid, on
   const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
   const navigate = useNavigate()
   const cart = useCart()
-  const plan = usePayPlan(bill, tableId)
+  const plan = usePayPlan(bill, tableId, reload)
   const actions = usePayActions({ bill, plan, tableId, reload, onPaid })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [error, setError] = useState(null)          // { key } of the last failed payment attempt
@@ -160,7 +160,8 @@ export default function BillView({ bill, tableId, tableEnded, reload, onPaid, on
         <>
           <SplitModePicker
             modes={bill.modes} memberCount={bill.memberCount} mode={plan.mode}
-            locked={plan.locked} onChange={plan.setMode}
+            locked={plan.locked} canChoose={plan.canSplit} onChange={plan.setMode}
+            saving={plan.splitSaving} error={plan.splitError ? t(plan.splitError.key) : ''}
           />
           <TotalsCard bill={bill} />
           {plan.coveredBy !== null ? (
@@ -185,7 +186,7 @@ export default function BillView({ bill, tableId, tableEnded, reload, onPaid, on
               {error && !sheetOpen ? <p className="bl-error" role="alert">{t(error.key)}</p> : null}
               <PayBar
                 share={plan.share} tip={plan.tip} total={plan.total} method={plan.method}
-                disabled={!plan.tipValid} busy={actions.processing && !sheetOpen} onPay={onPay}
+                disabled={!plan.tipValid || plan.splitBusy} busy={actions.processing && !sheetOpen} onPay={onPay}
               />
             </>
           )}

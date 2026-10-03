@@ -64,6 +64,17 @@ export async function listWaiters(tableId) {
   return { data: (data || []).map(mapWaiter), error: null }
 }
 
+/** Saves the split plan on the server so table mates see it before anybody pays. Only the table host, the person
+ *  who opened the bill and floor staff may call it (anyone else gets not_host). It replans the whole bill, so it
+ *  is refused once a share is paid. The default assignment is what the picker offers: every line to whoever
+ *  ordered it (own), the food split between everyone seated (equal), the caller pays all (all). */
+export async function splitBill({ billId, mode }) {
+  // CONTRACT: split_bill(p_bill_id, p_mode 'own'|'equal'|'all', p_assignments '{}') -> bill view-model.
+  //   Errors: bill_not_found, not_host, bill_closed, invalid_mode, invalid_assignment, split_locked.
+  //   Side effect (sql/42 _plan_bill): the first plan of an open bill makes it 'requested' and notifies staff.
+  return toBill(await rpc('split_bill', { p_bill_id: billId, p_mode: mode, p_assignments: {} }, 'split_failed'))
+}
+
 /* ---------------------------------------------------------------- payments */
 
 /** One pending payment intent for the caller's share. Calling it again for the same pending share updates the

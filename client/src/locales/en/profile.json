@@ -25,6 +25,8 @@
   "txBillPaid": "Bill paid",
   "txBillPaidAt": "Bill paid at {{name}}",
   "txReviewPosted": "Review posted",
+  "txReviewPostedFor": "Review posted for {{name}}",
+  "txBonus": "Bonus credits",
   "txRedeemed": "Redeemed at checkout",
   "txAdjustment": "Adjustment",
   "tier": {

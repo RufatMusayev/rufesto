@@ -4,7 +4,7 @@ const KNOWN = [
   'not_authenticated', 'no_session', 'nothing_due', 'table_not_found', 'bill_not_found', 'bill_closed',
   'invalid_mode', 'invalid_method', 'invalid_tip', 'invalid_waiter', 'invalid_assignment', 'split_locked',
   'no_share', 'already_paid', 'intent_not_found', 'not_demo', 'intent_not_pending', 'no_pending_payment',
-  'share_not_found', 'forbidden', 'demo_disabled',
+  'share_not_found', 'forbidden', 'demo_disabled', 'not_host',
 ]
 
 // Codes that share one message with another code.

@@ -133,15 +133,41 @@ test.describe('bills: before paying', TAGS, () => {
       expect(b1.modes.own + b2.modes.own, 'own shares of both guests').toBeCloseTo(b1.total, 1)
       expect(b1.modes.equal * 2, 'two equal shares').toBeCloseTo(b1.total, 1)
       expect(b1.modes.all, 'pay for everyone').toBeCloseTo(b1.total, 2)
-      for (const [g, bill] of [[one, b1], [two, b2]]) {
-        await expect(g.page.getByRole('radiogroup', { name: 'Split the bill' })).toBeVisible()
-        for (const [mode, label] of [['own', /^Pay my own/], ['equal', /^Split equally \(2\)/], ['all', /^Pay for everyone/]]) {
-          const r = radio(g.page, label)
-          await expect(r).toContainText(money(bill.modes[mode]))
-          await r.click()
-          await expect(r).toHaveAttribute('aria-checked', 'true')
-          await expect(payBar(g.page)).toContainText(`Your share ${money(bill.modes[mode])}`)
+      const MODES = [['own', /^Pay my own/], ['equal', /^Split equally \(2\)/], ['all', /^Pay for everyone/]]
+      const LIVE = { timeout: 5_000 }   // the host's choice is saved with split_bill and reaches the mate over realtime
+      await expect(one.page.getByRole('radiogroup', { name: 'Split the bill' })).toBeVisible()
+      await expect(two.page.getByRole('radiogroup', { name: 'Split the bill' })).toBeVisible()
+      await expect(two.page.getByText(/host chooses/i)).toBeVisible()
+      for (const [mode, label] of MODES) {   // g2 is a mate: read-only picker, the amounts are the server's
+        const r = radio(two.page, label)
+        await expect(r).toBeDisabled()
+        await expect(r).toContainText(money(b2.modes[mode]))
+      }
+      await expect(radio(two.page, /^Pay my own/), 'no plan on the server yet: the mate is on their own share').toHaveAttribute('aria-checked', 'true')
+      await expect(payBar(two.page)).toContainText(`Your share ${money(b2.modes.own)}`)
+
+      // g1 is the table host and the only one who chooses the split; every tap must reach g2 without anybody paying.
+      // Own first (nothing to save, the plan is already own), then equal, all, and back to own (a replan).
+      for (const [i, [mode, label]] of [...MODES, MODES[0]].entries()) {
+        const r = radio(one.page, label)
+        await expect(r).toContainText(money(b1.modes[mode]))
+        await r.click()
+        await expect(r).toHaveAttribute('aria-checked', 'true')
+        await expect(payBar(one.page)).toContainText(`Your share ${money(b1.modes[mode])}`)
+        await expect(radio(two.page, label), `g2's picker follows the host to "${mode}"`).toHaveAttribute('aria-checked', 'true', LIVE)
+        for (const [other, otherLabel] of MODES.filter(([m]) => m !== mode)) {
+          await expect(radio(two.page, otherLabel), `g2 has only "${mode}" selected`).toHaveAttribute('aria-checked', 'false')
         }
+        await expect(radio(two.page, label), 'still read-only').toBeDisabled()
+        if (mode === 'all') {   // the host pays for everyone: g2 has no share of their own
+          await expect(two.page.getByText(/is paying for the whole table/), 'g2 is told who pays').toBeVisible(LIVE)
+          await expect(payBar(two.page), 'nothing for g2 to pay').toHaveCount(0)
+        } else {
+          // own: g2's lines; equal: the share the server planned (the cent of an odd total goes to the host)
+          const mine = mode === 'own' ? b2.modes.own : (await myBill(g2)).my_share.amount
+          await expect(payBar(two.page), `g2's "Your share" under "${mode}"`).toContainText(`Your share ${money(mine)}`, LIVE)
+        }
+        if (i > 0) expect((await myBill(g1)).split_mode, `the server holds "${mode}"`).toBe(mode)   // the first tap sends nothing: no plan yet
       }
     })
   })
@@ -341,20 +367,18 @@ test.describe('bills: paying', TAGS, () => {
     })
   })
 
-  // The server ignores p_mode for a guest who neither opened the bill nor hosts the table, so the first tap on "Pay" bounces with "The amount is
-  // now ₼X. Tap pay to continue." (the share is the guest's own): the choice should not be offered to them in the first place.
+  // The server ignores p_mode for a guest who neither opened the bill nor hosts the table, so only the host chooses the split: a mate sees the
+  // picker read-only (all options disabled) with "The host chooses how the bill is split." and still pays their own share.
   test('a table mate who is not the host is not offered Pay for everyone / Split equally (the server would ignore the choice)', async ({ ui }) => {
     test.setTimeout(150_000)
     await F.withTable(ui, { orders: 1 }, async ({ g1, g2, table, ...A }) => {
       await dinner({ g1, g2, table, ...A }, table, TWO)
-      await myBill(g1)   // the host opens the bill, so there is no plan yet and the mate's modes are all still selectable
+      await myBill(g1)   // the host opens the bill, so there is no plan yet
       const two = await openBill(ui, 'g2', table)
-      const offered = two.page.getByRole('radio', { name: /^(Pay for everyone|Split equally)/ })
-      await expect(offered.first()).toBeVisible()
-      for (const r of await offered.all()) {
-        const off = (await r.getAttribute('aria-disabled')) === 'true' || (await r.isDisabled())
-        expect.soft(off, `"${(await r.innerText()).split('\n')[0]}" is offered to a guest the server ignores it for`).toBe(true)
-      }
+      const options = two.page.getByRole('radiogroup', { name: 'Split the bill' }).getByRole('radio')
+      await expect(options).toHaveCount(3)
+      for (const r of await options.all()) await expect(r, `"${(await r.innerText()).split('\n')[0]}" is offered to a guest the server ignores it for`).toBeDisabled()
+      await expect(two.page.getByText(/host chooses/i)).toBeVisible()
     })
   })
 

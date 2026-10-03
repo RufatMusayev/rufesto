@@ -8,8 +8,11 @@ import { fetchQrData } from '../api'
 import { v2Error } from '../errors'
 import useLiveList from '../hooks/useLiveList'
 import useQrImages from '../hooks/useQrImages'
-import { buildQrCards } from '../qrCards'
+import { applyRotatedCodes, buildQrCards } from '../qrCards'
+import { canRotateCodes, useRotateCodes } from '../rotate'
+import ConfirmModal from '../components/ConfirmModal'
 import EmptyBlock from '../components/EmptyBlock'
+import ErrorBanner from '../components/ErrorBanner'
 import LoadError from '../components/LoadError'
 import PrintToolbar from '../components/PrintToolbar'
 import QrSheet from '../components/QrSheet'
@@ -22,12 +25,20 @@ export default function QrSheetPage() {
   const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['v2', 'common', 'dashboard'])
   const load = useCallback(() => fetchQrData(restaurantId), [restaurantId])
-  const { data, error, loading, retry } = useLiveList(load, null, restaurantId)
+  const { data, setData, error, loading, retry, reload } = useLiveList(load, null, restaurantId)
 
   const [section, setSection] = useState('all')
   const [perPage, setPerPage] = useState(6)
   const [showCode, setShowCode] = useState(true)
   const [perChair, setPerChair] = useState(false)
+
+  // Rotate all codes (managers and admins): confirm -> RPC -> new codes on screen at once + silent refetch.
+  const canRotate = canRotateCodes(staffRow?.role)
+  const { rotate, busy: rotating } = useRotateCodes(restaurantId)
+  const [confirmRotate, setConfirmRotate] = useState(false)
+  const [rotateError, setRotateError] = useState('')
+  const [rotateDone, setRotateDone] = useState(false)
+  const cancelRotate = useCallback(() => setConfirmRotate(false), [])
 
   // null host mapping (not resto.* / localhost) means a QR would point nowhere.
   const linkable = !!tableQrUrl('x')
@@ -44,6 +55,22 @@ export default function QrSheetPage() {
 
   const ready = linkable && cards.length > 0 && !progress
     && cards.every(c => images[c.id] && images[c.id] !== 'error')
+
+  async function handleRotate() {
+    const res = await rotate(null)
+    if (res.skipped) return
+    setConfirmRotate(false)
+    if (res.error) {
+      setRotateDone(false)
+      setRotateError(v2Error(res.error, t))
+      return
+    }
+    setRotateError('')
+    setRotateDone(true)
+    // The RPC result already carries the new codes: show them now, then let the refetch confirm.
+    setData(prev => applyRotatedCodes(prev, res.data))
+    reload()
+  }
 
   // Hide the app for printing only while there is a sheet to print instead.
   useEffect(() => {
@@ -85,9 +112,22 @@ export default function QrSheetPage() {
             onShowCode={setShowCode}
             perChair={perChair}
             onPerChair={setPerChair}
-            canPrint={ready}
+            canPrint={ready && !rotating}
             onPrint={() => window.print()}
+            canRotate={canRotate}
+            onRotate={() => { setRotateError(''); setRotateDone(false); setConfirmRotate(true) }}
+            rotating={rotating}
+            rotatedAt={data.rotatedAt}
           />
+
+          <ErrorBanner message={rotateError} onDismiss={() => setRotateError('')} />
+
+          {rotateDone && (
+            <div className="v2-banner v2-banner--ok" role="status">
+              <span>{t('rotateAllDone')}</span>
+              <button type="button" className="v2-banner-close" onClick={() => setRotateDone(false)} aria-label={t('dismiss')}>✕</button>
+            </div>
+          )}
 
           {!linkable && <p className="v2-banner v2-banner--warn" role="alert">{t('qrHostUnavailable')}</p>}
 
@@ -139,6 +179,18 @@ export default function QrSheetPage() {
             document.body,
           )}
         </>
+      )}
+
+      {confirmRotate && (
+        <ConfirmModal
+          title={t('rotateAllTitle')}
+          body={t('rotateAllBody')}
+          confirmLabel={t('rotateAllConfirm')}
+          danger
+          busy={rotating}
+          onConfirm={handleRotate}
+          onCancel={cancelRotate}
+        />
       )}
     </div>
   )

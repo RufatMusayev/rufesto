@@ -132,3 +132,14 @@ export function bakuStamp(iso) {
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(d)
 }
+
+/** The most recent of several ISO timestamps (the original string), or null when none of them is a valid instant. */
+export function latestInstant(values) {
+  let best = null
+  let bestMs = -Infinity
+  for (const v of values || []) {
+    const ms = v ? Date.parse(v) : NaN
+    if (!Number.isNaN(ms) && ms > bestMs) { best = v; bestMs = ms }
+  }
+  return best
+}

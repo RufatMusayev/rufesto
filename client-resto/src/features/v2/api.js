@@ -8,8 +8,8 @@
 
 import { supabase } from '../../lib/supabase'
 import { subscribeResync } from '../../lib/realtime'
-import { writeError } from '../../lib/errors'
-import { bakuDateString, hhmm } from './dates'
+import { NO_ROWS_ERROR, writeError } from '../../lib/errors'
+import { bakuDateString, hhmm, latestInstant } from './dates'
 
 async function run(fn) {
   try {
@@ -208,22 +208,27 @@ export function subscribeBills(restaurantId, resync) {
 }
 
 // ───────────────────────── QR sheet ─────────────────────────
-// View-model: { tables: [{ id, number, capacity, sectionId, sectionName, code|null }], sections: [{ id, name }] }
+// View-model: { tables: [{ id, number, capacity, sectionId, sectionName, code|null }], sections: [{ id, name }],
+//               rotatedAt: ISO string|null }
 // `capacity` drives the per-chair cards (seat QR = `<table code>-S<n>`, n = 1..capacity).
+// `rotatedAt` = newest table_access_codes.rotated_at among the tables (sql/55), null when none / column missing.
 
 export async function fetchQrData(restaurantId) {
-  const [tablesRes, codesRes] = await Promise.all([
+  // access_code lives in the staff-only table_access_codes.
+  const codesQuery = columns => run(() => supabase.from('table_access_codes').select(columns).eq('restaurant_id', restaurantId))
+  const [tablesRes, codes0] = await Promise.all([
     // Explicit columns only: `tables` may carry access_code / qr_code_token, which
     // must never be selected from the client.
     run(() => supabase.from('tables').select('id, table_number, capacity, section_id, sections(name)')
       .eq('restaurant_id', restaurantId).eq('is_active', true)),
-    // access_code lives in the staff-only table_access_codes.
-    run(() => supabase.from('table_access_codes').select('table_id, access_code').eq('restaurant_id', restaurantId)),
+    codesQuery('table_id, access_code, rotated_at'),
   ])
+  // 42703 undefined_column: sql/55 (rotated_at) is not deployed here, so the sheet just has no "last rotated" line.
+  const codesRes = codes0.error?.code === '42703' ? await codesQuery('table_id, access_code') : codes0
   const error = tablesRes.error || codesRes.error
   if (error) return { data: null, error }
 
-  const codes = new Map((codesRes.data || []).map(c => [c.table_id, c.access_code]))
+  const codes = new Map((codesRes.data || []).map(c => [c.table_id, c]))
   const tables = (tablesRes.data || [])
     .map(t => ({
       id: t.id,
@@ -231,7 +236,7 @@ export async function fetchQrData(restaurantId) {
       capacity: Math.max(0, Math.floor(Number(t.capacity) || 0)),
       sectionId: t.section_id || '',
       sectionName: t.sections?.name || '',
-      code: codes.get(t.id) || null,
+      code: codes.get(t.id)?.access_code || null,
     }))
     .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
 
@@ -240,7 +245,31 @@ export async function fetchQrData(restaurantId) {
     if (t.sectionId && !sections.some(s => s.id === t.sectionId)) sections.push({ id: t.sectionId, name: t.sectionName })
   }
   sections.sort((a, b) => a.name.localeCompare(b.name))
-  return { data: { tables, sections }, error: null }
+  const rotatedAt = latestInstant(tables.map(t => codes.get(t.id)?.rotated_at))
+  return { data: { tables, sections, rotatedAt }, error: null }
+}
+
+// ───────────────────────── Rotate table codes ─────────────────────────
+// View-model: RotatedCode { tableId, tableNumber, code, rotatedAt }
+// CONTRACT: rotate_table_codes(p_restaurant_id, p_table_id) (sql/55): p_table_id null = every table of the restaurant;
+//   returns [{ table_id, table_number, access_code, rotated_at }]. Managers and admins only (exception 'not_allowed').
+//   Every printed QR of a rotated table stops working at once.
+
+/** Rotates the access code of one table, or of all tables when `tableId` is null. Resolves { data: RotatedCode[], error }. */
+export async function rotateTableCodes(restaurantId, tableId = null) {
+  const res = await run(() => supabase.rpc('rotate_table_codes', { p_restaurant_id: restaurantId, p_table_id: tableId }))
+  if (res.error) return res
+  const rotated = (Array.isArray(res.data) ? res.data : [])
+    .filter(r => r && r.table_id && r.access_code)
+    .map(r => ({
+      tableId: r.table_id,
+      tableNumber: String(r.table_number ?? ''),
+      code: r.access_code,
+      rotatedAt: r.rotated_at || null,
+    }))
+  // One table asked for but nothing came back: the table is gone or not this restaurant's.
+  if (tableId && rotated.length === 0) return { data: null, error: NO_ROWS_ERROR }
+  return { data: rotated, error: null }
 }
 
 // ───────────────────────── Settings: hours ─────────────────────────

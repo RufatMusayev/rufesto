@@ -136,11 +136,10 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     if (!restaurant) return
+    // Count-only RPC: follow rows are private (RLS shows a user only their own).
     supabase
-      .from('user_follows')
-      .select('id', { count: 'exact', head: true })
-      .eq('restaurant_id', restaurant.id)
-      .then(({ count }) => setFollowerCount(count || 0))
+      .rpc('restaurant_follower_count', { p_restaurant_id: restaurant.id })
+      .then(({ data }) => setFollowerCount(data || 0))
 
     if (session) {
       supabase

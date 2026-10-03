@@ -34,6 +34,8 @@ export default function TablesPage() {
   const [accessCodes, setAccessCodes] = useState({})
   const [qrTable, setQrTable] = useState(null)
   const closeQr = useCallback(() => setQrTable(null), [])
+  // A rotated code replaces the old one at once, so the card chip and the open QR modal show the new one.
+  const handleRotated = useCallback((tableId, code) => setAccessCodes(prev => ({ ...prev, [tableId]: code })), [])
 
   useEffect(() => {
     if (!restaurantId) return
@@ -175,7 +177,7 @@ export default function TablesPage() {
 
       {qrTable && accessCodes[qrTable.id] && (
         <TableQRModal table={qrTable} code={accessCodes[qrTable.id]}
-          restaurantName={staffRow?.restaurants?.name} onClose={closeQr} />
+          restaurantName={staffRow?.restaurants?.name} onClose={closeQr} onRotated={handleRotated} />
       )}
 
       <div style={{

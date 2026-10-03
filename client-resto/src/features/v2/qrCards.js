@@ -1,3 +1,5 @@
+import { latestInstant } from './dates'
+
 // The printable cards of the QR sheet. A card is { id, code, table, seat }:
 //   table card  seat === null   code = the table's access code           (QR /t/<code>)
 //   seat card   seat = n        code = `<access code>-S<n>`, n = 1..capacity (QR /t/<code>-S<n>)
@@ -19,4 +21,15 @@ export function buildQrCards(tables, perChair) {
     }
   }
   return cards
+}
+
+/**
+ * The QR data after `rotateTableCodes`: the rotated tables carry their new code at once, so the sheet never shows
+ * (or prints) a dead QR while the refetch is still on its way. `rotated` is the api's RotatedCode[].
+ */
+export function applyRotatedCodes(data, rotated) {
+  if (!data) return data
+  const byTable = new Map(rotated.map(r => [r.tableId, r]))
+  const tables = data.tables.map(tb => (byTable.has(tb.id) ? { ...tb, code: byTable.get(tb.id).code } : tb))
+  return { ...data, tables, rotatedAt: latestInstant([data.rotatedAt, ...rotated.map(r => r.rotatedAt)]) }
 }

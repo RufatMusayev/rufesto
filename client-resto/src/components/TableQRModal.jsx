@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../contexts/AuthContext'
 import { tableQrUrl } from '../lib/qr'
+import { v2Error } from '../features/v2/errors'
+import { canRotateCodes, useRotateCodes } from '../features/v2/rotate'
 
 // Shows, prints and downloads the QR code for one table. The QR encodes the
 // consumer link https://<consumer host>/t/<table code> (see lib/qr.js).
@@ -10,8 +13,18 @@ import { tableQrUrl } from '../lib/qr'
 // index.css): while this modal is open, `body.qr-printing` hides the app and
 // shows only the sheet. No popup window or inline document, so it also works
 // under a strict CSP and on browsers that block popups.
-export default function TableQRModal({ table, code, restaurantName, onClose }) {
-  const { t } = useTranslation(['dashboard', 'common'])
+//
+// Managers and admins also get "Rotate this table's code" (sql/55 rotate_table_codes): the old QR dies at once, the
+// new code comes back, `onRotated(tableId, code)` lets the Tables page swap it in and this modal re-renders with
+// the new code, link and QR.
+export default function TableQRModal({ table, code, restaurantName, onClose, onRotated }) {
+  const { t } = useTranslation(['dashboard', 'common', 'v2'])
+  const { restaurantId, staffRow } = useAuth()
+  const canRotate = canRotateCodes(staffRow?.role)
+  const { rotate, busy: rotating } = useRotateCodes(restaurantId)
+  const [confirming, setConfirming] = useState(false)
+  const [rotateDone, setRotateDone] = useState(false)
+  const [rotateError, setRotateError] = useState('')
   // null when the dashboard isn't served from a resto.* / localhost host.
   const url = tableQrUrl(code)
   const tableName = t('common:tableLabel', { number: table.table_number })
@@ -57,6 +70,25 @@ export default function TableQRModal({ table, code, restaurantName, onClose }) {
     a.remove()
   }
 
+  function askRotate() {
+    setRotateError('')
+    setRotateDone(false)
+    setConfirming(true)
+  }
+
+  async function handleRotate() {
+    const res = await rotate(table.id)
+    if (res.skipped) return
+    setConfirming(false)
+    if (res.error) {
+      setRotateError(v2Error(res.error, t))
+      return
+    }
+    const row = res.data.find(r => r.tableId === table.id) || res.data[0]
+    setRotateDone(true)
+    if (row) onRotated?.(table.id, row.code)
+  }
+
   return (
     <>
       <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -87,10 +119,40 @@ export default function TableQRModal({ table, code, restaurantName, onClose }) {
             </>
           )}
 
+          <div className="qr-modal-meta">
+            <span className="qr-modal-meta-label">{t('dashboard:qrCodeLabel')}</span>
+            <span className="qr-modal-code">{code}</span>
+          </div>
+
+          {canRotate && (
+            <div className="qr-rotate">
+              {rotateDone && <p className="qr-modal-note" role="status">{t('dashboard:qrRotateDone')}</p>}
+              {rotateError && <p className="qr-modal-fail" role="alert">{rotateError}</p>}
+              {confirming ? (
+                <>
+                  <p className="qr-modal-warning" role="alert">{t('dashboard:qrRotateWarn')}</p>
+                  <div className="qr-rotate-actions">
+                    <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)} disabled={rotating}>
+                      {t('common:cancel')}
+                    </button>
+                    <button type="button" className="btn btn-danger" onClick={handleRotate} disabled={rotating}>
+                      {rotating && <span className="spinner" aria-hidden="true" />}
+                      {t('dashboard:qrRotateConfirm')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" className="btn btn-ghost qr-rotate-btn" onClick={askRotate} disabled={rotating}>
+                  {t('dashboard:qrRotate')}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="qr-modal-actions">
             <button className="btn btn-ghost" onClick={onClose}>{t('common:close')}</button>
-            <button className="btn btn-ghost" onClick={handleDownload} disabled={!dataUrl}>{t('dashboard:qrDownload')}</button>
-            <button className="btn btn-primary" onClick={() => window.print()} disabled={!dataUrl}>{t('dashboard:qrPrint')}</button>
+            <button className="btn btn-ghost" onClick={handleDownload} disabled={!dataUrl || rotating}>{t('dashboard:qrDownload')}</button>
+            <button className="btn btn-primary" onClick={() => window.print()} disabled={!dataUrl || rotating}>{t('dashboard:qrPrint')}</button>
           </div>
         </div>
       </div>

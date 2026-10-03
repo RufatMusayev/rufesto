@@ -296,6 +296,15 @@ async function serveOrder({ kitchen, mgr }, orderId) {
 }
 
 const money = n => `₼${Number(n).toFixed(2)}`
+/**
+ * The total the cart shows for a food subtotal: VAT (and service charge, when the restaurant has one) on top, rounded like
+ * recalculate_order_total (rates from restaurant_settings, defaults 18 % / 0 %). Read through `api` (a manager: guests cannot read the settings).
+ */
+async function withVat(api, subtotal) {
+  const [s] = await api.rows(`restaurant_settings?restaurant_id=eq.${BELLA}&select=tax_rate,service_charge`)
+  const tax = Number(s?.tax_rate ?? 18), service = Number(s?.service_charge ?? 0)
+  return Math.round(Math.round(subtotal * 100) * (100 + tax + service) / 100 + 1e-9) / 100
+}
 const num = text => Number(String(text).replace(/[^\d.]/g, ''))
 const close = (a, b, eps = 0.011) => Math.abs(a - b) <= eps
 
@@ -392,5 +401,5 @@ module.exports = {
   url, rurl, claimByLink, joinTable, openMenu, cartSheet, addToCart, dashCard, kdsTicket,
   test, expect: base.expect, accounts, haveAccounts, BELLA, CONSUMER_URL, RESTO_URL, QA_TABLE_CODE,
   login, seed, acquireGuestLock, actors, withTable, bellaTables, pickTable, tableState, resetTable, seatGuest, dish, placeOrder,
-  tickets, setTickets, orderStatus, serveOrder, money, num, close,
+  tickets, setTickets, orderStatus, serveOrder, money, withVat, num, close,
 }

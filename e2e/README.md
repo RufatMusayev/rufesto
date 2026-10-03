@@ -23,6 +23,7 @@ cp .env.example .env     # optional, only needed for credentials or other target
 | `npm run test:staff` | `@staff`: needs `QA_MANAGER_*` / `QA_WAITER_*` / `QA_KITCHEN_*` |
 | `npm run test:tips` | `v2-tips` alone (the `chromium-tips` project, see below) |
 | `npm run test:mobile` | the `mobile` project: every consumer spec on a Pixel 7 (touch) + the `@mobile` checklist, see below |
+| `npm run test:all` | the whole suite, project by project, strictly one after the other with `--workers=1 --no-deps`: `chromium`, `mobile`, then `chromium-tips` (v2-tips) last, with a pause of `QA_PROJECT_GAP_MIN` minutes (default 5, the `place_order` cap) before the 2nd and 3rd. Runs every project even when an earlier one fails; exit code 1 if any failed. Extra arguments go to every run (`npm run test:all -- --grep @consumer`); a project the filter leaves empty is skipped. Not included: `npm run tour` |
 | `npm run tour` | `@tour`: visual tour, writes numbered full-page PNGs to `report/tour/` (see below); not part of `npm test` |
 | `npm run report` | open the last HTML report (`e2e/report`) |
 
@@ -33,8 +34,8 @@ Filter further with `npx playwright test --project=chromium --grep "@consumer"` 
 | Project | Device | Runs |
 |---|---|---|
 | `chromium` | Desktop Chrome 1280x800 | every spec except `mobile-checklist` and `v2-tips` |
-| `chromium-tips` | Desktop Chrome 1280x800 | `v2-tips` only; it is the *teardown* of `chromium`, so it runs after the rest of the desktop project has finished (pass or fail): it pays at the same QA table, with the same QA guest, as `v2-bills`, and must not overlap it. `npm test` / `test:staff` pull it in automatically; `npx playwright test --project=chromium-tips` runs it alone |
-| `mobile` | Pixel 7 (Chromium, isMobile + touch, 412x839; the app shows the bottom nav at <= 768px) | the consumer specs only (`anon-consumer`, `guest`, `v2-social`, `v2-bookings`, `v2-bills`) + `mobile-checklist`; the dashboard specs stay desktop-only |
+| `chromium-tips` | Desktop Chrome 1280x800 | `v2-tips` only, listed last in `playwright.config.js`. It is the *teardown* of `chromium`, so `npm test` / `test:staff` run it right after the rest of the desktop project (pass or fail): it pays at the same QA table, with the same QA guest, as `v2-bills`, and must not overlap it. `npm run test:all` runs it as the last of the three projects (`--no-deps` keeps it out of the `chromium` run); `npm run test:tips` runs it alone |
+| `mobile` | Pixel 7 (Chromium, isMobile + touch, 412x839; the app shows the bottom nav at <= 768px) | the consumer specs only (`CONSUMER_SPECS` in `playwright.config.js`: `anon-consumer`, `guest`, `v2-social`, `v2-bookings`, `v2-bills`, `feat-social`, `feat-profile`, `feat-notifications`, `feat-bookings`, `feat-discovery`, `feat-table`, `feat-bills`) + `mobile-checklist`; the dashboard specs (`anon-resto`, `staff`, `v2-resto`, `feat-dash-ops`, `feat-dash-money`) run in the desktop project only |
 
 The `v2-*` specs write on the same QA accounts and the same QA table, so **never run the two projects at the same
 time**: every npm script picks one project (`npm test` = desktop, `npm run test:mobile` = phone). A bare
@@ -58,6 +59,15 @@ message if either does not answer HTTP 200.
 | `tests/v2-bills.spec.js` | `@guest @v2` | `/t/<code>` claim, order, demo-card payment (double tap), receipt, leave; needs `QA_TABLE_CODE` |
 | `tests/v2-resto.spec.js` | `@staff @v2` | `/bills`, `/qr-sheet`, `/settings` tabs for the manager; waiter is redirected |
 | `tests/v2-tips.spec.js` | `@staff @v2` | tip report: guest pays a 10 % demo-card tip assigned to the QA waiter (`/t/<code>` claim, order, pay, leave), the waiter sees it on `/my-tips` and in the Waiter page card, the manager on `/tips` (Today row, CSV export header), `/tips` bounces the waiter, `/my-tips` opens for the manager; needs `QA_GUEST_*`, `QA_MANAGER_*`, `QA_WAITER_*`, `QA_TABLE_CODE` and sql/51 applied |
+| `tests/feat-social.spec.js` | `@guest @consumer @feat` | friends, requests, find (3+ letters), public profile, posts, feed, comments (docs/qa/consumer-social.md) |
+| `tests/feat-profile.spec.js` | `@guest @consumer @feat` | profile header numbers, credits, the five tabs, empty states, settings and edit sheets, sign out |
+| `tests/feat-notifications.spec.js` | `@guest @consumer @feat` | bell badge, list text, deep link and mark read for every v2 notification type a second account can trigger |
+| `tests/feat-bookings.spec.js` | `@guest @consumer @feat` | reserve wizard, invite page, booking screen, seating (the host scans the table QR / code, members scan the same code and the host approves), Profile > Bookings, availability rules |
+| `tests/feat-discovery.spec.js` | `@consumer @feat` | Home feed + campaigns, Explore, Map, restaurant page, floor plan (Reserve this table > `/book/:slug?table=<id>`), Azerbaijani, signed-out gates |
+| `tests/feat-table.spec.js` | `@guest @consumer @feat` | dine-in table: join / seats / party, cart with VAT, order status timeline, kitchen board, call waiter (Bella Roma review guests, never `QA_TABLE_CODE`'s table) |
+| `tests/feat-bills.spec.js` | `@guest @consumer @feat` | consumer bill: split modes, demo payment, tips, settled / void bills, leaving |
+| `tests/feat-dash-ops.spec.js` | `@staff @resto @dash-ops` | dashboard operations as the Sakura House staff: login, overview, orders, KDS, tables, menu, promos, bookings (Upcoming / Past, Load more), waiter, roles, Azerbaijani, 390 px incl. the More sheet. **Desktop project only** |
+| `tests/feat-dash-money.spec.js` | `@resto @money` | dashboard money and settings as the Seda staff: bills (void action), tips, QR sheet (rotating ONE table's code from the Tables QR dialog; "Rotate all codes" is only opened and cancelled, never confirmed), hours, closures, booking rules, staff, role gates. **Desktop project only**; run alone with `npx playwright test tests/feat-dash-money.spec.js --project=chromium --no-deps --workers=1` |
 | `tests/mobile-checklist.spec.js` | `@mobile @consumer` | `mobile` project only: feature-by-feature phone walk as review1 at 390x844, see below |
 | `tour.spec.js` | `@tour` | screenshot tour of the v2 flows: consumer at 390x844 as the QA guest, dashboard at 1280x800 as the QA manager (and, with `QA_WAITER_*`, as the QA waiter for `22b-my-tips`; the demo payment then carries a 10 % tip for that waiter so `22-tips` / `22b-my-tips` show numbers); writes on the QA accounts and undoes it like the v2 specs; needs `QA_TABLE_CODE`; run with `npm run tour` (own config `playwright.tour.config.js`, outside `tests/`) |
 
@@ -114,6 +124,12 @@ as `[failed network]` even when the test passes.
   dashboard build with `kitchen: ['/kds']` ships. Remove the gate afterwards.
 - `place_order` allows 5 orders per user and table in 10 minutes (`too_many_orders`, sql/47c). `v2-bills` places 2 per run (`v2-tips` and the tour 1 each), so
   run the desktop and the mobile project at least ~5 minutes apart; a failure then shows the rpc body in the assertion message.
+- `list_my_bookings` answers only the newest 100 rows by start time, cancelled ones included, and the QA accounts (review4, review6 ...) hold 100+ cancelled
+  future bookings from earlier runs (users cannot delete them). A fresh booking one hour from now is then missing from `/table` (banner) and Profile > Bookings.
+  The specs that read those screens therefore use a host with a short list (`bannerHost`, `waiter2.bella`) or take the slot inside the window; the
+  cancelled rows have to be purged in the database from time to time (docs/qa/RUN-REPORT.md).
+- Preview grants move: sql/55 revoked anon SELECT on `users` / `user_follows` / `staff` and column-limited `tables` (anon must name columns); the public follower count is the
+  RPC `restaurant_follower_count`. Specs that read as anon (`anonApi`) must use named columns and the RPC.
 - Reserve flow: the restaurant page has one "Reserve a table" link to the `/book/:slug` wizard (slots are public in step 1,
   the sign-in is asked when going on to confirm). `anon-consumer` and `guest` become `fixme` at run time on a build that still
   has the old Reserve modal, and run on their own once the merged flow is deployed.

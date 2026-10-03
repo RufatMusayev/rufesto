@@ -81,6 +81,9 @@ test.describe('v2 bookings', { tag: ['@guest', '@consumer', '@v2'] }, () => {
 
       await test.step('manager (a normal user) joins; host sees 2 members', async () => {
         await mgr.page.goto(url(`/b/${code}`))
+        const mgrPhone = mgr.page.getByLabel('Phone number')   // the invite page asks for a number the member has not saved yet
+        await mgr.page.getByLabel(CONSENT).waitFor()
+        if ((await mgrPhone.count()) && !(await mgrPhone.inputValue())) await mgrPhone.fill(PHONE)
         await mgr.page.getByLabel(CONSENT).check()
         await mgr.page.getByRole('button', { name: 'Join this booking' }).click()
         await expect(mgr.page).toHaveURL(new RegExp(`/bookings/${bookingId}$`))

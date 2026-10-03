@@ -329,7 +329,7 @@ test.describe('table: call waiter', TAGS, () => {
 
 test.describe('table: cart, order and kitchen', TAGS, () => {
   test('cart: quantity + / −, remove, notes and the total', async ({ ui }) => {
-    await withTable(ui, {}, async ({ g1, table }) => {
+    await withTable(ui, {}, async ({ g1, mgr, table }) => {
       const { page } = await ui.open('g1')
       await F.joinTable(page, table.code)
       await F.openMenu(page)
@@ -347,7 +347,8 @@ test.describe('table: cart, order and kitchen', TAGS, () => {
       await sheet.getByRole('button', { name: 'Close' }).click()   // a second dish
       await F.addToCart(page, 'Cappuccino')
       await expect(sheet.locator('.cart-row')).toHaveCount(2)
-      await expect(sheet.getByRole('button', { name: /^Place Order/ })).toContainText(F.money(penne.price * 2 + cappu.price))
+      // the button shows what will be charged: the food plus VAT (the rows above stay the dish prices)
+      await expect(sheet.getByRole('button', { name: /^Place Order/ })).toContainText(F.money(await F.withVat(mgr, penne.price * 2 + cappu.price)))
       await sheet.getByRole('button', { name: `Remove ${PENNE} from the order` }).click()
       await expect(sheet.locator('.cart-row')).toHaveCount(1)
       await sheet.getByRole('button', { name: 'Remove one Cappuccino' }).click()   // qty 1 -> removes the line
@@ -395,7 +396,7 @@ test.describe('table: cart, order and kitchen', TAGS, () => {
       await expect(sheet).toContainText(/Order #[0-9A-F]{8}/)
       const shown = F.num(await sheet.locator('.cart-placed-total').innerText())
       expect(shown, 'the confirmation shows the server total').toBeCloseTo(Number(order.total), 2)
-      expect.soft(cartTotal, `the cart said ${F.money(cartTotal)}, the order costs ${F.money(shown)} (VAT is added after the guest taps Place Order)`).toBeCloseTo(shown, 2)
+      expect.soft(cartTotal, `the cart said ${F.money(cartTotal)}, the order costs ${F.money(shown)} (the Place Order button shows the VAT-inclusive total)`).toBeCloseTo(shown, 2)
       await sheet.getByRole('button', { name: 'Go to my table' }).click()
       await expect(page).toHaveURL(url('/table'))
       await expect(page.getByText('Order #1')).toBeVisible()

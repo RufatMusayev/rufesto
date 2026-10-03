@@ -50,7 +50,12 @@ async function payByCard(page) {
 async function receivedOrRecover(page, billId) {
   const received = page.getByRole('heading', { name: 'Payment received' })
   const shown = await received.waitFor({ timeout: 20_000 }).then(() => true, () => false)
-  expect.soft(shown, 'the payment went through (bill settled) but the screen did not switch to "Payment received" (' + ((await page.getByRole('heading', { name: 'Your table session has ended' }).isVisible()) ? 'it says "Your table session has ended"' : 'it still offers to pay') + ')').toBe(true)
+  let notice = ''
+  if (!shown) {   // evidence before the reload: what the sheet / screen said
+    notice = (await page.locator('.bl-sheet-note, .bl-sheet-error').allInnerTexts()).join(' | ')
+    await test.info().attach('bill-screen-before-recover.png', { body: await page.screenshot(), contentType: 'image/png' })
+  }
+  expect.soft(shown, 'the payment went through (bill settled) but the screen did not switch to "Payment received" (' + ((await page.getByRole('heading', { name: 'Your table session has ended' }).isVisible()) ? 'it says "Your table session has ended"' : 'it still offers to pay') + (notice ? `; the pay sheet says: ${notice}` : '') + ')').toBe(true)
   if (!shown) { await page.goto(url('/bill/' + billId)); await expect(received).toBeVisible() }
 }
 /** A demo-card payment over the API (setup for the tests that are not about paying). */
@@ -315,22 +320,41 @@ test.describe('bills: paying', TAGS, () => {
     })
   })
 
-  test('pay for everyone: one payment covers the table, the mate\'s screen settles without paying', async ({ ui }) => {
+  // create_payment_intent(p_mode) is honoured only for the person who opened the bill, the table host and floor staff (sql/52);
+  // for everyone else it is ignored. g1 is the table host and opens the bill, so g1 pays for everyone and g2 is the covered mate.
+  test('pay for everyone: the host\'s one payment covers the table, the mate\'s screen settles without paying', async ({ ui }) => {
     test.setTimeout(180_000)
     await F.withTable(ui, { orders: 1 }, async ({ g1, g2, table, ...A }) => {
       await dinner({ g1, g2, table, ...A }, table, TWO)
       const [one, two] = [await openBill(ui, 'g1', table), await openBill(ui, 'g2', table)]
       const bill = await myBill(g1)
-      await radio(two.page, /^Pay for everyone/).click()
-      await (await payByCard(two.page)).click()
-      await receivedOrRecover(two.page, bill.id)
-      await expect(two.page.locator('.bl-settled')).toContainText(money(bill.modes.all))
-      await expect(one.page.getByText('Bill settled', { exact: true }), 'the covered guest owes nothing').toBeVisible({ timeout: 20_000 })
-      await expect(one.page.getByRole('heading', { name: 'Payment received' }), 'no payment of their own').toHaveCount(0)
-      await expect(one.page.getByRole('link', { name: 'View receipt' })).toBeVisible()
+      await radio(one.page, /^Pay for everyone/).click()
+      await (await payByCard(one.page)).click()
+      await receivedOrRecover(one.page, bill.id)
+      await expect(one.page.locator('.bl-settled')).toContainText(money(bill.modes.all))
+      await expect(two.page.getByText('Bill settled', { exact: true }), 'the covered guest owes nothing').toBeVisible({ timeout: 20_000 })
+      await expect(two.page.getByRole('heading', { name: 'Payment received' }), 'no payment of their own').toHaveCount(0)
+      await expect(two.page.getByRole('link', { name: 'View receipt' })).toBeVisible()
       const paid = await g1.rows(`payment_intents?bill_id=eq.${bill.id}&status=eq.succeeded&select=amount,tip_amount`)
       expect(paid).toHaveLength(1)
       expect(Number(paid[0].amount)).toBeCloseTo(bill.total, 2)
+    })
+  })
+
+  // The server ignores p_mode for a guest who neither opened the bill nor hosts the table, so the first tap on "Pay" bounces with "The amount is
+  // now ₼X. Tap pay to continue." (the share is the guest's own): the choice should not be offered to them in the first place.
+  test('a table mate who is not the host is not offered Pay for everyone / Split equally (the server would ignore the choice)', async ({ ui }) => {
+    test.setTimeout(150_000)
+    await F.withTable(ui, { orders: 1 }, async ({ g1, g2, table, ...A }) => {
+      await dinner({ g1, g2, table, ...A }, table, TWO)
+      await myBill(g1)   // the host opens the bill, so there is no plan yet and the mate's modes are all still selectable
+      const two = await openBill(ui, 'g2', table)
+      const offered = two.page.getByRole('radio', { name: /^(Pay for everyone|Split equally)/ })
+      await expect(offered.first()).toBeVisible()
+      for (const r of await offered.all()) {
+        const off = (await r.getAttribute('aria-disabled')) === 'true' || (await r.isDisabled())
+        expect.soft(off, `"${(await r.innerText()).split('\n')[0]}" is offered to a guest the server ignores it for`).toBe(true)
+      }
     })
   })
 
@@ -343,8 +367,9 @@ test.describe('bills: paying', TAGS, () => {
       await expect(chip.locator('.tbl-card-state')).toHaveText(/Free|Cleared/)
 
       await dinner({ g1, mgr, table, ...A }, table)
-      expect(await F.tableState(mgr, table.id)).toBe('occupied')
-      await expect(chip.locator('.tbl-card-state'), 'dashboard Tables page: occupied').toHaveText('Occupied', { timeout: 15_000 })
+      // sql/53: the kitchen starting a ticket moves the order Open -> Submitted -> Preparing and the table occupied -> ordering
+      expect(await F.tableState(mgr, table.id), 'the order was cooked and served: the table is Ordering').toBe('ordering')
+      await expect(chip.locator('.tbl-card-state'), 'dashboard Tables page: ordering').toHaveText('Ordering', { timeout: 15_000 })
       const { page } = await openBill(ui, 'g1', table)
       const bill = await myBill(g1)
       await expect(radio(page, /Pay at reception/)).toHaveAttribute('aria-checked', 'true')
@@ -410,9 +435,11 @@ test.describe('bills: after paying', TAGS, () => {
         await page.goto(url('/restaurant/bella-roma'))
         await page.locator('.menu-card').filter({ hasText: dish.name }).first().click()
         const sheet = page.locator('.sheet')
-        await expect(sheet.getByText(text), 'the review is listed on the dish').toBeVisible()
-        await expect(sheet.getByText(/verified/i), 'the restaurant page marks the review as a verified visit').toBeVisible({ timeout: 3_000 })
-      } finally { await g1.del(`reviews?user_id=eq.${g1.uid}&dish_id=eq.${dish.id}`) }   // keep the dish reviewable for the next run
+        const body = sheet.getByText(text)
+        await expect(body, 'the review is listed on the dish').toBeVisible()
+        // other reviews of the dish can carry the pill too: look at the header row (previous sibling) of THIS review
+        await expect(body.locator('xpath=preceding-sibling::div[1]').getByText(/verified/i), 'the restaurant page marks the review as a verified visit').toBeVisible({ timeout: 3_000 })
+      } finally { await g1.del(`reviews?user_id=eq.${g1.uid}&dish_id=eq.${dish.id}`) }   // meant to keep the dish reviewable; since sql/52 a guest has no DELETE on reviews (403), so every run uses up one dish of review1 (23 at Bella Roma, the test skips when none is left)
     })
   })
 })

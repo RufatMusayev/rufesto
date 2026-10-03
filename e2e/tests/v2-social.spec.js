@@ -28,11 +28,11 @@ test.describe('v2 social', { tag: ['@guest', '@consumer', '@v2'] }, () => {
         for (const name of ['Friends', 'Requests', 'Find']) await expect(page.getByRole('tab', { name, exact: true })).toBeVisible()
       })
 
-      await test.step('search needs 2+ chars, then lists the manager; send request -> Pending', async () => {
+      await test.step('search needs 3+ chars, then lists the manager; send request -> Pending', async () => {
         await page.getByRole('tab', { name: 'Find', exact: true }).click()
         const search = page.getByPlaceholder('Search by name')
         await search.fill('Q')
-        await expect(page.getByText('Type at least 2 letters.')).toBeVisible()
+        await expect(page.getByText('Type at least 3 letters.')).toBeVisible()
         await search.fill(MANAGER)
         await expect(row(page, MANAGER)).toBeVisible()
         await row(page, MANAGER).getByRole('button', { name: 'Add', exact: true }).click()

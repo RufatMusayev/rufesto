@@ -2,7 +2,7 @@
 // Accounts (docs/REVIEW-ACCOUNTS.md, signed in through the auth API): review5 + review6 = friend lifecycle and strangers,
 // review1 + review2 = friends with each other (existing friendship, never touched), posts / feed / comments.
 // Every test is self contained: it resets what it uses first and cleans up in `finally` (friendships, posts, photos).
-// Run one project at a time. The `mobile` project only picks it up once feat-(social|profile|notifications) is added to CONSUMER_SPECS in playwright.config.js (see docs/qa/consumer-social.md).
+// Run one project at a time. It runs in both the `chromium` and the `mobile` project (CONSUMER_SPECS in playwright.config.js; see docs/qa/consumer-social.md).
 const { test, expect } = require('../support/fixtures')
 const S = require('../support/feat-social')
 const { url, TAG, RUN } = S
@@ -72,7 +72,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await anon.close() }
   })
 
-  test('find: one letter sends no request and keeps the hint', async ({ page, browser }, testInfo) => {
+  test('find: one or two letters send no request and keep the hint', async ({ page, browser }, testInfo) => {
     const { a, b } = await pair(page, browser, testInfo)
     try {
       const searches = []
@@ -80,9 +80,11 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await page.goto(url('/friends?tab=find'))
       await expect(page.getByText('Search for guests by name to add them as friends.')).toBeVisible()
       await page.getByPlaceholder('Search by name').fill('E')
-      await expect(page.getByText('Type at least 2 letters.')).toBeVisible()
+      await expect(page.getByText('Type at least 3 letters.')).toBeVisible()
+      await page.getByPlaceholder('Search by name').fill('El')   // the minimum is 3 letters (search_users, sql/47c)
+      await expect(page.getByText('Type at least 3 letters.')).toBeVisible()
       await page.waitForTimeout(900)   // debounce is 300 ms
-      expect(searches, 'search_users calls for a 1 character query').toHaveLength(0)
+      expect(searches, 'search_users calls for a 1 or 2 character query').toHaveLength(0)
     } finally { await S.resetPair(a, b); await b.close() }
   })
 
@@ -105,18 +107,15 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await S.resetPair(a, b); await b.close() }
   })
 
-  // The UI promises "2+ letters" (FindPeople MIN_CHARS = 2, spec acceptance 1) but search_users returns [] below 3 (sql/47c).
-  test('find: a 2-letter query lists matching guests (UI says 2+, backend needs 3)', async ({ page, browser }, testInfo) => {
+  // The UI used to promise "2+ letters" while search_users answered [] below 3 (sql/47c); both say 3 now (FindPeople MIN_CHARS = 3), so
+  // a 2-letter query lists nobody and sends no request (see 'one or two letters send no request' above) and 3 letters list the guest:
+  test('find: three letters are enough (the minimum the UI and search_users agree on)', async ({ page, browser }, testInfo) => {
     const { a, b } = await pair(page, browser, testInfo)
     try {
-      const calls = []
-      page.on('response', async r => { if (/rpc\/search_users/.test(r.url())) calls.push(await r.text().catch(() => '')) })
       await page.goto(url('/friends?tab=find'))
-      await page.getByPlaceholder('Search by name').fill('El')
-      await page.waitForTimeout(1200)
-      await S.shot(page, testInfo, 'find-two-letters')
-      testInfo.annotations.push({ type: 'search_users', description: `2-letter query -> ${calls.join(' | ') || 'no call'}` })
-      await expect(row(page, OTHER), '"El" should list Elvin R. (or the hint must say 3 letters)').toBeVisible({ timeout: 2000 })
+      await page.getByPlaceholder('Search by name').fill('Elv')
+      await expect(row(page, OTHER), '"Elv" lists Elvin R.').toBeVisible()
+      await expect(page.getByText('Type at least 3 letters.')).toHaveCount(0)
     } finally { await S.resetPair(a, b); await b.close() }
   })
 

@@ -82,6 +82,8 @@ const accounts = {
   inviteMember: () => docAccount('review3@rufesto.test'),
   inviteObserver: () => docAccount('waiter2.sakura@rufesto.test'),
   detailHost: () => docAccount('review4@rufesto.test'),
+  // a guest whose booking list is still short: list_my_bookings answers only the newest 100 rows (cancelled ones included) and the busy hosts above hold 100+
+  bannerHost: () => docAccount('waiter2.bella@rufesto.test'),
   detailMember: () => docAccount('review2@rufesto.test'),
   detailOutsider: () => docAccount('waiter2.seda@rufesto.test'),
   emptyGuest: () => docAccount('kitchen.sakura@rufesto.test'),
@@ -222,16 +224,31 @@ async function createBooking(page, who, { restaurantId = BELLA, slot, party = 2,
   return { ok: r.ok, code: r.code, booking: r.ok ? r.body : null, status: r.status }
 }
 
-/** The caller's live bookings: host bookings are cancelled, memberships left. Idempotent, never throws. */
+/**
+ * The caller's live bookings: host bookings are cancelled, memberships left. Idempotent, never throws.
+ * list_my_bookings answers only the newest 100 rows by start time (sql/52d), and the QA accounts have hundreds of cancelled
+ * far-future ones, so a live booking made earlier would be missed: the live rows are read straight from the tables instead.
+ */
 async function releaseAll(page, who) {
-  const list = await call(page, who, 'list_my_bookings')
+  let n = 0
+  try {
+    const me = who.session.user.id
+    const hosted = (await req(page, who, 'GET', `bookings?user_id=eq.${me}&status=in.(pending,confirmed)&select=id`)).rows
+    for (const b of hosted) { n++; await call(page, who, 'cancel_booking', { p_booking_id: b.id }) }
+    const joined = (await req(page, who, 'GET', `booking_members?user_id=eq.${me}&status=in.(joined,arrived,invited)&select=booking_id,bookings(status,user_id)`)).rows
+    for (const m of joined) {
+      if (m.bookings && ['pending', 'confirmed'].includes(m.bookings.status) && m.bookings.user_id !== me) { n++; await call(page, who, 'leave_group_booking', { p_booking_id: m.booking_id }) }
+    }
+  } catch { /* cleanup must never mask the test result */ }
+  const list = await call(page, who, 'list_my_bookings')   // and whatever the RPC still shows (idempotent)
   const rows = list.ok && Array.isArray(list.body) ? list.body : []
   for (const b of rows) {
     if (!['pending', 'confirmed'].includes(b.status)) continue
+    n++
     if (b.my_role === 'host') await call(page, who, 'cancel_booking', { p_booking_id: b.booking_id })
     else if (['joined', 'arrived', 'invited'].includes(b.my_status)) await call(page, who, 'leave_group_booking', { p_booking_id: b.booking_id })
   }
-  return rows.length
+  return n
 }
 
 /** The caller's live bookings (host or member) from list_my_bookings. */
@@ -242,7 +259,7 @@ async function myBookings(page, who) {
 
 /** The caller's pending / confirmed bookings (host or member). */
 async function liveBookings(page, who) {
-  return (await myBookings(page, who)).filter(b => ['pending', 'confirmed'].includes(b.status))
+  return (await myBookings(page, who)).filter(b => ['pending', 'confirmed'].includes(b.status))   // newest 100 only, like the app
 }
 
 /** Dashboard view of a booking as a staff member: { booking, members, contacts } rows read through REST. */

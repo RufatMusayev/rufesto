@@ -387,6 +387,14 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         expect(row.status).toBe('paying')
       })
 
+      await test.step('the Void bill button shows the bill_has_payments message and puts the card back', async () => {
+        await card.getByRole('button', { name: 'Void bill', exact: true }).click()
+        await page.getByRole('dialog', { name: 'Void this bill?' }).getByRole('button', { name: 'Void bill', exact: true }).click()
+        await expect(page.getByText('A paid share exists — refund first.'), 'the translated bill_has_payments message').toBeVisible({ timeout: 10_000 })
+        await expect(card, 'the bill is still Paying, not Void').toHaveClass(/v2-bill--paying/, { timeout: 20_000 })
+        expect((await F.bills(mgr)).find(b => b.bill_id === bill.bill_id).status).toBe('paying')
+      })
+
       await test.step('Nigar confirms the card payment: bill Paid, exactly one DEMO badge, tip to the whole team', async () => {
         const s = await g5.rpc('demo_settle_payment', { p_intent_id: nigarIntent })
         expect(s.ok, `demo_settle_payment: ${F.errOf(s)}`).toBe(true)
@@ -399,7 +407,8 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         await expect(card.getByRole('button', { name: 'Mark whole bill paid' })).toHaveCount(0)
         await shot(testInfo, page, 'bills-mixed-paid')
       })
-      expect(mgr.watch.consoleErrors, 'console errors on /bills').toEqual([])
+      // the Void click above is answered 400 bill_has_payments on purpose; Chromium logs every failed request as a console error
+      expect(mgr.watch.consoleErrors.filter(e => !/status of 400.*void_bill/.test(e)), 'console errors on /bills (apart from the refused void_bill)').toEqual([])
     })
 
     test('Mark whole bill paid: confirm dialog (Escape cancels), pays every share as cash', async ({ fx }, testInfo) => {
@@ -550,19 +559,39 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       await expect(card.locator('.v2-share-state--owes'), 'a cancelled bill still lists "Owes ₼…" for the guest').toHaveCount(0)
     })
 
-    test('void: the Bills page lets a manager void an unpaid bill', async ({ fx }, testInfo) => {
-      // void_bill (sql/42d, sql/47 F-V2-16) and the "Void" status pill exist, but BillCard offers no action for it.
+    test('void: the Bills page lets a manager void an unpaid bill (confirmation first; Cancel and Esc keep it)', async ({ fx }, testInfo) => {
+      // BillCard offers "Void bill" next to "Mark whole bill paid" for managers / admins; void_bill (sql/42d, sql/47 F-V2-16) does the work.
       const mgr = await fx.open('manager'); const g4 = await fx.open('g4')
       const T = pickFree(await F.sedaTables(mgr), ['T2', 'T3'])
       fx.cleanup(() => F.freeTable(mgr, T.id, [g4]))
       const dishes = await F.cheapDishes(mgr)
-      await F.seat(g4, T.code); await F.placeOrder(g4, T.id, dishes.slice(0, 1)); await F.myBill(g4)
+      await F.seat(g4, T.code); await F.placeOrder(g4, T.id, dishes.slice(0, 1)); const bill = await F.myBill(g4)
       const page = mgr.page
       await page.goto(rurl('/bills'))
       const card = billCard(page, T.number, 'open')
       await expect(card).toBeVisible()
-      await shot(testInfo, page, 'bills-no-void-action')
-      await expect(card.getByRole('button', { name: /void|cancel bill|ləğv/i }), 'a void / cancel-bill action on an unpaid bill card').toBeVisible({ timeout: 2_000 })
+      const voidBtn = card.getByRole('button', { name: 'Void bill', exact: true })
+      await expect(voidBtn, 'a Void bill action on an unpaid bill card').toBeVisible({ timeout: 5_000 })
+      await expect(card.getByRole('button', { name: 'Mark whole bill paid' })).toBeVisible()
+      await shot(testInfo, page, 'bills-void-action')
+      const dlg = page.getByRole('dialog', { name: 'Void this bill?' })
+      await voidBtn.click()
+      await expect(dlg).toBeVisible()
+      await expect(dlg).toContainText(`Table ${T.number}`)
+      await dlg.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(dlg).toHaveCount(0)
+      await voidBtn.click()
+      await page.keyboard.press('Escape')
+      await expect(dlg, 'Esc closes the confirmation').toHaveCount(0)
+      expect((await F.bills(mgr)).find(b => b.bill_id === bill.bill_id).status, 'still open after Cancel / Esc').toBe('open')
+      await voidBtn.click()
+      await dlg.getByRole('button', { name: 'Void bill', exact: true }).click()
+      await expect(billCard(page, T.number, 'open'), 'a voided bill leaves the Active list').toHaveCount(0, { timeout: 20_000 })
+      await showAll(page)   // Void bills are listed under All (Active holds open / requested / paying bills only)
+      await expect(billCard(page, T.number, 'void'), 'the card is now a Void card').toBeVisible({ timeout: 20_000 })
+      await expect(billCard(page, T.number, 'void').locator('.v2-pill').first()).toContainText('Void')
+      await expect(billCard(page, T.number, 'void').getByRole('button', { name: /Void bill|Mark whole bill paid/ }), 'no actions left on a void bill').toHaveCount(0)
+      await expect.poll(async () => (await F.bills(mgr)).find(b => b.bill_id === bill.bill_id)?.status, 'void_bill saved').toBe('void')
     })
 
     test('older active bill: "from {date}" tag, in Still to collect but not in Collected today (response of restaurant_bills edited)', async ({ fx }, testInfo) => {
@@ -794,16 +823,23 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       })
     })
 
-    test('/tips custom range: clearing a date explains that a date is missing (not "start after end")', async ({ fx }, testInfo) => {
+    // useTipRange: an empty date field is "not set", not an error; the screen keeps the last complete range until both dates are there again.
+    // A start after the end is still explained. (Before the QA fixes a cleared date said "start must not be after the end".)
+    test('/tips custom range: a cleared date is "not set" (no error, last range kept); a start after the end is explained', async ({ fx }, testInfo) => {
       const mgr = await fx.open('manager')
       const page = mgr.page
       await page.goto(rurl('/tips'))
       await chipTip(page, 'Custom').click()
-      await page.locator('#v2-range-from').fill('')
+      await expect(page.locator('#v2-range-from')).toHaveValue(today)
       const alert = page.locator('.v2-range-error')
-      await expect(alert).toBeVisible()
+      await page.locator('#v2-range-from').fill('')
+      await expect(page.locator('#v2-range-from')).toHaveValue('')
+      await expect(alert, 'a cleared start date is not an error').toHaveCount(0)
+      await expect(page.locator('.v2-stats .stat-card').first(), 'the last complete range stays on screen').toBeVisible()
       await shot(testInfo, page, 'tips-custom-empty-date')
-      await expect(alert, 'a missing start date is not a start-after-end problem').not.toContainText('must not be after')
+      await page.locator('#v2-range-from').fill(F.addDays(today, 1))   // tomorrow > today (the To date)
+      await expect(alert).toBeVisible()
+      await expect(alert).toContainText('must not be after')
     })
 
     test('/tips Export CSV: file name, BOM, header, one line per waiter and the team line, amounts equal the report', async ({ fx }, testInfo) => {
@@ -1188,7 +1224,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         expect(mb.w).toBeCloseTo(595.28, 0)
         expect(mb.h).toBeCloseTo(841.89, 0)
         testInfo.attachments.push({ name: 'qr-sheet-6-per-page.pdf', contentType: 'application/pdf', body: buf })
-        await page.emulateMedia({ media: 'screen' })
+        await page.emulateMedia({ media: null })   // not 'screen': a forced 'screen' makes the next page.pdf() add a blank trailing page (Chromium 153 headless), 9 instead of 8 pages
         await toolbar(page).perPage(4).click(); await settledSheet(page)
         buf = await pdf(); expect(F.pdfPages(buf), '4 per page').toBe(Math.ceil(n / 4))
         await toolbar(page).perPage(1).click(); await settledSheet(page)
@@ -1198,7 +1234,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         buf = await pdf(); expect(F.pdfPages(buf), 'with chairs').toBe(Math.ceil(total / 6))
       })
       await test.step('leaving the page restores the app for printing elsewhere', async () => {
-        await page.emulateMedia({ media: 'screen' })
+        await page.emulateMedia({ media: null })   // not 'screen': a forced 'screen' makes the next page.pdf() add a blank trailing page (Chromium 153 headless), 9 instead of 8 pages
         await page.getByRole('link', { name: 'Bills' }).first().click()
         await expect(page).toHaveURL(/\/bills$/)
         await expect(page.locator('body')).not.toHaveClass(/v2-qr-printing/)
@@ -1237,6 +1273,98 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       await expect(page.locator('.v2-missing li')).toHaveText([`Table ${tables[0].number} · No code`])
       await expect(cardsOf(page)).toHaveCount(tables.length - 1)
       await shot(testInfo, page, 'qr-sheet-missing-code')
+    })
+
+    // sql/55 rotate_table_codes. ONE table only: other specs (and the docs) hold the codes of the other tables, so a spec never rotates a whole restaurant.
+    // T1 / T5 of Seda are occupied seed data, so a free T4 / T3 / VIP1 / T2 is used (every other test reads the codes at run time). The new code cannot be put back, which is fine on a review table.
+    test("Tables > QR dialog > 'Rotate this table's code': only that table gets a new code, the old /t/<code> is refused, the new one seats a guest; the waiter is refused", async ({ fx }, testInfo) => {
+      const mgr = await fx.open('manager'); const w1 = await fx.open('waiter1'); const g = await fx.open('g4')
+      const before = await F.sedaTables(mgr)
+      const table = pickFree(before, ['T4', 'T3', 'VIP1', 'T2'])
+      const oldCode = table.code
+      expect(oldCode, `Seda ${table.number} has an access code`).toMatch(/^SEDA-/)
+      fx.cleanup(async () => { await F.freeTable(mgr, table.id, [g]) })
+      const codeOf = async id => (await F.sedaTables(mgr)).find(t => t.id === id)?.code
+
+      await test.step('the waiter cannot rotate (database gate), nothing changes', async () => {
+        const r = await w1.rpc('rotate_table_codes', { p_restaurant_id: F.SEDA.id, p_table_id: table.id })
+        expect(r.ok, 'waiter rotate_table_codes').toBe(false)
+        expect(F.errOf(r)).toBe('not_allowed')
+        expect(await codeOf(table.id)).toBe(oldCode)
+      })
+
+      const page = mgr.page
+      const card = page.locator('.tbl-grid > div').filter({ has: page.locator('.tbl-card-num', { hasText: new RegExp(`^${table.number}$`) }) })
+      const modal = page.getByRole('dialog', { name: `Table ${table.number} QR code` })
+      const rotateBtn = modal.getByRole('button', { name: "Rotate this table's code" })
+      await page.goto(rurl('/tables'))
+      await card.getByRole('button', { name: 'Show QR code' }).click()
+      await expect(modal).toBeVisible()
+      await expect(modal.locator('.qr-modal-code')).toHaveText(oldCode)
+
+      await test.step('asking only warns; Cancel keeps the code', async () => {
+        await rotateBtn.click()
+        await expect(modal.getByRole('alert')).toContainText('stops working immediately')
+        expect(await codeOf(table.id), 'the warning rotates nothing').toBe(oldCode)
+        await modal.getByRole('button', { name: 'Cancel', exact: true }).click()
+        await expect(modal.getByRole('alert')).toHaveCount(0)
+        await expect(rotateBtn).toBeVisible()
+        expect(await codeOf(table.id)).toBe(oldCode)
+      })
+
+      let newCode
+      await test.step('Rotate code: the dialog, the card and the database show the new code', async () => {
+        await rotateBtn.click()
+        await modal.getByRole('button', { name: 'Rotate code', exact: true }).click()
+        await expect(modal.getByRole('status')).toContainText('Code rotated.')
+        newCode = await codeOf(table.id)
+        expect(newCode, 'a new code').not.toBe(oldCode)
+        expect(newCode).toMatch(/^SEDA-[A-Z0-9]{6}$/)
+        await expect(modal.locator('.qr-modal-code')).toHaveText(newCode)
+        await expect(modal.locator('.qr-modal-link')).toHaveText(F.qrLink(newCode))
+        await shot(testInfo, page, 'rotate-one-table')
+        await page.keyboard.press('Escape')
+        await expect(modal).toBeHidden()
+        await expect(card.locator('.tbl-card-code'), 'the card chip follows').toHaveText(newCode)
+        for (const o of before.filter(x => x.id !== table.id)) expect(await codeOf(o.id), `Table ${o.number} keeps its code`).toBe(o.code)
+      })
+
+      await test.step('the old code is refused (API and /t/<old> link), the new one seats the guest', async () => {
+        const refused = await g.rpc('claim_table', { p_code: oldCode })
+        expect(refused.ok, 'claim_table with the old code').toBe(false)
+        expect(F.errOf(refused)).toBe('invalid_code')
+        await g.page.goto(curl(`/t/${oldCode}`))
+        await expect(g.page.getByRole('heading', { name: 'Join this table?' })).toBeVisible({ timeout: 20_000 })
+        await g.page.getByRole('button', { name: 'Join', exact: true }).click()
+        await expect(g.page.locator('.claim-card')).toContainText('Invalid table code')
+        await expect(g.page).not.toHaveURL(curl('/table'))
+        await uiClaim(g, newCode)
+        await expect(g.page.getByRole('heading', { name: 'Your Table' })).toBeVisible()
+        expect((await g.rpc('my_table_session')).json?.table_id, 'seated at the rotated table with the new code').toBe(table.id)
+      })
+      expect(mgr.watch.consoleErrors, 'console errors on /tables').toEqual([])
+    })
+
+    test('/qr-sheet "Rotate all codes" asks first: the confirmation can be cancelled and no code changes (never confirmed in a spec)', async ({ fx }) => {
+      const mgr = await fx.open('manager')
+      const before = await F.sedaTables(mgr)
+      const page = mgr.page
+      await openSheet(page)
+      await page.getByRole('button', { name: 'Rotate all codes' }).click()
+      const dlg = page.getByRole('dialog', { name: 'Rotate all table codes?' })
+      await expect(dlg).toBeVisible()
+      await expect(dlg).toContainText('Every printed QR code for this restaurant stops working immediately.')
+      await dlg.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(dlg).toHaveCount(0)
+      await page.getByRole('button', { name: 'Rotate all codes' }).click()
+      await expect(dlg).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(dlg).toHaveCount(0)
+      expect((await F.sedaTables(mgr)).map(t => t.code), 'no code changed').toEqual(before.map(t => t.code))
+      const w1 = await fx.open('waiter1')
+      const r = await w1.rpc('rotate_table_codes', { p_restaurant_id: F.SEDA.id })
+      expect(F.errOf(r), 'a waiter cannot rotate the restaurant (and the call rotated nothing)').toBe('not_allowed')
+      expect((await F.sedaTables(mgr)).map(t => t.code)).toEqual(before.map(t => t.code))
     })
 
     test('QR sheet access: manager and admin open it, waiter and kitchen are bounced; the Tables page has Print all QR codes for managers only', async ({ fx }) => {
@@ -2236,17 +2364,27 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         await W.check('qr sheet per chair')
       })
 
-      await test.step('bottom navigation: every item is reachable and not clipped', async () => {
+      await test.step('bottom navigation: scrolls sideways, every item can be scrolled fully into view, the pinned More button fits', async () => {
         await mgr.page.goto(rurl('/'))
-        const nav = await mgr.page.locator('.dash-mobile-nav').evaluate(el => {
-          const r = el.getBoundingClientRect()
-          const items = [...el.querySelectorAll('a')].map(a => { const b = a.getBoundingClientRect(); return { name: a.textContent.trim(), left: Math.round(b.left), right: Math.round(b.right), w: Math.round(b.width) } })
-          return { scroll: el.scrollWidth, client: el.clientWidth, overflowX: getComputedStyle(el).overflowX, right: Math.round(r.right), items }
-        })
-        testInfo.annotations.push({ type: 'bottom-nav', description: JSON.stringify(nav) })
-        const clipped = nav.items.filter(i => i.right > 391 || i.left < -1)
-        expect.soft(clipped.map(i => i.name), `bottom nav items cut off by the screen edge (${nav.items.length} items, ${nav.scroll}px of content in ${nav.client}px, overflow-x ${nav.overflowX})`).toEqual([])
-        expect.soft(nav.items.filter(i => i.w < 40).map(i => `${i.name} ${i.w}px`), 'bottom nav items narrower than 40 px').toEqual([])
+        const navEl = mgr.page.locator('.dash-mobile-nav')
+        await expect(navEl).toBeVisible()
+        const facts = await navEl.evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth, overflowX: getComputedStyle(el).overflowX }))
+        testInfo.annotations.push({ type: 'bottom-nav', description: JSON.stringify(facts) })
+        expect(facts.overflowX, 'a nav wider than the screen must scroll, not clip').toMatch(/auto|scroll/)
+        const items = navEl.locator('a')
+        const names = await items.allTextContents()
+        expect(names.length, 'nav items').toBeGreaterThan(5)
+        const cut = []
+        for (let i = 0; i < names.length; i++) {
+          await items.nth(i).scrollIntoViewIfNeeded()
+          const b = await items.nth(i).boundingBox()
+          if (!b || b.x < -1 || b.x + b.width > 391 || b.width < 40) cut.push(`${names[i].trim()} ${b ? `x ${Math.round(b.x)} w ${Math.round(b.width)}` : 'no box'}`)
+        }
+        expect.soft(cut, 'bottom nav items that cannot be brought fully on screen or are narrower than 40 px').toEqual([])
+        const more = mgr.page.getByRole('button', { name: 'More', exact: true })
+        await expect(more, 'the pinned More button').toBeVisible()
+        const mb = await more.boundingBox()
+        expect.soft(mb.x >= -1 && mb.x + mb.width <= 391 && mb.width >= 40 && mb.height >= 40, `More button fits the screen (${JSON.stringify(mb)})`).toBe(true)
       })
       const bad = Object.entries(small).filter(([, v]) => v.length).map(([k, v]) => `${k}: ${v.join(', ')}`)
       expect.soft(bad, 'controls shorter than 40 px at 390 px').toEqual([])

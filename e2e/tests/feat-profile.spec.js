@@ -147,7 +147,7 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     await expect(s.locator('.pf-tx').first()).toBeVisible()
     expect(await s.locator('.pf-tx').count(), 'recent activity rows (max 10)').toBe(tx.length)
     const text = await s.locator('.pf-tx-list').innerText()
-    expect(text, 'the history must not print raw bill ids ("bill_paid:<uuid>")').not.toMatch(UUID_IN_TEXT)
+    expect(text, 'the history must not print raw ids (loyalty_transactions.reason is "bill_paid:<bill id>" or "review_posted:<review id>")').not.toMatch(UUID_IN_TEXT)
   })
 
   test('posts / saved / bookings (review4): rows appear in their tabs, saved dish can be removed, booking is Upcoming then Past', async ({ page, browser, watch }, testInfo) => {
@@ -180,7 +180,11 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await expect.poll(async () => n(await u.api.get(`saved_dishes?id=eq.${saved}&select=id`))).toBe(0)
       saved = null
       // --- booking: pending, upcoming, then cancelled -> Past
-      const slot = await S.findSlot(u, 'seda-ocagi')
+      // Profile > Bookings shows what list_my_bookings answers: only the newest 100 rows by start time, cancelled ones included, and review4 holds
+      // 180+ cancelled future bookings from earlier runs. So the slot is taken on or after the earliest start in that list: it is then inside the window.
+      const mine = (await u.api.rpc('list_my_bookings')).data || []
+      const earliest = mine.length >= 100 ? mine.map(x => x.starts_at).sort()[0] : null
+      const slot = await S.findSlot(u, 'seda-ocagi', earliest ? Math.max(4, Math.ceil((Date.parse(earliest) - Date.now()) / 86_400_000) + 1) : 4)
       const b = await u.api.rpc('create_group_booking', {
         p_restaurant_id: slot.restaurant.id, p_date: slot.date, p_time: slot.time, p_party_size: 2, p_note: `${TAG} ${RUN}`,
         p_host_name: 'QA Tural', p_host_phone: '+994501234567', p_consent: true, p_invites: false,
@@ -223,8 +227,8 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await s.getByLabel('Name').fill('')
       await s.getByRole('button', { name: 'Save' }).click()
       await expect(s.getByText('Name is required.')).toBeVisible()
-      await s.getByLabel('Name').fill('x'.repeat(80))
-      expect((await s.getByLabel('Name').inputValue()).length, 'name is cut at 60').toBe(60)
+      await s.getByLabel('Name').fill('x'.repeat(100))
+      expect((await s.getByLabel('Name').inputValue()).length, 'name is cut at 80 (users.name CHECK, contract 12.6)').toBe(80)
       await s.getByLabel('Name').fill('QA Edit Name')
       await s.getByLabel('Phone').fill('abc')
       await s.getByRole('button', { name: 'Save' }).click()
@@ -243,24 +247,25 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await u.api.patch(`users?id=eq.${u.api.id}`, { name: was.name, phone: was.phone }) }
   })
 
-  // The sheet's own placeholder is "+994 50 123 4567" and its regex accepts spaces, dashes and brackets, but users_phone_check
-  // (23514) rejects every one of those: the guest gets "Could not save your profile".
-  test('edit profile (empty guest): the phone format the form suggests (+994 50 123 4567) saves', async ({ page }, testInfo) => {
+  // users_phone_check only takes E.164 digits (^\+?[0-9]{7,15}$): the form lets people type spaces, dashes and brackets and saves
+  // the number normalised (client/src/lib/phone.js), so a typed "+994 50 731 4829" is stored as "+994507314829".
+  test('edit profile (empty guest): a phone typed with spaces saves as E.164 digits', async ({ page }, testInfo) => {
     const u = await S.asUser(page, EMPTY)
     const was = (await u.api.get(`users?id=eq.${u.api.id}&select=name,phone`)).data[0]
     try {
       await page.goto(url('/profile'))
       await page.getByRole('button', { name: 'Edit profile' }).click()
       const s = sheet(page)
-      await expect(s.getByLabel('Phone')).toHaveAttribute('placeholder', '+994 50 123 4567')
-      await s.getByLabel('Phone').fill('+994 50 123 4567')
+      await expect(s.getByLabel('Phone')).toHaveAttribute('placeholder', '+994501234567')
+      await s.getByLabel('Phone').fill('+994 50 731 4829')
       const [res] = await Promise.all([
         page.waitForResponse(r => r.url().includes('/rest/v1/users') && r.request().method() === 'PATCH'),
         s.getByRole('button', { name: 'Save' }).click(),
       ])
       await S.shot(page, testInfo, 'edit-phone-with-spaces')
-      expect(res.status(), `PATCH users with phone "+994 50 123 4567": ${await res.text()}`).toBeLessThan(300)
+      expect(res.status(), `PATCH users with phone "+994 50 731 4829": ${await res.text()}`).toBeLessThan(300)
       await expect(sheet(page)).toHaveCount(0)
+      expect((await u.api.get(`users?id=eq.${u.api.id}&select=phone`)).data[0].phone, 'stored without spaces').toBe('+994507314829')
     } finally { await u.api.patch(`users?id=eq.${u.api.id}`, { name: was.name, phone: was.phone }) }
   })
 

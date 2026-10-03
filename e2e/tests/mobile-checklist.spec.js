@@ -319,7 +319,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     await w.tap(tab(/^Find/), 'Friends tab Find')
     const search = page.getByPlaceholder('Search by name')
     await w.tap(search, 'Friends search field')
-    await search.fill('Mu')
+    await search.fill('Mur')   // 3 letters: the minimum of search_users and the Find tab
     await expect(page.locator('.soc-row').first()).toBeVisible()
     await w.check('friends, find')
     await w.tap(tab(/^Friends/), 'Friends tab Friends')

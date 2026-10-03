@@ -333,14 +333,17 @@ test.describe('map', { tag: ['@anon', '@consumer', '@feat'] }, () => {
 test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   const tiles = p => p.locator('.menu-card')
   const stat = (p, label) => p.getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]')
+  // The follower count is public: the page reads it through the count-only RPC (sql/55b; anon no longer has SELECT on user_follows, and a
+  // signed-in guest only sees their own follow rows), so the test reads the same RPC as anon.
+  const followerCount = async (api, id) => Number((await api.rpc('restaurant_follower_count', { p_restaurant_id: id })).body)
   const dishRows = (api, id) => api.get(`dishes?restaurant_id=eq.${id}&select=id,name,price,available,is_vegan,is_vegetarian,is_gluten_free,is_spicy,review_count,menu_section_id&order=sort_order`)
 
   for (const slug of SLUGS) {
     test(`hero and stats of ${NAMES[slug]} match the data (dishes, followers, reviews, seats)`, async ({ page, watch }) => {
       const api = await anonApi(page)
       const [rest] = await api.get(`restaurants?slug=eq.${slug}&select=id,name,cuisine_type,address,description`)
-      const [dishes, follows, tables] = await Promise.all([
-        dishRows(api, rest.id), api.get(`user_follows?restaurant_id=eq.${rest.id}&select=id`), api.get(`tables?restaurant_id=eq.${rest.id}&select=state,capacity`),
+      const [dishes, followers, tables] = await Promise.all([
+        dishRows(api, rest.id), followerCount(api, rest.id), api.get(`tables?restaurant_id=eq.${rest.id}&select=state,capacity`),
       ])
       await page.goto(url(`/restaurant/${slug}`))
       await expect(heading1(page)).toHaveText(rest.name)
@@ -349,7 +352,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       if (rest.description) await expect(page.getByText(rest.description.slice(0, 40)).first()).toBeVisible()
       await expect(page.locator('img[alt]').or(page.getByText(/[🍝🫕🍣]/)).first()).toBeVisible()   // cover photo or the cuisine emoji
       await expect(stat(page, 'dishes')).toHaveText(String(dishes.length))
-      await expect(stat(page, 'followers')).toHaveText(String(follows.length))
+      await expect(stat(page, 'followers'), 'signed out, the count comes from restaurant_follower_count').toHaveText(String(followers))
       await expect(stat(page, 'reviews')).toHaveText(String(dishes.reduce((s, d) => s + (d.review_count || 0), 0)))
       // tables change state while other QA runs use them: compare with a fresh read each time instead of the first one
       await expect.poll(async () => {
@@ -398,7 +401,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     const g = await openAs(browser, testInfo, F.accounts.emptyGuest())
     const uid = g.session.user.id
     const rows = async () => (await F.req(page, g, 'GET', `user_follows?user_id=eq.${uid}&restaurant_id=eq.${BELLA}&select=id`)).rows
-    const count = async () => (await F.req(page, g, 'GET', `user_follows?restaurant_id=eq.${BELLA}&select=id`)).rows.length
+    const count = async () => followerCount(await anonApi(page), BELLA)   // public count (RPC), not the guest's own rows
     const p = g.page
     try {
       for (const r of await rows()) await F.req(page, g, 'DELETE', `user_follows?id=eq.${r.id}`)
@@ -621,18 +624,18 @@ test.describe('floor plan sheet', { tag: ['@anon', '@consumer', '@feat'] }, () =
     if (f.pill === 'Free') {
       await tableBtn(page, free.table_number).click()
       await floor(page).getByRole('button', { name: 'Reserve this table' }).click()
-      await expect(page).toHaveURL(url('/book/bella-roma'))
+      await expect(page, 'the picked table travels as ?table=<id>').toHaveURL(u => u.pathname === '/book/bella-roma' && /^[0-9a-f-]{36}$/.test(u.searchParams.get('table') || ''))
     }
   })
 
   test('"Reserve this table" carries the chosen table into the booking flow', async ({ page }) => {
-    const tables = await (await anonApi(page)).get(`tables?restaurant_id=eq.${BELLA}&select=table_number,state&order=table_number`)
+    const tables = await (await anonApi(page)).get(`tables?restaurant_id=eq.${BELLA}&select=id,table_number,state&order=table_number`)
     const free = tables.find(t => t.state === 'free')
     await openFloor(page)
     await tableBtn(page, free.table_number).click()
     await floor(page).getByRole('button', { name: 'Reserve this table' }).click()
-    await expect(page).toHaveURL(url('/book/bella-roma'))
-    await expect(page.getByText(new RegExp(`\\b${free.table_number}\\b`)).first(), `the wizard mentions table ${free.table_number} that the guest picked on the floor plan`).toBeVisible()
+    await expect(page, 'the picked table travels as ?table=<id>').toHaveURL(url(`/book/bella-roma?table=${free.id}`))
+    await expect(page.getByRole('note').filter({ hasText: 'You picked table' }), `the wizard mentions table ${free.table_number} that the guest picked on the floor plan`).toContainText(`You picked table ${free.table_number}.`)
   })
 
   test('the sheet closes with the X, Esc and the backdrop', async ({ page }) => {

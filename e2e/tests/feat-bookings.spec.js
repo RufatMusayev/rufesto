@@ -26,6 +26,30 @@ function countPosts(page, rx) {
   return seen
 }
 
+/**
+ * On the invite page: tick the consent box and, when the member's profile has no phone number, type one (the page asks for it:
+ * the consent promises "name and phone", so the restaurant gets a number). Does not press Join.
+ */
+async function consentAndPhone(page) {
+  await page.getByLabel(CONSENT).check()
+  const phone = page.getByLabel('Phone number', { exact: true })
+  if ((await phone.count()) && !(await phone.inputValue())) await phone.fill(PHONE)
+}
+
+/** The access code printed on the table a booking is (now) assigned to: what the host / members scan on arrival (read as the restaurant). */
+async function tableCodeOf(page, mgr, bookingId) {
+  const b = (await req(page, mgr, 'GET', `bookings?id=eq.${bookingId}&select=table_id`)).rows[0]
+  const c = (await req(page, mgr, 'GET', `table_access_codes?table_id=eq.${b?.table_id}&select=access_code,qr_code_token`)).rows[0]
+  return c?.access_code || c?.qr_code_token
+}
+/** The QR sheet ("Scan Table QR"): headless Chromium has no camera, so type the code like a guest whose camera is blocked would. */
+async function scanByCode(p, code) {
+  await expect(p.getByRole('heading', { name: 'Scan Table QR' })).toBeVisible()
+  await p.getByRole('button', { name: 'Enter code manually' }).click()
+  await p.getByPlaceholder('Paste table token (UUID)').fill(code)
+  await p.getByRole('button', { name: 'Find Table' }).click()
+}
+
 /** Walk the wizard through step 1 (+ step 2 when party > 1) to the confirm form. Returns the picked { label, time }. */
 async function toConfirm(page, { party = 2, fromDay = 2, index = 0, invites = null } = {}) {
   await page.goto(url('/book/bella-roma'))
@@ -98,7 +122,14 @@ test.describe('wizard', { tag: TAGS }, () => {
     const now = Date.now()
     test.skip(!slots.length && hours.is_closed, 'closed today')
     expect(slots.length, 'slots offered today').toBeGreaterThan(0)
-    await expect(page.locator('.slot-btn')).toHaveCount(slots.length)
+    // Late in the day every slot of today is past or too soon: the wizard then shows one notice instead of a grid of disabled buttons (SlotPicker).
+    const anyAvailable = slots.some(s => s.available)
+    if (anyAvailable) await expect(page.locator('.slot-btn')).toHaveCount(slots.length)
+    else {
+      await expect(page.locator('.slot-btn')).toHaveCount(0)
+      await expect(page.getByText('No tables are free on this day for your party size.')).toBeVisible()
+      test.info().annotations.push({ type: 'note', description: 'no slot left today: the grid of disabled buttons was not exercised (run earlier in the day)' })
+    }
     expect(slots[0].slot_time, 'first slot = opening time').toBe(hours.open_time.slice(0, 5))
     const turn = 75   // party of 2
     expect(F.hm(slots.at(-1).slot_time) + turn, 'the last booking ends by closing time').toBeLessThanOrEqual(F.hm(hours.close_time.slice(0, 5)))
@@ -107,10 +138,10 @@ test.describe('wizard', { tag: TAGS }, () => {
       const btn = page.locator('.slot-btn', { hasText: s.slot_time })
       const tooSoon = Date.parse(s.starts_at) < now + 30 * 60_000
       if (Math.abs(Date.parse(s.starts_at) - (now + 30 * 60_000)) < 120_000) continue   // clock skew margin
-      if (tooSoon) { sawPast = true; expect(s.available, `${s.slot_time} is too soon`).toBe(false); expect(s.reason).toBe('too_soon'); await expect(btn).toBeDisabled() }
+      if (tooSoon) { sawPast = true; expect(s.available, `${s.slot_time} is too soon`).toBe(false); expect(s.reason).toBe('too_soon'); if (anyAvailable) await expect(btn).toBeDisabled() }
       else if (s.tables_free > 0) { expect(s.available, `${s.slot_time} has tables`).toBe(true); await expect(btn).toBeEnabled() }
     }
-    if (sawPast) await expect(page.getByText('Greyed-out times are full or too soon.')).toBeVisible()
+    if (sawPast && anyAvailable) await expect(page.getByText('Greyed-out times are full or too soon.')).toBeVisible()
   })
 
   test('party stepper: 1 to 12, resets the picked time, reloads the slots', async ({ page }) => {
@@ -299,7 +330,8 @@ test.describe('wizard', { tag: TAGS }, () => {
       await page.goto(url('/book/bella-roma'))
       const slots = await (await answer).json()
       for (let i = 0; i < 30; i++) await expect(page.locator('.bk-day').nth(i), `chip ${i}`).toHaveAttribute('aria-label', dateLabel(i))
-      await expect(page.locator('.slot-btn')).toHaveText(slots.map(s => s.slot_time))
+      if (slots.some(s => s.available)) await expect(page.locator('.slot-btn')).toHaveText(slots.map(s => s.slot_time))
+      else await expect(page.locator('.slot-btn'), 'no slot left today: the notice replaces the grid').toHaveCount(0)
       const picked = await toConfirm(page, { party: 1, fromDay: 3 })
       await fillConfirm(page)
       await page.getByRole('button', { name: 'Request booking' }).click()
@@ -395,7 +427,7 @@ test.describe('invites', { tag: TAGS }, () => {
     await page.getByRole('button', { name: 'Join this booking' }).click()
     await expect(page.getByText('Tick the box to continue.')).toBeVisible()
     expect(joins.length, 'no join request without consent').toBe(0)
-    await page.getByLabel(CONSENT).check()
+    await consentAndPhone(page)
     await page.getByRole('button', { name: 'Join this booking' }).evaluate(btn => { btn.click(); btn.click() })
     await expect(page).toHaveURL(new RegExp(`/bookings/${b.id}$`))
     expect(joins.length, 'join_group_booking calls for a double tap').toBe(1)
@@ -406,10 +438,11 @@ test.describe('invites', { tag: TAGS }, () => {
       await expect(members(page).getByText('(you)')).toHaveCount(1)
       await expect(members(page).getByText('Host', { exact: true })).toHaveCount(1)
       await expect(page.getByText('Guest', { exact: true })).toBeVisible()
-      await expect(page.locator('a[href^="tel:"]'), 'a member sees no phone numbers').toHaveCount(0)
+      await expect(members(page).locator('li.bk-member').filter({ hasNotText: '(you)' }).locator('a[href^="tel:"]'), "a member sees no other member's phone number (only their own, which they just typed)").toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Cancel booking' }), 'only the host cancels').toHaveCount(0)
       await expect(page.getByRole('button', { name: "We're here" }), 'only the host checks in').toHaveCount(0)
-      await expect(page.getByText('Waiting for the host to check in')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Scan table QR' }), 'a member arrives by scanning the table QR (disabled until 30 min before)').toBeDisabled()
+      await expect(page.getByText(/^Available from /)).toBeVisible()
       await expect(page.getByRole('button', { name: 'Leave booking', exact: true })).toBeVisible()
     })
     await test.step('the restaurant and the host see the join', async () => {
@@ -418,18 +451,18 @@ test.describe('invites', { tag: TAGS }, () => {
       expect(row, 'booking_members row of the joiner').toMatchObject({ status: 'joined' })
       expect(row.consented_at, 'consent time recorded').toBeTruthy()
       expect(dash.members.filter(m => ['joined', 'arrived'].includes(m.status))).toHaveLength(2)
-      test.info().annotations.push({ type: 'dashboard', description: `joiner has a contact row: ${dash.contacts.some(c => c.user_id === member.session.user.id)} (the invite page never asks for a phone)` })
+      test.info().annotations.push({ type: 'dashboard', description: `joiner has a contact row: ${dash.contacts.some(c => c.user_id === member.session.user.id)} (the invite page asks for a phone when the profile has none)` })
       await expect.poll(async () => (await notificationsOf(page, host, 'booking_member_joined', b.id)).length, 'host notification').toBeGreaterThan(0)
     })
     noErrors(watch)
   })
 
-  // The consent sentence says "name and phone", but the invite page only has the consent box (it never asks for a phone).
+  // The consent sentence says "name and phone": the invite page asks for the number (unless the profile has one) and the restaurant gets it.
   test('the restaurant gets a phone number for a guest who joins (the consent says name and phone)', async ({ page, browser }, testInfo) => {
     const b = await make(page, host, { party: 3 })
     const m = await F.openAs(browser, testInfo, A.inviteMember())
     await m.page.goto(url(`/b/${b.code}`))
-    await m.page.getByLabel(CONSENT).check()
+    await consentAndPhone(m.page)
     await m.page.getByRole('button', { name: 'Join this booking' }).click()
     await expect(m.page).toHaveURL(new RegExp(`/bookings/${b.id}$`))
     const dash = await F.dashboardView(page, mgr, b.id)
@@ -469,7 +502,7 @@ test.describe('invites', { tag: TAGS }, () => {
 
     expect((await call(page, member, 'leave_group_booking', { p_booking_id: b.id })).ok).toBe(true)
     await obs.page.reload()
-    await obs.page.getByLabel(CONSENT).check()
+    await consentAndPhone(obs.page)
     await obs.page.getByRole('button', { name: 'Join this booking' }).click()
     await expect(obs.page).toHaveURL(new RegExp(`/bookings/${b.id}$`))
     await expect(members(obs.page)).toContainText('2 of 2 joined')
@@ -592,7 +625,7 @@ test.describe('invites', { tag: TAGS }, () => {
     await expect(members(h.page), 'the host sees the seat reopen without a reload').toContainText('1 of 3 joined', { timeout: 25_000 })
 
     await page.goto(url(`/b/${b.code}`))   // rejoin through the same link
-    await page.getByLabel(CONSENT).check()
+    await consentAndPhone(page)
     await page.getByRole('button', { name: 'Join this booking' }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${b.id}$`))
     await expect(members(page)).toContainText('2 of 3 joined')
@@ -621,7 +654,7 @@ test.describe('invites', { tag: TAGS }, () => {
       const s = await az(ns, key)
       if (s) await expect(page.getByText(s, { exact: false }).or(page.getByRole('button', { name: s })).first(), `${ns}:${key}`).toBeVisible()
     }
-    for (const en of ['Leave booking', "Who's coming", 'Waiting for the host', 'Pending', 'Guest']) await expect(page.getByText(en, { exact: false }), `"${en}" left in English`).toHaveCount(0)
+    for (const en of ['Leave booking', "Who's coming", 'Scan table QR', 'Pending', 'Guest']) await expect(page.getByText(en, { exact: false }), `"${en}" left in English`).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Cancel booking|We're here/ })).toHaveCount(0)
     expect(await F.rawKeys(page), 'booking screen: raw keys').toEqual([])
   })
@@ -674,8 +707,8 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
       await expect(members(m.page)).toContainText('2 of 3 joined')
       await expect(m.page.getByRole('button', { name: 'Leave booking', exact: true })).toBeVisible()
       await expect(m.page.getByRole('button', { name: /Cancel booking|We're here/ })).toHaveCount(0)
-      await expect(m.page.getByText('Waiting for the host to check in')).toBeVisible()
-      await expect(m.page.getByRole('button', { name: 'Go to our table' }), 'nothing to go to before the host seats the party').toHaveCount(0)
+      await expect(m.page.getByRole('button', { name: 'Scan table QR' }), 'a member scans the table QR to arrive').toBeDisabled()
+      await expect(m.page.getByRole('button', { name: 'Go to our table' }), 'nothing to go to before the member holds a table session').toHaveCount(0)
     })
     const o = await F.openAs(browser, testInfo, A.detailOutsider())
     await test.step('a stranger', async () => {
@@ -777,11 +810,13 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
       await expect(page.getByText(/^Available from /)).toContainText(hhmm(b.slot.startsAt - 30 * 60_000))
       await btn.evaluate(el => el.click())
       await expect(heading(page, "Seat everyone at your table?"), 'a disabled button opens nothing').toHaveCount(0)
-      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id })).code).toBe('too_early')
-      expect((await call(page, member, 'claim_table_from_booking', { p_booking_id: b.id })).code, 'a member cannot check the party in').toBe('not_host')
-      expect((await call(page, member, 'join_table_from_booking', { p_booking_id: b.id })).code, 'a member cannot join before the host seats').toBe('not_seated')
-      expect((await call(page, outsider, 'join_table_from_booking', { p_booking_id: b.id })).code).toBe('not_member')
-      expect((await call(page, outsider, 'claim_table_from_booking', { p_booking_id: b.id })).code).toBe('booking_not_found')
+      const code = await tableCodeOf(page, mgr, b.id)
+      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id, p_code: code })).code).toBe('too_early')
+      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id, p_code: '  ' })).code, 'a blank code').toBe('invalid_code')
+      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id })).status, 'the code-less overload is gone').toBeGreaterThanOrEqual(400)
+      expect((await call(page, member, 'claim_table_from_booking', { p_booking_id: b.id, p_code: code })).code, 'a member cannot check the party in').toBe('not_host')
+      expect((await call(page, member, 'join_table_from_booking', { p_booking_id: b.id })).code, 'join_table_from_booking is a stub that tells old clients to scan the table QR').toBe('scan_table_qr')
+      expect((await call(page, outsider, 'claim_table_from_booking', { p_booking_id: b.id, p_code: code })).code).toBe('booking_not_found')
     })
     await test.step('too late (the booking time has passed)', async () => {
       const moved = await F.moveIntoWindow(page, mgr, b.id, { startedMinutesAgo: 200, lengthMin: 75 })
@@ -789,47 +824,69 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
       await page.reload()
       await expect(btn).toBeDisabled()
       await expect(page.getByText('The booking time has passed.')).toBeVisible()
-      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id })).code).toBe('booking_expired')
+      expect((await call(page, host, 'claim_table_from_booking', { p_booking_id: b.id, p_code: await tableCodeOf(page, mgr, b.id) })).code).toBe('booking_expired')
     })
   })
 
-  test('seating: the host checks the party in, the table opens, the member goes to the same table', async ({ page, browser }, testInfo) => {
+  test('seating: the host scans the booked table, the table opens, the member scans the same QR and joins it', async ({ page, browser }, testInfo) => {
     test.setTimeout(150_000)
     const b = await make(page, host, { party: 3, from: 6 })
     expect((await join(page, b)).ok).toBe(true)
     const moved = await F.moveIntoWindow(page, mgr, b.id, { startedMinutesAgo: 5, lengthMin: 80 })
     test.skip(!moved.ok, `the restaurant is not open right now, so the check-in window cannot be reached (${moved.why})`)
+    const code = await tableCodeOf(page, mgr, b.id)
     const m = await F.openAs(browser, testInfo, A.detailMember())
     try {
       await m.page.goto(url(`/bookings/${b.id}`))
-      await expect(m.page.getByText('Waiting for the host to check in')).toBeVisible()
+      await expect(m.page.getByRole('button', { name: 'Scan table QR' }), 'inside the window a member can scan').toBeEnabled()
+      await expect(m.page.getByText('Scan the table QR when you arrive')).toBeVisible()
+      await expect(m.page.getByRole('button', { name: 'Go to our table' }), 'no table session yet').toHaveCount(0)
       await F.signIn(page, A.detailHost())
       await page.goto(url(`/bookings/${b.id}`))
       await expect(page.getByRole('button', { name: "We're here" })).toBeEnabled()
       await expect(page.getByText(/^Available from /)).toHaveCount(0)
+      await expect(page.getByText('Scan the QR code on your table to check in.')).toBeVisible()
       await page.getByRole('button', { name: "We're here" }).click()
-      await expect(heading(page, 'Seat everyone at your table?')).toBeVisible()
-      await expect(page.getByText('Everyone who has joined will be seated together and can order from the table.')).toBeVisible()
-      await sheetBtn(page, "Yes, we're here").click()
+      await scanByCode(page, code)
+      await expect(page.getByText("You're seated!")).toBeVisible()
       await expect(page).toHaveURL(url('/table'))
       const dash = await F.dashboardView(page, mgr, b.id)
       expect(dash.booking.status, 'booking after check-in').toBe('seated')
       expect(dash.members.find(x => x.user_id === host.session.user.id).status, 'host member status').toBe('arrived')
-      expect(dash.members.find(x => x.user_id === member.session.user.id).status, 'the member has not arrived yet').toBe('joined')
+      expect(dash.members.find(x => x.user_id === member.session.user.id).status, 'the member has not scanned yet').toBe('joined')
       const table = (await req(page, mgr, 'GET', `tables?id=eq.${dash.booking.table_id}&select=table_number,state`)).rows[0]
-      expect(table.state, 'the booked table').toBe('occupied')
-      await expect(page.getByText(new RegExp(`\\b${table.table_number}\\b`)).first(), 'the /table screen shows the booked table').toBeVisible()
+      expect(table.state, 'the scanned table').toBe('occupied')
+      await expect(page.getByText(`#${table.table_number}`).first(), 'the /table screen shows the scanned table (#T2)').toBeVisible()
 
-      await expect(m.page.getByRole('button', { name: 'Go to our table' }), 'the member is offered the table once the host seated the party (live)').toBeVisible({ timeout: 25_000 })
+      // an invite code never seats anyone (sql/54): a member who joins a party that already sits is a member without a table session
+      const late = await join(page, b, outsider, { p_name: 'Olga Latejoiner', p_phone: PHONE })
+      expect(late.ok, `join_group_booking after the party was seated: ${late.code}`).toBe(true)
+      expect(late.body, 'join answer for a party that already sits').toMatchObject({ status: 'joined', seated: false, party_seated: true, table_id: dash.booking.table_id })
+      expect((await req(page, mgr, 'GET', `table_sessions?table_id=eq.${dash.booking.table_id}&user_id=eq.${outsider.session.user.id}&ended_at=is.null&select=id`)).rows, 'no table session from an invite code').toEqual([])
+
+      // the member scans the same QR like any guest (claim_table); the host approves a join request unless the booking lets them straight in
+      await m.page.goto(url(`/bookings/${b.id}`))
+      await m.page.getByRole('button', { name: 'Scan table QR' }).click()
+      await scanByCode(m.page, code)
+      await expect(m.page.getByText(/You're seated!|Request Sent/)).toBeVisible()
+      let mine = (await req(page, mgr, 'GET', `table_sessions?table_id=eq.${dash.booking.table_id}&user_id=eq.${member.session.user.id}&ended_at=is.null&select=id,status`)).rows[0]
+      expect(mine, 'the member holds a table session after scanning').toBeTruthy()
+      if (mine.status === 'pending') {
+        const ok = await call(page, host, 'respond_join_request', { p_session_id: mine.id, p_approve: true })
+        expect(ok.ok, `host approves the join request: ${ok.code}`).toBe(true)
+      }
+      await m.page.goto(url(`/bookings/${b.id}`))
+      await expect(m.page.getByRole('button', { name: 'Go to our table' }), 'the member is offered the table once they hold a session').toBeVisible()
       await m.page.getByRole('button', { name: 'Go to our table' }).click()
       await expect(m.page).toHaveURL(url('/table'))
-      await expect(m.page.getByText(new RegExp(`\\b${table.table_number}\\b`)).first()).toBeVisible()
-      const after = await F.dashboardView(page, mgr, b.id)
-      expect(after.members.find(x => x.user_id === member.session.user.id).status, 'the member after "Go to our table"').toBe('arrived')
-      const sessions = (await req(page, mgr, 'GET', `table_sessions?table_id=eq.${dash.booking.table_id}&ended_at=is.null&select=user_id,is_host`)).rows
+      await expect(m.page.getByText(`#${table.table_number}`).first(), 'the member sits at the same table').toBeVisible()
+      const sessions = (await req(page, mgr, 'GET', `table_sessions?table_id=eq.${dash.booking.table_id}&ended_at=is.null&select=user_id,is_host,status`)).rows
       // an open session = ended_at is null (leaving a table only sets ended_at, status stays 'active'); look for ours, other runs may sit there too
       expect(sessions.map(s => s.user_id), 'both guests sit at the table').toEqual(expect.arrayContaining([host.session.user.id, member.session.user.id]))
       expect(sessions.find(s => s.user_id === host.session.user.id).is_host).toBe(true)
+      expect(sessions.find(s => s.user_id === member.session.user.id).status, 'the member is active after approval').toBe('active')
+      const after = await F.dashboardView(page, mgr, b.id)
+      expect(after.booking.status).toBe('seated')
 
       await page.goto(url(`/bookings/${b.id}`))
       await expect(page.locator('.bk-hero')).toContainText('Seated')
@@ -842,9 +899,15 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
     }
   })
 
+  // The banner reads list_my_bookings, which answers only the newest 100 rows by start time (cancelled ones included): on review4 (184 bookings) a
+  // booking one hour away is not among them, so this test uses a guest with a short list (waiter2.bella). The cap itself is in docs/qa/RUN-REPORT.md.
   test('/table shows the booking banner only when the booking is within two hours', async ({ page }) => {
-    const b = await make(page, host, { party: 2, from: 6 })
-    await F.signIn(page, A.detailHost())
+    test.skip(!!F.missing('bannerHost'), 'needs waiter2.bella (docs/REVIEW-ACCOUNTS.md)')
+    const guest = await F.apiLogin(page, A.bannerHost())
+    await F.releaseAll(page, guest)
+    try {
+    const b = await make(page, guest, { party: 2, from: 6 })
+    await F.signIn(page, A.bannerHost())
     await page.goto(url('/table'))
     await expect(page.getByText('Enter a table code', { exact: false }).or(page.getByPlaceholder(/BELLA-T2/)).first()).toBeVisible()
     await expect(page.locator('.bk-banner'), 'a booking days away has no banner').toHaveCount(0)
@@ -858,6 +921,7 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
     await expect(banner.getByText('Open')).toBeVisible()
     await banner.click()
     await expect(page).toHaveURL(url(`/bookings/${b.id}`))
+    } finally { await F.releaseAll(page, guest) }
   })
 
   test('Profile > Bookings: Upcoming and Past, newest rules, host and guest pills, empty states', async ({ page, browser }, testInfo) => {

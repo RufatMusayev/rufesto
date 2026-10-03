@@ -10,6 +10,7 @@
     "test:staff": "playwright test --project=chromium --grep @staff",
     "test:tips": "playwright test --project=chromium-tips",
     "test:mobile": "playwright test --project=mobile",
+    "test:all": "node run-all.js",
     "report": "playwright show-report report",
     "tour": "playwright test -c playwright.tour.config.js --grep @tour"
   },

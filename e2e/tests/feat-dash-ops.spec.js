@@ -355,19 +355,45 @@ test.describe('mobile 390px', { tag: ['@staff', '@resto', '@dash-ops', '@mobile'
     await tall(page.locator('.code-chip-btn[aria-label="Copy access code"]'), 'Copy access code button')
     await tall(page.locator('.code-chip-btn[aria-label="Show QR code"]'), 'Show QR code button')
     await tall(page.locator('.chip').first(), 'filter chip')
+    await tall(page.getByRole('button', { name: 'More', exact: true }), 'More button')
     await page.goto(url('/waiter'))
     await tall(page.locator('.chip', { hasText: 'My Tables' }), 'Waiter tab chip')
   })
 
-  test('sign out, language and theme are reachable on a phone', async ({ page }) => {
-    // The sidebar (which holds Sign Out, EN/AZ and Light/Dark) is display:none at <= 768px; the mobile header only shows the name.
+  test('sign out, language and theme are reachable on a phone through the More sheet', async ({ page }) => {
+    // The sidebar (which holds Sign Out, EN/AZ and Light/Dark) is display:none at <= 768px: the bottom nav's pinned "More" button opens a sheet with them.
     await openDash(page, 'waiter1', '/waiter')
-    const signOut = page.getByRole('button', { name: 'Sign Out' })
-    const lang = page.getByRole('button', { name: 'AZ', exact: true })
-    const theme = page.getByRole('button', { name: /^(Light|Dark)$/ })
-    expect.soft(await signOut.isVisible(), 'Sign Out visible at 390px').toBe(true)
-    expect.soft(await lang.isVisible(), 'EN/AZ switch visible at 390px').toBe(true)
-    expect.soft(await theme.isVisible(), 'theme switch visible at 390px').toBe(true)
+    const more = page.getByRole('button', { name: 'More', exact: true })
+    await expect(more, 'a More button in the bottom nav').toBeVisible()
+    const box = await more.boundingBox()
+    expect.soft(box.height, 'More button height').toBeGreaterThanOrEqual(40)
+    expect.soft(box.width, 'More button width').toBeGreaterThanOrEqual(40)
+    await expect(page.getByRole('button', { name: 'Sign Out' }), 'the hidden sidebar footer is not what is reachable').toHaveCount(0)
+    await more.click()
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toBeVisible()
+    await expect(sheet.locator('.more-sheet-role'), 'the role is translated, not the raw "waiter"').toHaveText('Waiter')
+    const signOut = sheet.getByRole('button', { name: 'Sign Out' })
+    const lang = sheet.getByRole('button', { name: 'AZ', exact: true })
+    const theme = sheet.getByRole('button', { name: /^(Light|Dark)$/ })
+    for (const [b, label] of [[signOut, 'Sign Out'], [lang, 'AZ switch'], [theme, 'theme switch']]) {
+      await expect(b, `${label} visible in the sheet at 390px`).toBeVisible()
+      expect.soft((await b.boundingBox()).height, `${label} height`).toBeGreaterThanOrEqual(40)
+    }
+    const dark = async () => (await page.locator('html').getAttribute('data-theme')) === 'dark'
+    const before = await dark()
+    await theme.click()
+    expect(await dark(), 'the theme switch flips the theme').toBe(!before)
+    await theme.click()
+    await lang.click()
+    await expect(sheet.getByRole('button', { name: 'Çıxış' }), 'AZ labels in the sheet').toBeVisible()
+    expect(await page.evaluate(() => localStorage.getItem('rufesto_lang')), 'the language is remembered').toBe('az')
+    await sheet.getByRole('button', { name: 'EN', exact: true }).click()
+    await page.keyboard.press('Escape')
+    await expect(sheet, 'Escape closes the sheet').toHaveCount(0)
+    await more.click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Sign Out' }).click()
+    await expect(page).toHaveURL(url('/login'))
   })
 
   test('forms and dialogs fit the phone viewport (Add Dish, New Campaign, table QR)', async ({ page }) => {
@@ -717,12 +743,14 @@ test.describe('orders and kitchen', { tag: ['@staff', '@resto', '@dash-ops', '@d
     await expect(card).toContainText('Open', { timeout: 15_000 })
     const [tk] = await env.mgr.rows(`kds_tickets?order_item_id=eq.${item.id}&select=id`)
     expect((await env.mgr.patch(`kds_tickets?id=eq.${tk.id}`, { status: 'preparing' })).ok).toBe(true)
-    await page.waitForTimeout(2_000)
+    // sql/53: the first ticket that starts cooking moves the order Open -> Preparing (trg_sync_order_on_ticket); the page follows live
+    await expect(card, 'Orders follows the kitchen without a reload').toContainText('Preparing', { timeout: 15_000 })
     const [o] = await env.mgr.rows(`orders?id=eq.${orderId}&select=status`)
-    expect(o.status, 'order status after the kitchen started its only ticket (Orders still lists it as Open; the Preparing and Submitted chips can never fill)').not.toBe('open')
+    expect(o.status, 'order status after the kitchen started its only ticket').toBe('preparing')
+    await expect(chip(page, /^Preparing \(/), 'the Preparing chip fills now').toBeVisible()
   })
 
-  test('all tickets Done -> the order is Ready (live) -> Mark Served; Mark Paid waits for the bill', async ({ page }) => {
+  test('all tickets Done -> the order is Ready (live) -> Mark Served; a served order links to its table\'s bill (no Mark Paid)', async ({ page }) => {
     test.setTimeout(150_000)
     await openDash(page, 'manager', '/orders')
     const { orderId, table } = await env.order('T1', env.items(1, 1))
@@ -737,38 +765,47 @@ test.describe('orders and kitchen', { tag: ['@staff', '@resto', '@dash-ops', '@d
     await card.locator('> div').nth(1).click()
     await card.getByRole('button', { name: 'Mark Served' }).click()
     await expect(card).toContainText('Served')
-    const pay = card.getByRole('button', { name: 'Mark Paid' })
-    await expect(pay).toBeDisabled()
-    await expect(card.locator('.order-pay-hint')).toHaveText(/Awaiting Pay/)
-    await expect(pay).toHaveAttribute('title', /Awaiting Pay/)
+    // sql/54: an order is never marked paid by hand, a served order points to the Bills page of its table (admin / manager / cashier)
+    await expect(card.getByRole('button', { name: 'Mark Paid' }), 'no direct Mark Paid any more').toHaveCount(0)
+    const settle = card.getByRole('link', { name: 'Settle on Bills', exact: true })
+    await expect(settle).toBeVisible()
+    await expect(settle).toHaveAttribute('href', `/bills?table=${table.id}`)
     const [o] = await env.mgr.rows(`orders?id=eq.${orderId}&select=status`)
     expect(o.status).toBe('served')
-    expect(table.state).toBeTruthy()
+    await settle.click()
+    await expect(page).toHaveURL(url(`/bills?table=${table.id}`))
+    const scope = page.locator('.v2-table-filter')
+    await expect(scope).toContainText('Showing bills for')
+    await scope.getByRole('button', { name: 'Show all tables' }).click()
+    await expect(scope).toHaveCount(0)
+    await expect(page).toHaveURL(url('/bills'))
   })
 
-  test('Mark Paid gate: disabled until the table is Awaiting Pay and its other orders are settled; paying clears the table', async ({ page }) => {
+  test('orders are paid only through the table\'s bill: a direct paid write is refused (use_bill_settlement), closing the bill pays the order and clears the table', async ({ page }) => {
     test.setTimeout(150_000)
     await openDash(page, 'manager', '/orders')
     const g = await env.pick('T1')
     const a = await env.order('T1', env.items(1), g)
-    const b = await env.order('T1', env.items(2), g)
-    await env.mgr.patch(`orders?id=eq.${a.orderId}`, { status: 'served' })
-    const card = lastDiv(page).nth(1)   // b (newer) first, a second
+    expect((await env.mgr.patch(`orders?id=eq.${a.orderId}`, { status: 'served' })).ok, 'served').toBe(true)
+    const card = lastDiv(page).first()
     await expect(card).toContainText('Served', { timeout: 15_000 })
     await card.locator('> div').nth(1).click()
-    const pay = card.getByRole('button', { name: 'Mark Paid' })
-    await expect(pay, 'table occupied, not awaiting payment').toBeDisabled()
-    await expect(card.locator('.order-pay-hint')).toContainText('Awaiting Pay')
-    for (const s of ['ordering', 'awaiting_payment']) expect((await env.mgr.patch(`tables?id=eq.${a.tableId}`, { state: s })).ok, `table -> ${s}`).toBe(true)
-    await expect(card.locator('.order-pay-hint'), 'awaiting payment but another order is open').toContainText('Other orders on this table', { timeout: 15_000 })
-    await expect(pay).toBeDisabled()
-    await env.mgr.patch(`orders?id=eq.${b.orderId}`, { status: 'cancelled' })
-    await expect(pay).toBeEnabled({ timeout: 15_000 })
-    await expect(card.locator('.order-pay-hint')).toHaveCount(0)
-    await pay.click()
-    await expect(card).toContainText('Paid')
     await expect(card.getByRole('button', { name: 'Mark Paid' })).toHaveCount(0)
-    await expect.poll(async () => (await env.mgr.rows(`tables?id=eq.${a.tableId}&select=state`))[0].state, { message: 'table state after Mark Paid' }).toBe('cleared')
+    await expect(card.getByRole('link', { name: 'Settle on Bills' })).toBeVisible()
+
+    const direct = await env.mgr.patch(`orders?id=eq.${a.orderId}`, { status: 'paid' })
+    expect(direct.ok, 'PATCH orders {status: paid} as the manager').toBe(false)
+    expect(JSON.stringify(direct.body), 'the refusal says why').toContain('use_bill_settlement')
+    expect((await env.mgr.rows(`orders?id=eq.${a.orderId}&select=status`))[0].status, 'still served').toBe('served')
+
+    const bill = (await env.guests[g].rpc('my_bill')).body
+    const billId = bill?.id ?? bill?.bill_id
+    expect(billId, `the guest's bill: ${JSON.stringify(bill).slice(0, 160)}`).toBeTruthy()
+    const closed = await env.mgr.rpc('close_bill', { p_bill_id: billId })
+    expect(closed.ok, `close_bill: ${JSON.stringify(closed.body).slice(0, 160)}`).toBe(true)
+    await expect(card, 'the orders list follows the bill').toContainText('Paid', { timeout: 15_000 })
+    await expect(card.getByRole('link', { name: 'Settle on Bills' })).toHaveCount(0)
+    await expect.poll(async () => (await env.mgr.rows(`tables?id=eq.${a.tableId}&select=state`))[0].state, { message: 'table state after the bill is paid' }).toMatch(/^(cleared|free)$/)
   })
 
   test('Cancel on an Open order: Cancelled status, no actions left, and its tickets leave the kitchen board', async ({ page, browser }, testInfo) => {
@@ -1215,12 +1252,12 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
     const m = modalOf(page)
     await expect(m.getByRole('heading', { name: 'Add Dish' })).toBeVisible()
     await m.locator('input[type=file]').setInputFiles({ name: 'qa-dish.png', mimeType: 'image/png', buffer: tinyPng() })
-    await expect(m.locator('img[alt="Preview"]')).toBeVisible()
+    await expect(m.locator('img').first(), 'the chosen photo shows in the form (decorative image, empty alt)').toBeVisible()
     await m.locator('input.input').first().fill(name)
     await m.locator('input[type=number]').first().fill('7.5')
     await m.getByRole('button', { name: /dessert/i }).click()
     await m.locator('select').selectOption({ label: 'Desserts' })
-    await m.locator('textarea').fill('Created by the dashboard ops test')
+    await m.getByRole('textbox', { name: 'Description', exact: true }).fill('Created by the dashboard ops test')
     await m.getByRole('button', { name: /Vegan/ }).click()
     await m.getByRole('checkbox').check()
     await m.getByRole('button', { name: 'Add Dish' }).click()
@@ -1252,7 +1289,7 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
     await expect(m.locator('input.input').first()).toHaveValue(name)
     await expect(m.locator('input[type=number]').first()).toHaveValue('6.5')
     await m.locator('input.input').first().fill(renamed)
-    await m.locator('textarea').fill('qa edited description')
+    await m.getByRole('textbox', { name: 'Description', exact: true }).fill('qa edited description')
     await m.getByRole('button', { name: 'Save Changes' }).click()
     await expect(m).toBeHidden({ timeout: 15_000 })
     await expect(dishRow(page, renamed)).toContainText('₼6.50')
@@ -1454,7 +1491,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
         const inputs = m.locator('input.input')
         await inputs.nth(0).fill(name)
         await inputs.nth(1).fill(title)
-        await m.locator('textarea').fill('Created by the dashboard ops test')
+        await m.getByRole('textbox', { name: 'Description', exact: true }).fill('Created by the dashboard ops test')
         await m.getByRole('button', { name: 'Discount', exact: true }).click()
         await m.locator('select').first().selectOption({ label: dishName })
         const nums = m.locator('input[type=number]')
@@ -1545,10 +1582,13 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
     expect((await api.rows(`ad_campaigns?name=like.${encodeURIComponent(PQA + ' invalid*')}&select=id`)).length).toBe(0)
   })
 
-  test('status chips and counts agree with the database; an ended campaign is not called Active', async ({ page }) => {
+  test('status chips and counts agree with the database; an ended campaign reads Completed, not Active', async ({ page }) => {
     api = await openDash(page, 'manager', '/promos')
     const all = await api.rows(`ad_campaigns?restaurant_id=eq.${F.SAKURA_ID}&select=status,ends_at,name`)
-    const n = s => all.filter(c => c.status === s).length
+    // nothing in the database completes a campaign when its end date passes: the page shows an active campaign past its end as Completed
+    const now = Date.now()
+    const shownAs = c => (c.status === 'active' && c.ends_at && new Date(c.ends_at).getTime() < now ? 'completed' : c.status)
+    const n = s => all.filter(c => shownAs(c) === s).length
     await expect(chip(page, /^All \(/)).toHaveText(`All (${all.length})`)
     for (const [s, label] of [['draft', 'Draft'], ['active', 'Active'], ['paused', 'Paused'], ['completed', 'Completed'], ['cancelled', 'Cancelled']]) {
       await expect(chip(page, new RegExp(`^${label} \\(`))).toHaveText(`${label} (${n(s)})`)
@@ -1556,8 +1596,13 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
     await chip(page, /^Cancelled \(/).click()
     await expect(lastDiv(page)).toHaveCount(n('cancelled'))
     await chip(page, /^All \(/).click()
-    const ended = all.filter(c => c.status === 'active' && new Date(c.ends_at) < new Date())
-    expect(ended.map(c => c.name), 'campaigns shown as Active although their end date has passed (nothing ever completes them, the guests no longer see them)').toEqual([])
+    const ended = all.filter(c => c.status === 'active' && new Date(c.ends_at).getTime() < now)
+    for (const c of ended) {
+      const card = lastDiv(page).filter({ hasText: c.name }).first()
+      await expect(card, `"${c.name}" is active in the database but its end date has passed`).toContainText('Completed')
+    }
+    await chip(page, /^Completed \(/).click()
+    await expect(lastDiv(page), 'Completed chip lists the ended campaigns too').toHaveCount(n('completed'))
   })
 
   test('the waiter and the kitchen cannot create or change campaigns (RLS), while the page stays hidden from them', async ({ browser }, testInfo) => {
@@ -1590,6 +1635,18 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
 //     two far-future bookings (S1 solo, S2 group) and only the state-changing tests make their own.
 // =====================================================================================================================
 const bookingCard = (page, text) => lastDiv(page).filter({ hasText: text })
+const moreBtn = page => page.getByRole('button', { name: 'Load more', exact: true })
+/** The list is paged (Upcoming = soonest first, 50 per page, "Load more"): page until the booking's card is on screen. */
+async function showBooking(page, text) {
+  const card = bookingCard(page, text)
+  for (let i = 0; i < 40; i++) {
+    if (await card.count()) break
+    if (!(await moreBtn(page).count())) { await page.waitForTimeout(1_500); if (await card.count() || !(await moreBtn(page).count())) break }
+    await moreBtn(page).click()
+    await page.waitForTimeout(600)
+  }
+  return card
+}
 const dayLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings'] }, () => {
@@ -1603,7 +1660,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     return { ...b, note: row.special_requests, table: row.tables?.table_number }
   }
   const status = async id => (await env.mgr.rows(`bookings?id=eq.${id}&select=status`))[0]?.status
-  // the far-future dates keep these two on the list however many bookings exist (the page shows the 50 latest-dated ones)
+  // Upcoming lists the soonest first, 50 per page: the far-future dates of these two are reached with "Load more" (showBooking)
   const shared = {}
   const sharedBooking = async key => shared[key] ||= await book(key === 'solo' ? { daysAhead: 52, pick: 0, party: 2, invites: false } : { daysAhead: 53, pick: 1, party: 4, invites: true })
   env.cleanups.push(async () => { for (const id of made.splice(0)) await env.guests[0].rpc('cancel_booking', { p_booking_id: id }) })
@@ -1612,7 +1669,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     test.setTimeout(150_000)
     await env.clean()
     await openDash(page, 'manager', '/bookings')
-    const b = await book({ daysAhead: 51, pick: 2, party: 2 })
+    const b = await book({ daysAhead: 1, pick: 2, party: 2 })   // soonest first: a near-term booking lands on the first page, so it can show live
     const mine = bookingCard(page, b.note)
     await expect(mine).toBeVisible({ timeout: 15_000 })
     await expect(mine).toContainText('Tural R.')
@@ -1642,8 +1699,8 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
   test('Decline cancels a pending booking; a guest cancelling flips a card live', async ({ page }) => {
     test.setTimeout(120_000)
     await openDash(page, 'manager', '/bookings')
-    const a = await book({ daysAhead: 54, pick: 0 })
-    const b = await book({ daysAhead: 55, pick: 0 })
+    const a = await book({ daysAhead: 3, pick: 0 })
+    const b = await book({ daysAhead: 4, pick: 0 })
     const ca = bookingCard(page, a.note), cb = bookingCard(page, b.note)
     await expect(ca).toBeVisible({ timeout: 15_000 })
     await expect(cb).toBeVisible()
@@ -1655,23 +1712,57 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     await expect(cb).toContainText('Cancelled', { timeout: 15_000 })
   })
 
-  test('status chips count and filter; No-show shows because no-show bookings exist', async ({ page }) => {
+  // the two views and what they ask for (BookingsPage): Upcoming = from the start of today (Baku) on, soonest first; Past = before today, latest first
+  const viewRows = async (api, view) => {
+    const rows = await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&reserved_from=${view === 'upcoming' ? 'gte' : 'lt'}.${todayStart()}&order=reserved_from.${view === 'upcoming' ? 'asc' : 'desc'}&limit=51&select=status`)
+    return { shown: rows.slice(0, 50), more: rows.length > 50 ? '+' : '' }
+  }
+  const viewBtn = (page, name) => page.getByRole('button', { name, exact: true })
+
+  test('Upcoming / Past views: status chips count and filter what is loaded ("+" while more exist); No-show shows because no-show bookings exist', async ({ page }) => {
     const api = await openDash(page, 'manager', '/bookings')
-    const all = await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&order=reserved_from.desc&limit=50&select=status`)   // what the page asks for
-    const n = s => all.filter(b => b.status === s).length
-    await expect(chip(page, /^All \(/)).toHaveText(`All (${all.length})`)
-    await expect(page.getByText(`${all.length} bookings`)).toBeVisible()
-    for (const [s, label] of [['pending', 'Pending'], ['confirmed', 'Confirmed'], ['seated', 'Seated'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['no_show', 'No-show']]) {
-      const c = chip(page, new RegExp(`^${label} \\(`))
-      if (s === 'no_show' && n(s) === 0) { await expect(c).toHaveCount(0); continue }
-      await expect(c).toHaveText(`${label} (${n(s)})`)
-      await c.click()
-      if (n(s) === 0) await expect(page.getByText('No bookings')).toBeVisible()
-      else {
-        await expect(lastDiv(page)).toHaveCount(n(s))
-        for (const card of await lastDiv(page).all()) await expect(card).toContainText(new RegExp(label, 'i'))
+    for (const [view, label] of [['upcoming', 'Upcoming'], ['past', 'Past']]) {
+      if (view === 'past') await viewBtn(page, 'Past').click()
+      await expect(viewBtn(page, label)).toHaveAttribute('aria-pressed', 'true')
+      const { shown, more } = await viewRows(api, view)
+      const n = s => shown.filter(b => b.status === s).length
+      await expect(chip(page, /^All \(/)).toHaveText(`All (${shown.length}${more})`)
+      await expect(page.getByText(`${shown.length} booking`)).toBeVisible()
+      for (const [s, name] of [['pending', 'Pending'], ['confirmed', 'Confirmed'], ['seated', 'Seated'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['no_show', 'No-show']]) {
+        const c = chip(page, new RegExp(`^${name} \\(`))
+        if (s === 'no_show' && n(s) === 0) { await expect(c, `${view}: no-show chip hidden while none`).toHaveCount(0); continue }
+        await expect(c, `${view}: ${name} chip`).toHaveText(`${name} (${n(s)}${more})`)
+        await c.click()
+        if (n(s) === 0) { if (!more) await expect(page.getByText('No bookings')).toBeVisible() }
+        else {
+          await expect(lastDiv(page)).toHaveCount(n(s))
+          for (const card of await lastDiv(page).all()) await expect(card).toContainText(new RegExp(name, 'i'))
+        }
       }
+      await chip(page, /^All \(/).click()
     }
+  })
+
+  test('Load more pages the list by 50 (no 50-latest cap): rows grow until the end, the button then disappears; a view switch starts again at one page', async ({ page }) => {
+    test.setTimeout(120_000)
+    const api = await openDash(page, 'manager', '/bookings')
+    for (const view of ['upcoming', 'past']) {
+      if (view === 'past') await viewBtn(page, 'Past').click()
+      const total = (await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&reserved_from=${view === 'upcoming' ? 'gte' : 'lt'}.${todayStart()}&select=id`)).length
+      await expect(lastDiv(page), `${view}: first page`).toHaveCount(Math.min(total, 50), { timeout: 15_000 })
+      if (total <= 50) { await expect(moreBtn(page), `${view}: all ${total} rows fit one page`).toHaveCount(0); continue }
+      let shown = 50
+      while (total > shown) {
+        await expect(moreBtn(page)).toBeVisible()
+        await moreBtn(page).click()
+        shown = Math.min(total, shown + 50)
+        await expect(lastDiv(page), `${view}: after Load more`).toHaveCount(shown, { timeout: 15_000 })
+      }
+      await expect(moreBtn(page), `${view}: nothing left to load`).toHaveCount(0)
+    }
+    await viewBtn(page, 'Upcoming').click()
+    const first = await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&reserved_from=gte.${todayStart()}&select=id`)
+    await expect(lastDiv(page), 'back on Upcoming: one page again').toHaveCount(Math.min(first.length, 50), { timeout: 15_000 })
   })
 
   test('group booking: panel shows the invite code, Copy link, members live (host, joined, left)', async ({ page }) => {
@@ -1680,7 +1771,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     await openDash(page, 'manager', '/bookings')
     const b = await sharedBooking('group')
     expect(b.code, 'invite code returned by create_group_booking').toBeTruthy()
-    const card = bookingCard(page, b.note)
+    const card = await showBooking(page, b.note)
     await expect(card).toBeVisible({ timeout: 15_000 })
     const toggle = card.locator('.v2-group-toggle')
     await expect(toggle).toHaveText(/Group · 1 of 4 joined/)
@@ -1710,21 +1801,22 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     await expect(toggle).toHaveText(/Group · 1 of 4 joined/, { timeout: 15_000 })
   })
 
-  test('a booking made for the day after tomorrow is listed, however many later bookings exist (the page keeps the 50 latest-dated)', async ({ page }) => {
-    // BookingsPage loads .order('reserved_from', desc).limit(50): once more than 50 bookings exist (cancelled ones included),
-    // the nearest upcoming reservations, the ones staff need first, are the ones that fall off the list.
+  test('a booking made for the day after tomorrow is on the first page of Upcoming, however many later bookings exist; a far-future one is one Load more away', async ({ page }) => {
+    // BookingsPage (Upcoming) loads reserved_from >= today, soonest first, 50 rows: the reservations staff need first are always on top.
     const api = await openDash(page, 'manager', '/bookings')
     const b = await book({ daysAhead: 2, pick: 3, party: 2 })
-    const total = (await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&select=id`)).length
+    const total = (await api.rows(`bookings?restaurant_id=eq.${F.SAKURA_ID}&reserved_from=gte.${todayStart()}&select=id`)).length
     await page.reload(); await page.locator('.dash-layout').waitFor()
-    await expect(bookingCard(page, b.note), `booking for ${b.date} among ${total} bookings of the restaurant`).toBeVisible({ timeout: 15_000 })
+    await expect(bookingCard(page, b.note), `booking for ${b.date} among ${total} upcoming bookings of the restaurant`).toBeVisible({ timeout: 15_000 })
+    const far = await sharedBooking('solo')
+    await expect(await showBooking(page, far.note), `the far-future booking for ${far.date}, reached with Load more when it is past the first page`).toBeVisible({ timeout: 15_000 })
   })
 
   test('a booking whose host switched the invite link off shows no invite code or Copy link (it would be dead)', async ({ page }) => {
     // sql/50: p_invites false still creates the invite row, flagged enabled = false; the dashboard panel reads booking_invites without that flag.
     await openDash(page, 'manager', '/bookings')
     const b = await sharedBooking('solo')
-    const card = bookingCard(page, b.note)
+    const card = await showBooking(page, b.note)
     await expect(card).toBeVisible({ timeout: 15_000 })
     await page.waitForTimeout(2_500)   // the panel loads its summary a moment after the card
     const detail = await env.guests[0].rpc('group_booking_detail', { p_booking_id: b.id })
@@ -1734,7 +1826,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
 
   test('a booking card does not show the guest e-mail address (the dashboard is documented to never show it)', async ({ page }) => {
     await openDash(page, 'manager', '/bookings')
-    const card = bookingCard(page, (await sharedBooking('solo')).note)
+    const card = await showBooking(page, (await sharedBooking('solo')).note)
     await expect(card).toBeVisible({ timeout: 15_000 })
     expect(await card.innerText(), 'text of the booking card').not.toMatch(/@/)
   })
@@ -1746,7 +1838,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     try {
       await F.authenticate(page, 'manager')
       await page.goto(url('/bookings')); await page.locator('.dash-layout').waitFor()
-      const card = bookingCard(page, b.note)
+      const card = await showBooking(page, b.note)
       await expect(card).toBeVisible({ timeout: 15_000 })
       await expect(card, `slot ${b.time} Baku time, viewed from Los Angeles`).toContainText(`at ${b.time}`)
     } finally { await ctx.close() }
@@ -1756,7 +1848,7 @@ test.describe('bookings', { tag: ['@staff', '@resto', '@dash-ops', '@do-bookings
     await page.setViewportSize({ width: 390, height: 844 })
     await openDash(page, 'manager', '/bookings')
     const b = await sharedBooking('group')
-    const card = bookingCard(page, b.note)
+    const card = await showBooking(page, b.note)
     await expect(card).toBeVisible({ timeout: 15_000 })
     await card.locator('.v2-group-toggle').click()
     await expect(card.locator('.v2-member')).toHaveCount(1)

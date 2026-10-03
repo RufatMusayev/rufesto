@@ -195,10 +195,15 @@ async function seatAndOrder(guest, code, items) {
  * Returns { id, code, date, time, status, party, invites }.
  */
 async function bookSlot(guest, { party = 2, invites = false, daysAhead = 3, pick = 0, note = null } = {}) {
-  const date = bakuDate(daysAhead)
-  const slots = await guest.rpc('get_available_slots', { p_restaurant_id: SAKURA_ID, p_date: date, p_party_size: party })
-  const open = (Array.isArray(slots.body) ? slots.body : []).filter(s => s.available)
-  if (!open.length) throw new Error(`no free Sakura slot on ${date} for ${party}: ${JSON.stringify(slots.body).slice(0, 200)}`)
+  // a closed day (or a fully booked one) moves the booking to the next day that has a free slot
+  let date, slots, open
+  for (let d = daysAhead; d < daysAhead + 8; d++) {
+    date = bakuDate(d)
+    slots = await guest.rpc('get_available_slots', { p_restaurant_id: SAKURA_ID, p_date: date, p_party_size: party })
+    open = (Array.isArray(slots.body) ? slots.body : []).filter(s => s.available)
+    if (open.length) break
+  }
+  if (!open.length) throw new Error(`no free Sakura slot from ${bakuDate(daysAhead)} on for ${party}: ${JSON.stringify(slots.body).slice(0, 200)}`)
   const slot = open[Math.min(pick, open.length - 1)]
   const r = await guest.rpc('create_group_booking', {
     p_restaurant_id: SAKURA_ID, p_date: date, p_time: slot.slot_time, p_party_size: party, p_note: note,

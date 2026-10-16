@@ -3,6 +3,7 @@ import {
   getPost, listComments, addComment, deleteComment, subscribeComments,
 } from './api'
 import { useOnVisible } from './hooks'
+import { logFeedEvent } from '../feed/events'
 
 const byTime = (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
 const merge = (...lists) => {
@@ -109,8 +110,9 @@ export function usePostThread({ id, userId, seed, authLoading, me }) {
     }
     setComments(c => merge(c.filter(x => x.id !== temp.id), [{ ...temp, id: data.id, createdAt: data.createdAt, pending: false }]))
     setPost(p => (p ? { ...p, commentCount: data.commentCount } : p))
+    logFeedEvent({ type: 'post', id, event: 'comment', pool: seed?.pool, position: seed?.position })
     return { error: null }
-  }, [id, userId, me?.name, me?.photo])
+  }, [id, userId, me?.name, me?.photo, seed?.pool, seed?.position])
 
   const remove = useCallback(async comment => {
     const { error } = await deleteComment(comment.id)

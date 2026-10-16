@@ -1,11 +1,17 @@
-// Remembers which Home tab (Discover | Feed) the guest used last. Per-viewer convenience only:
-// every access is wrapped because storage can be blocked or empty.
+// Remembers which Home tab (Home | Friends | Discover) the guest used last. Per-viewer convenience
+// only: every access is wrapped because storage can be blocked or empty. The old two-tab build stored
+// 'feed' for what is now Friends, so a remembered 'feed' is read as 'friends'. Default: 'home'.
 const KEY = 'rufesto_home_tab'
+export const HOME_TABS = ['home', 'friends', 'discover']
 
 export function readHomeTab() {
-  try { return localStorage.getItem(KEY) === 'feed' ? 'feed' : 'discover' } catch { return 'discover' }
+  try {
+    const v = localStorage.getItem(KEY)
+    if (v === 'feed') return 'friends'
+    return HOME_TABS.includes(v) ? v : 'home'
+  } catch { return 'home' }
 }
 
 export function rememberHomeTab(tab) {
-  try { localStorage.setItem(KEY, tab === 'feed' ? 'feed' : 'discover') } catch { /* storage blocked */ }
+  try { localStorage.setItem(KEY, HOME_TABS.includes(tab) ? tab : 'home') } catch { /* storage blocked */ }
 }

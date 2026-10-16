@@ -8,7 +8,7 @@ const forceEnglish = url => ({ origin: new URL(url).origin, localStorage: [{ nam
 // Consumer specs: the app people use on phones. The `mobile` project runs exactly these (the dashboard
 // specs feat-dash-ops / feat-dash-money, staff, v2-resto, v2-tips and anon-resto are NOT in the list, so they run in the
 // desktop project only) plus the mobile-only checklist. feat-table and feat-bills run in both projects.
-const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist|feat-social|feat-profile|feat-notifications|feat-bookings|feat-discovery|feat-table|feat-bills)\.spec\.js$/
+const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist|feat-social|feat-profile|feat-notifications|feat-bookings|feat-discovery|feat-table|feat-bills|feat-home-feed)\.spec\.js$/
 
 module.exports = defineConfig({
   testDir: './tests',

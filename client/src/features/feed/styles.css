@@ -1,0 +1,30 @@
+/* Ranked Home feed (features/feed). Prefix soc- like the social feature. Tokens only: no hard-coded theme colours. */
+
+.soc-feed-slot { max-width: 470px; margin: 0 auto; }
+
+/* "Use my location for nearby" */
+.soc-geo { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px 16px 4px; }
+.soc-geo-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); max-width: 100%;
+  padding: 0 14px; border-radius: 100px; border: 1px solid var(--border-strong);
+  background: var(--s2); color: var(--t1); font-size: 0.78rem; font-weight: 600; text-align: left;
+  transition: background-color var(--t-ui), transform var(--t-fast);
+}
+.soc-geo-pill:active:not(:disabled) { transform: scale(0.97); }
+.soc-geo-pill:disabled { opacity: 0.6; cursor: default; }
+.soc-geo-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.soc-geo-note { font-size: 0.74rem; color: var(--t3); line-height: 1.4; }
+.soc-geo-radius { padding: 8px 16px 0; }
+
+/* end of the ranked list */
+.soc-caught {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  padding: 32px 24px 24px; border-top: 1px solid var(--border);
+}
+.soc-caught-mark {
+  width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--s3); color: var(--accent); font-size: 1.1rem; font-weight: 700;
+}
+.soc-caught-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; font-weight: 700; color: var(--t1); }
+.soc-caught-body { max-width: 320px; font-size: 0.82rem; color: var(--t2); line-height: 1.5; }
+.soc-caught .btn { margin-top: 8px; }

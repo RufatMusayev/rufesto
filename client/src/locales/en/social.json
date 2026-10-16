@@ -54,14 +54,27 @@
   },
   "home": {
     "switch": "Home view",
+    "tab_home": "Home",
+    "tab_friends": "Friends",
     "tab_discover": "Discover",
     "tab_feed": "Feed",
-    "newPost": "New post"
+    "newPost": "New post",
+    "geoPill": "Use my location for nearby",
+    "geoAsking": "Finding you…",
+    "geoDenied": "Location is off for this site. Allow it in your browser settings to see places near you.",
+    "geoError": "Couldn't get your location. Tap to try again.",
+    "nearby": "Nearby: places within {{km}} km",
+    "newPosts_one": "{{count}} new post",
+    "newPosts_other": "{{count}} new posts",
+    "newPostsMax": "50+ new posts",
+    "caughtUpTitle": "You're all caught up",
+    "caughtUpBody": "You've seen the latest. More from everyone, newest first:",
+    "caughtUpGuestBody": "Browse every restaurant in Discover, or sign in to see your friends' posts.",
+    "emptyTitle": "Nothing here yet",
+    "emptyBody": "Posts from restaurants will show up here soon.",
+    "openDiscover": "Open Discover"
   },
   "feed": {
-    "filter": "Feed filter",
-    "scope_all": "All",
-    "scope_friends": "Friends",
     "newPosts": "New posts",
     "loadMore": "Load more",
     "emptyTitle": "Nothing here yet",
@@ -69,8 +82,8 @@
     "emptyFriendsTitle": "No posts from friends",
     "emptyFriendsBody": "Add friends to see what they are eating.",
     "findFriends": "Find friends",
-    "signInTitle": "Sign in for your own feed",
-    "signInBody": "Posts from your friends and followed places. Below: recent reviews."
+    "signInFriendsTitle": "Sign in to see your friends' posts",
+    "signInFriendsBody": "Posts from you and your friends show up here, newest first."
   },
   "post": {
     "title": "Post",
@@ -90,7 +103,12 @@
     "deleteConfirm": "Delete post",
     "unavailableTitle": "Post unavailable",
     "unavailableBody": "It may have been deleted or is only visible to friends.",
-    "goHome": "Back to Home"
+    "goHome": "Back to Home",
+    "availableNow": "Available now",
+    "soldOut": "Sold out",
+    "orderThis": "Order this",
+    "kmAway": "{{km}} km",
+    "openNow": "Open now"
   },
   "comment": {
     "title": "Comments",

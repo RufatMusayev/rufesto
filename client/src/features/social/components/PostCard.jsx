@@ -5,14 +5,20 @@ import { Avatar, Pill } from '../../../components/ui'
 import { cleanDisplayName, timeAgo } from '../../../lib/helpers'
 import { togglePostLike, deletePost } from '../api'
 import { useRequireAuth, useToast } from '../hooks'
+import { logFeedEvent } from '../../feed/events'
+import { resignPostPhoto } from '../lib/postPhotos'
 import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon, CameraIcon } from './Icons'
+import { RestaurantPostHead, DishStrip, restaurantPath } from './RestaurantPostParts'
 import ConfirmSheet from './ConfirmSheet'
 
 const DOUBLE_TAP_MS = 300
 
 /**
- * A user post. `full` is the /post/:id variant (no "view all comments" link, the comment
+ * A post. `full` is the /post/:id variant (no "view all comments" link, the comment
  * button calls onCommentClick). Like is optimistic; double-tapping the photo only ever likes.
+ * A post by a restaurant (item.author.type === 'restaurant') shows the restaurant in the header and,
+ * when it carries a dish, the dish strip with "Available now" / "Sold out" and "Order this".
+ * like and order_tap are logged to the feed events (pool / position are set when it came from Home).
  */
 export default function PostCard({ item, index = 0, full = false, onDeleted, onCommentClick }) {
   const { t, i18n } = useTranslation('social')
@@ -26,6 +32,8 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [imgFailed, setImgFailed] = useState(false)   // the signed URL expired or the file is gone
+  const [photoSrc, setPhotoSrc] = useState(item.photoUrl)
+  const resigned = useRef(false)                      // one re-sign per photo before giving up
   const busy = useRef(false)
   const lastTap = useRef(0)
 
@@ -34,11 +42,27 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     setLikeCount(item.likeCount)
   }, [item.id, item.likedByMe, item.likeCount])
 
-  useEffect(() => { setImgFailed(false) }, [item.photoUrl])
+  useEffect(() => {
+    setPhotoSrc(item.photoUrl)
+    setImgFailed(false)
+    resigned.current = false
+  }, [item.photoUrl])
 
-  const name = cleanDisplayName(item.user.name)
+  // The signed URL may have expired (long-open tab): sign that one path again and retry once, then show the placeholder.
+  async function onPhotoError() {
+    if (resigned.current || !item.photoPath) { setImgFailed(true); return }
+    resigned.current = true
+    const url = await resignPostPhoto(item.photoPath)
+    if (url) setPhotoSrc(url)
+    else setImgFailed(true)
+  }
+
+  const isResto = item.author?.type === 'restaurant'
+  const name = isResto ? (item.author.name || item.restaurant?.name || '') : cleanDisplayName(item.user.name)
+  const authorTo = isResto ? restaurantPath(item) : `/u/${item.user.id}`
   const isMine = item.isMine || (!!session && !!item.user.id && item.user.id === session.user.id)
   const restaurant = item.restaurant
+  const feedEvent = event => logFeedEvent({ type: 'post', id: item.id, event, pool: item.pool, position: item.position })
 
   async function like({ onlyLike = false } = {}) {
     if (!requireAuth() || busy.current) return
@@ -58,6 +82,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     }
     setLiked(data.liked)
     setLikeCount(data.likeCount)
+    if (data.liked) feedEvent('like')
   }
 
   function onPhotoTap() {
@@ -109,21 +134,27 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   return (
     <article className={`feed-post${full ? '' : ' stagger-item'} soc-post`} style={full ? { animation: 'none', opacity: 1 } : { animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <header className="soc-post-head">
-        <Link to={`/u/${item.user.id}`} className="soc-post-author" aria-label={name}>
-          <Avatar name={item.user.name} src={item.user.photo} size={36} />
-        </Link>
-        <div className="soc-post-who">
-          <div className="soc-post-line">
-            <Link to={`/u/${item.user.id}`} className="soc-post-name">{name}</Link>
-            <span className="soc-post-time">· {timeAgo(item.createdAt, i18n.language)}</span>
-            {item.verified && <Pill tone="green" icon="✓">{t('review.verified')}</Pill>}
-          </div>
-          {restaurant?.name && (
-            restaurant.slug
-              ? <Link to={`/restaurant/${restaurant.slug}`} className="soc-post-where">{restaurant.name}</Link>
-              : <span className="soc-post-where">{restaurant.name}</span>
-          )}
-        </div>
+        {isResto ? (
+          <RestaurantPostHead item={item} when={timeAgo(item.createdAt, i18n.language)} />
+        ) : (
+          <>
+            <Link to={authorTo} className="soc-post-author" aria-label={name}>
+              <Avatar name={item.user.name} src={item.user.photo} size={36} />
+            </Link>
+            <div className="soc-post-who">
+              <div className="soc-post-line">
+                <Link to={authorTo} className="soc-post-name">{name}</Link>
+                <span className="soc-post-time">· {timeAgo(item.createdAt, i18n.language)}</span>
+                {item.verified && <Pill tone="green" icon="✓">{t('review.verified')}</Pill>}
+              </div>
+              {restaurant?.name && (
+                restaurant.slug
+                  ? <Link to={`/restaurant/${restaurant.slug}`} className="soc-post-where">{restaurant.name}</Link>
+                  : <span className="soc-post-where">{restaurant.name}</span>
+              )}
+            </div>
+          </>
+        )}
         {isMine && (
           <button type="button" className="icon-btn" aria-label={t('post.more')} onClick={() => { setDeleteError(null); setMenu(true) }}>
             <MoreIcon />
@@ -133,12 +164,14 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
 
       {(item.hasPhoto || item.photoUrl) && (
         <div className="soc-photo" onClick={onPhotoTap}>
-          {item.photoUrl && !imgFailed
-            ? <img src={item.photoUrl} alt={item.text || t('post.photoAlt', { name })} loading="lazy" draggable={false} onError={() => setImgFailed(true)} />
+          {photoSrc && !imgFailed
+            ? <img src={photoSrc} alt={item.text || t('post.photoAlt', { name })} loading="lazy" draggable={false} onError={onPhotoError} />
             : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}
           {burst && <span className="soc-burst" aria-hidden="true"><LikeIcon active size={84} /></span>}
         </div>
       )}
+
+      {isResto && item.dish && <DishStrip item={item} onOrder={() => feedEvent('order_tap')} />}
 
       <div className="soc-actions">
         <button
@@ -158,7 +191,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
 
       {item.text && (
         <p className="soc-caption">
-          <Link to={`/u/${item.user.id}`} className="soc-post-name">{name}</Link> {item.text}
+          {authorTo ? <Link to={authorTo} className="soc-post-name">{name}</Link> : <span className="soc-post-name">{name}</span>} {item.text}
         </p>
       )}
       {!full && item.commentCount > 0 && (

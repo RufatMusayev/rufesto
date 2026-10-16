@@ -30,7 +30,40 @@ const mapPostPhoto = v => ({
   hasPhoto: !!v,
 })
 
-const mapDish = d => (d ? { id: d.id || null, name: d.name || '', photo: d.photo || null } : null)
+const num = v => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v))
+// price / available only come with home_feed and the v2 post item (live kitchen toggle); null = unknown
+const mapDish = d => (d ? {
+  id: d.id || null, name: d.name || '', photo: d.photo || null,
+  price: num(d.price), available: d.available == null ? null : !!d.available,
+} : null)
+
+/**
+ * Post author (docs/V2-CONTRACT.md 17.2): `{ type: 'user', id, name, profile_photo }` or
+ * `{ type: 'restaurant', id, name, slug, logo }`. Older feed() rows have no `author`: fall back to `user`.
+ */
+const mapAuthor = (a, user) => {
+  if (a?.type === 'restaurant') {
+    return { type: 'restaurant', id: a.id || null, name: a.name || '', slug: a.slug || null, photo: a.logo || null }
+  }
+  const u = mapUser(a || user)
+  return { type: 'user', id: u.id, name: u.name, slug: null, photo: u.photo }
+}
+
+/** home_feed promo slot -> view-model (the card adapter lives in features/feed). */
+const mapPromo = r => ({
+  kind: 'promo',
+  id: r.id,
+  pool: 'promo',
+  position: num(r.position),
+  restaurant: mapRestaurant(r.restaurant),
+  title: r.title || '',
+  description: r.description || '',
+  imageUrl: r.image_url || null,
+  dish: mapDish(r.dish),
+  startsAt: r.starts_at || null,
+  endsAt: r.ends_at || null,
+  type: r.type || null,
+})
 
 export const mapFriend = r => ({
   friendshipId: r.friendship_id,
@@ -55,13 +88,14 @@ export const mapSearchRow = r => ({
   status: mapStatus(r.friendship_status ?? r.friendship),
 })
 
-/** A feed entry: kind 'post' | 'review'. */
-export const mapFeedItem = r => ({
+/** A feed entry: kind 'post' | 'review' | 'promo' (promo only from home_feed). */
+export const mapFeedItem = r => (r.kind === 'promo' ? mapPromo(r) : {
   kind: r.kind === 'review' ? 'review' : 'post',
   id: r.id,
   createdAt: r.created_at,
-  why: r.why || null,                       // 'own' | 'friend' | 'following'
+  why: r.why || null,                       // 'own' | 'friend' | 'following' (feed) | the pool (home_feed)
   user: mapUser(r.user),
+  author: mapAuthor(r.author, r.user),
   restaurant: mapRestaurant(r.restaurant),
   dish: mapDish(r.dish),
   ...(r.kind === 'review'
@@ -74,6 +108,11 @@ export const mapFeedItem = r => ({
   likedByMe: !!r.liked_by_me,
   verified: !!r.is_verified,
   isMine: !!r.is_mine,
+  // home_feed only (null elsewhere)
+  pool: r.pool || null,                     // 'nearby' | 'following' | 'discover'
+  position: num(r.position),                // the server's 1-based slot in its page; Home re-numbers across the whole list
+  km: num(r.km),                            // nearby pool only
+  openNow: r.open_now == null ? null : !!r.open_now,
 })
 
 export const mapComment = c => ({

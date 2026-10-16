@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import MobileMoreSheet from './MobileMoreSheet'
 import { MoreIcon } from './navIcons'
 
-// Bottom nav of the phone layout. Admin and manager have 11 entries, which do
+// Bottom nav of the phone layout. Admin and manager have 12 entries, which do
 // not fit in 390 px, so the bar scrolls sideways: a fade with an arrow marks
 // each edge that has more items behind it, and the current page's item is
 // scrolled into view when the route changes. `items` = [{ to, label, end, icon }].

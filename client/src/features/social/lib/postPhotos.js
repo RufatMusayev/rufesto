@@ -67,3 +67,10 @@ export async function withSignedPhotos(items) {
   const signed = await signPostPhotos(paths)
   return items.map(i => (i?.photoPath ? { ...i, photoUrl: signed.get(i.photoPath) || null } : i))
 }
+
+/** One fresh createSignedUrls for a single path (drops its cache entry first). Used once when an <img> failed to load. */
+export async function resignPostPhoto(path) {
+  cache.delete(path)
+  const signed = await signPostPhotos([path])
+  return signed.get(path) || null
+}

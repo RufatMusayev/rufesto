@@ -637,6 +637,7 @@ body.modal-open { overflow: hidden; }
 .more-sheet-action:hover { background: var(--s3); }
 .more-sheet-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .more-sheet-signout { color: var(--red); }
+.more-sheet-link { text-decoration: none; }
 
 /* ── Phones: touch targets ──
    Every control on the legacy pages (Orders, Kitchen, Tables, Menu, Promos, Bookings, Waiter, Login) and in their

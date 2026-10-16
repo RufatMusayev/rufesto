@@ -17,6 +17,10 @@ export function TipsIcon() {
   return <svg {...props}><path d="M4 20V11M10 20V4M16 20v-6M22 20H2" /></svg>
 }
 
+export function PostsIcon() {
+  return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.7" /><path d="M21 16l-5-5L7 20" /></svg>
+}
+
 export function MyTipsIcon() {
   return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M14.8 9.2c-.4-.9-1.4-1.4-2.8-1.4-1.6 0-2.6.7-2.6 1.8 0 2.7 5.4 1.2 5.4 4 0 1.1-1.1 1.9-2.8 1.9-1.5 0-2.5-.6-2.9-1.6M12 6.5v1.3M12 16.2v1.3" /></svg>
 }

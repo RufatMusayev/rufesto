@@ -19,6 +19,16 @@ const BY_MESSAGE = {
   bill_closed:       'errBillClosed',
   bill_settled:      'errBillClosed',
   bill_has_payments: 'errBillHasPayments',
+  // Posts (sql/58): create_restaurant_post / delete_post, plus the client-side photo check (lib/image.js).
+  empty_post:        'errPostEmpty',
+  invalid_photo_url: 'errPostPhoto',
+  caption_too_long:  'errCaptionTooLong',
+  dish_not_found:    'errDishNotFound',
+  too_many_posts:    'errTooManyPosts',
+  post_not_found:    'errNotFound',
+  post_unconfirmed:  'errPostUnconfirmed',   // client-side marker: create_restaurant_post failed ambiguously (network)
+  not_an_image:      'errNotAnImage',
+  photo_too_large:   'errPhotoTooLarge',
 }
 
 // 42P01 undefined_table, 42883 undefined_function, PGRST205 table not in the

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { rsrc, RESTAURANT_COLS } from '../lib/publicSource'
@@ -29,6 +29,7 @@ function countSeats(tables) {
 export default function RestaurantPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { t } = useTranslation(['restaurant', 'common'])
   const { tableId, restaurantId: cartRestaurantId, addDish, cartError, clearCartError } = useCart()
   const [restaurant, setRestaurant] = useState(null)
@@ -48,6 +49,7 @@ export default function RestaurantPage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const { session } = useAuth()
   const pendingFollowRef = useRef(false)
+  const openedDishRef = useRef(null)
 
   const isSeatedHere = cartRestaurantId === restaurant?.id && !!tableId
 
@@ -188,6 +190,17 @@ export default function RestaurantPage() {
     }
     setFollowLoading(false)
   }
+
+  // ?dish=<id> (from a Home post or promo): open that dish once the menu is loaded; unknown ids are ignored
+  const dishParam = searchParams.get('dish')
+  useEffect(() => {
+    if (loading || !dishParam || restaurant?.slug !== slug) return
+    const tag = `${slug}:${dishParam}`
+    if (openedDishRef.current === tag) return
+    openedDishRef.current = tag
+    const wanted = dishes.find(d => d.id === dishParam)
+    if (wanted) setDishDetail(wanted)
+  }, [loading, restaurant, dishes, dishParam, slug])
 
   if (loading) return <LoadingSkeleton />
 

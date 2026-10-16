@@ -54,14 +54,27 @@
   },
   "home": {
     "switch": "Ana səhifə görünüşü",
+    "tab_home": "Ana səhifə",
+    "tab_friends": "Dostlar",
     "tab_discover": "Kəşf et",
     "tab_feed": "Lent",
-    "newPost": "Yeni paylaşım"
+    "newPost": "Yeni paylaşım",
+    "geoPill": "Yaxındakılar üçün məkanımdan istifadə et",
+    "geoAsking": "Məkan müəyyən edilir…",
+    "geoDenied": "Bu sayt üçün məkan söndürülüb. Yaxınlıqdakı yerləri görmək üçün brauzer ayarlarında icazə verin.",
+    "geoError": "Məkanı müəyyən etmək alınmadı. Yenidən cəhd üçün toxunun.",
+    "nearby": "Yaxınlıqda: {{km}} km radiusda yerlər",
+    "newPosts_one": "{{count}} yeni paylaşım",
+    "newPosts_other": "{{count}} yeni paylaşım",
+    "newPostsMax": "50+ yeni paylaşım",
+    "caughtUpTitle": "Hamısını gördünüz",
+    "caughtUpBody": "Ən son paylaşımları gördünüz. Hamıdan daha çoxu, yenidən köhnəyə:",
+    "caughtUpGuestBody": "Kəşf et bölməsində bütün restoranlara baxın və ya dostlarınızın paylaşımları üçün daxil olun.",
+    "emptyTitle": "Hələ burada heç nə yoxdur",
+    "emptyBody": "Restoranların paylaşımları tezliklə burada görünəcək.",
+    "openDiscover": "Kəşf et bölməsini aç"
   },
   "feed": {
-    "filter": "Lent filtri",
-    "scope_all": "Hamısı",
-    "scope_friends": "Dostlar",
     "newPosts": "Yeni paylaşımlar",
     "loadMore": "Daha çox yüklə",
     "emptyTitle": "Hələ burada heç nə yoxdur",
@@ -69,8 +82,8 @@
     "emptyFriendsTitle": "Dostlardan paylaşım yoxdur",
     "emptyFriendsBody": "Nə yediklərini görmək üçün dost əlavə edin.",
     "findFriends": "Dost tap",
-    "signInTitle": "Şəxsi lentiniz üçün daxil olun",
-    "signInBody": "Dostlarınızın və izlədiyiniz məkanların paylaşımları. Aşağıda son rəylər var."
+    "signInFriendsTitle": "Dostlarınızın paylaşımları üçün daxil olun",
+    "signInFriendsBody": "Sizin və dostlarınızın paylaşımları burada, yenidən köhnəyə doğru görünəcək."
   },
   "post": {
     "title": "Paylaşım",
@@ -90,7 +103,12 @@
     "deleteConfirm": "Paylaşımı sil",
     "unavailableTitle": "Paylaşım əlçatan deyil",
     "unavailableBody": "O, silinmiş ola bilər və ya yalnız dostlara görünür.",
-    "goHome": "Ana səhifəyə qayıt"
+    "goHome": "Ana səhifəyə qayıt",
+    "availableNow": "İndi mövcuddur",
+    "soldOut": "Bitib",
+    "orderThis": "Sifariş et",
+    "kmAway": "{{km}} km",
+    "openNow": "İndi açıqdır"
   },
   "comment": {
     "title": "Şərhlər",

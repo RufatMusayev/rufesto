@@ -1,14 +1,17 @@
 import { useId } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import useDialog from '../../lib/useDialog'
+import v2Nav from '../../features/v2/nav'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { ExitIcon, GlobeIcon, MoonIcon, SunIcon } from './navIcons'
 
 // Phone-only bottom sheet behind the "More" button of the bottom nav. The desktop sidebar footer (language, theme,
 // Sign Out) is hidden at <= 768px, so these controls live here on a phone: restaurant switcher (for staff of
-// several restaurants), language, light / dark, Sign Out.
+// several restaurants), pages the role may open that the long bottom bar buries (the v2 nav entries flagged
+// `more`, e.g. Posts for admin and manager), language, light / dark, Sign Out.
 export default function MobileMoreSheet({ onClose }) {
   const { t } = useTranslation(['dashboard', 'common', 'nav', 'v2'])
   const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
@@ -17,6 +20,7 @@ export default function MobileMoreSheet({ onClose }) {
   const dialogRef = useDialog(onClose)
   const name = staffRow?.restaurants?.name || t('dashboard:restaurantFallback')
   const role = staffRow?.role
+  const pages = v2Nav.filter(n => n.more && n.roles.includes(role))
 
   return (
     <div className="overlay overlay-sheet" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -41,6 +45,13 @@ export default function MobileMoreSheet({ onClose }) {
             </select>
           </div>
         )}
+
+        {pages.map(n => (
+          <Link key={n.to} to={n.to} className="more-sheet-row more-sheet-action more-sheet-link" onClick={onClose}>
+            <n.icon />
+            <span>{t(n.labelKey)}</span>
+          </Link>
+        ))}
 
         <div className="more-sheet-row">
           <span className="more-sheet-label more-sheet-label-icon"><GlobeIcon />{t('dashboard:navLanguage')}</span>

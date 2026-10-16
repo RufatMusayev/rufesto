@@ -250,16 +250,21 @@ async function asUser(page, who) {
 
 const isPhone = page => (page.viewportSize()?.width ?? 1280) <= 768
 
-/** Home -> Feed tab (the guest's last tab is remembered in localStorage, so click explicitly). */
-async function openFeed(page, scope = 'all') {
+/**
+ * Home -> Friends tab: the feed of me and my friends, newest first (feed('friends')). Home has three tabs now (Home | Friends |
+ * Discover) and opens on the ranked Home tab, so the remembered tab is set to Friends before the page loads (the ranked tab and its
+ * restaurant cards are then never mounted, which keeps them out of counts and strict locators) and the helper checks that Friends
+ * is the selected tab. The old All / Friends chips are gone.
+ */
+async function openFeed(page) {
+  await page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'friends') } catch { /* storage blocked */ } })
   await page.goto(url('/'))
-  await page.getByRole('tab', { name: 'Feed', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'Feed', exact: true })).toHaveAttribute('aria-selected', 'true')
-  if (scope === 'friends') await page.getByRole('tab', { name: 'Friends', exact: true }).click()
-  await expect(page.getByRole('tab', { name: scope === 'friends' ? 'Friends' : 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: 'Friends', exact: true })).toHaveAttribute('aria-selected', 'true')
 }
 
 const post = (page, text) => page.locator('article.soc-post').filter({ hasText: text })
+/** Cards of the Home tab that is on screen (Home and Friends both stay mounted once visited; the hidden one is not counted). */
+const feedPost = (page, text) => page.locator('.soc-feed:visible article.soc-post').filter({ hasText: text })
 
 /** Give a realtime channel time to be SUBSCRIBED after a page load before the other side triggers an event. */
 const channelsReady = async (page, ms = 1500) => { await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(ms) }
@@ -347,6 +352,6 @@ async function timed(fn) { const t = Date.now(); await fn(); return Date.now() -
 
 module.exports = {
   CONSUMER_URL, url, RUN, TAG, account, have, signInPage, asUser, forget, openUser, openSignedOut, api, count, watchPage,
-  resetPair, befriend, purgePosts, markRead, tidySocialNotifications, unreadIds, isPhone, openFeed, post, channelsReady, bellCount, shot, pickPhoto, newPost,
+  resetPair, befriend, purgePosts, markRead, tidySocialNotifications, unreadIds, isPhone, openFeed, post, feedPost, channelsReady, bellCount, shot, pickPhoto, newPost,
   newPhotoPost, deletePhoto, findSlot, newBooking, timed,
 }

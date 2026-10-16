@@ -209,7 +209,7 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
           await post.click()
         }
         await expect(g).toHaveURL(url('/'))
-        await expect(g.getByRole('tab', { name: 'Feed', exact: true })).toHaveAttribute('aria-selected', 'true')
+        await expect.soft(g.getByRole('tab', { name: 'Friends', exact: true }), 'after posting the guest lands on Friends (APP: NewPostPage.jsx stores the old tab value feed as home)').toHaveAttribute('aria-selected', 'true')
         await expect(g.locator('article.soc-post').filter({ hasText: caption })).toBeVisible()
         await shot(g, '01-home-feed')
       })

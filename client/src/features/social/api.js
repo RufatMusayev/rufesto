@@ -7,7 +7,7 @@ import { rsrc } from '../../lib/publicSource'
 import { toError } from './errors'
 import { POST_PHOTO_BUCKET, withSignedPhotos } from './lib/postPhotos'
 import {
-  mapFriend, mapRequest, mapSearchRow, mapFeedItem, mapComment, mapReviewRow, mapProfile,
+  mapFriend, mapRequest, mapSearchRow, mapFeedItem, mapComment, mapProfile,
 } from './mappers'
 
 // CONTRACT: PRIVATE bucket 'post-photos' (sql/43 + sql/48: 5 MB, jpeg/png/webp, authenticated insert
@@ -141,18 +141,6 @@ export async function getFeed({ scope = 'all', cursor = null, limit = FEED_PAGE_
   if (error) return { data: null, error }
   const items = await withSignedPhotos((data?.items || []).map(mapFeedItem))
   return { data: { items, nextCursor: data?.next_cursor || null }, error: null }
-}
-
-/** Signed-out fallback for the Feed tab: recent public reviews (same read as Discover). */
-export async function getPublicReviews(limit = FEED_PAGE_SIZE) {
-  const { data, error } = await call(() => supabase
-    .from('reviews')
-    .select(`*, dishes(id, name, photo, restaurant_id, ${rsrc()}(id, name, slug, logo)), users(name, profile_photo)`)
-    .eq('is_flagged', false)
-    .order('created_at', { ascending: false })
-    .limit(limit))
-  if (error) return { data: null, error }
-  return { data: { items: (data || []).map(mapReviewRow), nextCursor: null }, error: null }
 }
 
 /** Posts INSERT stream for the "New posts" pill. onInsert({ userId }). */

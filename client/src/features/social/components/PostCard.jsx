@@ -8,7 +8,7 @@ import { useRequireAuth, useToast } from '../hooks'
 import { logFeedEvent } from '../../feed/events'
 import { resignPostPhoto } from '../lib/postPhotos'
 import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon, CameraIcon } from './Icons'
-import { RestaurantPostHead, DishStrip, restaurantPath } from './RestaurantPostParts'
+import { RestaurantPostHead, DishStrip, PhotoChips, hasPhotoChips, restaurantPath } from './RestaurantPostParts'
 import ConfirmSheet from './ConfirmSheet'
 
 const DOUBLE_TAP_MS = 300
@@ -62,6 +62,8 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   const authorTo = isResto ? restaurantPath(item) : `/u/${item.user.id}`
   const isMine = item.isMine || (!!session && !!item.user.id && item.user.id === session.user.id)
   const restaurant = item.restaurant
+  const hasPhoto = !!(item.hasPhoto || item.photoUrl)
+  const chips = hasPhoto && hasPhotoChips(item, isResto)       // restaurant / distance / availability sit on the photo
   const feedEvent = event => logFeedEvent({ type: 'post', id: item.id, event, pool: item.pool, position: item.position })
 
   async function like({ onlyLike = false } = {}) {
@@ -135,7 +137,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     <article className={`feed-post${full ? '' : ' stagger-item'} soc-post`} style={full ? { animation: 'none', opacity: 1 } : { animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <header className="soc-post-head">
         {isResto ? (
-          <RestaurantPostHead item={item} when={timeAgo(item.createdAt, i18n.language)} />
+          <RestaurantPostHead item={item} when={timeAgo(item.createdAt, i18n.language)} showSub={!chips} />
         ) : (
           <>
             <Link to={authorTo} className="soc-post-author" aria-label={name}>
@@ -147,7 +149,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
                 <span className="soc-post-time">· {timeAgo(item.createdAt, i18n.language)}</span>
                 {item.verified && <Pill tone="green" icon="✓">{t('review.verified')}</Pill>}
               </div>
-              {restaurant?.name && (
+              {restaurant?.name && !chips && (
                 restaurant.slug
                   ? <Link to={`/restaurant/${restaurant.slug}`} className="soc-post-where">{restaurant.name}</Link>
                   : <span className="soc-post-where">{restaurant.name}</span>
@@ -162,16 +164,17 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
         )}
       </header>
 
-      {(item.hasPhoto || item.photoUrl) && (
-        <div className="soc-photo" onClick={onPhotoTap}>
+      {hasPhoto && (
+        <div className={`soc-photo${chips ? ' soc-photo-shaded' : ''}`} onClick={onPhotoTap}>
           {photoSrc && !imgFailed
-            ? <img src={photoSrc} alt={item.text || t('post.photoAlt', { name })} loading="lazy" draggable={false} onError={onPhotoError} />
+            ? <img src={photoSrc} alt={item.text || t('post.photoAlt', { name })} loading="lazy" decoding="async" draggable={false} onError={onPhotoError} />
             : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}
+          {chips && <PhotoChips item={item} isResto={isResto} />}
           {burst && <span className="soc-burst" aria-hidden="true"><LikeIcon active size={84} /></span>}
         </div>
       )}
 
-      {isResto && item.dish && <DishStrip item={item} onOrder={() => feedEvent('order_tap')} />}
+      {isResto && item.dish && <DishStrip item={item} showPill={!chips} onOrder={() => feedEvent('order_tap')} />}
 
       <div className="soc-actions">
         <button

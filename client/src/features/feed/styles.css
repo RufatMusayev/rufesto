@@ -28,3 +28,23 @@
 .soc-caught-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; font-weight: 700; color: var(--t1); }
 .soc-caught-body { max-width: 320px; font-size: 0.82rem; color: var(--t2); line-height: 1.5; }
 .soc-caught .btn { margin-top: 8px; }
+
+/* Friends: one small-caps label per Baku day (docs/V2-CONTRACT.md 18.3) */
+.soc-day {
+  padding: 20px 16px 10px; font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--note);
+}
+
+/* zero-height marker in front of the item 3 from the end: when it scrolls into view the next page loads */
+.soc-marker { display: block; height: 1px; margin-top: -1px; pointer-events: none; }
+
+/* skeleton card with the final post card's geometry (see cards.css for the card chrome) */
+.soc-sk { pointer-events: none; }
+.soc-sk-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+.soc-sk-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
+.soc-sk-lines { flex: 1; min-width: 0; }
+.soc-sk-line { height: 11px; margin-bottom: 7px; }
+.soc-sk-lines .soc-sk-line { height: 10px; margin-bottom: 5px; }
+.soc-sk-photo { width: 100%; aspect-ratio: 4 / 5; border-radius: 0; }
+.soc-sk-body { padding: 12px 16px 14px; }
+.soc-sk-w38 { width: 38%; } .soc-sk-w52 { width: 52%; } .soc-sk-w55 { width: 55%; } .soc-sk-w80 { width: 80%; }

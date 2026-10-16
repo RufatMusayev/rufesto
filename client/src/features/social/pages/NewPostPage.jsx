@@ -6,6 +6,7 @@ import {
   createPost, uploadPostPhoto, PHOTO_UPLOAD_ENABLED, POST_REQUIRES_RESTAURANT,
 } from '../api'
 import { rememberHomeTab } from '../homeTab'
+import { invalidateFeeds } from '../../feed/feeds'
 import { CameraIcon } from '../components/Icons'
 import PhotoPicker from '../components/PhotoPicker'
 import RestaurantPicker from '../components/RestaurantPicker'
@@ -59,7 +60,8 @@ export default function NewPostPage() {
 
     const res = await createPost({ restaurantId: place?.id, photoPath, caption: text })
     if (res.error) { setError(res.error.key); setBusy(false); return }
-    rememberHomeTab('feed')
+    rememberHomeTab('friends')
+    invalidateFeeds()                          // Home / Friends keep their data in memory: the next visit refreshes it, so the new post shows
     navigate('/')
   }
 

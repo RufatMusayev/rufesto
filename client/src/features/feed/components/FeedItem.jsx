@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import PostCard from '../../social/components/PostCard'
+import ReviewCard from '../../social/components/ReviewCard'
 import PromoCard from '../../../components/PromoCard'
 import { logFeedEvent } from '../events'
 
@@ -23,23 +24,30 @@ function trackCampaign(id, event) {
 }
 
 /**
- * One slot of the ranked feed: a post card or a promo card, watched for impressions (>= 50 % visible
- * for 1 s) and for taps on the card. Like / comment / order_tap are logged by the cards themselves.
+ * One slot of a feed: a post card, a promo card or (Friends) a review card. Posts and promos are watched for
+ * impressions (>= 50 % visible for 1 s) and for taps on the card; Like / comment / order_tap are logged by
+ * the cards themselves. Reviews are not feed-event items (feed_events knows posts and promos only), so they
+ * are shown untracked. `className` replaces the slot wrapper's class (Discover puts promos in a rail).
  */
-export default function FeedItem({ item, index, events, onDeleted }) {
+export default function FeedItem({ item, index, events, onDeleted, className = 'soc-feed-slot' }) {
   const ref = useRef(null)
   const lastOpen = useRef(0)
   const navigate = useNavigate()
   const isPromo = item.kind === 'promo'
+  const isReview = item.kind === 'review'
   const type = isPromo ? 'promo' : 'post'
 
-  useEffect(() => events.observe(ref.current, {
-    type, id: item.id, pool: item.pool, position: item.position,
-    // the sponsored impression is counted when the card was really seen, once per load
-    onImpression: isPromo ? () => trackCampaign(item.id, 'impression') : undefined,
-  }), [events, type, isPromo, item.id, item.pool, item.position])
+  useEffect(() => {
+    if (isReview) return undefined
+    return events.observe(ref.current, {
+      type, id: item.id, pool: item.pool, position: item.position,
+      // the sponsored impression is counted when the card was really seen, once per load
+      onImpression: isPromo ? () => trackCampaign(item.id, 'impression') : undefined,
+    })
+  }, [events, type, isPromo, isReview, item.id, item.pool, item.position])
 
   function onClick(e) {
+    if (isReview) return
     // "open" = any tap on the card that is not a control: photo, caption, dish strip, header and
     // "view all comments" links all count. Controls log their own events (like, comment, "Order this")
     // or none (share, more). Taps inside sheets / modals rendered by the card are not taps on the card.
@@ -54,8 +62,10 @@ export default function FeedItem({ item, index, events, onDeleted }) {
   }
 
   return (
-    <div ref={ref} className="soc-feed-slot" onClick={onClick}>
-      {isPromo ? (
+    <div ref={ref} className={className} onClick={onClick}>
+      {isReview ? (
+        <ReviewCard item={item} index={index} />
+      ) : isPromo ? (
         <PromoCard
           campaign={toCampaign(item)}
           index={index}

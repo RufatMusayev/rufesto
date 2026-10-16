@@ -1,5 +1,6 @@
-// Every Supabase call of the ranked Home feed lives here. Functions return { data, error } and never
-// throw; `error` is { code, key } (social/errors.js). Shapes follow docs/V2-CONTRACT.md section 17.
+// Every Supabase call of the ranked Home and Friends feeds lives here (Discover's are in discover/api.js).
+// Functions return { data, error } and never throw; `error` is { code, key } (social/errors.js).
+// Shapes follow docs/V2-CONTRACT.md sections 17 and 18.
 import { supabase } from '../../lib/supabase'
 import { toError } from '../social/errors'
 import { mapFeedItem } from '../social/mappers'
@@ -9,7 +10,7 @@ export const HOME_PAGE_SIZE = 20          // home_feed p_limit (1..30)
 export const MAX_EXCLUDE = 300            // home_feed p_exclude cap (more raises too_many_excluded)
 export const NEW_COUNT_CAP = 50           // home_feed_new_count never answers more than this
 
-async function rpc(name, args) {
+export async function rpc(name, args) {
   try {
     const { data, error } = await supabase.rpc(name, args)
     return error ? { data: null, error: toError(error) } : { data, error: null }
@@ -18,7 +19,7 @@ async function rpc(name, args) {
   }
 }
 
-const hasGps = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng)
+export const hasGps = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng)
 
 /**
  * One page of the ranked Home feed. Callable signed out.
@@ -39,6 +40,29 @@ export async function getHomeFeed({ lat = null, lng = null, exclude = [], limit 
       caughtUp: !!data?.caught_up,
       mix: data?.mix || null,
       radiusKm: data?.radius_km == null ? null : Number(data.radius_km),
+    },
+    error: null,
+  }
+}
+
+/**
+ * CONTRACT 18.1: friends_feed(p_lat, p_lng, p_exclude uuid[], p_limit) -> jsonb { items, exclude, caught_up }
+ * (authenticated only). Items are post items (17.2) and review items (_review_json), each with `day`
+ * ('YYYY-MM-DD', Baku), `position`, `affinity`, `km`. Same exclusion paging as home_feed. Every item gets
+ * pool 'friends' so the feed events carry it. One createSignedUrls call per page (withSignedPhotos).
+ */
+export async function getFriendsFeed({ lat = null, lng = null, exclude = [], limit = HOME_PAGE_SIZE } = {}) {
+  const args = { p_exclude: exclude, p_limit: limit }
+  if (hasGps(lat, lng)) { args.p_lat = lat; args.p_lng = lng }
+  const { data, error } = await rpc('friends_feed', args)
+  if (error) return { data: null, error }
+  const items = await withSignedPhotos((data?.items || []).map(it => mapFeedItem({ ...it, pool: 'friends' })))
+  return {
+    data: {
+      items,
+      exclude: Array.isArray(data?.exclude) ? data.exclude : [],
+      caughtUp: !!data?.caught_up,
+      radiusKm: null,
     },
     error: null,
   }

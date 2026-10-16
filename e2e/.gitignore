@@ -4,3 +4,7 @@ playwright/.cache/
 .env
 node_modules/
 tour-out/
+personas/.world-initialised
+personas/.tokens.json
+personas/.sim-state.json
+personas/.sim-segments.json

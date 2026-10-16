@@ -43,31 +43,24 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
   test.skip(!creds.review1, 'review1 not found: set QA_REVIEW1_EMAIL / QA_REVIEW1_PASSWORD or keep docs/REVIEW-ACCOUNTS.md')
   test.beforeEach(async ({ isMobile }) => { expect(isMobile, 'this spec belongs to the mobile project').toBe(true) })
 
-  test('Home: Discover and Feed tabs scroll without horizontal overflow', async ({ page, watch }, testInfo) => {
+  test('Home: Home, Friends and Discover tabs scroll without horizontal overflow', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     await page.goto(url('/'))
     const tab = name => page.getByRole('tab', { name, exact: true })
-    await expect(tab('Discover')).toHaveAttribute('aria-selected', 'true')
-    const cards = page.getByRole('link', { name: /view menu/i })
-    await expect(cards.first()).toBeVisible()
+    await expect(tab('Home'), 'Home opens on the ranked Home tab').toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('.soc-feed-slot').first().or(page.getByRole('heading', { name: "You're all caught up" }))).toBeVisible()
     await settle(page, 4_000)
-    await w.check('home discover')
-    await w.scrollThrough('home discover')
+    await w.check('home ranked')
+    await w.scrollThrough('home ranked')
 
-    await w.tap(tab('Feed'), 'Home tab Feed')
-    await expect(tab('Feed')).toHaveAttribute('aria-selected', 'true')
-    await expect(tab('All')).toHaveAttribute('aria-selected', 'true')
-    await settle(page, 4_000)
-    await w.check('home feed')
-    await w.scrollThrough('home feed')
-
-    await w.tap(tab('Friends'), 'Feed chip Friends')
+    await w.tap(tab('Friends'), 'Home tab Friends')
     await expect(tab('Friends')).toHaveAttribute('aria-selected', 'true')
-    await w.check('home feed, friends only')
-    await w.tap(tab('All'), 'Feed chip All')
+    await settle(page, 4_000)
+    await w.check('home friends')
+    await w.scrollThrough('home friends')
 
-    // the "New post" button floats above the bottom nav, never under it
+    // the "New post" button floats above the bottom nav, never under it (it is on Home and Friends, not on Discover)
     const fab = page.getByRole('button', { name: 'New post' })
     await expect(fab).toBeVisible()
     const clash = await fab.evaluate(el => {
@@ -77,8 +70,13 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     expect.soft(clash, 'New post button overlaps the bottom nav by this many px').toBeLessThanOrEqual(0)
     expect.soft(await fab.evaluate(el => el.getBoundingClientRect().height), 'New post button height').toBeGreaterThanOrEqual(40)
 
-    // Discover again, and a restaurant card leads to the restaurant page
     await w.tap(tab('Discover'), 'Home tab Discover')
+    await expect(tab('Discover')).toHaveAttribute('aria-selected', 'true')
+    const cards = page.getByRole('link', { name: /view menu/i })
+    await expect(cards.first()).toBeVisible()
+    await settle(page, 4_000)
+    await w.check('home discover')
+    await w.scrollThrough('home discover')
     await w.tap(cards.first(), 'Discover "View menu" link')
     await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()

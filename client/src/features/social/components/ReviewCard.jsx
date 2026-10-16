@@ -71,7 +71,7 @@ export default function ReviewCard({ item, index = 0, showActions = true }) {
           {item.text || t('review.rated', { dish: item.dish?.name || t('review.thisDish'), rating })}
         </p>
         {item.verified && <div className="soc-review-pill"><Pill tone="green" icon="✓">{t('review.verified')}</Pill></div>}
-        {item.photoUrl && <img className="soc-review-photo" src={item.photoUrl} alt={t('review.photoAlt')} loading="lazy" />}
+        {item.photoUrl && <img className="soc-review-photo" src={item.photoUrl} alt={t('review.photoAlt')} loading="lazy" decoding="async" />}
       </div>
 
       {showActions && (

@@ -48,12 +48,12 @@ async function actAs(page, role) {
   })
 }
 
-const ALL_ROUTES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/my-tips', '/settings', '/qr-sheet']
-const MANAGER_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/my-tips', '/settings', '/qr-sheet']
+const ALL_ROUTES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/my-tips', '/posts', '/settings', '/qr-sheet']
+const MANAGER_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/my-tips', '/posts', '/settings', '/qr-sheet']
 // role -> { routes it may open (lib/roles.js + features/v2/roles.js), home, sidebar items (nav.js + DashboardLayout) }
 const ROLES = {
-  admin:   { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/settings'] },
-  manager: { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/settings'] },
+  admin:   { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/posts', '/settings'] },
+  manager: { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/posts', '/settings'] },
   waiter:  { routes: ['/waiter', '/tables', '/orders', '/my-tips'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/my-tips'] },
   host:    { routes: ['/waiter', '/tables', '/bookings', '/my-tips'], home: '/waiter', nav: ['/tables', '/bookings', '/waiter', '/my-tips'], mock: true },
   cashier: { routes: ['/waiter', '/orders', '/tables', '/bills', '/my-tips'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/bills', '/my-tips'], mock: true },
@@ -241,7 +241,7 @@ test.describe('azerbaijani', { tag: ['@staff', '@resto', '@dash-ops'] }, () => {
   const H1 = {
     '/': dash.navOverview, '/orders': dash.ordersTitle, '/kds': dash.kitchen, '/tables': dash.tablesTitle, '/menu': dash.menuTitle,
     '/promos': dash.promosTitle, '/bookings': dash.bookingsTitle, '/waiter': dash.navWaiter,
-    '/bills': v2.billsTitle, '/tips': v2.tipsTitle, '/my-tips': v2.myTipsTitle, '/settings': v2.settingsTitle, '/qr-sheet': v2.qrSheetTitle,
+    '/bills': v2.billsTitle, '/tips': v2.tipsTitle, '/my-tips': v2.myTipsTitle, '/posts': v2.postsTitle, '/settings': v2.settingsTitle, '/qr-sheet': v2.qrSheetTitle,
   }
   for (const p of MANAGER_PAGES) {
     test(`${p}: heading and nav are Azerbaijani, no raw i18n keys`, async ({ browser }, testInfo) => {

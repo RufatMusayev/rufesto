@@ -216,6 +216,18 @@
 .soc-profile-reviews { margin: 8px -16px 0; }
 .soc-profile-reviews .soc-section-title { margin-left: 16px; }
 
+/* chips over a post photo (restaurant, distance, availability) on a soft bottom gradient; drawn over a photo, so light in both themes */
+:root { --on-photo: #F5F0E8; --glass: rgba(20, 14, 12, 0.58); --photo-shade: rgba(14, 10, 8, 0.8); }
+.soc-photo-shaded::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(to top, var(--photo-shade), transparent); pointer-events: none; }
+.soc-photo-chips { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; pointer-events: none; }
+.soc-photo-chips > * { pointer-events: auto; }
+.soc-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 32px; padding: 0 12px; border-radius: 100px; background: var(--glass); color: var(--on-photo); border: 1px solid rgba(245, 240, 232, 0.18); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 0.76rem; font-weight: 600; line-height: 1; }
+a.soc-chip::after { content: ''; position: absolute; inset: -6px 0; }
+.soc-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soc-chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.soc-avail { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; color: var(--on-photo); background: var(--green); }
+.soc-avail-off { background: var(--red); }
+
 @media (prefers-reduced-motion: reduce) {
   .soc-burst, .soc-toast, .soc-newpill { animation: none; }
 }

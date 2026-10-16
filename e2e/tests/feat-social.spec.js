@@ -5,6 +5,7 @@
 // Run one project at a time. It runs in both the `chromium` and the `mobile` project (CONSUMER_SPECS in playwright.config.js; see docs/qa/consumer-social.md).
 const { test, expect } = require('../support/fixtures')
 const S = require('../support/feat-social')
+const H = require('../support/feat-home')
 const { url, TAG, RUN } = S
 
 const ME = 'Nigar R.'        // review5
@@ -318,7 +319,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     return { v, au }
   }
 
-  test('new post: photo required, 500-char limit, public, shows in Feed All and on the profile grid', async ({ page, watch }, testInfo) => {
+  test('new post: photo required, 500-char limit, public, shows under Friends and on the profile grid', async ({ page, watch }, testInfo) => {
     test.setTimeout(80_000)
     const me = await S.asUser(page, 2)
     await S.purgePosts(me)
@@ -340,10 +341,10 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
         await expect(page).toHaveURL(url('/'))
         await expect(S.post(page, `${TAG} ${RUN}`)).toBeVisible()
       })
-      testInfo.annotations.push({ type: 'timing', description: `Post tap -> card in Feed All: ${ms} ms (spec: 2 s)` })
-      expect(ms, 'the post shows up in Feed All (spec says 2 s, a slow network is allowed up to 8 s)').toBeLessThanOrEqual(8000)
-      await expect(page.getByRole('tab', { name: 'Feed', exact: true })).toHaveAttribute('aria-selected', 'true')
-      await expect(page.getByRole('tab', { name: 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
+      testInfo.annotations.push({ type: 'timing', description: `Post tap -> card under Friends: ${ms} ms (spec: 2 s)` })
+      expect(ms, 'the post shows up under Friends (spec says 2 s, a slow network is allowed up to 8 s)').toBeLessThanOrEqual(8000)
+      await expect.soft(page.getByRole('tab', { name: 'Friends', exact: true }), 'after posting the guest lands on Friends, where the post is (APP: NewPostPage.jsx calls rememberHomeTab with the old value feed, which homeTab.js stores as home)').toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByRole('tab', { name: 'All', exact: true }), 'the All / Friends chips are gone').toHaveCount(0)
       const img = S.post(page, `${TAG} ${RUN}`).locator('.soc-photo img')
       await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth > 0), 'the signed photo loads').toBe(true)
       const rows = (await me.api.get(`posts?user_id=eq.${me.api.id}&caption=like.${TAG}*&select=id,caption,photo_url,visibility`)).data
@@ -370,7 +371,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       // the friend sees both
       await page.goto(url(`/post/${fId}`))
       await expect(page.getByText(fCap)).toBeVisible()
-      await S.openFeed(page, 'friends')
+      await S.openFeed(page)
       await expect(S.post(page, fCap)).toBeVisible()
       await expect(S.post(page, pCap)).toBeVisible()
       await page.goto(url(`/u/${au.api.id}`))
@@ -386,7 +387,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
         await expect(ctx.page.getByRole('link', { name: pCap }), `${who}: public tile on the profile`).toBeVisible()
         await expect(ctx.page.getByRole('link', { name: fCap }), `${who}: friends-only tile on the profile`).toHaveCount(0)
       }
-      await S.openFeed(stranger.page, 'all')
+      await S.openFeed(stranger.page)
       await expect(stranger.page.locator('.soc-feed')).toBeVisible()
       await expect(S.post(stranger.page, fCap), 'friends-only post is not in a stranger feed').toHaveCount(0)
     } finally { await S.purgePosts(au); await au.close(); await stranger.close(); await anon.close() }
@@ -398,7 +399,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     const cap = `${TAG} ${RUN} like`
     try {
       const { id } = await S.newPhotoPost(au, cap)
-      await S.openFeed(page, 'friends')
+      await S.openFeed(page)
       const card = S.post(page, cap)
       await expect(card).toBeVisible()
       await expect.poll(() => card.locator('.soc-photo img').evaluate(i => i.complete && i.naturalWidth > 0), 'a friend can load the signed photo').toBe(true)
@@ -418,7 +419,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await expect(card.locator('.soc-act-likes')).toHaveText('1 like')
       await expect.poll(async () => (await v.api.get(`likes?user_id=eq.${v.api.id}&target_type=eq.post&target_id=eq.${id}&select=id`)).data.length).toBe(1)
       await expect.poll(async () => (await au.api.get(`posts?id=eq.${id}&select=like_count`)).data[0].like_count).toBe(1)
-      await S.openFeed(page, 'friends')
+      await S.openFeed(page)
       await expect(S.post(page, cap).getByRole('button', { name: 'Remove like' }), 'the like survives a reload').toBeVisible()
       expect(watch.consoleErrors, 'console errors').toEqual([])
     } finally { await S.purgePosts(au); await au.close() }
@@ -474,7 +475,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     const cap = `${TAG} ${RUN} delete`
     try {
       const id = await S.newPost(me, cap)
-      await S.openFeed(page, 'all')
+      await S.openFeed(page)
       const card = S.post(page, cap)
       await expect(card).toBeVisible()
       await card.getByRole('button', { name: 'Post options' }).click()
@@ -497,9 +498,9 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await S.purgePosts(me); await friend.close() }
   })
 
-  // feed(): 'friends' = my and my friends' posts; 'all' adds the public posts of restaurants I FOLLOW (sql/40b), so the two
-  // chips only differ for a guest who follows a restaurant. review5 follows Bella Roma here (removed again in finally).
-  test('feed: Friends = mine + friends, All adds public posts of followed restaurants; no friends -> empty state with a working action', async ({ page, browser }, testInfo) => {
+  // feed(): 'friends' = my and my friends' posts only (sql/40b, 58b). A public post of a restaurant I FOLLOW reaches me through the
+  // ranked Home tab (following pool, V2-CONTRACT 17.3), not through Friends. review5 follows Bella Roma here (removed again in finally).
+  test('feed: Friends = mine + friends only; a followed restaurant\'s public post is on Home, not under Friends; no friends -> empty state with a working action', async ({ page, browser }, testInfo) => {
     test.setTimeout(100_000)
     const a = await S.asUser(page, 5)
     const b = await S.openUser(browser, testInfo, 6)
@@ -507,25 +508,24 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     await S.purgePosts(b)
     const cap = `${TAG} ${RUN} followed place`
     const bella = (await a.api.get('restaurants?slug=eq.bella-roma&select=id')).data[0].id
+    const friendsTab = () => page.getByRole('tab', { name: 'Friends', exact: true })
     try {
       await a.api.del(`user_follows?user_id=eq.${a.api.id}&restaurant_id=eq.${bella}`)
       expect((await a.api.post('user_follows', { user_id: a.api.id, restaurant_id: bella })).ok).toBe(true)
       const posted = await b.api.rpc('create_post', { p_photo_url: null, p_caption: cap, p_restaurant_id: bella, p_visibility: 'public' })
       expect(posted.ok, JSON.stringify(posted.data)).toBe(true)
-      await S.openFeed(page, 'all')
-      await expect(S.post(page, cap), 'a stranger\'s public post of a followed restaurant is in All').toBeVisible()
-      await page.getByRole('tab', { name: 'Friends', exact: true }).click()
+      await H.openHome(page)
+      await expect(await H.findCard(page, cap), 'a stranger\'s public post of a followed restaurant is on the ranked Home tab').toBeVisible()
+      await friendsTab().click()
       await expect(page.getByText('No posts from friends'), 'nothing from friends yet: empty state').toBeVisible()
-      await expect(S.post(page, cap), 'but not under Friends').toHaveCount(0)
+      await expect(S.feedPost(page, cap), 'and the post is not under Friends').toHaveCount(0)
       await S.befriend(a, b)
       await page.reload()
-      await page.getByRole('tab', { name: 'Feed', exact: true }).click()
-      await page.getByRole('tab', { name: 'Friends', exact: true }).click()
-      await expect(S.post(page, cap), 'once friends it is under Friends too').toBeVisible()
+      await friendsTab().click()
+      await expect(S.feedPost(page, cap), 'once friends it is under Friends too').toBeVisible()
       await S.resetPair(a, b)
       await page.reload()
-      await page.getByRole('tab', { name: 'Feed', exact: true }).click()
-      await page.getByRole('tab', { name: 'Friends', exact: true }).click()
+      await friendsTab().click()
       await page.getByRole('link', { name: 'Find friends' }).click()
       await expect(page).toHaveURL(/\/friends\?tab=find/)
     } finally {
@@ -539,7 +539,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     const { au } = await viewerAuthor(page, browser, testInfo)
     const cap = `${TAG} ${RUN} pill`
     try {
-      await S.openFeed(page, 'all')
+      await S.openFeed(page)
       await expect(page.locator('.soc-feed')).toBeVisible()
       await expect(page.getByRole('button', { name: 'New posts' })).toHaveCount(0)
       await S.channelsReady(page)
@@ -559,7 +559,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     const caps = Array.from({ length: 16 }, (_, i) => `${TAG} ${RUN} page ${String(i + 1).padStart(2, '0')}`)
     try {
       for (const c of caps) await S.newPost(au, c)
-      await S.openFeed(page, 'friends')
+      await S.openFeed(page)
       await expect(S.post(page, caps[15])).toBeVisible({ timeout: 30_000 })
       const cards = page.locator('article.soc-post')
       await expect.poll(() => cards.count()).toBe(15)
@@ -575,7 +575,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await S.purgePosts(au); await au.close() }
   })
 
-  test('signed out: Feed is read-only (recent reviews), every action opens the sign-in modal', async ({ browser }, testInfo) => {
+  test('signed out: Friends shows the sign-in card, the Home cards are read-only, every action opens the sign-in modal', async ({ browser }, testInfo) => {
     test.setTimeout(80_000)
     const anon = await S.openSignedOut(browser, testInfo)
     const au = await S.openUser(browser, testInfo, 2)
@@ -584,12 +584,16 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     const p = anon.page
     try {
       const id = await S.newPost(au, cap)
-      await p.goto(url('/'))
-      await p.getByRole('tab', { name: 'Feed', exact: true }).click()
-      await expect(p.getByText('Sign in for your own feed')).toBeVisible()
-      await expect(p.getByRole('tab', { name: 'Friends', exact: true }), 'no All / Friends filter signed out').toHaveCount(0)
-      await expect(p.locator('article.soc-review').first(), 'recent public reviews are listed').toBeVisible()
-      await p.locator('article.soc-review').first().getByRole('button', { name: 'Like', exact: true }).click()
+      const sakura = (await au.api.get('restaurants?slug=eq.sakura-house&select=id')).data[0].id
+      const tagged = await au.api.rpc('create_post', { p_photo_url: null, p_caption: cap + ' tagged', p_restaurant_id: sakura, p_visibility: 'public' })   // a post of a place reaches the ranked Home tab
+      expect(tagged.ok, JSON.stringify(tagged.data)).toBe(true)
+      await H.openHome(p)
+      await p.getByRole('tab', { name: 'Friends', exact: true }).click()
+      await expect(p.getByText("Sign in to see your friends' posts")).toBeVisible()
+      await expect(p.getByRole('tab', { name: 'All', exact: true }), 'no All / Friends filter signed out').toHaveCount(0)
+      await p.getByRole('tab', { name: 'Home', exact: true }).click()
+      const card = await H.findCard(p, cap + ' tagged')
+      await card.getByRole('button', { name: 'Like', exact: true }).click()
       await expect(authModal(p)).toBeVisible()
       await p.keyboard.press('Escape')
       await expect(authModal(p)).toHaveCount(0)
@@ -667,7 +671,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       expect((await v.api.rpc('add_post_comment', { p_post_id: id, p_body: `${TAG} ${RUN} hello` })).ok).toBe(true)
       await page.addInitScript(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }) })   // force the clipboard path
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: CONSUMER_ORIGIN })
-      await S.openFeed(page, 'friends')
+      await S.openFeed(page)
       const card = S.post(page, cap)
       await expect(card.getByText('View 1 comment')).toBeVisible()
       await card.getByRole('button', { name: 'Share' }).click()

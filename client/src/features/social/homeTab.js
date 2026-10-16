@@ -13,5 +13,6 @@ export function readHomeTab() {
 }
 
 export function rememberHomeTab(tab) {
-  try { localStorage.setItem(KEY, HOME_TABS.includes(tab) ? tab : 'home') } catch { /* storage blocked */ }
+  const id = tab === 'feed' ? 'friends' : tab          // the legacy name of Friends is stored as Friends too
+  try { localStorage.setItem(KEY, HOME_TABS.includes(id) ? id : 'home') } catch { /* storage blocked */ }
 }

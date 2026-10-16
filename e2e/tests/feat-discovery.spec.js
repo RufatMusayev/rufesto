@@ -16,6 +16,17 @@ const SLUGS = Object.keys(NAMES)
 const money = n => `₼${Number(n).toFixed(2)}`
 const heading1 = p => p.getByRole('heading', { level: 1 })
 
+/**
+ * Home has three tabs now (Home | Friends | Discover) and opens on the ranked "Home" tab. These tests are about the Discover list,
+ * so the remembered tab is set to Discover before the page loads (the ranked Home tab is then never mounted, which also keeps its
+ * own cards and promo slots out of these counts) and the test checks that Discover is the selected tab.
+ */
+async function openDiscover(page) {
+  await page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
+  await page.goto(url('/'))
+  await expect(page.getByRole('tab', { name: /^(Discover|Kəşf et)$/ })).toHaveAttribute('aria-selected', 'true')
+}
+
 /** Is a restaurant with these operating_hours rows open now (Baku clock, same-day windows)? */
 function openNow(hours) {
   const c = bakuClock()
@@ -37,8 +48,7 @@ test.describe('home discover', { tag: ['@anon', '@consumer', '@feat'] }, () => {
       api.get('restaurants?select=id,name,slug,seating_capacity,cuisine_type&status=eq.active&order=name'),
       api.get('operating_hours?select=restaurant_id,day_of_week,open_time,close_time,is_closed'),
     ])
-    await page.goto(url('/'))
-    await expect(page.getByRole('tab', { name: 'Discover' })).toHaveAttribute('aria-selected', 'true')
+    await openDiscover(page)
     const posts = page.locator('article').filter({ has: page.getByRole('link', { name: /view menu/i }) })
     await expect(posts.first()).toBeVisible()
     await settle(page)
@@ -71,7 +81,7 @@ test.describe('home discover', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   })
 
   test('a review card opens its dish sheet; Esc closes it', async ({ page, watch }) => {
-    await page.goto(url('/'))
+    await openDiscover(page)
     const review = page.locator('article').filter({ hasText: '★' }).filter({ hasNot: page.getByRole('link', { name: /view menu/i }) }).first()
     await expect(review).toBeVisible()
     const dish = (await review.innerText()).match(/\S+\s+(.+?)\s+·\s+(?:Trattoria|Səda|Sakura)/)?.[1]
@@ -85,7 +95,7 @@ test.describe('home discover', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   })
 
   test('"View menu →" and a story open the restaurant page', async ({ page }) => {
-    await page.goto(url('/'))
+    await openDiscover(page)
     await page.getByRole('link', { name: /view menu/i }).first().click()
     await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
     await expect(heading1(page)).toBeVisible()
@@ -114,7 +124,7 @@ test.describe('home discover', { tag: ['@anon', '@consumer', '@feat'] }, () => {
 
       const tracked = []
       page.on('request', r => { if (/rpc\/track_campaign/.test(r.url())) tracked.push(r.postDataJSON()) })
-      await page.goto(url('/'))
+      await openDiscover(page)
       const promo = page.locator('article').filter({ hasText: /promoted/i })
       await expect(promo, 'a Promoted card in the feed').toHaveCount(1)
       await expect(promo).toContainText(/sponsored/i)
@@ -143,7 +153,7 @@ test.describe('home discover', { tag: ['@anon', '@consumer', '@feat'] }, () => {
     const likes = async () => (await F.req(page, g, 'GET', `likes?user_id=eq.${uid}&target_type=eq.restaurant&select=id,target_id`)).rows
     try {
       for (const l of await likes()) await F.req(page, g, 'DELETE', `likes?id=eq.${l.id}`)
-      await g.page.goto(url('/'))
+      await openDiscover(g.page)
       const post = g.page.locator('article').filter({ has: g.page.getByRole('link', { name: /view menu/i }) }).first()
       await expect(post).toBeVisible()
       await post.locator('button.icon-btn').nth(1).click()   // icon buttons of a post: options (header), like, save
@@ -673,9 +683,8 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
   }
 
   test('Home, Explore and Map in Azerbaijani', async ({ page, watch }) => {
-    await page.goto(url('/'))
-    await expect(page.getByRole('tab', { name: 'Kəşf et' })).toBeVisible()
-    await expectAz(page, [['social', 'home.tab_discover'], ['social', 'home.tab_feed'], ['feed', 'viewMenuArrow']], 'Home')
+    await openDiscover(page)
+    await expectAz(page, [['social', 'home.tab_home'], ['social', 'home.tab_friends'], ['social', 'home.tab_discover'], ['feed', 'viewMenuArrow']], 'Home')
     await expect(page.getByText(/\d+ yer/).first(), 'seat counts use "yer"').toBeVisible()
     await expect(page.getByText(/(saat|gün|dəq) əvvəl|indicə/).first(), 'time-ago in Azerbaijani').toBeVisible()
     await page.goto(url('/explore'))
@@ -695,7 +704,10 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
     await expect(page.locator('.menu-card').first()).toBeVisible()
     await expectAz(page, [['restaurant', 'statDishes'], ['restaurant', 'statFollowers'], ['restaurant', 'statReviews'], ['restaurant', 'statSeats'], ['restaurant', 'follow'], ['bookings', 'reserve'], ['restaurant', 'all']], 'Restaurant')
     await expect(page.getByText(/Açıqdır|Bağlıdır/).first(), 'open / closed state').toBeVisible()
-    await page.locator('.menu-card').first().click()
+    // the order prompt only shows for an available dish, and the first card may be sold out right now: open an available one
+    const [open] = await (await anonApi(page)).get(`dishes?restaurant_id=eq.${BELLA}&available=eq.true&select=name&order=name.asc&limit=1`)
+    test.skip(!open, 'Trattoria Bella Roma has no available dish right now')
+    await page.locator('.menu-card').filter({ hasText: open.name }).first().click()
     await expectAz(page, [['menu', 'enterTablePrompt']], 'Dish sheet')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Zal planı' }).click()
@@ -812,7 +824,7 @@ test.describe('signed-out gates', { tag: ['@anon', '@consumer', '@feat'] }, () =
   })
 
   test('liking a post while signed out asks to sign in instead of showing a like that vanishes', async ({ page }) => {
-    await page.goto(url('/'))
+    await openDiscover(page)
     const post = page.locator('article').filter({ has: page.getByRole('link', { name: /view menu/i }) }).first()
     await expect(post).toBeVisible()
     const likesBefore = await post.getByText(/^\d+ likes?$/).count()
@@ -823,7 +835,7 @@ test.describe('signed-out gates', { tag: ['@anon', '@consumer', '@feat'] }, () =
   })
 
   test('the options button on a restaurant post does something', async ({ page }) => {
-    await page.goto(url('/'))
+    await openDiscover(page)
     const post = page.locator('article').filter({ has: page.getByRole('link', { name: /view menu/i }) }).first()
     await expect(post).toBeVisible()
     await post.locator('button.icon-btn').first().click()

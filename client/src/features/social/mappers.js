@@ -108,6 +108,8 @@ export const mapFeedItem = r => (r.kind === 'promo' ? mapPromo(r) : {
   likedByMe: !!r.liked_by_me,
   verified: !!r.is_verified,
   isMine: !!r.is_mine,
+  // friends_feed only: the Baku calendar day the item belongs to ('YYYY-MM-DD'), for the day separators
+  day: r.day || null,
   // home_feed only (null elsewhere)
   pool: r.pool || null,                     // 'nearby' | 'following' | 'discover'
   position: num(r.position),                // the server's 1-based slot in its page; Home re-numbers across the whole list
@@ -121,24 +123,6 @@ export const mapComment = c => ({
   body: c.body || '',
   createdAt: c.created_at,
   mine: !!c.mine,
-})
-
-/** A review row read straight from the `reviews` table (signed-out feed). */
-export const mapReviewRow = r => ({
-  kind: 'review',
-  id: r.id,
-  createdAt: r.created_at,
-  why: null,
-  user: mapUser(r.users),
-  restaurant: mapRestaurant(r.dishes?.restaurants),
-  dish: mapDish(r.dishes),
-  photoUrl: r.photo || null,
-  text: r.body || null,
-  rating: r.rating ?? null,
-  likeCount: 0,
-  commentCount: 0,
-  likedByMe: false,
-  verified: !!r.is_verified,
 })
 
 /** get_public_profile -> profile view-model (posts as grid tiles, reviews as review items). */

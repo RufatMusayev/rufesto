@@ -16,16 +16,18 @@ export const restaurantPath = item => {
   return slug ? `/restaurant/${slug}` : null
 }
 
-/** Avatar link + name link + time (+ distance and "Open now" when Home sends them). */
-export function RestaurantPostHead({ item, when }) {
+const placeInfo = (item, t) => [
+  item.km != null ? t('post.kmAway', { km: item.km }) : null,
+  item.openNow ? t('post.openNow') : null,
+].filter(Boolean).join(' · ')
+
+/** Avatar link + name link + time (+ distance and "Open now" when Home sends them and the photo does not show them). */
+export function RestaurantPostHead({ item, when, showSub = true }) {
   const { t } = useTranslation('social')
   const to = restaurantPath(item)
   const name = item.author.name || item.restaurant?.name || ''
   const logo = item.author.photo || item.restaurant?.logo || null
-  const sub = [
-    item.km != null ? t('post.kmAway', { km: item.km }) : null,
-    item.openNow ? t('post.openNow') : null,
-  ].filter(Boolean).join(' · ')
+  const sub = showSub ? placeInfo(item, t) : ''
   return (
     <>
       <MaybeLink to={to} className="soc-post-author" aria-label={name}>
@@ -42,8 +44,49 @@ export function RestaurantPostHead({ item, when }) {
   )
 }
 
-/** Dish name + price + live "Available now" / "Sold out" pill + the "Order this" button. */
-export function DishStrip({ item, onOrder }) {
+/** What PhotoChips would show: a restaurant post (distance, open now, dish availability) or a tagged restaurant. */
+export function hasPhotoChips(item, isResto) {
+  if (isResto) return item.km != null || !!item.openNow || item.dish?.available != null
+  return !!item.restaurant?.name
+}
+
+function PinGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </svg>
+  )
+}
+
+/**
+ * Chips over the bottom of a post photo (docs/V2-CONTRACT.md 18.4): the restaurant (people's post) or its distance /
+ * open state (restaurant post, whose header already names it), and the live availability pill of the dish.
+ * Taps on the chips are not taps on the photo (no double-tap like).
+ */
+export function PhotoChips({ item, isResto }) {
+  const { t } = useTranslation('social')
+  const place = item.restaurant
+  const dish = item.dish
+  const soldOut = dish?.available === false
+  const info = isResto ? placeInfo(item, t) : ''
+  const name = !isResto && place?.name ? place.name : ''
+  const label = <><PinGlyph /><span className="soc-chip-text">{name}</span></>
+  return (
+    <div className="soc-photo-chips" onClick={e => e.stopPropagation()}>
+      {name && (place.slug
+        ? <Link to={`/restaurant/${place.slug}`} className="soc-chip">{label}</Link>
+        : <span className="soc-chip">{label}</span>)}
+      {info && <span className="soc-chip"><span className="soc-chip-text">{info}</span></span>}
+      {isResto && dish?.available != null && (
+        <span className={`soc-avail${soldOut ? ' soc-avail-off' : ''}`}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</span>
+      )}
+    </div>
+  )
+}
+
+/** Dish name + price + (without a photo) the live "Available now" / "Sold out" pill + the "Order this" button. */
+export function DishStrip({ item, onOrder, showPill = true }) {
   const { t } = useTranslation('social')
   const dish = item.dish
   const base = restaurantPath(item)
@@ -55,7 +98,7 @@ export function DishStrip({ item, onOrder }) {
         <span className="soc-dish-name">{dish.name}</span>
         <span className="soc-dish-meta">
           {dish.price != null && <span className="soc-dish-price">{formatPrice(dish.price)}</span>}
-          {dish.available != null && (
+          {showPill && dish.available != null && (
             <Pill tone={soldOut ? 'red' : 'green'}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</Pill>
           )}
         </span>

@@ -62,8 +62,7 @@ test.describe('v2 social', { tag: ['@guest', '@consumer', '@v2'] }, () => {
           await post.click()
         }
         await expect(page).toHaveURL(url('/'))
-        await expect(page.getByRole('tab', { name: 'Feed', exact: true })).toHaveAttribute('aria-selected', 'true')
-        await expect(page.getByRole('tab', { name: 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
+        await expect.soft(page.getByRole('tab', { name: 'Friends', exact: true }), 'after posting the guest lands on Friends, where the post is (APP: NewPostPage.jsx calls rememberHomeTab with the old value feed, which homeTab.js stores as home)').toHaveAttribute('aria-selected', 'true')
         await expect(page.locator('article.soc-post').filter({ hasText: caption })).toBeVisible()
         await page.goto(url(`/u/${guest.session.user.id}`))
         await page.getByRole('link', { name: caption }).click()

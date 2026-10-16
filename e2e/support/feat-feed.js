@@ -33,7 +33,7 @@ function client(request, auth) {
     /** HTTP status of an upload into post-photos (the tiny PNG unless `data` is given). */
     upload: async (p, data = tinyPng(), type = 'image/png') => (await request.post(object(p), { headers: headers({ 'Content-Type': type }), data })).status(),
     /** HTTP status of reading the object back with the user's own token (200 = it exists and this user may read it). */
-    objectStatus: async p => (await request.get(`${url}/storage/v1/object/authenticated/${BUCKET}/${p}`, { headers: headers() })).status(),
+    objectStatus: async p => (await request.get(`${url}/storage/v1/object/authenticated/${BUCKET}/${p}?cb=${Date.now()}`, { headers: headers() })).status(),   // cache-buster: the storage CDN serves a repeated GET of a deleted object
     removeObject: p => request.delete(object(p), { headers: headers() }).catch(() => {}),
   }
 }

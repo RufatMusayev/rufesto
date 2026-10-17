@@ -1,0 +1,10 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  await A.page.goto(L.CONSUMER + '/bill'); await A.page.waitForTimeout(3500)
+  L.log('URL', A.page.url().replace(L.CONSUMER, ''))
+  await L.shot(A.page, '14-bill-reload')
+  L.log((await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 1200))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

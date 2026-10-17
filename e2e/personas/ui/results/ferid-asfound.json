@@ -1,0 +1,105 @@
+{
+  "home_first_card_ms": 1473,
+  "home_as_found": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "radius": null,
+    "caught_up": false,
+    "n": 20,
+    "items": [
+      "1:post:following:Dönər Bakı Express",
+      "2:post:following:Dönər Bakı Express (by Ceyhun Məmmədli)",
+      "3:post:discover:Brew & Books (by Aysel Məmmədova)",
+      "4:post:following:Burger Qala",
+      "5:post:discover:Trattoria Bella Roma",
+      "6:post:following:Burger Qala",
+      "7:post:following:Şirvan Mətbəxi",
+      "8:post:discover:Trattoria Bella Roma",
+      "9:post:following:Şirvan Mətbəxi",
+      "10:post:discover:Brew & Books (by Kamilla Rəsulova)",
+      "11:post:following:Dönər Bakı Express",
+      "12:post:following:Şirvan Mətbəxi",
+      "13:post:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "14:post:following:Dönər Bakı Express (by Ceyhun Məmmədli)",
+      "15:post:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "16:post:discover:Fincan Coffee",
+      "17:post:discover:Trattoria Bella Roma (by Könül Həsənova)",
+      "18:post:discover:Səda Ocağı",
+      "19:post:discover:Meze Istanbul",
+      "20:post:discover:Sakura House"
+    ]
+  },
+  "friends_text": [
+    "YESTERDAY",
+    "F",
+    "Fərid Məlikov",
+    "· 23h ago",
+    "🍴 Lemon Iced Tea · Dönər Bakı Express",
+    "★★★★☆",
+    "Good Lemon Iced Tea, nice cup. A little pricey but worth it.",
+    "✓",
+    "Verified visit",
+    "TUESDAY, 13 OCTOBER",
+    "· 3d ago",
+    "🍴 Lahmacun with Salad (2 pcs) · Dönər Bakı Express",
+    "★★★★★",
+    "Dadı tam yerində idi, əllərinə sağlıq.",
+    "You're all caught up",
+    "Earlier posts from you and your friends, newest first:"
+  ],
+  "friends_items": 2,
+  "find_friends_cta": false,
+  "friends_page_default_tab": [
+    "Friends"
+  ],
+  "find_url": "/friends?tab=find",
+  "find_text": [
+    "Rufesto",
+    "2",
+    "Friends",
+    "Requests",
+    "Find",
+    "Search for guests by name to add them as friends."
+  ],
+  "find_hint_min_chars": [
+    "Rufesto",
+    "2",
+    "Friends",
+    "Requests",
+    "Find"
+  ],
+  "search_ms": 815,
+  "search_results": [
+    "A",
+    "Aysel Məmmədova",
+    "Add",
+    "Aysel Quliyeva",
+    "Aysel R."
+  ],
+  "add_button_text": "Add",
+  "after_add": [
+    "A",
+    "Aysel Məmmədova",
+    "Pending",
+    "Aysel Quliyeva",
+    "Add",
+    "Aysel R."
+  ],
+  "friends_page_tabs": [
+    "Friends",
+    "Requests",
+    "Find"
+  ],
+  "console": [],
+  "pageErrors": [],
+  "bad": [
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/posts net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/visits net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/friendships net::ERR_ABORTED"
+  ]
+}

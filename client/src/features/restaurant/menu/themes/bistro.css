@@ -1,0 +1,63 @@
+/* Menu theme "bistro": a chalkboard in a wooden frame. Near-black board, chalk-white ink, Barlow Condensed uppercase
+   titles with wide tracking, bold sans dish names, prices right-aligned in the accent, dashed "hand-drawn" dividers.
+   The board is dark in both app modes (that is what a chalkboard is); the accent is already lightened for it.
+   Board colour must match PAPER.bistro in menu/color.js. */
+
+.mn-wrap[data-menu="bistro"] {
+  --mn-font-display: 'Barlow Condensed', 'Arial Narrow', 'DM Sans', sans-serif;
+  --mn-paper: #151515; --mn-ink: #F2EFE6; --mn-ink-2: #B9B4A6;
+  --mn-rule: rgba(242, 239, 230, 0.16); --mn-rule-strong: rgba(242, 239, 230, 0.34);
+  --mn-accent: var(--mn-accent-d); --mn-on-accent: var(--mn-on-d); --mn-price: var(--mn-accent); --mn-live: #8FD97C;
+  --mn-radius: 10px;
+  --mn-nav-bg: #151515; --mn-nav-ink: #B9B4A6; --mn-nav-rule: rgba(242, 239, 230, 0.14);
+  --mn-field-bg: rgba(242, 239, 230, 0.04);
+}
+
+.mn-wrap[data-menu="bistro"] .mn {
+  border: 6px solid #4A3526;
+  background-image:
+    radial-gradient(120% 55% at 15% 0%, rgba(255, 255, 255, 0.055), transparent 60%),
+    radial-gradient(90% 45% at 100% 100%, rgba(255, 255, 255, 0.04), transparent 60%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 44px rgba(0, 0, 0, 0.5), 0 16px 30px -16px rgba(0, 0, 0, 0.65);
+}
+
+/* head */
+.mn-wrap[data-menu="bistro"] .mn-kicker { font-family: var(--mn-font-display); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.42em; }
+.mn-wrap[data-menu="bistro"] .mn-title { font-size: 2.35rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.02; }
+.mn-wrap[data-menu="bistro"] .mn-note { font-size: 0.82rem; }
+@media (max-width: 400px) { .mn-wrap[data-menu="bistro"] .mn-title { font-size: 2.05rem; letter-spacing: 0.09em; } }
+
+/* the ornament becomes one dashed chalk line, drawn a hair off level */
+.mn-wrap[data-menu="bistro"] .mn-orn { gap: 0; margin-top: 16px; transform: rotate(-0.4deg); color: var(--mn-rule-strong); }
+.mn-wrap[data-menu="bistro"] .mn-orn i { flex: 1; width: auto; height: 0; background: none; border-top: 2px dashed currentColor; opacity: 1; }
+.mn-wrap[data-menu="bistro"] .mn-orn i:last-child, .mn-wrap[data-menu="bistro"] .mn-orn b { display: none; }
+
+/* section: UPPERCASE condensed title in the accent, the chalk line runs on to the right */
+.mn-wrap[data-menu="bistro"] .mn-sec-head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 4px; text-align: left; }
+.mn-wrap[data-menu="bistro"] .mn-sec-title {
+  flex: 0 1 auto; min-width: 0; font-size: 1.55rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mn-accent);
+  overflow-wrap: anywhere;
+}
+.mn-wrap[data-menu="bistro"] .mn-sec-head .mn-orn { flex: 1; min-width: 12px; margin: 0 0 0.5rem; }
+
+/* dishes: name left, price right, dashed divider between dishes */
+.mn-wrap[data-menu="bistro"] .mn-line { align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mn-wrap[data-menu="bistro"] .mn-leader { display: none; }
+.mn-wrap[data-menu="bistro"] .mn-name { font-size: 1.02rem; font-weight: 700; letter-spacing: 0.005em; }
+.mn-wrap[data-menu="bistro"] .mn-price { font-size: 1.02rem; font-weight: 800; }
+.mn-wrap[data-menu="bistro"] .mn-desc { font-size: 0.82rem; }
+.mn-wrap[data-menu="bistro"] .mn-row + .mn-row { border-top: 1px dashed var(--mn-rule); }
+.mn-wrap[data-menu="bistro"] .mn-row-btn { border-radius: 4px; }
+.mn-wrap[data-menu="bistro"] .mn-tag { border-style: dashed; border-radius: 3px; }
+.mn-wrap[data-menu="bistro"] .mn-tag--rate { border-style: solid; }
+.mn-wrap[data-menu="bistro"] .mn-thumb { border-radius: 6px; }
+.mn-wrap[data-menu="bistro"] .mn-search, .mn-wrap[data-menu="bistro"] .mn-diet { border-style: dashed; border-radius: 6px; }
+.mn-wrap[data-menu="bistro"] .mn-diet { border-radius: 999px; }
+.mn-wrap[data-menu="bistro"] .mn-foot .mn-orn { margin-top: 0; }
+
+/* navigator: chalk labels on the same board */
+.mn-wrap[data-menu="bistro"] .mn-chip {
+  height: 34px; padding: 0 12px; border-radius: 4px;
+  font-family: var(--mn-font-display); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.mn-wrap[data-menu="bistro"] .mn-chip[aria-current="true"] { border-style: dashed; color: var(--mn-accent); }

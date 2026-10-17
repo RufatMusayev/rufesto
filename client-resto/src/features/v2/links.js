@@ -34,3 +34,13 @@ export async function copyText(text) {
     return false
   }
 }
+
+/**
+ * Public menu of a restaurant: <consumer origin>/restaurant/<slug>?tab=menu, on the consumer host derived
+ * from where the dashboard is served (preview and prod share one build). Null when the slug is unknown or
+ * the dashboard host can't be mapped to a consumer host.
+ */
+export function liveMenuLink(slug, loc = window.location) {
+  const host = slug ? consumerHost(loc.host) : null
+  return host ? `${loc.protocol}//${host}/restaurant/${encodeURIComponent(slug)}?tab=menu` : null
+}

@@ -1,0 +1,93 @@
+{
+  "chip_to_restaurant_h1_ms": 1707,
+  "restaurant_buttons": [
+    "BUTTON|Notifications||44x44",
+    "BUTTON|Toggle theme||44x44",
+    "BUTTON|||44x44",
+    "A||Reserve a table|160x44",
+    "BUTTON|Floor plan||44x44",
+    "BUTTON||Follow|162x44",
+    "BUTTON||🍽️ All|62x78",
+    "BUTTON||🍴 Brunch|62x78",
+    "BUTTON||🍴 Sandwiches & Sala|62x78",
+    "BUTTON||🍴 Sweet Things|62x78",
+    "BUTTON||🍴 Coffee|62x78",
+    "BUTTON||🍴 Lemonades & Cold |62x78",
+    "BUTTON||🌱 Vegan 3|92x44",
+    "BUTTON||🥬 Vegetarian 17|122x44"
+  ],
+  "follow_prompt": "NO DIALOG",
+  "reserve_url": "/book/brew-and-books",
+  "reserve_dialog": "NO DIALOG",
+  "ERROR_resto": "TimeoutError: locator.scrollIntoViewIfNeeded: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=Tiramisù').first()\u001b[22m\n",
+  "console": [],
+  "bad": [],
+  "bad_slug_final_url": "/",
+  "bad_slug_text": [
+    "Rufesto",
+    "Home",
+    "Friends",
+    "Discover",
+    "Use my location for nearby",
+    "A"
+  ],
+  "404_text": [
+    "Rufesto",
+    "🧭",
+    "Page not found",
+    "This link may be mistyped or cut off, or the page has moved.",
+    "Browse restaurants"
+  ],
+  "geo_denied_text": [
+    "Use my location for nearby",
+    "Location is off for this site. Allow it in your browser settings to see places near you."
+  ],
+  "explore_text": [
+    "Rufesto",
+    "All",
+    "Available",
+    "Vegan",
+    "Veggie",
+    "Gluten-free",
+    "Spicy",
+    "AVAILABLE",
+    "Espresso",
+    "Trattoria Bella Roma",
+    "₼3.50",
+    "★4.5",
+    "French Fries",
+    "Dönər Bakı Express",
+    "₼3.00",
+    "★4.7",
+    "Cappuccino",
+    "Brew & Books"
+  ],
+  "map_text": [
+    "Rufesto",
+    "🍽",
+    "+",
+    "−",
+    "Leaflet | © OpenStreetMap",
+    "Trattoria Bella Roma",
+    "Italian",
+    "Meze Istanbul",
+    "Turkish",
+    "Fincan Coffee",
+    "Cafe",
+    "Brew & Books",
+    "Dönər Bakı Express",
+    "Fast Food",
+    "Burger Qala",
+    "Şirvan Mətbəxi",
+    "Azerbaijani",
+    "Tiflis Dvor"
+  ],
+  "notifications_text": [
+    "Rufesto",
+    "Notifications",
+    "Sign in to see your booking updates and order notifications.",
+    "Sign in"
+  ],
+  "other_tabs_console": [],
+  "other_tabs_bad": []
+}

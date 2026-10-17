@@ -1,0 +1,31 @@
+const L = require('./aysel-lib')
+const step = async (n, fn) => { try { L.log('\n=== ' + n); await fn() } catch (e) { L.log('STEP FAILED', n, String(e.message).split('\n')[0]) } }
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  await A.page.goto(L.CONSUMER + '/table'); await A.page.waitForTimeout(2500)
+  const t00 = Date.now()
+  const W = await L.desk(b, 'Ülviyyə Kazımova')
+  await W.page.goto(L.RESTO + '/waiter'); await W.page.waitForTimeout(2500)
+  await step('take table + serve', async () => {
+    await W.page.getByRole('button', { name: /All tables/i }).click(); await W.page.waitForTimeout(800)
+    await W.page.getByRole('button', { name: /Take Table/i }).click(); await W.page.waitForTimeout(1500)
+    await L.shot(W.page, '11-waiter-took')
+    await W.page.getByRole('button', { name: /My tables/i }).click(); await W.page.waitForTimeout(1200)
+    await L.shot(W.page, '11-waiter-mine')
+    L.log('MINE:', (await W.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(130, 800))
+    L.log('buttons', await W.page.evaluate(() => [...document.querySelectorAll('button')].filter(e => e.offsetParent).map(e => e.innerText.trim()).filter(Boolean)))
+  })
+  await step('serve via Orders page (expand row)', async () => {
+    await W.page.goto(L.RESTO + '/orders'); await W.page.waitForTimeout(2500)
+    await W.page.locator('text=2 items').first().click(); await W.page.waitForTimeout(800)
+    await L.shot(W.page, '11-orders-expanded')
+    L.log('buttons', await W.page.evaluate(() => [...document.querySelectorAll('button')].filter(e => e.offsetParent).map(e => e.innerText.trim()).filter(Boolean)))
+    const s = W.page.getByRole('button', { name: /Mark served/i })
+    if (await s.count()) { const t = Date.now(); await s.first().click(); L.log('served clicked'); await A.page.waitForFunction(() => /Served/.test(document.querySelector('[class*="timeline" i], body').innerText) && document.querySelectorAll('[aria-current="step"], .active').length >= 0, null, { timeout: 8000 }).catch(() => {}); await A.page.waitForTimeout(2000) }
+    await L.shot(A.page, '11-aysel-served')
+    L.log('aysel:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(150, 600))
+  })
+  L.log('errors', W.errors, A.errors)
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

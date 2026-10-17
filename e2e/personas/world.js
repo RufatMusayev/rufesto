@@ -221,12 +221,12 @@ class Actor {
     if (!r.ok) { fail(`read ${p.split('?')[0]}`, r); return [] }
     return Array.isArray(r.data) ? r.data : []
   }
-  /** Upload bytes into a Storage bucket as this person. Resolves { ok, code }. */
-  async upload(bucket, objectPath, bytes, contentType) {
+  /** Upload bytes into a Storage bucket as this person (`upsert` replaces an existing object). Resolves { ok, code }. */
+  async upload(bucket, objectPath, bytes, contentType, { upsert = false } = {}) {
     let token
     try { token = await this.token() } catch (e) { return { ok: false, status: 0, code: 'sign_in_failed', msg: e.message } }
     return request('POST', `${this.cfg.url}/storage/v1/object/${bucket}/${objectPath}`, {
-      headers: { apikey: this.cfg.anonKey, Authorization: `Bearer ${token}`, 'Content-Type': contentType, 'x-upsert': 'false' }, body: bytes,
+      headers: { apikey: this.cfg.anonKey, Authorization: `Bearer ${token}`, 'Content-Type': contentType, 'x-upsert': upsert ? 'true' : 'false' }, body: bytes,
     })
   }
 }

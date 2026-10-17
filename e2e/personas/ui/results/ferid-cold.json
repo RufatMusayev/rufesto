@@ -1,0 +1,49 @@
+{
+  "before_unfollow": {
+    "nearby": 0,
+    "discover": 10,
+    "following": 0
+  },
+  "unfollow_Dönər Bakı Express": "no button (already in that state?)",
+  "unfollow_Burger Qala": "no button (already in that state?)",
+  "unfollow_Şirvan Mətbəxi": "no button (already in that state?)",
+  "cold_home_first_card_ms": 1950,
+  "cold_home": {
+    "mix": {
+      "nearby": 0,
+      "discover": 10,
+      "following": 0
+    },
+    "radius": null,
+    "caught_up": false,
+    "n": 20,
+    "items": [
+      "1:post:discover:Trattoria Bella Roma",
+      "2:post:discover:Trattoria Bella Roma",
+      "3:post:discover:Brew & Books (by Kamilla Rəsulova)",
+      "4:post:discover:Brew & Books (by Aysel Məmmədova)",
+      "5:promo:promo:Fincan Coffee",
+      "6:post:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "7:post:discover:Fincan Coffee",
+      "8:post:discover:Səda Ocağı",
+      "9:post:discover:Meze Istanbul",
+      "10:promo:promo:Sakura House",
+      "11:post:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "12:post:discover:Trattoria Bella Roma (by Könül Həsənova)",
+      "13:post:discover:Meze Istanbul",
+      "14:post:discover:Sakura House",
+      "15:promo:promo:Meze Istanbul",
+      "16:post:discover:Tiflis Dvor",
+      "17:post:discover:Dönər Bakı Express",
+      "18:post:discover:Tiflis Dvor (by Könül Həsənova)",
+      "19:post:discover:Fincan Coffee (by Kamilla Rəsulova)",
+      "20:promo:promo:Dönər Bakı Express"
+    ]
+  },
+  "console": [],
+  "pageErrors": [],
+  "bad": [
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED"
+  ]
+}

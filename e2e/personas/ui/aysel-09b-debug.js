@@ -1,0 +1,20 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const b = await L.launch()
+  const { page, errors } = await L.phone(b, 'Aysel Məmmədova')
+  await page.goto(L.CONSUMER + '/restaurant/fincan-coffee'); await page.waitForTimeout(2500)
+  const tile = name => page.locator('.ig-grid-tile').filter({ has: page.getByText(name, { exact: true }) })
+  await tile('Flat White').scrollIntoViewIfNeeded()
+  await tile('Flat White').locator('button').click(); await page.waitForTimeout(700)
+  await tile('Butter Croissant').scrollIntoViewIfNeeded(); await page.waitForTimeout(600)
+  const btn = tile('Butter Croissant').locator('button')
+  L.log('count', await btn.count(), 'box', JSON.stringify(await btn.boundingBox()))
+  const probe = await page.evaluate(() => {
+    const t = [...document.querySelectorAll('.ig-grid-tile')].find(x => /Butter Croissant/.test(x.innerText)); const bt = t.querySelector('button'); const r = bt.getBoundingClientRect()
+    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    return { rect: [r.x, r.y, r.width, r.height], top: top && (top.tagName + '.' + top.className + ' | ' + (top.closest('[class]')?.className || '')), vh: innerHeight, disabled: bt.disabled, anim: getComputedStyle(bt).animationName }
+  })
+  L.log(JSON.stringify(probe))
+  await L.shot(page, '09-debug-croissant2')
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

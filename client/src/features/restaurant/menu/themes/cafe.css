@@ -1,0 +1,66 @@
+/* Menu theme "cafe": warm kraft paper with rounded section cards, Nunito (friendly rounded sans), a small icon per
+   section, prices in pill tags. --mn-bg is the kraft behind the cards, --mn-paper the card itself.
+   Colours must match PAPER.cafe in menu/color.js (the accent is checked against the cards). */
+
+.mn-wrap[data-menu="cafe"] {
+  --mn-font-display: 'Nunito', system-ui, sans-serif;
+  --mn-font-body: 'Nunito', system-ui, sans-serif;
+  --mn-bg: #231B16; --mn-paper: #2E241D; --mn-ink: #F1E3D0; --mn-ink-2: #BDAA94;
+  --mn-rule: rgba(241, 227, 208, 0.16); --mn-rule-strong: rgba(241, 227, 208, 0.3);
+  --mn-accent: var(--mn-accent-d); --mn-on-accent: var(--mn-on-d); --mn-live: #8FD97C;
+  --mn-radius: 22px;
+  --mn-nav-bg: #231B16; --mn-nav-ink: #BDAA94; --mn-nav-rule: rgba(241, 227, 208, 0.12);
+  --mn-pad: 14px;
+}
+[data-theme="light"] .mn-wrap[data-menu="cafe"] {
+  --mn-bg: #EADBC8; --mn-paper: #F6EEE2; --mn-ink: #3A2A1C; --mn-ink-2: #6B5642;
+  --mn-rule: rgba(58, 42, 28, 0.16); --mn-rule-strong: rgba(58, 42, 28, 0.3);
+  --mn-accent: var(--mn-accent-l); --mn-on-accent: var(--mn-on-l); --mn-live: #38622D;
+  --mn-nav-bg: #EADBC8; --mn-nav-ink: #6B5642; --mn-nav-rule: rgba(58, 42, 28, 0.12);
+}
+
+.mn-wrap[data-menu="cafe"] .mn { padding-top: 26px; box-shadow: 0 16px 34px -24px rgba(58, 42, 28, 0.7); }
+@media (min-width: 720px) { .mn-wrap[data-menu="cafe"] .mn { padding-inline: 22px; } }
+
+/* head: friendly, centred, three dots instead of the rule */
+.mn-wrap[data-menu="cafe"] .mn-kicker { font-weight: 800; letter-spacing: 0.22em; }
+.mn-wrap[data-menu="cafe"] .mn-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.01em; }
+.mn-wrap[data-menu="cafe"] .mn-orn i { display: none; }
+.mn-wrap[data-menu="cafe"] .mn-orn b {
+  width: 6px; height: 6px; border-radius: 50%; transform: none;
+  box-shadow: -14px 0 0 currentColor, 14px 0 0 currentColor;
+}
+.mn-wrap[data-menu="cafe"] .mn-head { padding-inline: 8px; }
+.mn-wrap[data-menu="cafe"] .mn-tools { margin-inline: 4px; }
+
+/* each section is a rounded card with its icon */
+.mn-wrap[data-menu="cafe"] .mn-sec {
+  margin-top: 12px; padding: 14px 14px 6px; border-radius: 18px; background: var(--mn-paper);
+}
+.mn-wrap[data-menu="cafe"] .mn-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; text-align: left; }
+.mn-wrap[data-menu="cafe"] .mn-sec-icon {
+  display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%;
+  font-size: 1.15rem; line-height: 1; background: var(--mn-tint-2);
+}
+.mn-wrap[data-menu="cafe"] .mn-sec-title { font-size: 1.1rem; font-weight: 800; }
+.mn-wrap[data-menu="cafe"] .mn-sec-head .mn-orn { display: none; }
+
+/* dishes: name left, price in a pill, soft dashed dividers */
+.mn-wrap[data-menu="cafe"] .mn-line { align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mn-wrap[data-menu="cafe"] .mn-leader { display: none; }
+.mn-wrap[data-menu="cafe"] .mn-name { font-size: 1rem; font-weight: 700; }
+.mn-wrap[data-menu="cafe"] .mn-price {
+  padding: 3px 10px; border-radius: 999px; font-size: 0.86rem; font-weight: 800; color: var(--mn-ink);
+  background: var(--mn-tint-2); box-shadow: inset 0 0 0 1px var(--mn-accent);
+}
+.mn-wrap[data-menu="cafe"] .mn-desc { font-size: 0.84rem; font-weight: 500; }
+.mn-wrap[data-menu="cafe"] .mn-row + .mn-row { border-top: 1px dashed var(--mn-rule); }
+.mn-wrap[data-menu="cafe"] .mn-tag { border-radius: 999px; padding: 0 8px; font-weight: 800; }
+.mn-wrap[data-menu="cafe"] .mn-tag--rate { padding: 0; font-weight: 700; }
+.mn-wrap[data-menu="cafe"] .mn-thumb { border-radius: 14px; }
+.mn-wrap[data-menu="cafe"] .mn-search { border-radius: 999px; padding-left: 16px; background: var(--mn-paper); }
+.mn-wrap[data-menu="cafe"] .mn-foot { margin-top: 24px; }
+
+/* navigator: kraft pills with the section icon */
+.mn-wrap[data-menu="cafe"] .mn-chip { font-weight: 700; }
+.mn-wrap[data-menu="cafe"] .mn-chip-icon { font-size: 1rem; }

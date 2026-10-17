@@ -1,0 +1,13 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const m = await L.api('Səid Əhmədov')
+  const r = await m.get('restaurants?id=eq.' + L.FINCAN + '&select=id,name,slug,cuisine_type')
+  L.log('restaurant', JSON.stringify(r))
+  const tables = await m.get('tables?restaurant_id=eq.' + L.FINCAN + '&select=id,table_number,capacity,state,is_active&order=table_number')
+  const codes = await m.get('table_access_codes?restaurant_id=eq.' + L.FINCAN + '&select=table_id,access_code')
+  L.log('tables', JSON.stringify(tables.map(t => ({ n: t.table_number, cap: t.capacity, st: t.state, act: t.is_active, code: (codes.find(c => c.table_id === t.id) || {}).access_code }))))
+  const dishes = await m.get('dishes?restaurant_id=eq.' + L.FINCAN + '&select=id,name,price,available,category&order=name')
+  L.log('dishes', JSON.stringify(dishes.map(d => d.name + ':' + d.price + (d.available ? '' : ' SOLDOUT'))))
+  const staff = await m.get('restaurant_staff?restaurant_id=eq.' + L.FINCAN + '&select=*').catch(() => [])
+  L.log('staff', JSON.stringify(staff).slice(0, 400))
+})().catch(e => { console.error(e); process.exit(1) })

@@ -23,6 +23,9 @@ function measureLayout() {
     return false
   }
 
+  // inside a horizontal scroller (a rail, a chip row): its items run past the screen edge on purpose
+  const inScroller = el => { for (let p = el.parentElement; p && p !== root && p !== document.body; p = p.parentElement) if (/auto|scroll/.test(getComputedStyle(p).overflowX)) return true; return false }
+
   const offenders = []
   if (root.scrollWidth > iw) {
     for (const el of document.body.querySelectorAll('*')) {
@@ -40,6 +43,7 @@ function measureLayout() {
     if (!vis(el)) continue
     const r = el.getBoundingClientRect()
     if (r.right <= iw + 1 || r.left >= iw - 1) continue
+    if (inScroller(el)) continue
     let clip = null
     for (let p = el.parentElement; p && p !== root; p = p.parentElement) {
       const o = getComputedStyle(p).overflowX
@@ -56,6 +60,7 @@ function measureLayout() {
     if (!vis(h)) continue
     const r = h.getBoundingClientRect()
     if (r.left >= iw || r.right <= 0) continue   // scrolled away inside a carousel
+    if (inScroller(h)) continue                  // a card of a rail that is only partly on screen
     const range = document.createRange()
     range.selectNodeContents(h)
     const t = range.getBoundingClientRect()

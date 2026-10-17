@@ -1,0 +1,130 @@
+{
+  "chips_all": {
+    "Open now": 10,
+    "Trending dishes": 12,
+    "New places": 2,
+    "Promos": 0,
+    "Top reviews": 10,
+    "All restaurants": 10
+  },
+  "chip_italian_ms": 1596,
+  "chips_italian": {
+    "Open now": 1,
+    "Trending dishes": 12,
+    "New places": 2,
+    "Promos": 0,
+    "Top reviews": 10,
+    "All restaurants": 1
+  },
+  "chip_italian_open_now": [
+    "Trattoria Bella Roma"
+  ],
+  "chip_italian_top_reviews_places": [
+    "1h ago",
+    "14h ago",
+    "1d ago",
+    "6d ago",
+    "1h ago",
+    "1h ago",
+    "3h ago",
+    "14h ago"
+  ],
+  "chips_japanese": {
+    "Open now": 1,
+    "Trending dishes": 12,
+    "New places": 2,
+    "Promos": 0,
+    "Top reviews": 10,
+    "All restaurants": 1
+  },
+  "chip_state_selected": [
+    "Japanese"
+  ],
+  "chips_a11y": "null|A:none:0",
+  "trending_dish_tap_url": "/restaurant/bella-roma?dish=80000001-0000-0000-0000-000000000020",
+  "dish_sheet_icon_buttons": [
+    [
+      36,
+      683
+    ],
+    [
+      96,
+      683
+    ],
+    [
+      376,
+      683
+    ]
+  ],
+  "dish_like_prompt": [
+    "REVIEWS · 4",
+    "A",
+    "Anonymous",
+    "✓",
+    "Verified visit",
+    "★★★★★",
+    "14h ago",
+    "Espresso çox dadlı idi, mütləq yenə gələcəm.",
+    "★★★★☆",
+    "4d ago",
+    "Tasty and a good portion. The Espresso could use a little more seasoning but I enjoyed it.",
+    "6d ago",
+    "Came with friends and everybody wanted a bite of the Espresso.",
+    "View all 4 reviews"
+  ],
+  "az_html_lang": "en",
+  "az_friends": [
+    "Rufesto",
+    "Ana səhifə",
+    "Dostlar",
+    "Kəşf et",
+    "BU GÜN",
+    "M",
+    "Mehriban Rzayeva",
+    "· 9 dəq əvvəl",
+    "Burger Qala",
+    "Mehriban Rzayeva Lunch at Burger Qala today. The classic burger with extra pickles did not disappoint.",
+    "✓",
+    "Hamısını gördünüz",
+    "Sizin və dostlarınızın əvvəlki paylaşımları, yenidən köhnəyə:"
+  ],
+  "az_find_hint": [
+    "Rufesto",
+    "Dostlar",
+    "Sorğular",
+    "Axtar"
+  ],
+  "az_find_noresults": [
+    "Rufesto",
+    "Dostlar",
+    "Sorğular",
+    "Axtar",
+    "🔍",
+    "Heç kim tapılmadı",
+    "Yazılışı yoxlayın və ya başqa ad cəhd edin."
+  ],
+  "az_composer": [
+    "Rufesto",
+    "Ləğv et",
+    "Yeni paylaşım",
+    "Paylaş",
+    "Şəkil əlavə et",
+    "Təsvir",
+    "0/500",
+    "Restoran · ixtiyari"
+  ],
+  "az_profile": [
+    "Rufesto",
+    "M",
+    "Mehriban Rzayeva",
+    "★",
+    "0 kredit",
+    "1",
+    "Paylaşımlar",
+    "0",
+    "Dostlar",
+    "Ziyarətlər",
+    "Redaktə et",
+    "Yeni paylaşım"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "home_first_card_ms": 1605,
+  "home": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "n": 20,
+    "items": [
+      "1:post:following:Brew & Books (by Aysel Məmmədova)",
+      "2:post:following:Brew & Books (by Kamilla Rəsulova)",
+      "3:post:discover:Trattoria Bella Roma",
+      "4:post:following:Fincan Coffee",
+      "5:promo:promo:Fincan Coffee",
+      "6:post:discover:Trattoria Bella Roma",
+      "7:post:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "8:post:discover:Dönər Bakı Express",
+      "9:post:discover:Səda Ocağı",
+      "10:post:discover:Meze Istanbul",
+      "11:post:following:Fincan Coffee (by Kamilla Rəsulova)",
+      "12:post:following:Brew & Books (by Kamilla Rəsulova)",
+      "13:post:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "14:post:following:Fincan Coffee",
+      "15:post:discover:Trattoria Bella Roma (by Könül Həsənova)",
+      "16:post:following:Brew & Books",
+      "17:post:discover:Meze Istanbul",
+      "18:post:discover:Sakura House",
+      "19:post:discover:Burger Qala",
+      "20:post:discover:Tiflis Dvor"
+    ]
+  },
+  "friends_text": [
+    "🤝",
+    "No posts from friends",
+    "Add friends to see what they are eating.",
+    "Find friends"
+  ],
+  "friends_items": 0,
+  "find_cta": 1,
+  "find_url": "/friends?tab=find",
+  "find_focus_in_search": "INPUT|Search by name",
+  "requests_text": [
+    "Rufesto",
+    "Friends",
+    "Requests",
+    "Find",
+    "📬",
+    "No pending requests",
+    "New friend requests will show up here."
+  ],
+  "console": [],
+  "pageErrors": [],
+  "bad": []
+}

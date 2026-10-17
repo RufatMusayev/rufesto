@@ -50,3 +50,12 @@ export function v2Error(err, t) {
   if (code === '23505') return t('v2:errDuplicate')
   return friendlyError(err, t)
 }
+
+// 42703 undefined_column, PGRST204 column not found in the schema cache: a column the screen
+// asks for (sql/62 menu design) isn't deployed here yet.
+const COLUMN_MISSING_CODES = ['42703', 'PGRST204']
+
+/** True when the failure means a column the screen reads or writes doesn't exist here yet. */
+export function isColumnMissing(err) {
+  return COLUMN_MISSING_CODES.includes(String(err?.code || ''))
+}

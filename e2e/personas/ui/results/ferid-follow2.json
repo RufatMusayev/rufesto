@@ -1,0 +1,89 @@
+{
+  "before_follow": {
+    "mix": {
+      "nearby": 0,
+      "discover": 10,
+      "following": 0
+    },
+    "radius": null,
+    "caught_up": false,
+    "n": 20,
+    "items": [
+      "1:post:discover:Trattoria Bella Roma",
+      "2:post:discover:Trattoria Bella Roma",
+      "3:post:discover:Brew & Books (by Kamilla Rəsulova)",
+      "4:post:discover:Brew & Books (by Aysel Məmmədova)",
+      "5:promo:promo:Fincan Coffee",
+      "6:post:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "7:post:discover:Fincan Coffee",
+      "8:post:discover:Səda Ocağı",
+      "9:post:discover:Meze Istanbul",
+      "10:promo:promo:Sakura House",
+      "11:post:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "12:post:discover:Trattoria Bella Roma (by Könül Həsənova)",
+      "13:post:discover:Meze Istanbul",
+      "14:post:discover:Sakura House",
+      "15:promo:promo:Meze Istanbul",
+      "16:post:discover:Tiflis Dvor",
+      "17:post:discover:Dönər Bakı Express",
+      "18:post:discover:Tiflis Dvor (by Könül Həsənova)",
+      "19:post:discover:Fincan Coffee (by Kamilla Rəsulova)",
+      "20:promo:promo:Dönər Bakı Express"
+    ]
+  },
+  "follow_Şirvan Mətbəxi_ms": 54,
+  "follow_Burger Qala_ms": 50,
+  "home_after_follow_tabswitch_first10": [
+    "Trattoria Bella Roma · 31m ago Open now Available ",
+    "Trattoria Bella Roma · 7m ago Open now Available n",
+    "K Kamilla Rəsulova · 3h ago ✓ Verified visit Brew ",
+    "A Aysel Məmmədova · 1h ago ✓ Verified visit Brew &",
+    "🍴 Fincan Coffee Sponsored PROMOTED Cinnamon Roll ",
+    "C Ceyhun Məmmədli · 16h ago ✓ Verified visit Meze ",
+    "Fincan Coffee · 23h ago Open now 3 likes Fincan Co",
+    "Səda Ocağı · 1d ago Open now 2 likes Səda Ocağı Cü",
+    "Meze Istanbul · 19h ago Open now Available now Süt",
+    "🍴 Sakura House Sponsored PROMOTED Dessert on us O",
+    "S Səbinə İbrahimova · 14h ago ✓ Verified visit Tra",
+    "K Könül Həsənova · 14h ago ✓ Verified visit Tratto"
+  ],
+  "after_follow_reload_first_card_ms": 1526,
+  "after_follow": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "radius": null,
+    "caught_up": false,
+    "n": 20,
+    "items": [
+      "1:post:following:Burger Qala",
+      "2:post:following:Burger Qala",
+      "3:post:discover:Trattoria Bella Roma",
+      "4:post:following:Şirvan Mətbəxi",
+      "5:post:discover:Brew & Books (by Kamilla Rəsulova)",
+      "6:post:following:Şirvan Mətbəxi",
+      "7:post:discover:Brew & Books (by Aysel Məmmədova)",
+      "8:post:discover:Trattoria Bella Roma",
+      "9:post:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "10:post:discover:Fincan Coffee",
+      "11:post:following:Şirvan Mətbəxi",
+      "12:post:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "13:post:discover:Trattoria Bella Roma (by Könül Həsənova)",
+      "14:post:discover:Səda Ocağı",
+      "15:post:discover:Meze Istanbul",
+      "16:post:discover:Meze Istanbul",
+      "17:post:discover:Sakura House",
+      "18:post:discover:Tiflis Dvor",
+      "19:post:discover:Dönər Bakı Express",
+      "20:post:discover:Tiflis Dvor (by Könül Həsənova)"
+    ]
+  },
+  "console": [],
+  "pageErrors": [],
+  "bad": [
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED"
+  ]
+}

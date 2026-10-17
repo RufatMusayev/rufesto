@@ -1,0 +1,53 @@
+/* Menu theme "modern": a clean sheet. DM Sans throughout, left-aligned titles with an accent bar, name and price on
+   one line with a hairline leader, two columns from 720px. Light is warm white, dark is a deep warm card.
+   Paper colours must match PAPER.modern in menu/color.js. */
+
+.mn-wrap[data-menu="modern"] {
+  --mn-font-display: 'DM Sans', system-ui, sans-serif;
+  --mn-paper: #211A17; --mn-ink: #F3ECE4; --mn-ink-2: #B3A59B;
+  --mn-rule: rgba(243, 236, 228, 0.12); --mn-rule-strong: rgba(243, 236, 228, 0.26);
+  --mn-accent: var(--mn-accent-d); --mn-on-accent: var(--mn-on-d); --mn-live: #8FD97C;
+  --mn-radius: 18px;
+}
+[data-theme="light"] .mn-wrap[data-menu="modern"] {
+  --mn-paper: #FEFDFB; --mn-ink: #1C1512; --mn-ink-2: #6B5E56;
+  --mn-rule: rgba(28, 21, 18, 0.1); --mn-rule-strong: rgba(28, 21, 18, 0.24);
+  --mn-accent: var(--mn-accent-l); --mn-on-accent: var(--mn-on-l); --mn-live: #38622D;
+}
+
+.mn-wrap[data-menu="modern"] .mn {
+  padding-top: 28px; border: 1px solid var(--mn-rule);
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.5);
+}
+[data-theme="light"] .mn-wrap[data-menu="modern"] .mn { box-shadow: 0 18px 40px -30px rgba(28, 21, 18, 0.35); }
+
+/* head: left aligned, no ornament, a hairline closes it */
+.mn-wrap[data-menu="modern"] .mn-head { margin-bottom: 4px; padding-bottom: 18px; text-align: left; border-bottom: 1px solid var(--mn-rule); }
+.mn-wrap[data-menu="modern"] .mn-kicker { letter-spacing: 0.22em; }
+.mn-wrap[data-menu="modern"] .mn-title { font-size: 1.95rem; letter-spacing: -0.025em; }
+.mn-wrap[data-menu="modern"] .mn-note { max-width: none; margin-left: 0; margin-top: 8px; }
+.mn-wrap[data-menu="modern"] .mn-orn { display: none; }
+
+/* sections: accent bar + title */
+.mn-wrap[data-menu="modern"] .mn-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; text-align: left; }
+.mn-wrap[data-menu="modern"] .mn-sec-head::before {
+  content: ''; flex: none; width: 4px; height: 1.15rem; border-radius: 2px; background: var(--mn-accent);
+}
+.mn-wrap[data-menu="modern"] .mn-sec-title { font-size: 1.08rem; font-weight: 800; letter-spacing: -0.01em; }
+
+/* dishes */
+.mn-wrap[data-menu="modern"] .mn-name { font-size: 0.98rem; font-weight: 600; }
+.mn-wrap[data-menu="modern"] .mn-leader { border-bottom: 1px solid var(--mn-rule); margin-bottom: 0.4em; }
+.mn-wrap[data-menu="modern"] .mn-price { font-weight: 700; }
+.mn-wrap[data-menu="modern"] .mn-desc { font-size: 0.82rem; }
+.mn-wrap[data-menu="modern"] .mn-tag { border-radius: 999px; padding: 0 8px; }
+.mn-wrap[data-menu="modern"] .mn-tag--rate { padding: 0; }
+
+@media (min-width: 720px) {
+  .mn-wrap[data-menu="modern"] .mn-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36px; }
+  .mn-wrap[data-menu="modern"] .mn-row { min-width: 0; }
+}
+
+/* navigator: plain pills */
+.mn-wrap[data-menu="modern"] .mn-chip { font-weight: 600; }
+.mn-wrap[data-menu="modern"] .mn-chip:not([aria-current="true"]) { border-color: var(--mn-rule); }

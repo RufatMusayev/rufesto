@@ -1,0 +1,188 @@
+/* Menu tab, shared structure (features/restaurant/menu). Prefix mn-.
+   Every theme (themes/*.css) sets the --mn-* tokens under .mn-wrap[data-menu="..."] and a few overrides; dark is the
+   default, [data-theme="light"] overrides it, exactly like index.css. MenuTab sets --mn-accent-l / -d (and --mn-on-*)
+   inline from the restaurant's accent colour, already pushed to a readable contrast for that theme's paper.
+
+   Tokens: --mn-paper (card) --mn-bg (page behind the card, defaults to paper) --mn-ink --mn-ink-2 (secondary text)
+           --mn-rule --mn-rule-strong --mn-accent --mn-on-accent --mn-price --mn-tint --mn-tint-2 --mn-press --mn-live
+           --mn-font-display --mn-font-body --mn-radius --mn-nav-bg --mn-nav-ink --mn-nav-rule --mn-pad */
+
+.mn-wrap {
+  --mn-font-display: 'Playfair Display', Georgia, serif;
+  --mn-font-body: 'DM Sans', system-ui, sans-serif;
+  --mn-nav-h: 52px;
+  --mn-pad: 20px;
+  --mn-radius: 6px;
+  --mn-tint: rgba(128, 128, 128, 0.14);
+  --mn-tint-2: rgba(128, 128, 128, 0.2);
+  --mn-press: rgba(128, 128, 128, 0.12);
+  --mn-nav-bg: var(--bg);
+  --mn-nav-ink: var(--mn-ink-2);
+  --mn-nav-rule: var(--border);
+  --mn-stick: calc(var(--sticky-top) + var(--rst-tabs-h) + var(--mn-nav-h) + 12px);
+  position: relative;
+  padding-bottom: 8px;
+  font-family: var(--mn-font-body);
+}
+@supports (color: color-mix(in srgb, red 10%, transparent)) {
+  .mn-wrap {
+    --mn-tint: color-mix(in srgb, var(--mn-accent) 13%, transparent);
+    --mn-tint-2: color-mix(in srgb, var(--mn-accent) 20%, transparent);
+    --mn-press: color-mix(in srgb, var(--mn-ink) 8%, transparent);
+  }
+}
+
+/* ---------- sticky section navigator ---------- */
+.mn-nav {
+  position: sticky; top: calc(var(--sticky-top) + var(--rst-tabs-h)); z-index: 20; height: var(--mn-nav-h);
+  background: var(--mn-nav-bg); border-bottom: 1px solid var(--mn-nav-rule);
+}
+.mn-nav-in { display: flex; align-items: center; height: 100%; max-width: 712px; margin: 0 auto; }
+.mn-chips {
+  position: relative; display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; overflow-x: auto;
+  padding: 0 16px; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+}
+.mn-chips::-webkit-scrollbar { display: none; }
+.mn-chip {
+  position: relative; display: inline-flex; flex: none; align-items: center; gap: 6px; height: 34px; padding: 0 13px;
+  border-radius: 999px; border: 1px solid transparent; background: transparent; cursor: pointer; white-space: nowrap;
+  font-family: var(--mn-font-body); font-size: 0.8rem; font-weight: 600; line-height: 1; color: var(--mn-nav-ink);
+  transition: color 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.mn-chip::after { content: ''; position: absolute; inset: -6px -2px; }
+.mn-chip[aria-current="true"] { color: var(--mn-ink); border-color: var(--mn-accent); background: var(--mn-tint); }
+.mn-nav-search {
+  display: flex; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin-right: 6px;
+  background: none; border: 0; cursor: pointer; color: var(--mn-nav-ink);
+}
+.mn-nav-search svg, .mn-search-icon { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+.mn-nav-search svg { width: 20px; height: 20px; }
+
+/* ---------- the card ---------- */
+.mn {
+  position: relative; margin: 14px 10px 0; padding: 30px var(--mn-pad) 22px;
+  background: var(--mn-bg, var(--mn-paper)); color: var(--mn-ink); border-radius: var(--mn-radius);
+}
+@media (max-width: 400px) { .mn { margin-inline: 8px; --mn-pad: 18px; } }
+@media (min-width: 720px) { .mn { max-width: 680px; margin: 18px auto 0; padding-inline: 44px; } }
+
+.mn-head { margin-bottom: 8px; text-align: center; }
+.mn-kicker {
+  margin-bottom: 10px; font-size: 0.66rem; font-weight: 700; line-height: 1; letter-spacing: 0.32em;
+  text-transform: uppercase; color: var(--mn-accent);
+}
+.mn-title { font-family: var(--mn-font-display); font-size: 1.75rem; font-weight: 800; line-height: 1.1; color: var(--mn-ink); overflow-wrap: anywhere; }
+.mn-note { max-width: 34ch; margin: 10px auto 0; font-size: 0.8rem; line-height: 1.45; color: var(--mn-ink-2); }
+
+/* ornament: line - diamond - line (themes restyle or hide it) */
+.mn-orn { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; color: var(--mn-accent); }
+.mn-orn i { display: block; width: 48px; height: 1px; background: currentColor; opacity: 0.55; }
+.mn-orn b { display: block; width: 6px; height: 6px; background: currentColor; transform: rotate(45deg); }
+
+/* ---------- search + dietary tags ---------- */
+.mn-tools { margin: 22px 0 6px; scroll-margin-top: var(--mn-stick); }
+.mn-search {
+  position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px;
+  border: 1px solid var(--mn-rule-strong); border-radius: 10px; background: var(--mn-field-bg, transparent);
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.mn-search:focus-within { border-color: var(--mn-accent); box-shadow: 0 0 0 3px var(--mn-tint); }
+.mn-search-icon { width: 18px; height: 18px; flex: none; color: var(--mn-ink-2); }
+.mn-search input {
+  flex: 1; min-width: 0; height: 100%; padding: 0; background: transparent; border: 0; outline: 0;
+  font-family: var(--mn-font-body); font-size: 1rem; font-weight: 500; color: var(--mn-ink);   /* 16px: no iOS zoom */
+}
+.mn-search input::placeholder { color: var(--mn-ink-2); opacity: 0.85; }
+.mn-search input::-webkit-search-cancel-button { display: none; }
+.mn-search-x { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; background: none; border: 0; color: var(--mn-ink-2); cursor: pointer; }
+.mn-search-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.mn-diets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mn-diet {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 11px; border-radius: 999px;
+  font-family: var(--mn-font-body); font-size: 0.72rem; font-weight: 600; color: var(--mn-ink-2); cursor: pointer;
+  background: transparent; border: 1px solid var(--mn-rule-strong);
+  transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+.mn-diet::after { content: ''; position: absolute; inset: -6px -2px; }
+.mn-diet[aria-pressed="true"] { color: var(--mn-ink); border-color: var(--mn-accent); background: var(--mn-tint); }
+.mn-diet--clear { border-style: dashed; }
+.mn-diet-n { font-family: 'DM Mono', monospace; font-size: 0.66rem; opacity: 0.8; }
+
+/* ---------- sections ---------- */
+.mn-sec { margin-top: 30px; scroll-margin-top: var(--mn-stick); }
+.mn-sec-head { margin-bottom: 8px; text-align: center; }
+.mn-sec-title { font-family: var(--mn-font-display); font-size: 1.1rem; font-weight: 700; line-height: 1.2; color: var(--mn-ink); }
+.mn-sec-icon { display: none; }
+.mn-list { list-style: none; }
+
+/* ---------- dish rows ---------- */
+.mn-row { display: flex; align-items: flex-start; gap: 6px; }
+.mn-row-btn {
+  display: flex; flex: 1; align-items: flex-start; gap: 12px; min-width: 0; margin: 0 -8px; padding: 11px 8px;
+  border: 0; border-radius: 10px; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer;
+  transition: background-color 120ms var(--ease-out);
+}
+.mn-row-btn:active { background: var(--mn-press); }
+@media (hover: hover) { .mn-row-btn:hover { background: var(--mn-press); } }
+.mn-row-btn:focus-visible, .mn-add:focus-visible, .mn-chip:focus-visible, .mn-diet:focus-visible,
+.mn-nav-search:focus-visible, .mn-clear:focus-visible, .mn-search-x:focus-visible { outline: 2px solid var(--mn-accent); outline-offset: 1px; }
+.mn-row-text { display: block; flex: 1; min-width: 0; }
+
+.mn-line { display: flex; align-items: flex-end; gap: 8px; }
+.mn-name { min-width: 0; font-size: 1rem; font-weight: 600; line-height: 1.3; color: var(--mn-ink); overflow-wrap: anywhere; }
+.mn-leader { flex: 1 1 14px; align-self: flex-end; min-width: 14px; height: 0; margin-bottom: 0.36em; border-bottom: 1.5px dotted var(--mn-rule-strong); }
+.mn-price { flex: none; font-size: 0.98rem; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--mn-price, var(--mn-ink)); }
+.mn-desc { display: block; margin-top: 3px; font-size: 0.84rem; line-height: 1.45; color: var(--mn-ink-2); }
+.mn-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.mn-tag {
+  display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 7px; border-radius: 4px; white-space: nowrap;
+  font-family: var(--mn-font-body); font-size: 0.62rem; font-weight: 700; line-height: 1; letter-spacing: 0.06em;
+  color: var(--mn-ink-2); border: 1px solid var(--mn-rule-strong);
+}
+.mn-tag--pick { color: var(--mn-accent); border-color: currentColor; text-transform: uppercase; }
+.mn-tag--spice { padding: 0 5px; font-size: 0.7rem; letter-spacing: 0; }
+.mn-tag--rate { padding: 0; border-color: transparent; font-size: 0.72rem; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.mn-tag--sold { color: var(--mn-ink); border-color: currentColor; text-transform: uppercase; }
+.mn-thumb { flex: none; width: 56px; height: 56px; margin-top: 2px; border-radius: 10px; object-fit: cover; background: var(--mn-press); }
+
+.mn-row.is-sold .mn-name { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--mn-ink-2); }
+.mn-row.is-sold .mn-price, .mn-row.is-sold .mn-desc { color: var(--mn-ink-2); opacity: 0.8; }
+.mn-row.is-sold .mn-thumb { opacity: 0.5; filter: grayscale(0.6); }
+
+.mn-add {
+  position: relative; display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; margin-top: 10px;
+  border-radius: 50%; cursor: pointer; color: var(--mn-accent); background: var(--mn-tint); border: 1.5px solid var(--mn-accent);
+  transition: transform 120ms var(--ease-out), background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.mn-add::after { content: ''; position: absolute; inset: -4px; }
+.mn-add:active { transform: scale(0.9); background: var(--mn-accent); color: var(--mn-on-accent); }
+.mn-add svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* ---------- empty / footer / skeleton ---------- */
+.mn-empty { padding: 36px 8px 16px; text-align: center; }
+.mn-empty-title { margin-bottom: 6px; font-family: var(--mn-font-display); font-size: 1rem; font-weight: 700; line-height: 1.3; color: var(--mn-ink); overflow-wrap: anywhere; }
+.mn-empty-body { font-size: 0.84rem; color: var(--mn-ink-2); }
+.mn-clear {
+  min-height: 44px; margin-top: 14px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+  font-family: var(--mn-font-body); font-size: 0.8rem; font-weight: 700; color: var(--mn-ink);
+  background: var(--mn-tint); border: 1px solid var(--mn-accent);
+}
+.mn-foot { margin-top: 32px; text-align: center; }
+.mn-live { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 0.7rem; letter-spacing: 0.02em; color: var(--mn-ink-2); }
+.mn-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mn-live, #4D7C3F); animation: mnPulse 2s ease-in-out infinite; }
+@keyframes mnPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+.mn-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+
+.mn--skeleton { min-height: 420px; background: var(--s2); }
+.mn-sk-title { width: 55%; height: 28px; margin: 0 auto 12px; border-radius: 6px; }
+.mn-sk-line { width: 30%; height: 10px; margin: 0 auto 30px; border-radius: 4px; }
+.mn-sk-row { margin-bottom: 20px; }
+.mn-sk-name { width: 70%; height: 14px; margin-bottom: 8px; border-radius: 4px; }
+.mn-sk-desc { width: 90%; height: 10px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-live-dot { animation: none; }
+  .mn-row-btn, .mn-add, .mn-chip, .mn-diet { transition: none; }
+}

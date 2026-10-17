@@ -22,5 +22,45 @@
   "floorTablePrompt": "Green tables are free right now — tap one to pick your spot",
   "tableUpTo": "{{section}} · up to {{count}} guests",
   "entrance": "ENTRANCE",
-  "floorFallback": "Floor"
+  "floorFallback": "Floor",
+  "tabs": {
+    "label": "Restaurant sections",
+    "posts": "Posts",
+    "menu": "Menu"
+  },
+  "posts": {
+    "filter": "Whose posts",
+    "fromVenue": "From {{name}}",
+    "guests": "Guests",
+    "emptyTitle": "No posts yet",
+    "emptyBody": "This restaurant hasn't posted anything yet.",
+    "emptyGuestsTitle": "No guest posts yet",
+    "emptyGuestsBody": "Photos guests share from here will show up in this tab.",
+    "postFromDashboard": "Post from the dashboard",
+    "openPost": "Open post",
+    "loadMore": "Load more",
+    "promo": "Promo",
+    "promoList": "Promotions"
+  },
+  "menu": {
+    "kicker": "Menu",
+    "searchPlaceholder": "Search the menu",
+    "searchLabel": "Search the menu",
+    "clearSearch": "Clear search",
+    "dietary": "Dietary filters",
+    "sectionsLabel": "Menu sections",
+    "chefsPick": "Chef's pick",
+    "soldOut": "Sold out",
+    "vegan": "Vegan",
+    "vegetarian": "Vegetarian",
+    "glutenFree": "Gluten free",
+    "spicy": "Spicy",
+    "addToOrder": "Add {{name}} to order",
+    "emptyTitle": "No dishes yet",
+    "emptyBody": "This restaurant hasn't published its menu.",
+    "noMatchFor": "Nothing matches “{{q}}”",
+    "noMatch": "Nothing matches your filters",
+    "clearFilters": "Clear search and filters",
+    "liveNote": "Availability updates live"
+  }
 }

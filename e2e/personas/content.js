@@ -218,4 +218,4 @@ const NOTES = {
 }
 const bookingNote = (rng, template) => rng.pick(NOTES[template] || [null])
 
-module.exports = { pickLang, rating, reviewText, postCaption, comment, restaurantCaption, promoFor, bookingNote }
+module.exports = { pickLang, rating, reviewText, postCaption, comment, restaurantCaption, promoFor, bookingNote, VENUE_POSTS }

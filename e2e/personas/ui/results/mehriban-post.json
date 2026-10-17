@@ -1,0 +1,27 @@
+{
+  "composer_url": "/post/new",
+  "composer_post_button_disabled_initially": true,
+  "photo_preview_ms": 122,
+  "post_button_disabled_without_restaurant": false,
+  "post_button_enabled_ready": true,
+  "composer_text": [
+    "Rufesto",
+    "Cancel",
+    "New post",
+    "Post",
+    "Caption",
+    "85/500",
+    "Restaurant · optional",
+    "🍽️",
+    "Burger Qala"
+  ],
+  "post_to_home_ms": 2700,
+  "landing_tab": [
+    "Friends"
+  ],
+  "landing_first_card": "M Mehriban Rzayeva · just now Burger Qala Mehriban Rzayeva Lunch at Burger Qala today. The classic burger with extra pickles did not disappoint.",
+  "landing_items": 1,
+  "console": [],
+  "pageErrors": [],
+  "bad": []
+}

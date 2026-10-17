@@ -6,6 +6,8 @@
 // B = caption + sold-out dish when Sakura has one). Their captions start with "qa-home"; afterAll deletes every such post and
 // photo. Sakura only, never Trattoria Bella Roma. Signed in = the QA guest (QA_GUEST_* in e2e/.env). All sign-ins go through
 // the Supabase auth API. Tolerant of other data: only these two posts are asserted by name, never totals.
+// Paging is automatic (a marker 3 cards from the end loads the next page): the tests scroll, they never click "Load more".
+// Friends (friends_feed) has its own spec, tests/feat-friends-feed.spec.js; Discover is in tests/feat-discovery.spec.js.
 // Runs in the desktop and the mobile project (the mobile project needs it in CONSUMER_SPECS, playwright.config.js).
 const crypto = require('crypto')
 const { test, expect, settle } = require('../support/fixtures')
@@ -76,12 +78,14 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
         const strip = card.locator('.soc-dish')
         await expect(strip).toContainText(fx.dish.name)
         await expect(strip.locator('.soc-dish-price')).toContainText(/\d/)
-        await expect(strip.getByText('Available now', { exact: true })).toBeVisible()
+        // with a photo the live pill sits over the photo (PhotoChips), without one it is in the strip: look on the whole card
+        await expect(card.getByText('Available now', { exact: true })).toBeVisible()
         await expect(strip.getByRole('link', { name: 'Order this' })).toHaveAttribute('href', `${path}?dish=${fx.dish.id}&src=post:${fx.a.id}`)
       }
       if (fx.soldOut) {
-        const strip = S.post(page, fx.b.caption).locator('.soc-dish')
-        await expect(strip.getByText('Sold out', { exact: true })).toBeVisible()
+        const cardB = await findCard(page, fx.b.caption)
+        const strip = cardB.locator('.soc-dish')
+        await expect(cardB.getByText('Sold out', { exact: true })).toBeVisible()
         await expect(strip.getByRole('link', { name: 'Order this' }), 'a sold-out dish can still be opened').toBeVisible()
       }
       await card.getByRole('button', { name: 'Like', exact: true }).click()
@@ -100,7 +104,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await page.reload()
       await expect(tab(page, 'Friends'), 'the last tab is remembered').toHaveAttribute('aria-selected', 'true')
       await tab(page, 'Discover').click()
-      await expect(page.getByRole('link', { name: /view menu/i }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 }), 'Discover renders its sections').toBeVisible()
       for (const [stored, want] of [['feed', 'Friends'], ['bogus', 'Home']]) {   // the old two-tab build stored 'feed'
         await page.evaluate(v => localStorage.setItem('rufesto_home_tab', v), stored)
         await page.reload()
@@ -108,7 +112,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       }
     }))
 
-    test('Load more reaches "You\'re all caught up": no repeats, both posts listed, no chronological tail', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
+    test('scrolling to the end pages by itself (no Load more) and reaches "You\'re all caught up": no repeats, both posts listed, no chronological tail', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
       test.setTimeout(150_000)
       await openHome(page)
       const clicks = await pageUntil(page, null)
@@ -119,7 +123,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       const links = await hrefsOf(commentLinks(page))
       expect(new Set(links).size, 'no post is shown twice').toBe(links.length)
       for (const p of [fx.a, fx.b]) expect(links, `post ${p.id} is on Home`).toContain(`/post/${p.id}`)
-      testInfo.annotations.push({ type: 'home-pages', description: `${clicks} "Load more" clicks, ${links.length} posts` })
+      testInfo.annotations.push({ type: 'home-pages', description: `${clicks} scroll rounds, ${links.length} posts` })
       await page.getByRole('button', { name: 'Open Discover' }).click()
       await expect(tab(page, 'Discover')).toHaveAttribute('aria-selected', 'true')
     }))
@@ -153,7 +157,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await expect(page.getByText(/^Nearby: places within \d+(\.\d+)? km$/)).toBeVisible()
       await expect(pill).toHaveCount(0)
       expect(await page.evaluate(() => localStorage.getItem('rufesto_geo_ok'))).toBe('1')
-      const withDistance = await page.locator('.soc-post-where').filter({ hasText: /\d km/ }).count()
+      const withDistance = await page.locator('.soc-post-where, .soc-chip').filter({ hasText: /\d km/ }).count()
       testInfo.annotations.push({ type: 'cards-with-distance', description: String(withDistance) })
 
       const next = rpcRequest(page, 'home_feed')
@@ -244,6 +248,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await tab(page, 'Friends').click()
       await w.check('Friends, signed out')
       await tab(page, 'Discover').click()
+      await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 })).toBeVisible()
       await w.check('Discover')
     }))
   })
@@ -265,7 +270,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       expect(watch.consoleErrors, 'console errors').toEqual([])
     }))
 
-    test('Load more reaches "You\'re all caught up" and a chronological tail follows without repeating Home', async ({ browser }, testInfo) => asGuest(browser, testInfo, async ({ page }) => {
+    test('scrolling to the end reaches "You\'re all caught up" and a chronological tail follows without repeating Home', async ({ browser }, testInfo) => asGuest(browser, testInfo, async ({ page }) => {
       test.setTimeout(150_000)
       await openHome(page)
       await pageUntil(page, null)

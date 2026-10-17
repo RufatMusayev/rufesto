@@ -1,0 +1,10 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const a = await L.api('Aysel Məmmədova')
+  const fr = await a.rpc('my_friends')
+  L.log('friends', JSON.stringify(Array.isArray(fr) ? fr.map(f => f.name) : fr))
+  const fol = await a.get('user_follows?select=*&user_id=eq.' + a.uid)
+  L.log('follows', JSON.stringify(fol).slice(0, 500))
+  const d = await a.rpc('discover', {})
+  L.log('discover keys', JSON.stringify(Object.keys(d || {})))
+})().catch(e => { console.error(e); process.exit(1) })

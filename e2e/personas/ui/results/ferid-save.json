@@ -1,0 +1,104 @@
+{
+  "dish_sheet_unlabeled_buttons": 5,
+  "icon_positions": [
+    [
+      36,
+      683
+    ],
+    [
+      96,
+      683
+    ],
+    [
+      376,
+      683
+    ]
+  ],
+  "profile_text": [
+    "Rufesto",
+    "2",
+    "F",
+    "Fərid Məlikov",
+    "★",
+    "261 credits",
+    "0",
+    "Posts",
+    "Friends",
+    "Visits",
+    "Edit profile",
+    "📷",
+    "No posts yet",
+    "Share what you ate with your friends.",
+    "New post"
+  ],
+  "profile_saved_text": [
+    "Rufesto",
+    "2",
+    "F",
+    "Fərid Məlikov",
+    "★",
+    "261 credits",
+    "0",
+    "Posts",
+    "Friends",
+    "Visits",
+    "Edit profile",
+    "Saved",
+    "🍽️",
+    "Avocado Toast with Fried Egg",
+    "Brew & Books",
+    "₼11.00"
+  ],
+  "profile_Posts_text": [
+    "Fərid Məlikov",
+    "★",
+    "261 credits",
+    "0",
+    "Posts",
+    "Friends",
+    "Visits",
+    "Edit profile",
+    "📷",
+    "No posts yet",
+    "Share what you ate with your friends.",
+    "New post"
+  ],
+  "profile_Reviews_text": [
+    "Reviews",
+    "🥤",
+    "Lemon Iced Tea",
+    "★★★★☆",
+    "Dönər Bakı Express · 23h ago",
+    "Good Lemon Iced Tea, nice cup. A little pricey but worth it.",
+    "Verified visit",
+    "🍽️",
+    "Lahmacun with Salad (2 pcs)",
+    "★★★★★",
+    "Dönər Bakı Express · 3d ago",
+    "Dadı tam yerində idi, əllərinə sağlıq."
+  ],
+  "profile_Visits_text": [
+    "★",
+    "261 credits",
+    "0",
+    "Posts",
+    "Friends",
+    "Visits",
+    "Edit profile",
+    "Dönər Bakı Express",
+    "16 Oct 2026",
+    "₼12.39",
+    "13 Oct 2026",
+    "₼11.80"
+  ],
+  "console": [],
+  "pageErrors": [],
+  "bad": [
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/likes net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/visits net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/posts net::ERR_ABORTED",
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/friendships net::ERR_ABORTED"
+  ]
+}

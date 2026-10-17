@@ -32,8 +32,19 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
   test.skip(!S.have(1, 2, 5, 6), 'review1/2/5/6 not found: keep docs/REVIEW-ACCOUNTS.md or set QA_REVIEW<n>_EMAIL / _PASSWORD')
   test.describe.configure({ mode: 'default' })   // one worker per file, a failing test does not skip the next ones
 
+  // review1 - review2 are friends in docs/REVIEW-ACCOUNTS.md but the preview lost that friendship: make it for this file, undo it at the end
+  let madeFriendship = false
+  test.beforeAll(async ({ browser }, testInfo) => {
+    const [a, b] = [await S.openUser(browser, testInfo, 1), await S.openUser(browser, testInfo, 2)]
+    try { madeFriendship = await S.ensureFriends(a, b) } finally { await a.close(); await b.close() }
+  })
+
   // the friend / like / comment notifications these tests cause are marked read at the end (the bells stay readable for the next run)
   test.afterAll(async ({ browser }, testInfo) => {
+    if (madeFriendship) {
+      const [a, b] = [await S.openUser(browser, testInfo, 1), await S.openUser(browser, testInfo, 2)]
+      try { await S.resetPair(a, b) } finally { await a.close(); await b.close() }
+    }
     for (const who of [1, 2, 5, 6]) {
       const u = await S.openUser(browser, testInfo, who)
       await S.tidySocialNotifications(u)
@@ -553,7 +564,9 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     } finally { await S.purgePosts(au); await au.close() }
   })
 
-  test('feed: 15 per page, "Load more" appends the rest without duplicates', async ({ page, browser }, testInfo) => {
+  // friends_feed pages by exclusion, 20 per answer, and the next page loads by itself when the card 3 from the end scrolls into view
+  // (V2-CONTRACT 18.3, 18.5): the ranked list has no "Load more" button.
+  test('feed: Friends pages by itself while scrolling, no Load more button, every post once', async ({ page, browser }, testInfo) => {
     test.setTimeout(120_000)
     const { au } = await viewerAuthor(page, browser, testInfo)
     const caps = Array.from({ length: 16 }, (_, i) => `${TAG} ${RUN} page ${String(i + 1).padStart(2, '0')}`)
@@ -561,17 +574,10 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       for (const c of caps) await S.newPost(au, c)
       await S.openFeed(page)
       await expect(S.post(page, caps[15])).toBeVisible({ timeout: 30_000 })
-      const cards = page.locator('article.soc-post')
-      await expect.poll(() => cards.count()).toBe(15)
-      const more = page.getByRole('button', { name: 'Load more' })
-      await expect(more).toBeVisible()
-      await expect(S.post(page, caps[0]), 'the oldest of the 16 is on page 2').toHaveCount(0)
-      await more.click()
-      await expect(S.post(page, caps[0])).toBeVisible()
-      await expect.poll(() => cards.count()).toBeGreaterThanOrEqual(16)
-      const texts = await cards.allInnerTexts()
+      await H.pageUntil(page, () => S.post(page, caps[0]), { items: H.friendsSlots })   // asserts there is no "Load more" before the end
+      for (const c of caps) await expect(S.post(page, c), c).toHaveCount(1)
+      const texts = await page.locator('article.soc-post').allInnerTexts()
       expect(new Set(texts).size, 'no card twice').toBe(texts.length)
-      await expect(more).toHaveCount(0)
     } finally { await S.purgePosts(au); await au.close() }
   })
 

@@ -4,20 +4,22 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
 import BookingRulesForm from '../components/BookingRulesForm'
 import HoursEditor from '../components/HoursEditor'
+import MenuDesignCard from '../components/MenuDesignCard'
 import StaffList from '../components/StaffList'
 import '../styles.css'
 
 const TABS = ['hours', 'rules', 'staff']
-const TAB_LABEL = { hours: 'tabHours', rules: 'tabRules', staff: 'tabStaff' }
+const TAB_LABEL = { hours: 'tabHours', rules: 'tabRules', staff: 'tabStaff', menu: 'tabMenu' }
 
-// /settings?tab=hours|rules|staff. Each tab loads and saves on its own; a
-// "Saved" toast confirms a write for two seconds.
+// /settings?tab=hours|rules|staff|menu. Each tab loads and saves on its own; a
+// "Saved" toast confirms a write for two seconds. The Menu design tab is for admin / manager only.
 export default function SettingsPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, isManager } = useAuth()
   const { t } = useTranslation('v2')
   const [params, setParams] = useSearchParams()
   const requested = params.get('tab')
-  const tab = TABS.includes(requested) ? requested : 'hours'
+  const tabs = isManager ? [...TABS, 'menu'] : TABS
+  const tab = tabs.includes(requested) ? requested : 'hours'
 
   const [saved, setSaved] = useState(false)
   const timer = useRef(null)
@@ -35,7 +37,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="v2-chips no-scrollbar" role="tablist" aria-label={t('settingsTitle')}>
-        {TABS.map(id => (
+        {tabs.map(id => (
           <button
             key={id}
             id={`v2-tab-${id}`}
@@ -55,6 +57,7 @@ export default function SettingsPage() {
         {tab === 'hours' && <HoursEditor restaurantId={restaurantId} onSaved={flashSaved} />}
         {tab === 'rules' && <BookingRulesForm restaurantId={restaurantId} onSaved={flashSaved} />}
         {tab === 'staff' && <StaffList restaurantId={restaurantId} />}
+        {tab === 'menu' && <MenuDesignCard restaurantId={restaurantId} onSaved={flashSaved} />}
       </div>
 
       <div className={`v2-toast${saved ? ' is-visible' : ''}`} role="status" aria-live="polite">

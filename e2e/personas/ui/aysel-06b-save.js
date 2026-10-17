@@ -1,0 +1,37 @@
+const L = require('./aysel-lib')
+const step = async (n, fn) => { try { L.log('\n=== ' + n); await fn() } catch (e) { L.log('STEP FAILED', n, String(e.message).split('\n')[0]) } }
+;(async () => {
+  const b = await L.launch()
+  const { page, errors } = await L.phone(b, 'Aysel Məmmədova')
+  const a = await L.api('Aysel Məmmədova')
+  await page.goto(L.CONSUMER + '/'); await page.waitForSelector('.soc-feed-slot'); await page.waitForTimeout(800)
+  await page.getByRole('tab', { name: 'Discover', exact: true }).click()
+  await page.waitForSelector('.dsc .dsc-rc'); await page.waitForTimeout(1000)
+  await step('save a dish (trending Tiramisù) via 3rd icon', async () => {
+    const dc = page.locator('.dsc-dc').filter({ hasText: 'Tiramisù' }).first()
+    await dc.scrollIntoViewIfNeeded()
+    await dc.locator('a').click()
+    await page.waitForSelector('.sheet'); await page.waitForTimeout(1200)
+    const btns = page.locator('.sheet .icon-btn')
+    L.log('icon btns', await btns.count())
+    const saveBtn = btns.nth(3)   // 0 close, 1 like, 2 review, 3 save
+    L.log('save accessible name:', JSON.stringify(await saveBtn.getAttribute('aria-label')), 'title', JSON.stringify(await saveBtn.getAttribute('title')))
+    await saveBtn.click(); await page.waitForTimeout(1200)
+    await L.shot(page, '06-dish-saved')
+    L.log('saved rows now', (await a.get('saved_dishes?select=dish_id&user_id=eq.' + a.uid)).length)
+    // like too
+    await btns.nth(1).click(); await page.waitForTimeout(800)
+    L.log('likes line', await page.evaluate(() => [...document.querySelectorAll('.sheet div')].map(d => d.innerText).find(t => /^\d+ like/.test(t.trim())) || '(none)'))
+    await page.keyboard.press('Escape'); await page.waitForTimeout(400)
+    L.log('sheet still open after Esc?', await page.locator('.sheet').count())
+  })
+  await step('profile saved tab', async () => {
+    await page.goto(L.CONSUMER + '/profile'); await page.waitForTimeout(2000)
+    await page.getByRole('button', { name: 'Saved' }).or(page.getByRole('tab', { name: 'Saved' })).first().click()
+    await page.waitForTimeout(1500)
+    await L.shot(page, '06-profile-saved')
+    L.log((await page.evaluate(() => document.body.innerText)).slice(-400))
+  })
+  L.log('\nerrors', errors)
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

@@ -22,5 +22,45 @@
   "floorTablePrompt": "Yaşıl masalar hazırda boşdur — yerinizi seçmək üçün birinə toxun",
   "tableUpTo": "{{section}} · {{count}} qonağa qədər",
   "entrance": "GİRİŞ",
-  "floorFallback": "Zal"
+  "floorFallback": "Zal",
+  "tabs": {
+    "label": "Restoran bölmələri",
+    "posts": "Paylaşımlar",
+    "menu": "Menyu"
+  },
+  "posts": {
+    "filter": "Kimin paylaşımları",
+    "fromVenue": "Restorandan",
+    "guests": "Qonaqlar",
+    "emptyTitle": "Hələ paylaşım yoxdur",
+    "emptyBody": "Bu restoran hələ heç nə paylaşmayıb.",
+    "emptyGuestsTitle": "Qonaq paylaşımları hələ yoxdur",
+    "emptyGuestsBody": "Qonaqların buradan paylaşdığı şəkillər bu bölmədə görünəcək.",
+    "postFromDashboard": "İdarə panelindən paylaşım et",
+    "openPost": "Paylaşıma bax",
+    "loadMore": "Daha çox",
+    "promo": "Təklif",
+    "promoList": "Təkliflər"
+  },
+  "menu": {
+    "kicker": "Menyu",
+    "searchPlaceholder": "Menyuda axtar",
+    "searchLabel": "Menyuda axtar",
+    "clearSearch": "Axtarışı təmizlə",
+    "dietary": "Pəhriz filtrləri",
+    "sectionsLabel": "Menyu bölmələri",
+    "chefsPick": "Aşpazın seçimi",
+    "soldOut": "Bitib",
+    "vegan": "Vegan",
+    "vegetarian": "Vegetarian",
+    "glutenFree": "Glutensiz",
+    "spicy": "Acılı",
+    "addToOrder": "{{name}} sifarişə əlavə et",
+    "emptyTitle": "Hələ yemək yoxdur",
+    "emptyBody": "Bu restoran hələ menyusunu yerləşdirməyib.",
+    "noMatchFor": "“{{q}}” üzrə heç nə tapılmadı",
+    "noMatch": "Filtrlərə uyğun heç nə tapılmadı",
+    "clearFilters": "Axtarışı və filtrləri təmizlə",
+    "liveNote": "Mövcudluq canlı yenilənir"
+  }
 }

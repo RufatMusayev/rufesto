@@ -213,6 +213,19 @@ async function befriend(a, b) {
   await b.api.rpc('respond_friend_request', { p_id: r.data.id, p_accept: true })
 }
 
+/**
+ * Make `a` and `b` friends when they are not. docs/REVIEW-ACCOUNTS.md says review1 is friends with review2 and review3, but the
+ * friendships of the review accounts were wiped from the preview (the demo-world simulation). Resolves true when THIS call created the
+ * friendship, so the caller can undo it with resetPair; false when it existed already (then nothing is ever removed).
+ */
+async function ensureFriends(a, b) {
+  const mine = await a.api.rpc('my_friends')
+  if ((Array.isArray(mine.data) ? mine.data : []).some(x => x.user_id === b.api.id)) return false
+  await resetPair(a, b)   // a stale pending request in either direction would make send_friend_request refuse
+  await befriend(a, b)
+  return true
+}
+
 /** Delete every post of `user` whose caption starts with the TAG (comments and likes go with it) and its photo object. */
 async function purgePosts(user) {
   const rows = await user.api.get(`posts?user_id=eq.${user.api.id}&caption=like.${TAG}*&select=id,photo_url`)
@@ -352,6 +365,6 @@ async function timed(fn) { const t = Date.now(); await fn(); return Date.now() -
 
 module.exports = {
   CONSUMER_URL, url, RUN, TAG, account, have, signInPage, asUser, forget, openUser, openSignedOut, api, count, watchPage,
-  resetPair, befriend, purgePosts, markRead, tidySocialNotifications, unreadIds, isPhone, openFeed, post, feedPost, channelsReady, bellCount, shot, pickPhoto, newPost,
+  resetPair, befriend, ensureFriends, purgePosts, markRead, tidySocialNotifications, unreadIds, isPhone, openFeed, post, feedPost, channelsReady, bellCount, shot, pickPhoto, newPost,
   newPhotoPost, deletePhoto, findSlot, newBooking, timed,
 }

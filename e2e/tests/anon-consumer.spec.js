@@ -5,16 +5,29 @@ const { CONSUMER_URL } = require('../support/env')
 const url = path => CONSUMER_URL + path
 const viewMenuLinks = page => page.getByRole('link', { name: /view menu/i })
 const dishPrices = page => page.getByText(/^₼\s*\d/)
+// Home opens on the ranked Home tab; the restaurant list ("View menu →" cards) is on the Discover tab: set the remembered tab before the page loads
+const discoverTab = page => page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
 
 test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
-  test('home loads with no console errors', async ({ page, watch }) => {
+  test('home loads on the ranked Home tab with no console errors', async ({ page, watch }) => {
     await page.goto(url('/'))
-    await expect(viewMenuLinks(page).first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('.soc-feed-slot').first().or(page.getByRole('heading', { name: "You're all caught up" }))).toBeVisible()
     await settle(page)
     expect(watch.consoleErrors, 'console errors on /').toEqual([])
   })
 
+  test('the Discover tab loads with no console errors and lists restaurant cards', async ({ page, watch }) => {
+    await discoverTab(page)
+    await page.goto(url('/'))
+    await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 })).toBeVisible()
+    await expect(viewMenuLinks(page).first()).toBeVisible()
+    await settle(page)
+    expect(watch.consoleErrors, 'console errors on Discover').toEqual([])
+  })
+
   test('home lists at least one restaurant card', async ({ page }) => {
+    await discoverTab(page)
     await page.goto(url('/'))
     await expect(viewMenuLinks(page).first()).toBeVisible()
     const hrefs = await viewMenuLinks(page).evaluateAll(as => as.map(a => a.getAttribute('href')))
@@ -23,6 +36,7 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
   })
 
   test('opening a restaurant shows a menu with at least one dish', async ({ page }) => {
+    await discoverTab(page)
     await page.goto(url('/'))
     const first = viewMenuLinks(page).first()
     await expect(first).toBeVisible()

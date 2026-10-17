@@ -1,0 +1,187 @@
+/* Restaurant page chrome (features/restaurant): header, sticky tab bar, Posts tab. Prefix rst-.
+   Colours come from the app tokens in index.css (--bg, --t1.., --border, --gold, --note...), so dark / light follow
+   [data-theme]. The menu itself (mn-*) is in menu/menu.css + menu/themes/*.css. */
+
+.rst-page { --rst-tabs-h: 48px; padding-bottom: 32px; }
+.rst-anchor { height: 0; }
+.rst-col { width: 100%; max-width: 712px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- cover + back ---------- */
+.rst-cover { position: relative; height: 230px; overflow: hidden; }
+.rst-cover.skeleton { border-radius: 0; }
+@media (min-width: 769px) { .rst-cover { height: 280px; } }
+.rst-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rst-cover-emoji {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10rem; opacity: 0.18; filter: blur(3px);
+}
+.rst-cover-fade {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 35%, rgba(0,0,0,0.45) 75%, var(--bg) 100%);
+}
+.rst-back {
+  position: absolute; top: 14px; left: 14px; z-index: 2; width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; color: #F5F0E8;
+  background: rgba(0,0,0,0.52); border: 1px solid rgba(255,255,255,0.12);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: background-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.rst-back:active { transform: scale(0.94); }
+.rst-back svg { width: 17px; height: 17px; }
+
+/* ---------- identity row ---------- */
+.rst-id {
+  position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+  margin-top: -46px; margin-bottom: 14px;
+}
+.rst-logo {
+  position: relative; width: 88px; height: 88px; flex: none; overflow: hidden; border-radius: 50%;
+  border: 3.5px solid var(--bg); box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center; font-size: 2.5rem;
+}
+.rst-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rst-stats { display: flex; gap: 18px; min-width: 0; padding-bottom: 8px; }
+@media (max-width: 380px) { .rst-stats { gap: 12px; } }
+.rst-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.rst-stat-n { font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--t1); }
+.rst-stat-l { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.2px; white-space: nowrap; color: var(--note); }
+
+.rst-name {
+  font-family: 'Playfair Display', Georgia, serif; font-size: 1.45rem; font-weight: 700;
+  letter-spacing: -0.3px; line-height: 1.2; color: var(--t1); margin-bottom: 2px; overflow-wrap: anywhere;
+}
+.rst-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.rst-cuisine { font-size: 0.8rem; font-weight: 500; color: var(--note); }
+.rst-dot { font-size: 0.7rem; color: var(--border-strong); }
+.rst-open { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; }
+.rst-open.is-open { color: var(--sage-text); }
+.rst-open.is-closed { color: var(--note); }
+.rst-closed-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--red); }
+.rst-hours { font-family: 'DM Mono', monospace; font-size: 0.7rem; font-weight: 400; color: var(--note); }
+.rst-about { margin-bottom: 6px; font-size: 0.84rem; line-height: 1.55; color: var(--t2); }
+.rst-address { display: flex; align-items: center; gap: 5px; margin-bottom: 14px; font-size: 0.78rem; color: var(--note); }
+.rst-address svg { width: 12px; height: 12px; flex: none; opacity: 0.7; }
+
+.rst-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+.rst-floor { width: 44px; flex: none; padding: 0; border-radius: 10px; }
+.rst-floor svg { width: 18px; height: 18px; }
+.rst-follow {
+  flex: 1; min-width: 0; min-height: 44px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 0.84rem; font-weight: 700; white-space: nowrap;
+  color: var(--pill-amber-fg); background: var(--pill-amber-bg); border: 1.5px solid var(--pill-amber-bd);
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), border-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.rst-follow:active { transform: scale(0.97); }
+.rst-follow:disabled { opacity: 0.7; cursor: default; }
+.rst-follow.is-on { color: var(--pill-green-fg); background: var(--pill-green-bg); border-color: var(--pill-green-bd); }
+.rst-follow:focus-visible, .rst-tab:focus-visible, .rst-seg-btn:focus-visible, .rst-tile:focus-visible, .rst-promo:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
+}
+
+/* ---------- sticky tab bar ---------- */
+.rst-tabs {
+  position: sticky; top: var(--sticky-top); z-index: 30; height: var(--rst-tabs-h);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.rst-tabs--sk { position: static; }
+.rst-tabs-in {
+  position: relative; height: 100%; max-width: 712px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr;
+}
+.rst-tab {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0;
+  background: none; border: 0; cursor: pointer; font-family: inherit; font-size: 0.86rem; font-weight: 600; color: var(--note);
+  transition: color 180ms var(--ease-out);
+}
+.rst-tab svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.rst-tab[aria-selected="true"] { color: var(--t1); }
+.rst-tab-bar {
+  position: absolute; left: 0; bottom: -1px; width: 50%; height: 2px; background: var(--gold);
+  transition: transform 260ms var(--ease-drawer);
+}
+.rst-tabs[data-i="1"] .rst-tab-bar { transform: translateX(100%); }
+
+.rst-panel { animation: rstPanelIn 220ms var(--ease-out) both; }
+.rst-panel[hidden] { display: none; }
+@keyframes rstPanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Posts tab ---------- */
+.rst-posts { max-width: 712px; margin: 0 auto; padding-top: 14px; }
+
+.rst-seg { display: flex; gap: 8px; padding: 0 16px 12px; }
+.rst-seg-btn {
+  position: relative; min-width: 0; max-width: 70%; min-height: 38px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  font-family: inherit; font-size: 0.8rem; font-weight: 600; color: var(--t2); background: transparent; border: 1px solid var(--border-strong);
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.rst-seg-btn::after { content: ''; position: absolute; inset: -3px 0; }
+.rst-seg-btn:active { transform: scale(0.97); }
+.rst-seg-btn[aria-pressed="true"] { color: var(--bg); background: var(--t1); border-color: var(--t1); }
+.rst-seg-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rst-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; }
+.rst-grid--sk { max-width: 712px; margin: 14px auto 0; }
+.rst-tile {
+  position: relative; display: block; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 0;
+  background: var(--s3); transition: transform 120ms var(--ease-out);
+}
+.rst-tile:active { transform: scale(0.97); }
+.rst-tile img { width: 100%; height: 100%; object-fit: cover; }
+.rst-tile-missing { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--t3); }
+.rst-tile--text {
+  display: flex; align-items: center; justify-content: center; padding: 12px;
+  background: var(--rst-tile-bg, var(--accent)); color: var(--rst-tile-ink, #F5F0E8);
+}
+.rst-tile-caption {
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; text-align: center;
+  font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 600; font-size: 0.8rem; line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) { .rst-tile:hover img { filter: brightness(1.06); } }
+
+.rst-sentinel { height: 1px; margin-top: -520px; pointer-events: none; visibility: hidden; }
+.rst-grid--more { margin-top: 2px; }
+.rst-more { display: flex; justify-content: center; padding: 16px; }
+
+.rst-empty { padding: 3.5rem 1.5rem; text-align: center; color: var(--note); }
+.rst-empty-icon { margin-bottom: 10px; font-size: 2.4rem; opacity: 0.5; }
+.rst-empty-title { margin-bottom: 4px; font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; font-weight: 700; color: var(--t1); }
+.rst-empty-body { max-width: 30ch; margin: 0 auto 16px; font-size: 0.84rem; line-height: 1.5; }
+
+.rst-promos { display: grid; gap: 8px; padding: 0 16px 12px; list-style: none; }
+.rst-promo {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 12px;
+  font-family: inherit; font-size: 0.82rem; font-weight: 500; line-height: 1.35; text-align: left; color: var(--t1);
+  background: rgba(196,154,44,0.08); border: 1px solid rgba(196,154,44,0.3);
+}
+.rst-promo--tap { cursor: pointer; transition: transform 120ms var(--ease-out), background-color 150ms var(--ease-out); }
+.rst-promo--tap:active { transform: scale(0.985); }
+.rst-promo-tag {
+  flex: none; padding: 3px 8px; border-radius: 999px; background: var(--gold); color: #1A1210;
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.rst-promo-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rst-promo-go { flex: none; width: 16px; height: 16px; color: var(--note); }
+
+/* ---------- cart error banner ---------- */
+.rst-cart-error {
+  position: fixed; top: 16px; left: 50%; z-index: 9999; transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 10px; width: calc(100% - 32px); max-width: 420px; padding: 6px 4px 6px 14px;
+  background: rgba(30,10,10,0.92); border: 1px solid rgba(239,68,68,0.35); border-radius: 10px;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+.rst-cart-error svg { width: 16px; height: 16px; flex: none; margin-top: 11px; color: #ef4444; }
+.rst-cart-error-text { flex: 1; padding: 9px 0; font-size: 0.78rem; line-height: 1.45; color: #fca5a5; }
+.rst-cart-error .tap { background: none; border: 0; font-size: 1.1rem; line-height: 1; color: rgba(252,165,165,0.7); }
+
+/* ---------- skeleton ---------- */
+.rst-sk-n { width: 30px; height: 16px; margin: 0 auto 4px; border-radius: 4px; }
+.rst-sk-l { width: 36px; height: 10px; border-radius: 4px; }
+.rst-sk-name { width: 55%; height: 22px; margin-bottom: 8px; border-radius: 6px; }
+.rst-sk-meta { width: 35%; height: 12px; margin-bottom: 16px; border-radius: 4px; }
+.rst-sk-btn { flex: 1; height: 44px; border-radius: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rst-panel { animation: none; }
+  .rst-tab-bar, .rst-tile, .rst-follow, .rst-seg-btn, .rst-back, .rst-promo--tap { transition: none; }
+}

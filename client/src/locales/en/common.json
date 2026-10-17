@@ -50,5 +50,29 @@
   "errorReload": "Reload",
   "errorHome": "Back to Home",
   "language": "Language",
-  "switchToLanguage": "Switch language to {{language}}"
+  "switchToLanguage": "Switch language to {{language}}",
+  "timeShort": {
+    "now": "now",
+    "m": "{{n}}m",
+    "h": "{{n}}h",
+    "d": "{{n}}d",
+    "w": "{{n}}w",
+    "date": "{{day}} {{month}}",
+    "dateYear": "{{day}} {{month}} {{year}}",
+    "months": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ]
+  },
+  "guestName": "Rufesto guest"
 }

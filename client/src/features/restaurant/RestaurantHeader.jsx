@@ -1,24 +1,30 @@
 import { useTranslation } from 'react-i18next'
 import { cuisineBackground, cuisineEmoji, getTodayHours, isRestaurantOpen } from '../../lib/helpers'
+import { cuisineLabel } from '../discover/cuisine'
 import { ReserveButton } from '../bookings/mounts'
 
-function Stat({ label, value }) {
-  return (
-    <div className="rst-stat">
+function Stat({ label, value, onClick }) {
+  const body = (
+    <>
       <span className="rst-stat-n">{value}</span>
       <span className="rst-stat-l">{label}</span>
-    </div>
+    </>
   )
+  return onClick
+    ? <button type="button" className="rst-stat rst-stat--tap" onClick={onClick}>{body}</button>
+    : <div className="rst-stat">{body}</div>
 }
 
 /**
  * Profile header of the restaurant page: cover, logo, live stats, name, cuisine + open state, address and the
- * three actions (Reserve, floor plan, Follow). Presentation only: the shell owns the data.
- *  stats   { dishes: number|null, reviews: number|null, followers, seatsFree, seatsTotal }
+ * three actions (Reserve, Tables, Follow). Presentation only: the shell owns the data.
+ *  stats   { reviews: number|null, followers, seatsFree, seatsTotal }: followers, reviews (tap = the reviews sheet) and
+ *          the free seats, which only show while the place is open (UX plan 1.6: no "24 dishes")
  *  follow  { isFollowing, busy, toggle } from useFollow
  */
-export default function RestaurantHeader({ restaurant, stats, follow, onBack, onFloor }) {
+export default function RestaurantHeader({ restaurant, stats, follow, onBack, onFloor, onReviews }) {
   const { t } = useTranslation(['restaurant', 'common'])
+  const { t: ts } = useTranslation('social')
   const open = isRestaurantOpen(restaurant.operating_hours)
   const today = getTodayHours(restaurant.operating_hours)
   const emoji = cuisineEmoji(restaurant.cuisine_type)
@@ -47,17 +53,16 @@ export default function RestaurantHeader({ restaurant, stats, follow, onBack, on
               : <span aria-hidden="true">{emoji}</span>}
           </div>
           <div className="rst-stats">
-            <Stat label={t('restaurant:statDishes')} value={stats.dishes ?? dash} />
             <Stat label={t('restaurant:statFollowers')} value={stats.followers} />
-            <Stat label={t('restaurant:statReviews')} value={stats.reviews ?? dash} />
-            <Stat label={t('restaurant:statSeats')} value={`${stats.seatsFree}/${stats.seatsTotal}`} />
+            <Stat label={t('restaurant:statReviews')} value={stats.reviews ?? dash} onClick={stats.reviews ? onReviews : undefined} />
+            {open && stats.seatsTotal > 0 && <Stat label={t('restaurant:statFree')} value={stats.seatsFree} />}
           </div>
         </div>
 
         <h1 className="rst-name">{restaurant.name}</h1>
 
         <div className="rst-meta">
-          <span className="rst-cuisine">{t('restaurant:restaurantSuffix', { cuisine: restaurant.cuisine_type })}</span>
+          <span className="rst-cuisine">{cuisineLabel(ts, restaurant.cuisine_type)}</span>
           <span className="rst-dot" aria-hidden="true">{'·'}</span>
           <span className={`rst-open${open ? ' is-open' : ' is-closed'}`}>
             {open ? <span className="open-indicator" /> : <span className="rst-closed-dot" />}
@@ -97,6 +102,7 @@ export default function RestaurantHeader({ restaurant, stats, follow, onBack, on
               <circle cx="7.5" cy="7.5" r="1.6" />
               <circle cx="17" cy="16" r="2.2" />
             </svg>
+            <span>{t('restaurant:tables')}</span>
           </button>
           <button
             type="button"

@@ -1,0 +1,15 @@
+/* ui/Img.jsx: a reserved box, the photo fades in on load (docs/UX-PLAN-2026-10-18.md 6.8) */
+.ui-img { position: relative; display: block; overflow: hidden; background: var(--s3); }
+:where(.ui-img:not([style])) { width: 100%; height: 100%; }
+.ui-img > .ui-img-el {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; transition: opacity var(--dur-2) var(--ease-out);
+}
+.ui-img.is-loaded > .ui-img-el { opacity: 1; }
+.ui-img-cover { object-fit: cover; }
+.ui-img-contain { object-fit: contain; }
+/* the fallback (emoji tile, gradient) fills the box */
+.ui-img > :not(.ui-img-el) { position: absolute; inset: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-img > .ui-img-el { transition: none; }
+}

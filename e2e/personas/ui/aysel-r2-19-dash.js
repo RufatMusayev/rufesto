@@ -1,0 +1,10 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const M = await L.desk(b, 'Səid Əhmədov')
+  await M.page.goto(L.RESTO + '/'); await M.page.waitForTimeout(3500)
+  await L.shot(M.page, '19-overview')
+  L.log((await M.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(130, 900))
+  L.log('order row icons:', await M.page.evaluate(() => [...document.querySelectorAll('[class*=order] img, [class*=order] [class*=emoji], .ov-order img')].slice(0, 4).map(e => e.tagName + ' ' + (e.alt || e.textContent.trim()))))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

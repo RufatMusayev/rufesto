@@ -1,20 +1,22 @@
 // Staff notifications (V2-CONTRACT 21.5): pure helpers, no React and no Supabase. The bell, the panel and the
-// provider share them: item normalisation, what an item says (title, detail), where a tap goes, day sections.
+// provider share them: item normalisation, what an item says (title, detail), where a tap goes, the inline action,
+// "Needs you" / "Earlier" sections (rolling windows, not calendar days), rows folded by table, the short time.
 //
 // CONTRACT 21.2: my_notifications('staff') -> { items, next_cursor, unread }; an item is
 //   { id, ids, type, category, group_key, count, actors, latest_at, read, payload (jsonb), target { kind, id, slug } }.
-// Payload keys read here come from the live producers (sql/34, 42, 41b, 49): waiter_called { table_id,
+// Payload keys read here come from the live producers (sql/34, 42, 41b, 49, 66): waiter_called { request_id, table_id,
 // table_number, restaurant_id, kind }, bill_requested { table_id, restaurant_id, bill_id, amount_due, people },
-// booking_created { booking_id, starts_at, party_size, host }, join_request { table_id, name }. review_received and
-// stock_alert (sql/64) are read defensively (dish_name / rating, ingredient_name): a missing key just drops that
-// part of the detail line.
+// bill_paid { table_id, table_number, restaurant_id, bill_id, intent_id, amount (card charge: food + tip), food, tip,
+// method, payer }, booking_created { booking_id, starts_at, party_size, host }, join_request { table_id, name }.
+// review_received and stock_alert (sql/64) are read defensively (dish_name / rating, ingredient_name): a missing key
+// just drops that part of the detail line.
 
 import { formatPrice } from '@shared/helpers'
-import { addDays, bakuDateString } from './dates'
+import { bakuDateString } from './dates'
 import { bakuTimeLabel } from '../../lib/time'
 
-/** Types that make the optional chime play while the dashboard is open. */
-export const CHIME_TYPES = ['waiter_called', 'bill_requested']
+/** Types that make the optional chime play while the dashboard is open. bill_paid (sql/66) took over the card payments that used to arrive as bill_requested, so it keeps the chime they had. */
+export const CHIME_TYPES = ['waiter_called', 'bill_requested', 'bill_paid']
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -30,9 +32,12 @@ export function parsePayload(raw) {
   return {}
 }
 
+const uuidList = list => [...new Set(list.filter(v => typeof v === 'string' && UUID.test(v)))]
+
 /** One inbox item in the shape the screens use (camelCase, payload parsed, ids never empty). */
 export function normaliseItem(raw) {
   const ids = Array.isArray(raw?.ids) && raw.ids.length ? raw.ids : [raw?.id].filter(Boolean)
+  const payload = parsePayload(raw?.payload)
   return {
     id: raw?.id,
     ids,
@@ -42,7 +47,8 @@ export function normaliseItem(raw) {
     count: Math.max(1, Number(raw?.count) || 1),
     latestAt: raw?.latest_at || null,
     read: !!raw?.read,
-    payload: parsePayload(raw?.payload),
+    payload,
+    requestIds: uuidList([payload.request_id]),
     target: raw?.target && typeof raw.target === 'object' ? raw.target : null,
   }
 }
@@ -56,6 +62,7 @@ export function firstRow(data) {
 export function itemKind(type) {
   const ty = String(type || '')
   if (ty === 'bill_requested') return 'bill'
+  if (ty === 'bill_paid') return 'paid'
   if (ty === 'waiter_called') return 'waiter'
   if (ty.startsWith('join_request')) return 'join'
   if (ty === 'booking_created') return 'booking'
@@ -85,6 +92,7 @@ export function itemTarget(item, canOpen) {
   const tableId = itemTableId(item)
   const byKind = {
     bill: [tableId ? `/bills?table=${encodeURIComponent(tableId)}` : '/bills', '/waiter'],
+    paid: [tableId ? `/bills?table=${encodeURIComponent(tableId)}` : '/bills', '/waiter'],
     waiter: ['/waiter'],
     join: ['/waiter'],
     booking: ['/bookings'],
@@ -123,6 +131,28 @@ export function itemText(item, { t, lang, tableNumbers }) {
         detail: join([
           Number.isFinite(amount) && p.amount_due != null ? formatPrice(amount) : null,
           people > 1 ? t('v2:notifGuests', { count: people }) : null,
+        ]),
+      }
+    }
+    case 'paid': {
+      // sql/66 trg_notify_bill_paid. amount = what the card was charged (food + tip). Only a card payment reaches
+      // the staff today; another method (a future producer) just loses the "by card".
+      const has = v => v != null && v !== '' && Number.isFinite(Number(v))
+      const tip = has(p.tip) ? Number(p.tip) : 0
+      const total = has(p.amount) ? Number(p.amount) : has(p.food) ? Number(p.food) + tip : null
+      const who = table || t('v2:notifTableFallback')
+      const payer = typeof p.payer === 'string' ? p.payer.trim() : ''
+      let title
+      if (total == null) title = t('v2:notifBillPaidNoAmount', { table: who })
+      else {
+        const key = !p.method || p.method === 'card' ? 'v2:notifBillPaid' : 'v2:notifBillPaidPlain'
+        title = t(key, { table: who, amount: formatPrice(total) })
+      }
+      return {
+        title,
+        detail: join([
+          payer ? t('v2:notifPaidBy', { name: payer }) : null,
+          tip > 0 ? t('v2:notifPaidTip', { amount: formatPrice(tip) }) : null,
         ]),
       }
     }
@@ -169,21 +199,119 @@ export function itemText(item, { t, lang, tableNumbers }) {
   }
 }
 
+const MIN = 60 * 1000
+const HOUR = 60 * MIN
+const DAY = 24 * HOUR
+
+/** How long an unread alert stays under "Needs you". */
+export const NEEDS_WINDOW_MS = 2 * HOUR
+/** Rows of the same type for the same table closer together than this fold into one row (x2). */
+export const GROUP_WINDOW_MS = 10 * MIN
+
+const NEEDS_KINDS = new Set(['waiter', 'bill', 'paid', 'join'])
+
+const msOf = value => {
+  const ms = value ? new Date(value).getTime() : NaN
+  return Number.isFinite(ms) ? ms : null
+}
+
 /**
- * Day sections (Baku calendar, the restaurant's clock): [{ key: 'today'|'yesterday'|'earlier', items }], newest
- * first, empty sections left out. `items` must already be newest first.
+ * Folds rows of the same type for the same table that arrived within 10 minutes of each other into one (the newest
+ * leads; counts add up; every id and request id is kept, so one tap marks or acknowledges them all). Rows without a
+ * table, and rows further apart, stay as they are. `items` must be newest first.
  */
-export function groupByDay(items, now = new Date()) {
-  const today = bakuDateString(now)
-  const yesterday = addDays(today, -1)
-  const sections = { today: [], yesterday: [], earlier: [] }
+export function collapseItems(items, windowMs = GROUP_WINDOW_MS) {
+  const out = []
+  const lead = new Map() // `${type}|${table id}` -> the row a later one may still join
   for (const item of items) {
-    const day = item.latestAt ? bakuDateString(new Date(item.latestAt)) : ''
-    if (day === today) sections.today.push(item)
-    else if (day === yesterday) sections.yesterday.push(item)
-    else sections.earlier.push(item)
+    const tableId = itemTableId(item)
+    const key = tableId ? `${item.type}|${tableId}` : null
+    const group = key ? lead.get(key) : null
+    const at = msOf(item.latestAt)
+    const groupAt = group ? msOf(group.latestAt) : null
+    if (group && at != null && groupAt != null && groupAt - at <= windowMs) {
+      group.count += item.count
+      group.ids = [...group.ids, ...item.ids.filter(id => !group.ids.includes(id))]
+      group.requestIds = [...group.requestIds, ...item.requestIds.filter(id => !group.requestIds.includes(id))]
+      group.read = group.read && item.read
+      continue
+    }
+    const next = { ...item }
+    out.push(next)
+    if (key) lead.set(key, next)
   }
-  return ['today', 'yesterday', 'earlier'].filter(k => sections[k].length).map(key => ({ key, items: sections[key] }))
+  return out
+}
+
+/**
+ * What a waiter_called row knows about its request(s). `requests` is { [request id]: { status, by } } read by the
+ * provider (by = 'me' | 'other' | null). -> { state: 'none' | 'unknown' | 'open' | 'acked' | 'done' | 'cancelled', by }.
+ * A folded row stays 'open' while any of its requests is, so "On my way" can still take the rest.
+ */
+export function requestState(item, requests) {
+  const ids = item.requestIds || []
+  if (!ids.length) return { state: 'none', by: null }
+  const found = ids.map(id => requests?.[id]).filter(Boolean)
+  if (found.length < ids.length) return { state: 'unknown', by: null }
+  if (found.some(r => r.status === 'open')) return { state: 'open', by: null }
+  const acked = found.filter(r => r.status === 'acknowledged')
+  if (acked.length) return { state: 'acked', by: acked.every(r => r.by === 'me') ? 'me' : acked.find(r => r.by !== 'me').by }
+  return { state: found.every(r => r.status === 'cancelled') ? 'cancelled' : 'done', by: null }
+}
+
+const SETTLED = new Set(['acked', 'done', 'cancelled'])
+
+/**
+ * "Needs you" = unread waiter calls, bill requests, join requests and card payments younger than 2 hours, minus
+ * calls somebody already took. Everything else is "Earlier". Rolling windows, so a row never says "Yesterday" a few
+ * minutes after midnight. -> [{ key: 'needs' | 'earlier', items }], empty sections left out, order kept.
+ */
+export function splitSections(items, { now = Date.now(), requests = {} } = {}) {
+  const needs = []
+  const earlier = []
+  for (const item of items) {
+    const at = msOf(item.latestAt)
+    const kind = itemKind(item.type)
+    const attention = !item.read && at != null && now - at < NEEDS_WINDOW_MS && NEEDS_KINDS.has(kind)
+    const taken = kind === 'waiter' && SETTLED.has(requestState(item, requests).state)
+    if (attention && !taken) needs.push(item)
+    else earlier.push(item)
+  }
+  return [{ key: 'needs', items: needs }, { key: 'earlier', items: earlier }].filter(s => s.items.length)
+}
+
+/**
+ * The one inline action of a row, or null: waiter_called -> 'ack' (On my way), bill_requested / bill_paid -> 'bill'
+ * (Open bill), booking_created -> 'view'. `canOpen(path)` is lib/roles.js canAccess bound to the role: a role that
+ * cannot open the target page gets no button (the row tap still goes where itemTarget says).
+ */
+export function itemAction(item, canOpen) {
+  switch (itemKind(item.type)) {
+    case 'waiter': return item.requestIds.length && canOpen('/waiter') ? 'ack' : null
+    case 'bill':
+    case 'paid': return canOpen('/bills') ? 'bill' : null
+    case 'booking': return canOpen('/bookings') ? 'view' : null
+    default: return null
+  }
+}
+
+/**
+ * Short relative time for the right edge of a row: now, 5m, 3h, 2d, 3w, then 12 Oct (plus the year when it is not
+ * this year). Words and month names come from the v2 locale files (`t` needs the v2 namespace).
+ */
+export function shortTime(value, { t, now = Date.now() }) {
+  const at = msOf(value)
+  if (at == null) return ''
+  const diff = Math.max(0, now - at)
+  if (diff < MIN) return t('v2:notifTimeNow')
+  if (diff < HOUR) return t('v2:notifTimeMin', { n: Math.floor(diff / MIN) })
+  if (diff < DAY) return t('v2:notifTimeHour', { n: Math.floor(diff / HOUR) })
+  if (diff < 7 * DAY) return t('v2:notifTimeDay', { n: Math.floor(diff / DAY) })
+  if (diff < 28 * DAY) return t('v2:notifTimeWeek', { n: Math.floor(diff / (7 * DAY)) })
+  const [year, month, day] = bakuDateString(new Date(at)).split('-').map(Number)
+  const thisYear = Number(bakuDateString(new Date(now)).slice(0, 4))
+  const params = { day, month: t(`v2:notifMonth_${month}`), year }
+  return t(year === thisYear ? 'v2:notifTimeDate' : 'v2:notifTimeDateYear', params)
 }
 
 /**

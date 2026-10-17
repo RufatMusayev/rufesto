@@ -1,0 +1,63 @@
+{
+  "M_home": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "items": [
+      "1:following:Fincan Coffee (by Aysel Məmmədova)",
+      "2:following:Fincan Coffee (by Aysel Məmmədova)",
+      "3:discover:Trattoria Bella Roma (by Səbinə İbrahimova)",
+      "4:following:Brew & Books (by Aysel Məmmədova)",
+      "5:discover:Trattoria Bella Roma",
+      "6:following:Brew & Books (by Kamilla Rəsulova)",
+      "7:discover:Meze Istanbul (by Ceyhun Məmmədli)",
+      "8:discover:Dönər Bakı Express",
+      "9:discover:Meze Istanbul",
+      "10:discover:Səda Ocağı"
+    ]
+  },
+  "M_friends_tab": "Add friends to see more here. Find friends TODAY M Mehriban Rzayeva · 5m ago Burger Qala Mehriban Rzayeva Round two, post three: burger again, friends only need to know. M Mehriban Rzayeva · 9m ago Burger Qala Mehriban Rzayeva Round two: back at Burger Qala, t",
+  "M_friends_cards": [
+    "M Mehriban Rzayeva · 5m ago Burger Qala Mehri",
+    "M Mehriban Rzayeva · 9m ago Burger Qala Mehri",
+    "M Mehriban Rzayeva · 11h ago Burger Qala 2 li",
+    "F Fərid Məlikov · 1d ago 🍴 Lemon Iced Tea · ",
+    "F Fərid Məlikov · 4d ago 🍴 Lahmacun with Sal"
+  ],
+  "composer": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Cancel",
+    "New post",
+    "Post",
+    "Add a photo",
+    "Caption",
+    "0/500",
+    "Restaurant · optional"
+  ],
+  "composer_controls": [
+    "button|Notifications|44x44",
+    "button|Switch language to English|44x44",
+    "button|Switch language to Azərbaycan dili|44x44",
+    "button|Toggle theme|44x44",
+    "button|Cancel|72x44",
+    "button|Post|54x44",
+    "button|Add a photo|378x473",
+    "textarea|What did you eat?|380x114",
+    "input|Restaurant|380x44",
+    "button|Scan QR|54x54"
+  ],
+  "her_posts_rank_for_anon": [
+    "#2 Round two, post three: pool=discover",
+    "#3 Round two: back at Bur pool=discover",
+    "#11 Lunch at Burger Qala t pool=discover"
+  ],
+  "her_posts_rank_for_ferid": [
+    "#1 Round two, post three: pool=following",
+    "#2 Round two: back at Bur pool=following",
+    "#11 Lunch at Burger Qala t pool=following"
+  ]
+}

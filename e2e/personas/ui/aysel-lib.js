@@ -64,7 +64,7 @@ async function phone(browser, name, opts = {}) {
   const c = await supabase(); const s = name ? await session(name) : null
   const ctx = await browser.newContext({
     ...devices['Pixel 7'], locale: opts.lang === 'az' ? 'az-AZ' : 'en-US',
-    ...(opts.geo ? { geolocation: opts.geo, permissions: ['geolocation'] } : {}),
+    ...(opts.geo ? { geolocation: opts.geo, permissions: ['geolocation', ...(opts.perms || [])] } : (opts.perms ? { permissions: opts.perms } : {})),
     ...(opts.colorScheme ? { colorScheme: opts.colorScheme } : {}),
   })
   await ctx.addInitScript(([key, val, lang, extra]) => {

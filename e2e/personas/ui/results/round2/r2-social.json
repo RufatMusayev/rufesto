@@ -1,0 +1,110 @@
+{
+  "F_friends_entry": {
+    "find_friends_link": 1,
+    "top_text": [
+      "Add friends to see more here.",
+      "Find friends",
+      "YESTERDAY",
+      "F"
+    ]
+  },
+  "F_pill_before": 0,
+  "M_bell_before": "",
+  "M_post_ms": 2110,
+  "M_prompt_after_post": 0,
+  "F_wait_seconds": 135,
+  "F_pill_after_stranger_post": 0,
+  "F_friends_new_count_responses": [
+    {
+      "afterPostS": 52,
+      "n": 0
+    },
+    {
+      "afterPostS": 112,
+      "n": 0
+    }
+  ],
+  "F_search_rows": [
+    "M",
+    "Mehriban Rzayeva",
+    "Add"
+  ],
+  "F_row_has_context_line": "M Mehriban Rzayeva Add",
+  "F_after_add": "M Mehriban Rzayeva Pending",
+  "F_prompt_after_request": 0,
+  "M_badge_appeared_live": true,
+  "M_badge_latency_ms": 1724,
+  "M_bell_after": "1",
+  "M_inbox_after_request": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Notifications",
+    "2",
+    "Mark all read",
+    "All",
+    "Social",
+    "Dine-in",
+    "Bookings",
+    "Places",
+    "TODAY",
+    "F",
+    "👥",
+    "Fərid Məlikov sent you a friend request.",
+    "just now",
+    "Unread",
+    "R",
+    "A",
+    "🤌",
+    "Rufat and Aysel liked your post.",
+    "10h ago"
+  ],
+  "M_inbox_has_inline_accept": 0,
+  "M_tap_item_lands_on": "/friends?tab=requests",
+  "M_after_accept_text": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Friends",
+    "Requests",
+    "Find",
+    "📬",
+    "No pending requests",
+    "New friend requests will show up here."
+  ],
+  "M_prompt_after_accept": 0,
+  "F_badge_after_accept": true,
+  "F_badge_latency_ms_from_accept_click": 2407,
+  "F_inbox_after_accept": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Notifications",
+    "3",
+    "Mark all read",
+    "All",
+    "Social",
+    "Dine-in",
+    "Bookings",
+    "Places",
+    "TODAY",
+    "M",
+    "🤝",
+    "Mehriban Rzayeva accepted your friend request.",
+    "just now",
+    "Unread",
+    "YESTERDAY",
+    "🧾",
+    "Your bill at Dönər Bakı Express is paid (₼12.39). Receipt RF-20261017-000239.",
+    "1d ago",
+    "EARLIER"
+  ],
+  "F_prompt_anywhere": 0,
+  "F_friends_tab_cards": [
+    "M Mehriban Rzayeva · 2m ago Burger Qala Mehriban R",
+    "M Mehriban Rzayeva · 11h ago Burger Qala 2 likes M",
+    "F Fərid Məlikov · 1d ago 🍴 Lemon Iced Tea · Dönər",
+    "F Fərid Məlikov · 4d ago 🍴 Lahmacun with Salad (2"
+  ],
+  "F_perm": "denied"
+}

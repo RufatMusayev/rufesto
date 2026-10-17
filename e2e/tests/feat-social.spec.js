@@ -545,7 +545,7 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     }
   })
 
-  test('feed: a post by someone else shows the "New posts" pill live; tapping it reloads and shows the post', async ({ page, browser }, testInfo) => {
+  test('feed: a post by someone else shows the "New posts" pill (asked when the tab becomes visible, else polled every 60 s); tapping it reloads and shows the post', async ({ page, browser }, testInfo) => {
     test.setTimeout(80_000)
     const { au } = await viewerAuthor(page, browser, testInfo)
     const cap = `${TAG} ${RUN} pill`
@@ -555,6 +555,9 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await expect(page.getByRole('button', { name: 'New posts' })).toHaveCount(0)
       await S.channelsReady(page)
       await S.newPost(au, cap)
+      // friends_new_count is polled every 60 s while the tab is shown (no realtime any more); a browser tab that becomes visible asks at once,
+      // which is what a user coming back to the tab does, so the spec fires that instead of waiting a minute
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
       const ms = await S.timed(() => expect(page.getByRole('button', { name: 'New posts' })).toBeVisible({ timeout: SLA }))
       testInfo.annotations.push({ type: 'realtime', description: `"New posts" pill after ${ms} ms` })
       await expect(S.post(page, cap), 'the list is not reordered under the thumb').toHaveCount(0)
@@ -603,6 +606,8 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await expect(authModal(p)).toBeVisible()
       await p.keyboard.press('Escape')
       await expect(authModal(p)).toHaveCount(0)
+      await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))   // the New post button slides away while the page is scrolled down
+      await p.locator('.soc-fab:not(.soc-fab-away)').waitFor()
       await p.getByRole('button', { name: 'New post' }).click()
       await expect(authModal(p)).toBeVisible()
       await p.keyboard.press('Escape')

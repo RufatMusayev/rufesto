@@ -1,7 +1,8 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { EmptyState } from '../../components/ui'
+import { BellIcon } from './Icons'
 
-/** Placeholder rows shaped like the real ones (avatar, two text lines). */
+/** Placeholder rows shaped like the real ones (44 px circle, two text lines, 64 px high): nothing moves when the rows arrive. */
 export function InboxSkeleton() {
   return (
     <ul className="ntf-list" aria-busy="true" aria-live="polite">
@@ -18,17 +19,15 @@ export function InboxSkeleton() {
   )
 }
 
-const EMPTY = {
-  all:      { icon: '✓',  title: 'allCaughtUp',        body: 'allCaughtUpHint' },
-  social:   { icon: '🤌', title: 'emptySocialTitle',   body: 'emptySocialBody' },
-  dinein:   { icon: '🍽️', title: 'emptyDineinTitle',   body: 'emptyDineinBody' },
-  bookings: { icon: '📋', title: 'emptyBookingsTitle', body: 'emptyBookingsBody' },
-  places:   { icon: '📍', title: 'emptyPlacesTitle',   body: 'emptyPlacesBody' },
-}
-
-/** The "nothing here" block for the current filter. */
-export function EmptyInbox({ category }) {
+/** Signed in, nothing yet (docs/UX-PLAN-2026-10-18.md 2.2): a bell in a circle, what will show up here, and the way to make it happen. */
+export function EmptyInbox() {
   const { t } = useTranslation('notifications')
-  const e = EMPTY[category || 'all']
-  return <EmptyState icon={e.icon} title={t(e.title)} body={t(e.body)} />
+  return (
+    <div className="ntf-empty">
+      <span className="ntf-empty-icon"><BellIcon size={28} /></span>
+      <h2 className="ntf-empty-title">{t('emptyTitle')}</h2>
+      <p className="ntf-empty-body">{t('emptyBody')}</p>
+      <Link to="/friends?tab=find" className="btn btn-ghost">{t('emptyFind')}</Link>
+    </div>
+  )
 }

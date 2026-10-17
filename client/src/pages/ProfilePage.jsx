@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import AuthModal from '../components/AuthModal'
-// FriendsEntry (features/social) is hosted inside ProfileHeader's action row.
-import { MyBookingsTab } from '../features/bookings/mounts'
 import '../features/profile/styles.css'
 import { useProfileData } from '../features/profile/hooks'
 import ProfileHeader from '../features/profile/components/ProfileHeader'
@@ -28,7 +26,7 @@ export default function ProfilePage() {
   const [showAuth, setShowAuth] = useState(false)
 
   const userId = session?.user?.id || null
-  const requested = params.get('tab')
+  const requested = params.get('tab') === 'bookings' ? 'visits' : params.get('tab') // bookings moved into Visits
   const tab = TAB_IDS.includes(requested) ? requested : 'posts'
   const data = useProfileData(userId, tab)
 
@@ -50,7 +48,8 @@ export default function ProfilePage() {
   if (!session) {
     return (
       <div className="pf-page">
-        <SignedOutCard onSignIn={() => setShowAuth(true)} onFeedback={() => setSheet('feedback')} />
+        <SignedOutCard onSignIn={() => setShowAuth(true)} onFeedback={() => setSheet('feedback')} onSettings={() => setSheet('settings')} />
+        <SettingsSheet open={sheet === 'settings'} onClose={closeSheet} onFeedback={() => setSheet('feedback')} />
         <FeedbackSheet open={sheet === 'feedback'} onClose={closeSheet} />
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
@@ -63,6 +62,7 @@ export default function ProfilePage() {
   return (
     <div className="pf-page">
       <ProfileHeader
+        userId={userId}
         name={profile?.name}
         email={email}
         photo={profile?.profile_photo}
@@ -80,13 +80,12 @@ export default function ProfilePage() {
 
       <div className="pf-panel" role="tabpanel" id={panelDomId(tab)} aria-labelledby={tabDomId(tab)}>
         {tab === 'posts' && <PostsPanel resource={data.posts} />}
-        {tab === 'bookings' && <MyBookingsTab userId={userId} />}
         {tab === 'reviews' && <ReviewsPanel resource={data.reviews} />}
         {tab === 'saved' && <SavedPanel resource={data.saved} />}
-        {tab === 'visits' && <VisitsPanel resource={data.visits} />}
+        {tab === 'visits' && <VisitsPanel resource={data.visits} userId={userId} />}
       </div>
 
-      <EditProfileSheet open={sheet === 'edit'} onClose={closeSheet} profile={profile} email={email} />
+      <EditProfileSheet open={sheet === 'edit'} onClose={closeSheet} profile={profile} email={email} onFeedback={() => setSheet('feedback')} />
       <SettingsSheet open={sheet === 'settings'} onClose={closeSheet} onFeedback={() => setSheet('feedback')} />
       <CreditsSheet open={sheet === 'credits'} onClose={closeSheet} userId={userId} credits={data.credits.data} />
       <FeedbackSheet

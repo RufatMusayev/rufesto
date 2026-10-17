@@ -7,7 +7,7 @@ const LANG_NAMES = { en: 'English', az: 'Azərbaycan dili' }
 
 /**
  * EN / AZ switch. The choice is stored by the language detector in localStorage (rufesto_lang), so it is the same
- * signed in or out: the phone header, the desktop sidebar and Profile > Settings all use this component.
+ * signed in or out. Profile > Settings is its only home (docs/UX-PLAN-2026-10-18.md D10: it left the top bar and the rail).
  */
 export default function LanguageSwitcher({ className = '' }) {
   const { t, i18n } = useTranslation('common')

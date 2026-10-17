@@ -22,6 +22,19 @@ const IDLE_STATES = ['free', 'maintenance']
 // Live orders older than this belong to an earlier visit and say nothing about the table now.
 const ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 
+// A short buzz for a new call, with the same guard as the guest app's haptics: only a touch device that has no
+// reduced-motion preference and that the user has already tapped (Chrome logs an error for vibrate() before the first
+// tap, and a desktop has no motor).
+function buzz(ms) {
+  try {
+    if (!('vibrate' in navigator)) return
+    if (!window.matchMedia('(pointer: coarse)').matches) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!navigator.userActivation?.hasBeenActive) return
+    navigator.vibrate(ms)
+  } catch { /* no vibration here */ }
+}
+
 export default function WaiterPage() {
   const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
@@ -108,7 +121,7 @@ export default function WaiterPage() {
         if (!seenOpenIds.current.has(id)) { sawNew = true; break }
       }
       if (sawNew) {
-        navigator.vibrate?.(200)
+        buzz(200)
         setHasNewCall(true)
       }
     }

@@ -57,10 +57,10 @@ test.describe('v2 dashboard', { tag: ['@staff', '@resto', '@v2'] }, () => {
     })
   })
 
-  test('waiter is redirected away from /bills and /settings', async ({ page }) => {
+  test('waiter is redirected away from /bills and /qr-sheet (/settings is open to every staff role)', async ({ page }) => {
     test.skip(!creds.waiter, 'set QA_WAITER_EMAIL and QA_WAITER_PASSWORD')
     await signInGuest(page, creds.waiter)
-    for (const path of ['/bills', '/settings', '/qr-sheet']) {
+    for (const path of ['/bills', '/qr-sheet']) {
       await page.goto(url(path))
       await expect(page, `waiter on ${path}`).toHaveURL(/\/waiter$/)   // RoleGate bounces to the role's home
     }

@@ -1,0 +1,169 @@
+{
+  "home_as_found": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "items": [
+      "1:post:following:Burger Qala",
+      "2:post:following:Burger Qala",
+      "3:post:discover:Fincan Coffee",
+      "4:post:following:Dönər Bakı Express",
+      "5:promo:promo:Dönər Bakı Express",
+      "6:post:discover:Trattoria Bella Roma",
+      "7:post:discover:Trattoria Bella Roma",
+      "8:post:discover:Brew & Books",
+      "9:post:discover:Meze Istanbul",
+      "10:post:discover:Fincan Coffee",
+      "11:post:following:Burger Qala",
+      "12:post:following:Burger Qala"
+    ]
+  },
+  "unfollow_Dönər Bakı Express_ms": 63,
+  "unfollow_Burger Qala_ms": 62,
+  "unfollow_Şirvan Mətbəxi_ms": 60,
+  "home_refetched_after_unfollow_without_reload": 0,
+  "cold_home": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "items": [
+      "1:post:following:Burger Qala",
+      "2:post:following:Burger Qala",
+      "3:post:discover:Fincan Coffee",
+      "4:post:following:Dönər Bakı Express",
+      "5:promo:promo:Dönər Bakı Express",
+      "6:post:discover:Trattoria Bella Roma",
+      "7:post:discover:Trattoria Bella Roma",
+      "8:post:discover:Brew & Books",
+      "9:post:discover:Meze Istanbul",
+      "10:post:discover:Fincan Coffee",
+      "11:post:following:Burger Qala",
+      "12:post:following:Burger Qala"
+    ]
+  },
+  "cold_top8_dom": [
+    "M Mehriban Rzayeva · 3m ago Burger Qal",
+    "M Mehriban Rzayeva · 7m ago Burger Qal",
+    "A Aysel Məmmədova · 26m ago ✓ Verified",
+    "Dönər Bakı Express · 1d ago Open now “",
+    "🍴 Dönər Bakı Express SPONSORED Lunch ",
+    "S Səbinə İbrahimova · 1d ago ✓ Verifie",
+    "Trattoria Bella Roma · 11h ago Open no",
+    "K Kamilla Rəsulova · 14h ago ✓ Verifie"
+  ],
+  "follow_Şirvan Mətbəxi_ms": 58,
+  "follow_Burger Qala_ms": 56,
+  "home_refetched_after_follow_without_reload": 1,
+  "after_follow_home": {
+    "mix": {
+      "nearby": 0,
+      "discover": 10,
+      "following": 0
+    },
+    "items": [
+      "1:post:discover:Fincan Coffee",
+      "2:post:discover:Burger Qala",
+      "3:post:discover:Burger Qala",
+      "4:post:discover:Trattoria Bella Roma",
+      "5:promo:promo:Trattoria Bella Roma",
+      "6:post:discover:Brew & Books",
+      "7:post:discover:Meze Istanbul",
+      "8:post:discover:Fincan Coffee",
+      "9:post:discover:Brew & Books",
+      "10:promo:promo:Sakura House",
+      "11:post:discover:Burger Qala",
+      "12:post:discover:Fincan Coffee"
+    ]
+  },
+  "after_follow_top8_dom": [
+    "A Aysel Məmmədova · 26m ago ✓ Verified",
+    "M Mehriban Rzayeva · 3m ago Burger Qal",
+    "M Mehriban Rzayeva · 7m ago Burger Qal",
+    "Trattoria Bella Roma · 11h ago Open no",
+    "🍴 Trattoria Bella Roma SPONSORED Spag",
+    "K Kamilla Rəsulova · 14h ago ✓ Verifie",
+    "C Ceyhun Məmmədli · 1d ago ✓ Verified ",
+    "A Aysel Məmmədova · 11h ago Fincan Cof"
+  ],
+  "follow_Dönər Bakı Express_ms": 58,
+  "restored_home": {
+    "nearby": 0,
+    "discover": 4,
+    "following": 6
+  },
+  "friends_tab_top": [
+    "Add friends to see more here.",
+    "Find friends",
+    "TODAY",
+    "M",
+    "Mehriban Rzayeva",
+    "· 3m ago"
+  ],
+  "find_url": "/friends?tab=find",
+  "find_aysel_rows": [
+    "A",
+    "Aysel Məmmədova",
+    "Pending",
+    "Aysel Quliyeva",
+    "Add",
+    "Aysel R."
+  ],
+  "find_row_height_and_sub": [
+    "A Aysel Məmmədova Pending A Aysel Quliyeva Add A A | 192"
+  ],
+  "inbox": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Notifications",
+    "3",
+    "Mark all read",
+    "All",
+    "Social",
+    "Dine-in",
+    "Bookings",
+    "Places",
+    "TODAY",
+    "M",
+    "🤝",
+    "Mehriban Rzayeva accepted your friend request.",
+    "5m ago",
+    "Unread",
+    "YESTERDAY",
+    "🧾",
+    "Your bill at Dönər Bakı Express is paid (₼12.39). Receipt RF-20261017-000239.",
+    "1d ago",
+    "EARLIER",
+    "Your bill at Dönər Bakı Express is paid (₼12.39). Receipt RF-20261017-000228.",
+    "4d ago"
+  ],
+  "profile_saved": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "F",
+    "Fərid Məlikov",
+    "★",
+    "261 credits",
+    "0",
+    "Posts",
+    "1",
+    "Friends",
+    "2",
+    "Visits",
+    "Edit profile",
+    "Bookings",
+    "Reviews",
+    "Saved",
+    "🍽️",
+    "Avocado Toast with Fried Egg",
+    "Brew & Books",
+    "₼11.00"
+  ],
+  "console": [],
+  "bad": []
+}

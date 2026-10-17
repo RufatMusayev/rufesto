@@ -3,8 +3,8 @@
 **Routes** (public, inside `<Route element={<AppLayout/>}>`, no auth redirect): `import socialRoutes from '../features/social/routes'` then `{socialRoutes}` gives `/friends`, `/u/:id`, `/post/new`, `/post/:id`.
 **Locales:** self-registered by `features/social/i18n.js` (imported by routes/mounts/nav). Optional: also `resources.en.social = socialEN` / `az` in `lib/i18n.js` (same files, harmless twice).
 **Mounts** (`import { HomeTabs, FriendsEntry } from '../features/social/mounts'`):
-- `HomePage.jsx`: `return <HomeTabs>{ ...existing JSX... }</HomeTabs>` (Discover = children; the Feed tab and the gold "+" FAB live inside `HomeTabs`, no second edit).
-- `ProfilePage.jsx`: `<FriendsEntry />` as a row above the theme toggle (renders nothing signed out). `PostComposerFab` is exported but already used by `HomeTabs`.
+- `HomePage.jsx`: `return <HomeTabs />` (UX round 4: "For you | Friends" with the location pin; Discover moved into the Search tab, an old `?tab=discover` link and a remembered Discover tab go to `/explore`). The gold "+" FAB is gone: the "+" lives in the Home top bar (components/layout).
+- `ProfilePage.jsx`: `<FriendsEntry />` as a row above the theme toggle (renders nothing signed out).
 **nav.js:** `{ id:'friends', to:'/friends', labelKey:'social:navFriends', icon: PeopleIcon, placement:'profile' }`. Add a Sidebar item (desktop); no BottomNav tab.
 **CSS:** `features/social/styles.css` (global once imported, prefix `soc-`). It has ONE global-ish rule: `.main-content:has(.soc-page, .soc-feed) { overflow-x: clip }`. `.main-content { overflow-x: hidden }` in `index.css` makes it a scroll container, which silently disables `position: sticky` (the mobile app header is not sticky today either). Better fix: change that line in `index.css` to `overflow-x: clip` and delete mine.
 **NotificationsPage.jsx:** types `friend_request`, `friend_accepted`, `post_like`, `post_comment` (payload is JSON text: `friendship_id|post_id`, `user_id`, `name`) are not in `TYPE_META`, so they would render the raw JSON. Add icon + text (+ link to `/friends` or `/post/:id`) and keys in `notifications.json`.

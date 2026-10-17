@@ -33,7 +33,7 @@ async function orderOneDish(page) {
   }
   await add.click()
   const place = page.getByRole('button', { name: /^Place Order/ })
-  if (!(await place.isVisible({ timeout: 3_000 }).catch(() => false))) await page.getByRole('button', { name: 'Open cart' }).click()
+  if (!(await place.waitFor({ timeout: 3_000 }).then(() => true, () => false))) await page.getByRole('button', { name: 'Open cart' }).click()
   // placeOrder() is one atomic RPC (place_order) since sql/46; wait for it before doing anything else.
   const placed = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/place_order/.test(r.url()))
   await place.click()   // adding a dish opens the cart sheet by itself on the current build

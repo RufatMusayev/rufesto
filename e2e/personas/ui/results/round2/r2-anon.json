@@ -1,0 +1,233 @@
+{
+  "bundle": "index-_D0J1bFF.js",
+  "h1": [
+    {
+      "t": "Rufesto: home feed",
+      "vis": false
+    }
+  ],
+  "tablist": {
+    "tabs": [
+      {
+        "txt": "Home",
+        "sel": "true",
+        "tabindex": "0",
+        "controls": "home-panel-home"
+      },
+      {
+        "txt": "Friends",
+        "sel": "false",
+        "tabindex": "-1",
+        "controls": "home-panel-friends"
+      },
+      {
+        "txt": "Discover",
+        "sel": "false",
+        "tabindex": "-1",
+        "controls": "home-panel-discover"
+      }
+    ],
+    "panels": 3
+  },
+  "arrowright_selected": [
+    "false",
+    "true",
+    "false"
+  ],
+  "promo_positions_first20": [
+    5,
+    10,
+    15,
+    20
+  ],
+  "textonly_in_top10": [],
+  "card_heights_top10": [
+    697,
+    638,
+    676,
+    695,
+    442,
+    638,
+    676,
+    638,
+    695,
+    158
+  ],
+  "promo_label_texts": [
+    "🍴 Trattoria Bella Roma SPONSORED Spaghetti alla Carbonara ₼",
+    "🍴 Sakura House SPONSORED Dessert on us Order two mains and "
+  ],
+  "first_images": [
+    {
+      "loading": "eager",
+      "fp": "high",
+      "nat": "640x512",
+      "shown": 378,
+      "alt": "Photo by Aysel Məmmədova",
+      "src": "f2d/1792225375007_w640.jpg"
+    },
+    {
+      "loading": "eager",
+      "fp": "high",
+      "nat": "530x640",
+      "shown": 378,
+      "alt": "Photo by Mehriban Rzayev",
+      "src": "abb/1792225127919_w640.jpg"
+    },
+    {
+      "loading": "lazy",
+      "fp": null,
+      "nat": "426x640",
+      "shown": 378,
+      "alt": "Photo by Aysel Məmmədova",
+      "src": "a66a-852f992d4484_w640.jpg"
+    },
+    {
+      "loading": "lazy",
+      "fp": null,
+      "nat": "200x200",
+      "shown": 34,
+      "alt": "",
+      "src": "1414235077428-338989a2e8c0"
+    },
+    {
+      "loading": "lazy",
+      "fp": null,
+      "nat": "640x512",
+      "shown": 378,
+      "alt": "Photo by Trattoria Bella",
+      "src": "b405-2166f241eda5_w640.jpg"
+    },
+    {
+      "loading": "lazy",
+      "fp": null,
+      "nat": "800x533",
+      "shown": 378,
+      "alt": "Spaghetti alla Carbonara",
+      "src": "1612874742237-6526221588e3"
+    }
+  ],
+  "small_targets_home": [],
+  "fab_overlap": {
+    "rect": [
+      344,
+      847,
+      52,
+      52
+    ],
+    "steps": 57,
+    "coveredControls": []
+  },
+  "signin_sheet_headings": [
+    "Rufesto: home feed",
+    "Welcome"
+  ],
+  "signin_sheet_text": "Sign in or create an account — no password needed",
+  "fab_above_sheet": "sheet is above the FAB",
+  "order_this_present": 1,
+  "order_this_result": {
+    "url": "/restaurant/bella-roma?dish=80000001-0000-0000-0000-000000000008&src=post:11e2d0b7-f34f-4cd4-8736-42bc4347f196",
+    "text": [
+      "Rufesto",
+      "EN",
+      "AZ",
+      "24",
+      "dishes",
+      "6",
+      "followers",
+      "reviews",
+      "8/26",
+      "seats",
+      "Trattoria Bella Roma",
+      "Italian Restaurant",
+      "·",
+      "Open",
+      "· until 23:30",
+      "Authentic Roman trattoria bringing the soul of Italy to Baku. Family recipes, fresh pasta, and wood-fired pizza."
+    ]
+  },
+  "lang_switch_present_home": 1,
+  "after_az_tabs": [
+    "Ana səhifə",
+    "Dostlar",
+    "Kəşf et"
+  ],
+  "html_lang_after_az": "az",
+  "az_discover_chips": [
+    "Yaxındakılar üçün məkanımdan istifadə et",
+    "Hamısı",
+    "Azərbaycan",
+    "Kafe",
+    "Fast food",
+    "Gürcü",
+    "İtalyan",
+    "Yapon",
+    "Türk"
+  ],
+  "az_discover_cuisine_lines": [
+    "Türk",
+    "İtalyan",
+    "Fast food",
+    "Azərbaycan",
+    "Gürcü"
+  ],
+  "az_persists_after_reload": [
+    "Ana səhifə",
+    "Dostlar",
+    "Kəşf et"
+  ],
+  "profile_signedout_az_lines": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "🍽️",
+    "Rufesto-ya xoş gəldiniz",
+    "Restoranları kəşf etmək, yeməkləri saxlamaq və söhbətə qoşulmaq üçün daxil olun.",
+    "Daxil ol",
+    "Rəy bildir"
+  ],
+  "lang_buttons_in_az": [
+    "Dili dəyişin: English",
+    "Dili dəyişin: Azərbaycan dili"
+  ],
+  "html_lang_back": "en",
+  "japanese_sections": {
+    "Trending dishes": "Trending dishes Available ₼5.00 Matcha Latte Sakura House ★ 4.0 (1) Available ₼8.00 Gyoza Yaki Sakura House ★ 4.0 (1)",
+    "Promos": "Promos 🍴 Sakura House SPONSORED Dessert on us Order two mains and get a dessert to share. Visit restaurant →",
+    "Top reviews": "Top reviews S Səbinə İbrahimova · 6d ago 🍴 California Roll 8pc · Sakura House ★★★★★ Dadı tam yerində idi, əllərinə sağlıq. ✓ Verified visit 1 like S ",
+    "All restaurants": "All restaurants Closed Sakura House Japanese Tbilisi Ave 8 ★ 4.3 (4) 5 followers View menu → Follow"
+  },
+  "italian_sections": {
+    "Open now": "Open now Open · closes 23:30 Trending Trattoria Bella Roma Italian ★ 4.4 (24) 6 followers",
+    "Trending dishes": "Trending dishes Available ₼13.50 Penne alla Norma Trattoria Bella Roma ★ 5.0 (1) Available ₼7.00 Bruschetta al Pomodoro Trattoria Bella Roma ★ 4.0 (3)",
+    "Promos": "Promos 🍴 Trattoria Bella Roma SPONSORED Spaghetti alla Carbonara ₼15.00 Pasta night −15 % Every pasta dish 15 % off from 18:00, all week. Ask your wa",
+    "Top reviews": "Top reviews S Səbinə İbrahimova · 1d ago 🍴 Tiramisù · Trattoria Bella Roma ★★★★★ ✓ Verified visit 2 3 likes View all 2 replies A Aysel Məmmədova · 7d",
+    "All restaurants": "All restaurants Open · closes 23:30 Trending Trattoria Bella Roma Italian Nizami St 42 ★ 4.4 (24) 6 followers 12 free seats View menu → Follow"
+  },
+  "chip_a11y": {
+    "pressed": "true",
+    "selected": null,
+    "h": 44
+  },
+  "dish_sheet_controls": [],
+  "dish_like_button_named": 0,
+  "dish_like_signin_sheet": false,
+  "dish_like_shows_1_like": false,
+  "dish_like_writes": [],
+  "bad_slug": {
+    "url": "/restaurant/no-such-place",
+    "text": [
+      "Rufesto",
+      "EN",
+      "AZ",
+      "🍽️",
+      "Restaurant not found",
+      "This link may be mistyped or out of date, or the restaurant is no longer on Rufesto.",
+      "Browse restaurants"
+    ]
+  },
+  "ERROR": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.soc-feed-slot').first() to be visible\u001b[22m\n",
+  "console": [],
+  "pageErrors": [],
+  "bad": []
+}

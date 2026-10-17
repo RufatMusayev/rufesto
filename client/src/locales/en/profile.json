@@ -4,7 +4,6 @@
   "editTitle": "Edit profile",
   "settings": "Settings",
   "sections": "Profile sections",
-
   "tabPosts": "Posts",
   "tabBookings": "Bookings",
   "tabReviews": "Reviews",
@@ -13,7 +12,6 @@
   "statPosts": "Posts",
   "statFriends": "Friends",
   "statVisits": "Visits",
-
   "creditsBadge": "{{count}} credits",
   "creditsOpen": "Resto-Credits, {{count}} credits. Show details",
   "restoCredits": "Resto-Credits",
@@ -35,7 +33,6 @@
     "gold": "Gold",
     "platinum": "Platinum"
   },
-
   "openPost": "Open post",
   "newPost": "New post",
   "noPostsTitle": "No posts yet",
@@ -54,7 +51,6 @@
   "exploreRestaurants": "Explore restaurants",
   "viewReceiptOf": "View receipt, {{name}}",
   "restaurantFallback": "Restaurant",
-
   "name": "Name",
   "phone": "Phone",
   "email": "Email",
@@ -64,7 +60,6 @@
   "errInvalidPhone": "Please enter a valid phone number: 7 to 15 digits with the country code, for example {{example}}.",
   "errPhoneTaken": "This number is already used by another account.",
   "errSaveFailed": "Could not save your profile. Try again.",
-
   "language": "Language",
   "darkMode": "Dark mode",
   "lightMode": "Light mode",
@@ -73,7 +68,6 @@
   "deleteNote": "To delete your account and your data, please contact support and we will take care of it.",
   "contactSupport": "Contact support",
   "signOut": "Sign out",
-
   "shareFeedback": "Share feedback",
   "feedbackPromptGuest": "Tell us what you think. No account needed.",
   "feedbackPromptUser": "Tell us what you think: suggestions, issues, or compliments.",
@@ -96,5 +90,8 @@
   "tabShortBookings": "Bookings",
   "tabShortReviews": "Reviews",
   "tabShortSaved": "Saved",
-  "tabShortVisits": "Visits"
+  "tabShortVisits": "Visits",
+  "statCredits": "Credits",
+  "upcomingBookings": "Upcoming",
+  "pastVisits": "Past visits"
 }

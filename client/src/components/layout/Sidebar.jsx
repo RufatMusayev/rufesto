@@ -1,144 +1,36 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useTheme } from '../../contexts/ThemeContext'
 import { useCart } from '../../contexts/CartContext'
-import LanguageSwitcher from '../LanguageSwitcher'
-import socialNav from '../../features/social/nav'
-import bookingsNav from '../../features/bookings/nav'
-import billsNav from '../../features/bills/nav'
 
-// v2 feature entries for the desktop rail. placement 'tab' / 'profile' show here ('profile' ones are
-// reached from the Profile screen on mobile, so the bottom nav never lists them); 'none' is never rendered.
-const FEATURE_NAV = [...socialNav, ...bookingsNav, ...billsNav].filter(n => n.placement === 'tab' || n.placement === 'profile')
-
-// unreadCount is owned by AppLayout (single subscription) and passed down here — this
-// component used to run its own duplicate notifications subscription + count query on
-// desktop, doubling both the realtime channel and the query on every change.
+// The rail (>= 1024 px): Home, Search, Map, Notifications, Table, Profile (docs/UX-PLAN-2026-10-18.md D10). Language and
+// theme are in Profile > Settings; Friends is on Profile. unreadCount is owned by AppLayout (single subscription).
 export default function Sidebar({ unreadCount = 0 }) {
-  const { theme, toggle } = useTheme()
   const { tableId } = useCart()
   const { t } = useTranslation('nav')
 
   return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0, bottom: 0,
-      width: 'var(--sidebar-w)',
-      background: 'var(--bg)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center',
-      paddingTop: '20px',
-      paddingBottom: '20px',
-      zIndex: 90,
-    }}>
-      {/* Logo */}
-      <div style={{
-        marginBottom: '2rem',
-        fontFamily: "'Playfair Display', Georgia, serif",
-        fontSize: '1.15rem', fontWeight: 700,
-        fontStyle: 'italic', letterSpacing: -0.5,
-        background: 'linear-gradient(135deg, var(--t1) 0%, var(--gold) 100%)',
-        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-      }}>
-        R
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+    <aside className="rail">
+      <div className="rail-logo">R</div>
+      <nav className="rail-items" aria-label={t('home')}>
         <SideItem to="/" label={t('home')} Icon={HomeIcon} />
         <SideItem to="/explore" label={t('explore')} Icon={SearchIcon} />
         <SideItem to="/map" label={t('map')} Icon={MapIcon} />
         <SideItem to="/notifications" label={t('notifications')} Icon={BellIcon} badge={unreadCount} />
-        <SideItem to="/profile" label={t('profile')} Icon={ProfileIcon} />
-        {FEATURE_NAV.map(n => <SideItem key={n.id} to={n.to} label={t(n.labelKey)} Icon={n.icon} />)}
         <SideItem to="/table" label={tableId ? t('yourTable') : t('enterTableCode')} Icon={QrIcon} dot={!!tableId} />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <button
-          onClick={toggle}
-          title={theme === 'dark' ? t('lightMode') : t('darkMode')}
-          style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'none', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--t3)', cursor: 'pointer',
-            transition: 'background-color 0.2s ease, color 0.2s ease, transform 120ms cubic-bezier(0.23,1,0.32,1)',
-          }}
-          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
-          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-          onPointerCancel={e => e.currentTarget.style.transform = 'scale(1)'}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.color = 'var(--t1)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)' }}
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </button>
-
-        <LanguageSwitcher />
-        <button
-          title={t('more')}
-          style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'none', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--t3)', cursor: 'pointer',
-            transition: 'background-color 0.2s ease, color 0.2s ease, transform 120ms cubic-bezier(0.23,1,0.32,1)',
-          }}
-          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
-          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-          onPointerCancel={e => e.currentTarget.style.transform = 'scale(1)'}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.color = 'var(--t1)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)' }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-      </div>
+        <SideItem to="/profile" label={t('profile')} Icon={ProfileIcon} />
+      </nav>
     </aside>
   )
 }
 
 function SideItem({ to, label, Icon, badge = 0, dot = false }) {
   return (
-    <NavLink to={to} end={to === '/'} title={label} style={({ isActive }) => ({
-      width: 44, height: 44, borderRadius: 12,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: isActive ? 'var(--accent)' : 'var(--t3)',
-      transition: 'color 150ms, background 150ms',
-      background: 'transparent',
-      position: 'relative',
-      borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
-    })}
-      onMouseEnter={e => { e.currentTarget.style.background = 'var(--s2)'; e.currentTarget.style.color = 'var(--t2)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = '' }}
-    >
+    <NavLink to={to} end={to === '/'} title={label} aria-label={label} className={({ isActive }) => `rail-item pressable${isActive ? ' active' : ''}`}>
       {({ isActive }) => (
         <>
           <Icon filled={isActive} />
-          {badge > 0 && (
-            <span style={{
-              position: 'absolute', top: 4, right: 4,
-              minWidth: 14, height: 14, borderRadius: 100,
-              background: 'var(--accent)', color: '#F5F0E8',
-              fontSize: '0.55rem', fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '0 3px',
-              border: '2px solid var(--bg)',
-            }}>
-              {badge > 9 ? '9+' : badge}
-            </span>
-          )}
-          {dot && badge === 0 && (
-            <span style={{
-              position: 'absolute', top: 6, right: 6,
-              width: 8, height: 8, borderRadius: '50%',
-              background: '#22C55E', boxShadow: '0 0 6px #22C55E',
-              border: '2px solid var(--bg)',
-            }} />
-          )}
+          {badge > 0 && <span className="rail-badge">{badge > 9 ? '9+' : badge}</span>}
+          {dot && badge === 0 && <span className="rail-dot" />}
         </>
       )}
     </NavLink>
@@ -200,25 +92,6 @@ function QrIcon({ filled }) {
       <rect x="14" y="3" width="7" height="7" rx="1.2" />
       <rect x="3" y="14" width="7" height="7" rx="1.2" />
       <path d="M14 14h3M20 14v0M14 17v4M17 21h4M20.5 17.5v0" />
-    </svg>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="4" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
     </svg>
   )
 }

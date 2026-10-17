@@ -10,13 +10,10 @@ const R = require('../support/restaurant')
 const { walker } = require('../support/mobile')
 
 const { url, anonApi } = F
-// the seeded theme of each venue (sql/62) and the display font its section titles use (client/src/features/restaurant/menu/themes/*.css)
-const THEMES = [
-  ['bella-roma', 'classic', /Playfair/i],
-  ['burger-qala', 'bistro', /Barlow/i],
-  ['sakura-house', 'modern', /DM Sans/i],
-  ['fincan-coffee', 'cafe', /Nunito/i],
-]
+// the display font the section titles of each theme use (client/src/features/restaurant/menu/themes/*.css); which venue has which theme is
+// whatever its manager saved in the dashboard (seeded: Bella classic, Burger Qala bistro, Sakura modern, Fincan cafe), so it is read from the answer
+const THEME_FONT = { classic: /Playfair/i, bistro: /Barlow/i, modern: /DM Sans/i, cafe: /Nunito/i }
+const THEME_SLUGS = ['bella-roma', 'burger-qala', 'sakura-house', 'fincan-coffee']
 const noErrors = watch => expect(watch.consoleErrors, 'console errors').toEqual([])
 const menuOf = async (api, slug) => (await api.rpc('restaurant_menu', { p_slug: slug })).body
 const dishesOf = menu => menu.sections.flatMap(s => s.dishes)
@@ -107,11 +104,13 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
   test('menu themes: each venue prints its own theme (classic / bistro / modern / cafe) with its title, note, photos and fonts', async ({ page, watch }) => {
     const api = await anonApi(page)
     const seen = {}
-    for (const [slug, theme, font] of THEMES) {
+    for (const slug of THEME_SLUGS) {
       const rest = await restaurant(api, slug)
-      test.skip(!rest, `${slug} is not on this database`)
+      if (!rest) continue
       const menu = await menuOf(api, slug)
-      expect(menu.design.theme, `${slug}: the theme the database holds`).toBe(theme)
+      const theme = menu.design.theme
+      expect(Object.keys(THEME_FONT), `${slug}: a known theme`).toContain(theme)
+      const font = THEME_FONT[theme]
       await R.gotoMenu(page, slug)
       const wrap = page.locator('.mn-wrap')
       await expect(wrap, `${slug}: theme class`).toHaveAttribute('data-menu', theme)
@@ -128,7 +127,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       await expect(page.locator('.mn-sec-icon')).toHaveCount(theme === 'cafe' ? menu.sections.filter(s => s.dishes.length).length : 0)
       seen[theme] = await page.locator('.mn').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, radius: getComputedStyle(el).borderRadius }))
     }
-    expect(Object.keys(seen).length, 'four different themes were rendered').toBe(4)
+    expect(Object.keys(seen).length, 'at least two different themes among the four venues').toBeGreaterThan(1)
     expect(new Set(Object.values(seen).map(x => `${x.bg}|${x.radius}`)).size, 'the themes do not all look the same').toBeGreaterThan(1)
     noErrors(watch)
   })

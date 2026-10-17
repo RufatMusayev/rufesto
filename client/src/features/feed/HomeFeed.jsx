@@ -10,7 +10,7 @@ import { useNewPostCount } from './useNewPostCount'
 import { useNearEnd, nearEndIndex, nearEndSupported } from './useNearEnd'
 import { useEagerPhotos } from './useEagerPhotos'
 import FeedItem from './components/FeedItem'
-import LocationPill from './components/LocationPill'
+import LocationNote from './components/LocationPill'
 import CaughtUp from './components/CaughtUp'
 import FeedStatus from './components/FeedStatus'
 import MoreRow from './components/MoreRow'
@@ -18,6 +18,7 @@ import { FeedSkeletons } from './components/FeedSkeleton'
 import './styles.css'
 import './cards.css'
 
+const RISE_ITEMS = 6                 // only the first cards of the first page rise in (never a page loaded later)
 const keyOf = it => `${it.kind}-${it.id}`
 
 /**
@@ -27,7 +28,7 @@ const keyOf = it => `${it.kind}-${it.id}`
  * page ends the list with "You're all caught up" and, for a signed-in guest, a chronological tail.
  * `active` is false while another Home tab is shown (the new-posts poll pauses); becoming active again asks
  * the store to make sure its list is fresh (a no-op, or a quiet refetch after a follow / friend change).
- * `onDiscover` switches to the Discover tab.
+ * `onDiscover` opens the Search tab (Discover moved there).
  */
 export default function HomeFeed({ active = true, onDiscover }) {
   const { t } = useTranslation('social')
@@ -69,7 +70,7 @@ export default function HomeFeed({ active = true, onDiscover }) {
 
   return (
     <div className="soc-feed">
-      <LocationPill geo={geo} radiusKm={s.radiusKm} />
+      <LocationNote geo={geo} radiusKm={s.radiusKm} />
       {newCount > 0 && (
         <button type="button" className="soc-newpill" onClick={showNew}>
           {newCount >= NEW_COUNT_CAP ? t('home.newPostsMax') : t('home.newPosts', { count: newCount })}
@@ -83,7 +84,7 @@ export default function HomeFeed({ active = true, onDiscover }) {
           {i === marker && <span ref={markerRef} className="soc-marker" aria-hidden="true" />}
           <FeedItem
             item={it} events={events} onDeleted={homeFeed.remove}
-            index={Math.max(0, i - s.pageStart)} priority={eager.has(keyOf(it))}
+            index={i < RISE_ITEMS ? i : -1} priority={eager.has(keyOf(it))}
           />
         </Fragment>
       ))}

@@ -1,0 +1,11 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  await A.page.goto(L.CONSUMER + '/notifications'); await A.page.waitForSelector('li.ntf-li'); await A.page.waitForTimeout(1500)
+  const li = A.page.locator('li.ntf-li').filter({ hasText: 'Your food is ready' }).first()
+  await li.click(); await A.page.waitForTimeout(2200)
+  L.log('old food-ready tap lands on', A.page.url().replace(L.CONSUMER, ''), '|', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 200))
+  await L.shot(A.page, '20-old-food-ready-tap')
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

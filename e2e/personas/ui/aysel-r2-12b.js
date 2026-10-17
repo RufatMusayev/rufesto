@@ -1,0 +1,12 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const G = await L.phone(b, 'Aysel Məmmədova', { geo: { latitude: 40.386, longitude: 49.818 }, storage: { rufesto_home_tab: 'discover' } })
+  await G.page.goto(L.CONSUMER + '/'); await G.page.waitForSelector('.dsc .dsc-rc'); await G.page.waitForTimeout(1000)
+  await G.page.getByRole('button', { name: 'Use my location for nearby' }).click()
+  await G.page.waitForFunction(() => /within/.test(document.body.innerText), null, { timeout: 15000 }).catch(() => {})
+  await G.page.waitForTimeout(2500)
+  L.log(await G.page.evaluate(() => [...document.querySelectorAll('.dsc article.dsc-rc')].map(c => (c.querySelector('h3')?.innerText || '?') + ' -> ' + (c.querySelector('.dsc-rc-meta')?.innerText || '(no meta)')).join('\n')))
+  L.log('sections:', await G.page.evaluate(() => [...document.querySelectorAll('.dsc h2')].map(h => h.innerText)))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

@@ -1,25 +1,22 @@
 import { useTranslation } from 'react-i18next'
 import { cuisineLabel } from '../cuisine'
 
-/** "All" + the cuisines of active restaurants. Picking one asks the server with p_cuisine (cached per cuisine). */
-export default function CuisineChips({ chips, value, onChange }) {
+/**
+ * The cuisines of active restaurants as a sideways row of chips. Picking one hands its key to `onPick` (Search turns it
+ * into the Cuisine filter); `value` marks the one that is on. No "All" chip: the filter sheet has "Any".
+ */
+export default function CuisineChips({ chips, value, onPick, label }) {
   const { t } = useTranslation('social')
   if (chips.length === 0) return null
   const current = (value || '').toLowerCase()
   return (
-    <div className="dsc-chips no-scrollbar" role="group" aria-label={t('discover.cuisines')}>
-      <button
-        type="button" className={`chip dsc-chip${current ? '' : ' active'}`} aria-pressed={!current}
-        onClick={() => onChange(null)}
-      >
-        {t('discover.all')}
-      </button>
+    <div className="dsc-chips no-scrollbar" role="group" aria-label={label}>
       {chips.map(c => {
         const on = current === c.key.toLowerCase()
         return (
           <button
             key={c.key} type="button" className={`chip dsc-chip${on ? ' active' : ''}`} aria-pressed={on}
-            onClick={() => onChange(c.key)}
+            onClick={() => onPick(on ? null : c.key)}
           >
             {cuisineLabel(t, c.key)}
           </button>

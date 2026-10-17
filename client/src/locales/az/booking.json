@@ -6,7 +6,7 @@
   "retryCamera": "Kameranı Yenidən Sına",
   "enterCodeManually": "Kodu əl ilə daxil et",
   "useCameraInstead": "Əvəzinə kameradan istifadə et",
-  "pasteToken": "Masa tokenini yapışdırın (UUID)",
+  "pasteToken": "Masa kodu, məs. FINCAN-4821",
   "lookingUp": "Axtarılır…",
   "findTable": "Masanı Tap",
   "errInvalidQR": "Yanlış QR kod. Masa tokeni tapılmadı.",

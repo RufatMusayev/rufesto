@@ -1,0 +1,55 @@
+{
+  "cold": {
+    "mix": {
+      "nearby": 0,
+      "discover": 10,
+      "following": 0
+    },
+    "promos": 4,
+    "items": [
+      "1:discover:Fincan Coffee*",
+      "2:discover:Burger Qala*",
+      "3:discover:Burger Qala*",
+      "4:discover:Fincan Coffee*",
+      "5:promo:Trattoria Bella Roma",
+      "6:discover:Brew & Books*",
+      "7:discover:Trattoria Bella Roma",
+      "8:discover:Brew & Books*",
+      "9:discover:Meze Istanbul*",
+      "10:promo:Sakura House",
+      "11:discover:Burger Qala*",
+      "12:discover:Trattoria Bella Roma*",
+      "13:discover:Trattoria Bella Roma",
+      "14:discover:Fincan Coffee"
+    ]
+  },
+  "after_two_follows": {
+    "mix": {
+      "nearby": 0,
+      "discover": 4,
+      "following": 6
+    },
+    "promos": 0,
+    "items": [
+      "1:following:Burger Qala*",
+      "2:following:Burger Qala*",
+      "3:discover:Fincan Coffee*",
+      "4:discover:Fincan Coffee*",
+      "5:discover:Brew & Books*",
+      "6:discover:Trattoria Bella Roma",
+      "7:discover:Trattoria Bella Roma*",
+      "8:discover:Brew & Books*",
+      "9:discover:Meze Istanbul*",
+      "10:discover:Dönər Bakı Express",
+      "11:following:Burger Qala*",
+      "12:following:Burger Qala",
+      "13:discover:Trattoria Bella Roma",
+      "14:discover:Fincan Coffee"
+    ]
+  },
+  "restored": {
+    "nearby": 0,
+    "discover": 4,
+    "following": 6
+  }
+}

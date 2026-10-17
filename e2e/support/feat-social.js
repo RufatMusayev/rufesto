@@ -235,9 +235,15 @@ async function purgePosts(user) {
   }
 }
 
-/** Mark the given notification ids read (best effort) so the bell goes back to what it was. */
+/**
+ * Mark the given notification ids read AND seen (best effort) so the bell goes back to what it was. Clients cannot UPDATE the table any more
+ * (V2-CONTRACT 21.2): mark_notifications does it, per audience (guest rows and staff rows are separate inboxes, the ids are matched in both).
+ */
 async function markRead(user, ids) {
-  if (ids.length) await user.api.patch(`notifications?id=in.(${ids.join(',')})`, { read: true })
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500)
+    for (const aud of ['guest', 'staff']) await user.api.rpc('mark_notifications', { p_ids: chunk, p_read: true, p_seen_only: false, p_audience: aud })
+  }
 }
 
 /** Mark read the social notifications (friend / like / comment) of the last `hours` h that the feature specs caused, so the accounts' bells do not pile up. */

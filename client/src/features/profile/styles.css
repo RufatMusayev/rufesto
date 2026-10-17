@@ -2,6 +2,11 @@
 
 .pf-page { max-width: 470px; margin: 0 auto; padding: 16px 0 80px; }
 
+/* ----------------------------------------------------- page bar (name + gear) */
+.pf-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tap); padding: 0 8px 0 16px; margin-bottom: 4px; }
+.pf-bar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.35rem; line-height: 1.25; color: var(--t1); }
+.pf-gear { flex: 0 0 var(--tap); color: var(--t1); }
+
 /* ------------------------------------------------------------ header card */
 .pf-head { margin: 0 16px; }
 /* burgundy wash with a gold glow where the avatar sits */
@@ -11,54 +16,34 @@
 }
 .pf-head-body { display: flex; flex-direction: column; align-items: center; padding: 0 16px 16px; text-align: center; }
 .pf-avatar { position: relative; margin-top: -40px; }
-.pf-name { max-width: 100%; margin-top: 10px; font-size: 1.35rem; line-height: 1.25; color: var(--t1); overflow-wrap: anywhere; }
 
-.pf-credits {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; min-height: var(--tap); padding: 0 10px 0 12px;
-  border-radius: 100px; border: 1px solid rgba(196,154,44,0.4); background: rgba(196,154,44,0.12);
-  color: var(--gold); font-size: 0.8rem; font-weight: 600;
-  transition: transform var(--t-fast), background-color var(--t-ui);
-}
-.pf-credits:active { transform: scale(0.97); }
-
-.pf-stats { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-top: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.pf-stat { padding: 10px 4px; border: none; background: none; color: inherit; font-family: inherit; transition: background-color var(--t-ui); }
+/* four counters: Posts, Friends (with its request badge), Visits, Credits. Each one is a 44px+ target. */
+.pf-stats { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; margin-top: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pf-stat { min-height: 56px; padding: 10px 2px; border: none; background: none; color: inherit; font-family: inherit; }
 .pf-stat + .pf-stat { border-left: 1px solid var(--border); }
-.pf-stat:active { background: var(--s3); }
-.pf-stat .pf-stat-num { font-family: 'DM Mono', 'Courier New', monospace; font-size: 1.15rem; font-weight: 700; }
+.pf-stat .pf-stat-num { position: relative; display: inline-block; font-family: 'DM Mono', 'Courier New', monospace; font-size: 1.1rem; font-weight: 700; }
 .pf-stat-sk { width: 32px; height: 20px; margin: 0 auto 3px; }
-
-.pf-actions { display: flex; gap: 8px; width: 100%; margin-top: 14px; }
-.pf-action { flex: 1; min-width: 0; min-height: var(--tap); padding: 0 8px; white-space: nowrap; }
-.pf-gear { flex: 0 0 var(--tap); min-height: var(--tap); padding: 0; }
-.pf-friends-slot { flex: 1; min-width: 0; display: flex; }
-/* FriendsEntry is the social feature's list row; here it is restyled as a button of the action row. */
-.pf-friends-slot .soc-entry {
-  flex: 1; min-width: 0; justify-content: center; gap: 8px; min-height: var(--tap); padding: 0 8px;
-  border: 1px solid var(--border); border-radius: 8px; background: var(--s3);
-  transition: background-color var(--t-ui), transform var(--t-fast);
+.pf-stat-badge {
+  position: absolute; top: -6px; right: -16px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 100px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #F5F0E8; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.6rem; font-weight: 700;
 }
-.pf-friends-slot .soc-entry:active { transform: scale(0.97); }
-.pf-friends-slot .soc-entry-label { flex: 0 1 auto; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
-.pf-friends-slot .soc-entry-icon, .pf-friends-slot .soc-entry-chev { display: none; }
+.pf-edit { width: 100%; min-height: var(--tap); margin-top: 14px; }
 @media (hover: hover) and (pointer: fine) {
-  .pf-friends-slot .soc-entry:hover { background: var(--s4); }
-  .pf-credits:hover { background: rgba(196,154,44,0.2); }
   .pf-stat:hover { background: var(--s3); }
 }
 
-.pf-credits:focus-visible, .pf-stat:focus-visible, .pf-tab:focus-visible, .pf-card:focus-visible,
+.pf-stat:focus-visible, .pf-tab:focus-visible, .pf-card:focus-visible,
 .pf-row-link:focus-visible, .pf-tile:focus-visible, .pf-set-row:focus-visible, .pf-switch:focus-visible,
-.pf-rate-btn:focus-visible, .pf-link-btn:focus-visible, .pf-friends-slot .soc-entry:focus-visible {
+.pf-rate-btn:focus-visible, .pf-link-btn:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 .pf-stat:focus-visible { outline-offset: -2px; }
 
 .pf-sk-avatar { width: 77px; height: 77px; border-radius: 50%; }
-.pf-sk-name { width: 150px; height: 22px; margin-top: 10px; }
-.pf-sk-pill { width: 120px; height: 28px; margin-top: 8px; border-radius: 100px; }
+.pf-sk-name { width: 150px; height: 22px; }
 .pf-sk-stats { width: 100%; height: 58px; margin-top: 14px; border-radius: 0; }
-.pf-sk-actions { width: 100%; height: 40px; margin-top: 14px; border-radius: 8px; }
+.pf-sk-actions { width: 100%; height: 44px; margin-top: 14px; border-radius: 8px; }
 
 /* ------------------------------------------------------------------- tabs */
 /* Sticks under the 56px app header on mobile (--sticky-top), at the top on desktop. */
@@ -94,11 +79,10 @@
   display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
   padding: 10px; font-size: 0.72rem; line-height: 1.35; color: var(--t2);
 }
-.pf-tile-new {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px;
-  border: 1.5px dashed var(--border-strong); background: transparent; color: var(--t2);
-  font-size: 0.7rem; font-weight: 600; text-align: center; cursor: pointer;
-}
+
+/* section titles inside the Visits tab (Upcoming, Past visits) */
+.pf-sec { margin-bottom: 8px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--t3); }
+.pf-sec-gap { margin-top: 18px; }
 
 /* list rows (reviews, saved, visits) */
 .pf-sk-row { height: 64px; border-radius: 12px; }
@@ -145,7 +129,9 @@
 .pf-set-link { cursor: pointer; }
 .pf-set-link > svg:last-child { flex-shrink: 0; color: var(--t3); }
 .pf-set-danger .pf-set-icon, .pf-set-danger .pf-set-label { color: var(--red); }
-.pf-delete-note { margin-top: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: 0.82rem; line-height: 1.5; color: var(--t2); }
+.pf-delete { margin-top: 18px; text-align: center; }
+.pf-delete-link { color: var(--red); }
+.pf-delete-note { margin-top: 8px; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: 0.82rem; line-height: 1.5; color: var(--t2); }
 .pf-delete-note .btn { margin-top: 10px; }
 .pf-signout { margin-top: 20px; }
 
@@ -188,5 +174,6 @@
 .pf-link-btn { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 12px; border: none; background: none; font-size: 0.8rem; color: var(--t2); text-decoration: underline; text-underline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-tab, .pf-credits, .pf-stat, .pf-switch, .pf-switch-knob, .pf-rate-btn { transition: none; }
+  .pf-tab, .pf-stat, .pf-switch, .pf-switch-knob, .pf-rate-btn { transition: none; }
+  .pf-tab:active, .pf-rate-btn:active { transform: none; }
 }

@@ -1,6 +1,7 @@
 // A. Logged-out visitor on the consumer app. Always runs; writes nothing.
 const { test, expect, settle } = require('../support/fixtures')
 const { CONSUMER_URL } = require('../support/env')
+const R = require('../support/restaurant')
 
 const url = path => CONSUMER_URL + path
 const viewMenuLinks = page => page.getByRole('link', { name: /view menu/i })
@@ -43,8 +44,9 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     const href = await first.getAttribute('href')
     await first.click()
     await expect(page).toHaveURL(new RegExp(`${href}$`))
-    await expect(dishPrices(page).first()).toBeVisible()
-    expect(await dishPrices(page).count()).toBeGreaterThanOrEqual(1)
+    await R.showMenu(page)   // the restaurant page opens on Posts; the menu is its Menu tab
+    await expect(R.rows(page).first().locator('.mn-price')).toHaveText(/^₼\s*\d/)
+    expect(await R.rows(page).count()).toBeGreaterThanOrEqual(1)
   })
 
   test('map page renders the map and markers', async ({ page }) => {
@@ -77,7 +79,7 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     await expect(slot, 'no bookable slot in the next 7 days').toBeVisible()
     await slot.click()
     const primary = page.locator('.bk-cta .btn')
-    const gate = page.getByRole('heading', { name: /welcome back|sign in to book/i }).first()
+    const gate = page.getByRole('heading', { name: /^welcome( back)?$|sign in to book/i }).first()
     for (let step = 0; step < 3 && !(await gate.isVisible()); step++) await primary.click()
     await expect(gate).toBeVisible()
     await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()

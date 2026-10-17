@@ -57,15 +57,14 @@
   },
   "home": {
     "switch": "Ana səhifə görünüşü",
-    "tab_home": "Ana səhifə",
+    "tab_home": "Sizin üçün",
     "tab_friends": "Dostlar",
-    "tab_discover": "Kəşf et",
     "tab_feed": "Lent",
     "pageTitle_home": "Rufesto: ana lent",
     "pageTitle_friends": "Rufesto: sizin və dostlarınızın paylaşımları",
-    "pageTitle_discover": "Rufesto: restoranları kəşf edin",
     "newPost": "Yeni paylaşım",
     "geoPill": "Yaxındakılar üçün məkanımdan istifadə et",
+    "geoOn": "Yaxınlıqdakı məkanlar göstərilir",
     "geoAsking": "Məkan müəyyən edilir…",
     "geoDenied": "Bu sayt üçün məkan söndürülüb. Yaxınlıqdakı yerləri görmək üçün brauzer ayarlarında icazə verin.",
     "geoError": "Məkanı müəyyən etmək alınmadı. Yenidən cəhd üçün toxunun.",
@@ -75,10 +74,10 @@
     "newPostsMax": "50+ yeni paylaşım",
     "caughtUpTitle": "Hamısını gördünüz",
     "caughtUpBody": "Ən son paylaşımları gördünüz. Hamıdan daha çoxu, yenidən köhnəyə:",
-    "caughtUpGuestBody": "Kəşf et bölməsində bütün restoranlara baxın və ya dostlarınızın paylaşımları üçün daxil olun.",
+    "caughtUpGuestBody": "Axtarışda bütün restoranlara baxın və ya dostlarınızın paylaşımları üçün daxil olun.",
     "emptyTitle": "Hələ burada heç nə yoxdur",
     "emptyBody": "Restoranların paylaşımları tezliklə burada görünəcək.",
-    "openDiscover": "Kəşf et bölməsini aç"
+    "openDiscover": "Məkanları kəşf et"
   },
   "feed": {
     "newPosts": "Yeni paylaşımlar",
@@ -200,19 +199,7 @@
     "deleteConfirm": "Şərhi sil"
   },
   "review": {
-    "rating": "5 baldan {{rating}}",
-    "rated": "{{dish}} {{rating}}/5 qiymətləndirildi",
-    "thisDish": "bu yemək",
-    "verified": "Təsdiqlənmiş ziyarət",
-    "photoAlt": "Rəy şəkli",
-    "replies_one": "{{count}} cavab",
-    "replies_other": "{{count}} cavab",
-    "reply": "Cavablar",
-    "viewReplies_one": "{{count}} cavaba bax",
-    "viewReplies_other": "{{count}} cavabın hamısına bax",
-    "hideReplies": "Cavabları gizlət",
-    "replyPlaceholder": "Cavab yazın…",
-    "noReplies": "Hələ cavab yoxdur. İlk siz yazın."
+    "verified": "Təsdiqlənmiş ziyarət"
   },
   "newPost": {
     "title": "Yeni paylaşım",

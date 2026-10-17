@@ -7,8 +7,8 @@ const DISH = process.env.DISH || 'Tiramisù'
 const TAB = process.env.TAB || 'discover'
 
 const soldOutOnRestaurant = page => page.evaluate(d => {
-  const card = [...document.querySelectorAll('.menu-card')].find(c => c.innerText.includes(d))
-  return card ? /sold out/i.test(card.innerText) : null
+  const row = [...document.querySelectorAll('.mn-row')].find(r => r.querySelector('.mn-name')?.innerText.trim() === d)
+  return row ? row.classList.contains('is-sold') : null
 }, DISH)
 
 /** Home / Discover: the smallest block that names the dish and carries an availability word. Returns { text, sold }. */
@@ -29,7 +29,7 @@ async function goFeed(page) {
   const L = await C.open(browser, 'leyla', { who: 'Leyla', sink })
   const R = await C.open(browser, 'anon', { geo: true, sink })
   const H = await C.open(browser, 'anon', { geo: true, sink })
-  await R.page.goto(C.CONSUMER + '/restaurant/bella-roma'); await R.page.locator('.menu-card').first().waitFor()
+  await R.page.goto(C.CONSUMER + '/restaurant/bella-roma'); await R.page.getByRole('tab', { name: 'Menu' }).click(); await R.page.locator('.mn-row').first().waitFor()
   await goFeed(H.page)
   await L.page.goto(C.RESTO + '/menu'); await L.page.locator('.avail-toggle').first().waitFor()
   console.log(`[${DISH} / ${TAB}] before: restaurant card sold out =`, await soldOutOnRestaurant(R.page), '| feed =', JSON.stringify(await feedProbe(H.page)))

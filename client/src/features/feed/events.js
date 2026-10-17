@@ -71,11 +71,11 @@ export async function flushFeedEvents() {
 }
 
 /**
- * Queue one event. `type` 'post' | 'promo'; `event` one of EVENTS; `pool` / `position` are optional
+ * Queue one event. `type` 'post' | 'promo' | 'review' (a popular review, pool 'popular', sql/67); `event` one of EVENTS; `pool` / `position` are optional
  * (posts opened outside Home carry none).
  */
 export function logFeedEvent({ type, id, event, pool = null, position = null }) {
-  if (disabled || !id || !EVENTS.includes(event) || (type !== 'post' && type !== 'promo')) return
+  if (disabled || !id || !EVENTS.includes(event) || (type !== 'post' && type !== 'promo' && type !== 'review')) return
   wire()
   const row = { item_type: type, item_id: id, event }
   if (pool) row.pool = pool

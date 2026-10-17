@@ -19,7 +19,7 @@ export default function PromoStrip({ restaurantId, onOpenDish }) {
 
   if (!promos.length) return null
   return (
-    <ul className="rst-promos" aria-label={t('posts.promoList')}>
+    <ul className={`rst-promos${promos.length > 1 ? ' is-multi' : ''}`} aria-label={t('posts.promoList')}>
       {promos.map(p => {
         const text = p.title || p.description
         if (!text) return null

@@ -1,0 +1,23 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  const api = await L.api('Aysel Məmmədova')
+  const list = await api.rpc('my_notifications', { p_filter: 'all', p_limit: 30 }).catch(() => null)
+  L.log('my_notifications sample:', JSON.stringify(list).slice(0, 600))
+  await L.step('open inbox', async () => {
+    await A.page.goto(L.CONSUMER + '/notifications'); await A.page.waitForTimeout(3500)
+    await L.shot(A.page, '01-inbox-top')
+    L.log((await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 1500))
+    L.log('chips', await A.page.evaluate(() => [...document.querySelectorAll('[role=tab], .ntf-chip, .ntf-filters button')].map(e => e.innerText.trim() + ':' + (e.getAttribute('aria-selected') || e.getAttribute('aria-pressed')))))
+    L.log('controls', await A.page.evaluate(() => [...document.querySelectorAll('main a, main button')].filter(e => e.offsetParent).slice(0, 14).map(e => ((e.getAttribute('aria-label') || e.innerText || '').trim().replace(/\n+/g, ' ').slice(0, 40)) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height) + (e.getAttribute('href') ? ' ->' + e.getAttribute('href') : ''))))
+  })
+  await L.step('settings page', async () => {
+    await A.page.goto(L.CONSUMER + '/settings/notifications'); await A.page.waitForTimeout(3500)
+    await L.shot(A.page, '01-settings')
+    L.log((await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 1500))
+    L.log('switches', await A.page.evaluate(() => [...document.querySelectorAll('input[type=checkbox], [role=switch]')].map(e => ((e.getAttribute('aria-label') || e.closest('label')?.innerText || e.id || '').trim().replace(/\n+/g, ' ').slice(0, 40)) + '=' + (e.checked ?? e.getAttribute('aria-checked')) + ' dis=' + e.disabled)))
+  })
+  L.log('errors', A.errors.filter(e => !/ERR_ABORTED/.test(e)))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

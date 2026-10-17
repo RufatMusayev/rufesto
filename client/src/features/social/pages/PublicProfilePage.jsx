@@ -10,7 +10,7 @@ import { useRequireAuth, useToast } from '../hooks'
 import TopBar from '../components/TopBar'
 import SignInCard from '../components/SignInCard'
 import FriendButton from '../components/FriendButton'
-import ReviewCard from '../components/ReviewCard'
+import CompactReview from '../../reviews/CompactReview'
 import { CameraIcon } from '../components/Icons'
 
 // get_public_profile takes a uuid: anything else cannot exist, so it is "not found" without a request that would 400.
@@ -120,9 +120,9 @@ export default function PublicProfilePage() {
       )}
 
       {reviews.length > 0 && (
-        <section className="soc-profile-reviews">
+        <section className="soc-profile-reviews rv-flat">
           <h2 className="soc-section-title">{t('profile.reviewsTitle')}</h2>
-          {reviews.map((r, i) => <ReviewCard key={r.id} item={r} index={i} showActions={false} />)}
+          {reviews.map(r => <CompactReview key={r.id} item={r} variant="own" showActions={false} />)}
         </section>
       )}
     </div>,

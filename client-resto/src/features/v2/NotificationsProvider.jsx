@@ -23,11 +23,17 @@ import NotificationPanel from './components/NotificationPanel'
 //    (no error anywhere).
 //  - Opening the panel sets the badge to 0 and calls mark_notifications(seen_only); an item tap marks that group's
 //    ids read; "Mark all read" marks every staff row read.
-//  - The chime plays for waiter_called / bill_requested rows that arrive live, only when switched on here.
+//  - The chime plays for waiter_called / bill_requested / bill_paid rows that arrive live, only when switched on here.
+//  - Waiter calls carry payload.request_id: while the panel is open their service_requests rows are read (floor staff
+//    may; status + who took it) so a call somebody already took leaves "Needs you", and "On my way" runs
+//    ack_service_request (sql/34) on them. Nothing is optimistic except the row the tap itself acknowledged.
 
 const EMPTY = { items: [], nextCursor: null, unread: 0 }
 const BELL_POLL_MS = 60000
 const EVENT_DEBOUNCE_MS = 400
+const REQUEST_LOOKUP_MAX = 60
+
+const firstName = name => String(name || '').trim().split(/\s+/)[0] || ''
 
 export function NotificationsProvider({ children }) {
   const { session, staffRows } = useAuth()
@@ -46,15 +52,25 @@ export function NotificationsProvider({ children }) {
   const [actionError, setActionError] = useState(null)
   const [chime, setChimeState] = useState(readChimePref)
   const [tableNumbers, setTableNumbers] = useState({})
+  const [requests, setRequests] = useState({}) // { [service request id]: { status, by: 'me' | 'other' | null } }
+  const [ackingId, setAckingId] = useState(null) // id of the row whose "On my way" is running
+  const [myName, setMyName] = useState('')
+  const [reqTick, setReqTick] = useState(0)
 
   const openRef = useRef(false)
   const chimeRef = useRef(chime)
   const listRef = useRef(list)
   const reqRef = useRef(0)
   const tablesFor = useRef('')
+  const myStaffIds = useRef([])
+  const nameFor = useRef('')
+  const requestsRef = useRef({})
+  const ackingRef = useRef(null)
   openRef.current = open
   chimeRef.current = chime
   listRef.current = list
+  requestsRef.current = requests
+  myStaffIds.current = (staffRows || []).map(s => s.id)
 
   const loadBadge = useCallback(async () => {
     const { data, error } = await fetchStaffBadge()
@@ -80,6 +96,7 @@ export function NotificationsProvider({ children }) {
     setLoadError(null)
     setList(cur => mergeFirstPage(cur, data))
     setStatus('ready')
+    setReqTick(n => n + 1)
   }, [])
 
   const markSeen = useCallback(async () => {
@@ -95,6 +112,9 @@ export function NotificationsProvider({ children }) {
     setOpen(false)
     setList(EMPTY)
     setStatus('idle')
+    setRequests({})
+    setMyName('')
+    nameFor.current = ''
     if (userId) loadBadge()
   }, [userId, loadBadge])
 
@@ -155,6 +175,46 @@ export function NotificationsProvider({ children }) {
 
   const closePanel = useCallback(() => setOpen(false), [])
 
+  // The service requests behind the waiter calls on screen: still open, or taken (by me / by a colleague).
+  const requestKey = useMemo(() => {
+    const ids = []
+    for (const item of list.items) for (const id of item.requestIds) if (!ids.includes(id)) ids.push(id)
+    return ids.slice(0, REQUEST_LOOKUP_MAX).join(',')
+  }, [list.items])
+
+  const loadRequests = useCallback(async ids => {
+    if (!ids.length) return
+    let res
+    try { res = await supabase.from('service_requests').select('id, status, acknowledged_by').in('id', ids) } catch { return }
+    // A failed read leaves the status unknown: the button still shows, and a refused tap says why.
+    if (res.error || !Array.isArray(res.data)) return
+    setRequests(cur => {
+      const next = { ...cur }
+      for (const row of res.data) {
+        const by = row.acknowledged_by ? (myStaffIds.current.includes(row.acknowledged_by) ? 'me' : 'other') : null
+        next[row.id] = { status: row.status, by }
+      }
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (open && available && requestKey) loadRequests(requestKey.split(','))
+  }, [open, available, requestKey, reqTick, loadRequests])
+
+  // My first name for the "✓ name" a tap on "On my way" leaves on the row (own users row; read once per sign-in).
+  useEffect(() => {
+    if (!open || !userId || nameFor.current === userId) return
+    nameFor.current = userId
+    ;(async () => {
+      try {
+        const { data } = await supabase.from('users').select('name').eq('id', userId).maybeSingle()
+        if (data?.name) setMyName(firstName(data.name))
+        else nameFor.current = ''
+      } catch { nameFor.current = '' }
+    })()
+  }, [open, userId])
+
   const retry = useCallback(() => { setStatus('loading'); loadInbox() }, [loadInbox])
 
   const loadMore = useCallback(async () => {
@@ -172,11 +232,16 @@ export function NotificationsProvider({ children }) {
 
   const markRead = useCallback(async item => {
     if (item.read) return
-    setList(cur => ({
-      ...cur,
-      items: cur.items.map(i => (i.id === item.id ? { ...i, read: true } : i)),
-      unread: Math.max(0, cur.unread - 1),
-    }))
+    const ids = new Set(item.ids) // a row the panel folded (x2) covers several inbox rows
+    setList(cur => {
+      let cleared = 0
+      const items = cur.items.map(i => {
+        if (i.read || !i.ids.some(id => ids.has(id))) return i
+        cleared += 1
+        return { ...i, read: true }
+      })
+      return { ...cur, items, unread: Math.max(0, cur.unread - cleared) }
+    })
     const { error } = await markStaffNotifications({ ids: item.ids })
     if (error) { setActionError(error); loadInbox({ silent: true }) }
   }, [loadInbox])
@@ -187,6 +252,41 @@ export function NotificationsProvider({ children }) {
     const { error } = await markStaffNotifications()
     if (error) { setActionError(error); loadInbox({ silent: true }) }
   }, [loadInbox])
+
+  // "On my way": ack_service_request on every call of the row that is still open. The tapped row shows "✓ name" at
+  // once; a call a colleague was faster on is read back (who took it) instead of shown as an error.
+  const ackItem = useCallback(async item => {
+    if (ackingRef.current) return
+    const todo = (item.requestIds || []).filter(id => {
+      const r = requestsRef.current[id]
+      return !r || r.status === 'open'
+    })
+    if (!todo.length) { loadRequests(item.requestIds || []); return }
+    ackingRef.current = item.id
+    setAckingId(item.id)
+    setActionError(null)
+    const results = await Promise.all(todo.map(async id => {
+      try {
+        const { error } = await supabase.rpc('ack_service_request', { p_id: id })
+        return { id, error }
+      } catch (error) { return { id, error } }
+    }))
+    ackingRef.current = null
+    setAckingId(null)
+    const done = results.filter(r => !r.error).map(r => r.id)
+    const failed = results.filter(r => r.error)
+    if (done.length) {
+      setRequests(cur => {
+        const next = { ...cur }
+        for (const id of done) next[id] = { status: 'acknowledged', by: 'me' }
+        return next
+      })
+      markRead(item)
+    }
+    const hard = failed.find(r => String(r.error?.message || '').trim().toLowerCase() !== 'not_open')
+    if (hard) setActionError(hard.error)
+    if (failed.length) loadRequests(failed.map(r => r.id))
+  }, [loadRequests, markRead])
 
   const setChime = useCallback(on => {
     writeChimePref(on)
@@ -200,9 +300,10 @@ export function NotificationsProvider({ children }) {
     available, badge, open, openPanel, closePanel,
     items: list.items, unread: list.unread, hasMore: !!list.nextCursor, status, loadError, actionError,
     loadingMore, loadMore, retry, markRead, markAllRead, dismissActionError,
-    chime, setChime, tableNumbers,
+    chime, setChime, tableNumbers, requests, ackItem, ackingId, myName,
   }), [available, badge, open, openPanel, closePanel, list, status, loadError, actionError, loadingMore,
-    loadMore, retry, markRead, markAllRead, dismissActionError, chime, setChime, tableNumbers])
+    loadMore, retry, markRead, markAllRead, dismissActionError, chime, setChime, tableNumbers, requests, ackItem,
+    ackingId, myName])
 
   return (
     <NotificationsContext.Provider value={value}>

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import LoadError from '../components/LoadError'
 import AuthModal from '../components/AuthModal'
-import DishDetailSheet from '../components/DishDetailSheet'
+import DishSheetHost from '../components/dish/DishSheetHost'
+import { useDishLink } from '../components/dish/dishLink'
 import FloorPlanSheet from '../components/FloorPlanSheet'
 import { useCart } from '../contexts/CartContext'
 import CartErrorBanner from '../features/restaurant/CartErrorBanner'
@@ -17,6 +18,8 @@ import { findDish, toSheetDish } from '../features/restaurant/mappers'
 import { takeScroll, useFollow, useRestaurant, useSeats } from '../features/restaurant/hooks'
 import { useMenu } from '../features/restaurant/useMenu'
 import '../features/restaurant/restaurant.css'
+
+const RestaurantReviewsSheet = lazy(() => import('../features/reviews/RestaurantReviewsSheet'))
 
 // Restaurant page shell (docs/V2-CONTRACT.md 19.2): header, a sticky Posts | Menu tab bar, and the two tabs.
 // All data and rendering live in features/restaurant; this file only wires them and owns the tab / deep-link state.
@@ -37,10 +40,11 @@ function RestaurantView({ slug }) {
   const seats = useSeats(rid)
   const follow = useFollow(rid)
   const [showFloor, setShowFloor] = useState(false)
-  const [dishDetail, setDishDetail] = useState(null)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
+  const [reviewsLoaded, setReviewsLoaded] = useState(false)     // the reviews sheet mounts on first use, then stays (it animates out)
   const [impatient, setImpatient] = useState(false)
+  const { open: openDish } = useDishLink()
   const anchor = useRef(null)
-  const openedDish = useRef(null)
   const defaultTab = useRef(null)
   const visited = useRef(new Set())
 
@@ -93,19 +97,12 @@ function RestaurantView({ slug }) {
     setParams(nextParams, { replace: true })
   }, [tab, params, setParams])
 
-  const openDishById = useCallback(id => {
+  // The dish sheet is URL-driven (?dish=<id>, UX plan 7.3): Home "Order this", a promo, a menu row and a shared link all
+  // end in the same sheet. A dish of this menu is handed over from here; any other id is read by the host.
+  const resolveDish = useCallback(id => {
     const dish = findDish(menu, id)
-    if (dish) setDishDetail(toSheetDish(dish, lang, restaurant))
+    return dish ? toSheetDish(dish, lang, restaurant) : null
   }, [menu, lang, restaurant])
-
-  // ?dish=<id> (Home post / promo "Order this"): open that dish once the menu is here; unknown ids are ignored.
-  useEffect(() => {
-    if (!dishParam || menuState.status !== 'ready' || !restaurant) return
-    const tag = `${slug}:${dishParam}`
-    if (openedDish.current === tag) return
-    openedDish.current = tag
-    openDishById(dishParam)
-  }, [dishParam, menuState.status, restaurant, slug, openDishById])
 
   if (notFound) return <RestaurantNotFound />
   if (status === 'loading' || deciding) return <PageSkeleton />
@@ -113,7 +110,6 @@ function RestaurantView({ slug }) {
   if (!restaurant) return null
 
   const stats = {
-    dishes: menu ? menu.dishCount : null,
     reviews: menu ? menu.reviewCount : null,
     followers: follow.count,
     seatsFree: seats.free,
@@ -129,6 +125,7 @@ function RestaurantView({ slug }) {
         follow={follow}
         onBack={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         onFloor={() => setShowFloor(true)}
+        onReviews={() => { setReviewsLoaded(true); setReviewsOpen(true) }}
       />
 
       <div ref={anchor} className="rst-anchor" aria-hidden="true" />
@@ -137,14 +134,14 @@ function RestaurantView({ slug }) {
       {TAB_IDS.map(id => (
         <div key={id} role="tabpanel" id={`rst-panel-${id}`} aria-labelledby={`rst-tab-${id}`} className="rst-panel" hidden={tab !== id}>
           {visited.current.has(id) && (id === 'posts' ? (
-            <PostsTab restaurant={restaurant} accent={menu?.design.accent} onOpenDish={openDishById} />
+            <PostsTab restaurant={restaurant} accent={menu?.design.accent} onOpenDish={openDish} />
           ) : (
             <MenuTab
               menuState={menuState}
               restaurant={restaurant}
               seated={isSeatedHere}
               active={tab === 'menu'}
-              onOpenDish={setDishDetail}
+              onOpenDish={openDish}
               onAdd={addDish}
             />
           ))}
@@ -165,7 +162,15 @@ function RestaurantView({ slug }) {
           }}
         />
       )}
-      {dishDetail && <DishDetailSheet dish={dishDetail} onClose={() => setDishDetail(null)} />}
+      <DishSheetHost resolve={resolveDish} />
+      {reviewsLoaded && (
+        <Suspense fallback={null}>
+          <RestaurantReviewsSheet
+            open={reviewsOpen} onClose={() => setReviewsOpen(false)}
+            restaurantId={restaurant.id} restaurantName={restaurant.name}
+          />
+        </Suspense>
+      )}
       {follow.askAuth && <AuthModal onClose={follow.cancelAuth} onSuccess={follow.closeAuth} />}
     </div>
   )

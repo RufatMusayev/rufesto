@@ -187,13 +187,13 @@ test.describe('discover tab', { tag: ['@anon', '@consumer', '@feat'] }, () => {
     await expect(page.getByRole('menuitem', { name: /copy link/i })).toBeVisible()
   })
 
-  test('promos: every promo of the answer is a Promoted card in the rail and its impression is tracked (no tap, so no click is counted)', async ({ page }) => {
+  test('promos: every promo of the answer is a Sponsored card in the rail and its impression is tracked (no tap, so no click is counted)', async ({ page }) => {
     const tracked = []
     page.on('request', r => { if (/rpc\/track_campaign/.test(r.url())) { try { tracked.push(r.postDataJSON()) } catch { /* not JSON */ } } })
     const { data } = await openDiscover(page)
     test.skip(data.promos.length === 0, 'no active promo in the discover answer')
     const rail = section(page, 'Promos')
-    await expect(rail.getByText('Promoted', { exact: true })).toHaveCount(data.promos.length)
+    await expect(rail.getByText('Sponsored', { exact: true })).toHaveCount(data.promos.length)
     await rail.scrollIntoViewIfNeeded()
     await expect.poll(() => tracked.some(t => t.p_event === 'impression' && data.promos.some(p => p.id === t.p_campaign_id)), { message: 'an impression of a shown promo (50 % visible for 1 s)', timeout: 15_000 }).toBe(true)
   })
@@ -329,9 +329,9 @@ test.describe('explore', { tag: ['@anon', '@consumer', '@feat'] }, () => {
     const byDish = dishes.filter(d => d.name.toLowerCase().includes('carbonara')).length
     await search.fill('CARBONARA')
     await expect(cards(page)).toHaveCount(byDish)
-    await search.fill('sakura')
-    await expect(cards(page)).toHaveCount(dishes.filter(d => d.restaurants.name.toLowerCase().includes('sakura')).length)
-    for (const c of await cards(page).all()) await expect(c).toContainText('Sakura House')
+    await search.fill('sakura')   // a restaurant name finds the restaurant itself (a row of its own), not a card per dish of it
+    await expect(page.getByText('Sakura House').first()).toBeVisible()
+    await expect(cards(page), 'dish cards only for dishes whose own name matches').toHaveCount(dishes.filter(d => d.name.toLowerCase().includes('sakura')).length)
     await search.fill('zzzzqq')
     await expect(page.getByText('Nothing found')).toBeVisible()
     await expect(page.getByText('Try a different search or filter')).toBeVisible()
@@ -666,7 +666,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       await open(withIng)
       await expect(sheet(page)).toContainText(withIng.name)
       await expect(sheet(page)).toContainText(money(withIng.price))
-      await expect(sheet(page)).toContainText('Enter a table code on the Table tab to order')   // a guest who is not seated cannot order
+      await expect(sheet(page)).toContainText('To order, scan the QR code on your table')   // a guest who is not seated cannot order
       const names = ing.filter(i => i.dish_id === withIng.id).map(i => i.ingredients.name)
       await sheet(page).getByRole('button', { name: new RegExp(`Ingredients \\(${names.length}\\)`) }).click()
       for (const n of names) await expect(sheet(page)).toContainText(n)
@@ -704,7 +704,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       if (!soldOut) return test.info().annotations.push({ type: 'note', description: 'no sold-out dish on Bella Roma right now' })
       await open(soldOut)
       await expect(sheet(page)).toContainText(/sold out/i)
-      await expect(sheet(page).getByText('Enter a table code on the Table tab to order')).toHaveCount(0)
+      await expect(sheet(page).getByText('To order, scan the QR code on your table')).toHaveCount(0)
       await close()
     })
     noErrors(watch)
@@ -866,7 +866,7 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
     await R.tabBtn(page, 'Menyu').click()
     await expect(R.rows(page).first()).toBeVisible()
     await R.rowOpen(R.byId(page, open.id)).click()
-    await expectAz(page, [['menu', 'enterTablePrompt']], 'Dish sheet')
+    await expectAz(page, [['restaurant', 'dish.orderHint']], 'Dish sheet')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Zal planı' }).click()
     await expect(page.getByRole('dialog', { name: 'Zal planı' })).toBeVisible()

@@ -1,0 +1,59 @@
+{
+  "prompt_on_home_load": 0,
+  "prompt_in_inbox": 0,
+  "permission_requested_so_far": 0,
+  "settings_push_row": [
+    "Notification settings",
+    "THIS DEVICE",
+    "Push notifications on this device",
+    "Get alerts for your food, bookings and more, even when Rufesto is closed.",
+    "WHAT TO NOTIFY ME ABOUT",
+    "Social"
+  ],
+  "settings_switches": [
+    "checked=false disabled=false",
+    "checked=true disabled=false",
+    "checked=true disabled=false",
+    "checked=true disabled=false",
+    "checked=true disabled=false",
+    "checked=false disabled=false"
+  ],
+  "prompt_after_booking_ms": 2411,
+  "prompt_text": [
+    "Remind me 1 hour before?",
+    "A nudge an hour before your table, so you never miss it.",
+    "Not now",
+    "Turn on"
+  ],
+  "page_text_after_booking": [
+    "Rufesto",
+    "EN",
+    "AZ",
+    "Reserve a table",
+    "Request sent",
+    "Fincan Coffee",
+    "Sun 18 Oct · 09:00 · Party of 2",
+    "The restaurant will confirm your booking. Follow its status under Bookings in your profile.",
+    "Invite friends",
+    "Turn on a link friends can use to join this booking.",
+    "View booking",
+    "Remind me 1 hour before?",
+    "A nudge an hour before your table, so you never miss it.",
+    "Not now",
+    "Turn on"
+  ],
+  "prompt_buttons": [
+    "Not now|94x44",
+    "Turn on|87x44"
+  ],
+  "flag_stored": "1",
+  "after_turn_on": [
+    "prompt gone"
+  ],
+  "permission_requested_after_tap": 1,
+  "prompt_returns_on_home": 0,
+  "console": [
+    "error: Chrome currently does not support the Push API in incognito mode (https://crbug.com/41124656). There is deliberately no way to feature-detect this, since incognito mode needs to be undetectable by websites."
+  ],
+  "bad": []
+}

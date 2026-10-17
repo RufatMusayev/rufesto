@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../../../components/ui'
 import Panel, { GridSkeleton } from './Panel'
-import { CameraIcon, PlusIcon } from './Icons'
+import { CameraIcon } from './Icons'
 
 /** One post tile. A photo that cannot be shown (not signed, expired, gone) falls back to a placeholder. */
 function PostTile({ post }) {
@@ -21,7 +21,7 @@ function PostTile({ post }) {
   )
 }
 
-/** Profile -> Posts: the guest's own posts, three to a row, with a "new post" tile first. */
+/** Profile -> Posts: the guest's own posts, three to a row. With no post yet, the empty state offers "New post". */
 export default function PostsPanel({ resource }) {
   const { t } = useTranslation('profile')
   return (
@@ -37,10 +37,6 @@ export default function PostsPanel({ resource }) {
     >
       {posts => (
         <div className="explore-grid pf-grid">
-          <Link to="/post/new" className="pf-tile pf-tile-new">
-            <PlusIcon size={22} />
-            <span>{t('newPost')}</span>
-          </Link>
           {posts.map(post => <PostTile key={post.id} post={post} />)}
         </div>
       )}

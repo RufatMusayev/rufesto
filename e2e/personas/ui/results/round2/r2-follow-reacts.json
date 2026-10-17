@@ -1,0 +1,33 @@
+{
+  "home_top6_after_unfollow": [
+    "Dönər Bakı Express · 1d ago Open now",
+    "A Aysel Məmmədova · 27m ago ✓ Verifi",
+    "M Mehriban Rzayeva · 4m ago Burger Q",
+    "M Mehriban Rzayeva · 8m ago Burger Q",
+    "🍴 Dönər Bakı Express SPONSORED Lunc",
+    "A Aysel Məmmədova · 11h ago Fincan C"
+  ],
+  "home_top6_after_follow": [
+    "M Mehriban Rzayeva · 4m ago Burger Q",
+    "M Mehriban Rzayeva · 8m ago Burger Q",
+    "A Aysel Məmmədova · 27m ago ✓ Verifi",
+    "Dönər Bakı Express · 1d ago Open now",
+    "🍴 Dönər Bakı Express SPONSORED Lunc",
+    "A Aysel Məmmədova · 11h ago Fincan C"
+  ],
+  "timeline": [
+    "181ms home_feed REQUEST",
+    "738ms home_feed RESPONSE following=6 places=[Burger Qala,Dönər Bakı Express]",
+    "3005ms -- Home loaded",
+    "5634ms -- tap Unfollow Burger Qala",
+    "7190ms -- tap Home tab",
+    "7262ms home_feed REQUEST",
+    "8734ms home_feed RESPONSE following=6 places=[Dönər Bakı Express]",
+    "11274ms -- Home shown 4 s",
+    "12850ms -- tap Follow Burger Qala",
+    "14403ms -- tap Home tab",
+    "14468ms home_feed REQUEST",
+    "14994ms home_feed RESPONSE following=6 places=[Burger Qala,Dönər Bakı Express]",
+    "18482ms -- Home shown 4 s"
+  ]
+}

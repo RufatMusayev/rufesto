@@ -1,0 +1,18 @@
+{
+  "default_theme_on_light_scheme_device": "light / localStorage=null / prefers-dark=false",
+  "alt_equals_caption_count": 0,
+  "alt_samples": [
+    "Photo by Aysel Məmmədova",
+    "Photo by Aysel Məmmədova",
+    "Photo by Mehriban Rzayeva",
+    "Photo by Aysel Məmmədova"
+  ],
+  "dish_like_button_named": 1,
+  "after_like_signin_sheet": 1,
+  "after_like_shows_1_like": false,
+  "dish_save_button_named": 1,
+  "after_save_signin_sheet": 1,
+  "dish_writes": [],
+  "dish_sheet_buttons": [],
+  "restaurant_unnamed": []
+}

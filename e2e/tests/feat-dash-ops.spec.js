@@ -55,10 +55,11 @@ const MANAGER_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/
 const ROLES = {
   admin:   { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/posts', '/settings'] },
   manager: { routes: ALL_ROUTES, home: '/', nav: ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', '/bills', '/tips', '/posts', '/settings'] },
-  waiter:  { routes: ['/waiter', '/tables', '/orders', '/my-tips'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/my-tips'] },
-  host:    { routes: ['/waiter', '/tables', '/bookings', '/my-tips'], home: '/waiter', nav: ['/tables', '/bookings', '/waiter', '/my-tips'], mock: true },
-  cashier: { routes: ['/waiter', '/orders', '/tables', '/bills', '/my-tips'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/bills', '/my-tips'], mock: true },
-  kitchen: { routes: ['/kds'], home: '/kds', nav: ['/kds'] },
+  // every role opens /settings now (its Notifications tab; V2-CONTRACT 21.5), so the entry is in every sidebar
+  waiter:  { routes: ['/waiter', '/tables', '/orders', '/my-tips', '/settings'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/my-tips', '/settings'] },
+  host:    { routes: ['/waiter', '/tables', '/bookings', '/my-tips', '/settings'], home: '/waiter', nav: ['/tables', '/bookings', '/waiter', '/my-tips', '/settings'], mock: true },
+  cashier: { routes: ['/waiter', '/orders', '/tables', '/bills', '/my-tips', '/settings'], home: '/waiter', nav: ['/orders', '/tables', '/waiter', '/bills', '/my-tips', '/settings'], mock: true },
+  kitchen: { routes: ['/kds', '/settings'], home: '/kds', nav: ['/kds', '/settings'] },
 }
 const sorted = a => [...a].sort()
 
@@ -426,7 +427,7 @@ const bakuToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baku'
 const todayStart = () => encodeURIComponent(`${bakuToday()}T00:00:00+04:00`)
 const IDLE = ['free', 'cleared', 'maintenance']
 const lastDiv = page => page.locator('main.dash-content > div > div:last-child > div')   // the list under the filter chips (Orders, Bookings, Promos, Menu)
-const stat = (page, label) => page.locator('.stat-card').filter({ has: page.locator('.stat-label', { hasText: label }) }).locator('.stat-value')
+const stat = (page, label) => page.locator('.stat-card').filter({ has: page.locator('.stat-label', { hasText: typeof label === 'string' ? new RegExp(`^${label}$`) : label }) }).locator('.stat-value')
 const ordersToday = async page => parseInt(await page.locator('main h1 + span').innerText(), 10)
 const kdsCol = (page, name) => page.locator('.kds-col').filter({ has: page.locator('.kds-col-title', { hasText: new RegExp(`^${name}$`, 'i') }) })
 const chip = (page, re) => page.locator('.chip').filter({ hasText: re })
@@ -482,16 +483,23 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
   test.describe.configure({ mode: 'default' })
   const env = useEnv(['B1', 'B2'])
 
-  test('stat cards (revenue, orders, active tables, menu) agree with the database', async ({ page }) => {
+  test('stat cards (revenue, open orders, orders, active tables, menu) agree with the database', async ({ page }) => {
     const api = await openDash(page, 'manager', '/')
-    const [tables, dishes, orders] = await Promise.all([
+    const day = bakuToday()
+    const [tables, dishes, orders, st] = await Promise.all([
       api.rows(`tables?restaurant_id=eq.${F.SAKURA_ID}&is_active=eq.true&select=state`),
       api.rows(`dishes?restaurant_id=eq.${F.SAKURA_ID}&select=available`),
       api.rows(`orders?restaurant_id=eq.${F.SAKURA_ID}&placed_at=gte.${todayStart()}&select=status,total_amount`),
+      api.rpc('restaurant_day_stats', { p_restaurant_id: F.SAKURA_ID, p_from: day, p_to: day }),
     ])
-    const revenue = orders.filter(o => !['cancelled', 'refunded'].includes(o.status)).reduce((s, o) => s + Number(o.total_amount || 0), 0)
-    await expect(stat(page, 'Revenue')).toHaveText(money(revenue))
-    await expect(stat(page, 'Orders Today')).toHaveText(String(orders.length))
+    expect(st.ok, 'restaurant_day_stats answers a manager').toBe(true)
+    const totals = st.body.totals
+    // Revenue = collected on settled bills (VAT in, tips out); unpaid orders are "Open orders" and are NOT revenue (V2-CONTRACT 20)
+    const open = orders.filter(o => !['paid', 'cancelled', 'refunded'].includes(o.status))
+    await expect(stat(page, 'Revenue')).toHaveText(money(totals.revenue_collected))
+    await expect(stat(page, 'Open orders')).toHaveText(money(open.reduce((a, o) => a + Number(o.total_amount || 0), 0)))
+    await expect(stat(page, 'Orders')).toHaveText(String(totals.orders))
+    await expect(stat(page, 'Tips')).toHaveText(money(totals.tips))
     await expect(stat(page, 'Active Tables')).toHaveText(`${tables.filter(t => !IDLE.includes(t.state)).length}/${tables.length}`)
     await expect(stat(page, 'Menu Available')).toHaveText(`${dishes.filter(d => d.available).length}/${dishes.length}`)
   })
@@ -502,7 +510,8 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     const day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     await expect(page.getByText(`Live · ${day}`)).toBeVisible()
     for (const s of ['RECENT ORDERS', 'TABLES', 'QUICK ACTIONS']) await expect(page.locator('.dash-section-title', { hasText: s })).toBeVisible()
-    await expect(page.locator('main').getByText(/^(Free|Busy|Ordering|Reserved)$/)).toHaveCount(4)   // legend
+    // the floor legend lists every state a table can show
+    await expect(page.locator('.ov-legend-item')).toHaveText(['Free', 'Reserved', 'Occupied', 'Ordering', 'Awaiting Pay', 'Cleared', 'Maintenance'])
   })
 
   test('Active Tables counts reserved tables but not tables in maintenance (live, no reload)', async ({ page }) => {
@@ -522,19 +531,22 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     await set('free')
   })
 
-  test('a guest order bumps Orders Today, revenue, active tables, recent orders and the kitchen alert live', async ({ page }) => {
+  test('a guest order bumps Orders, Open orders, active tables, recent orders and the kitchen alert live; revenue waits for the bill', async ({ page }) => {
     const api = await openDash(page, 'manager', '/')
     const b2 = await F.tableInfo(env.mgr, 'B2')
     const text = async label => (await stat(page, label).innerText()).trim()
-    const orders0 = parseInt(await text('Orders Today'), 10)
-    const revenue0 = Number((await text('Revenue')).replace('₼', ''))
+    const amount = async label => Number((await text(label)).replace(/[^0-9.]/g, ''))
+    const orders0 = parseInt(await text('Orders'), 10)
+    const open0 = await amount('Open orders')
+    const revenue0 = await text('Revenue')
     const active0 = parseInt(await text('Active Tables'), 10)
     const { orderId } = await env.order('B2', env.items(1, 2))
     const [o] = await api.rows(`orders?id=eq.${orderId}&select=total_amount`)
-    await expect(stat(page, 'Orders Today')).toHaveText(String(orders0 + 1), { timeout: 15_000 })
-    await expect(stat(page, 'Revenue')).toHaveText(money(revenue0 + Number(o.total_amount)), { timeout: 15_000 })
+    await expect(stat(page, 'Orders')).toHaveText(String(orders0 + 1), { timeout: 15_000 })
+    await expect(stat(page, 'Open orders')).toHaveText(money(open0 + Number(o.total_amount)), { timeout: 15_000 })
+    await expect(stat(page, 'Revenue'), 'an unpaid order is not revenue').toHaveText(revenue0)
     await expect(stat(page, 'Active Tables')).toHaveText(new RegExp(`^${active0 + 1}/`), { timeout: 15_000 })
-    const first = page.locator('.dash-grid > div').first().locator('> div').last().locator('> div').first()
+    const first = page.locator('.ov-orders .ov-order').first()   // the newest order heads the Recent orders list
     await expect(first).toContainText(`Table ${b2.number}`)
     await expect(first).toContainText(money(o.total_amount))
     const banner = page.getByRole('link', { name: /in kitchen/ })
@@ -585,7 +597,7 @@ async function consumerOrder(guest, code) {
   }
   await add.click()
   const place = guest.getByRole('button', { name: /^Place Order/ })
-  if (!(await place.isVisible({ timeout: 3_000 }).catch(() => false))) await guest.getByRole('button', { name: 'Open cart' }).click()
+  if (!(await place.waitFor({ timeout: 3_000 }).then(() => true, () => false))) await guest.getByRole('button', { name: 'Open cart' }).click()
   const placed = guest.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/place_order/.test(r.url()))
   await place.click()
   const res = await placed
@@ -1087,9 +1099,9 @@ test.describe('waiter page', { tag: ['@staff', '@resto', '@dash-ops', '@do-waite
       await expect(guest.page.getByRole('button', { name: /Waiter called/ })).toBeVisible()
       const calls = page.locator('.chip', { hasText: /^Calls \(/ })
       await expect(calls).toHaveText('Calls (1)', { timeout: 15_000 })
-      await expect(calls.locator('span[style*="border-radius: 50%"]'), 'red dot for a new call while another tab is open').toBeVisible()
+      await expect(calls.locator('.wt-dot--red'), 'red dot for a new call while another tab is open').toBeVisible()
       await calls.click()
-      await expect(calls.locator('span[style*="border-radius: 50%"]')).toHaveCount(0)
+      await expect(calls.locator('.wt-dot--red')).toHaveCount(0)
       const card = page.locator('main > div > div:last-child > div').first()
       await expect(card).toContainText('Table T2')
       await expect(card).toContainText('Main Floor')
@@ -1464,6 +1476,7 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
 // =====================================================================================================================
 const toLocalInput = d => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 const promoCard = (page, name) => lastDiv(page).filter({ hasText: name })
+const promoCards = page => lastDiv(page).filter({ hasNotText: /^No campaigns/ })   // an empty list is a single "No campaigns ..." div
 
 test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }, () => {
   test.describe.configure({ mode: 'default' })
@@ -1495,9 +1508,9 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
         await m.getByRole('textbox', { name: 'Description', exact: true }).fill('Created by the dashboard ops test')
         await m.getByRole('button', { name: 'Discount', exact: true }).click()
         await m.locator('select').first().selectOption({ label: dishName })
-        const nums = m.locator('input[type=number]')
-        await nums.nth(0).fill('50')
-        await nums.nth(1).fill('10')
+        await m.locator('input[type=number]').nth(0).fill('50')   // the discount value (percent by default); the budget and daily limit follow
+        await m.getByLabel(/^Budget/).fill('50')
+        await m.getByLabel(/^Daily Limit/).fill('10')
         const dates = m.locator('input[type=datetime-local]')
         await dates.nth(0).fill(toLocalInput(new Date(Date.now() - 3_600_000)))
         await dates.nth(1).fill(toLocalInput(new Date(Date.now() + 2 * 86_400_000)))
@@ -1521,7 +1534,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
         await expect(m.getByRole('heading', { name: 'Edit Campaign' })).toBeVisible()
         await expect(m.locator('input.input').nth(0)).toHaveValue(name)
         await expect(m.locator('input[type=datetime-local]').nth(1)).not.toHaveValue('')
-        await m.locator('input[type=number]').nth(0).fill('75')
+        await m.getByLabel(/^Budget/).fill('75')
         await m.getByRole('button', { name: 'Save Changes' }).click()
         await expect(m).toBeHidden({ timeout: 15_000 })
         await expect(card).toContainText('₼75.00 budget')
@@ -1534,7 +1547,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
         await expect(card.getByRole('button', { name: 'Activate' })).toHaveCount(0)
         await expect(page.getByText(/\d+ active · \d+ total/)).toBeVisible()
         expect(await onHome(), 'an active campaign inside its run window shows on the Home feed').toBeGreaterThan(0)
-        await expect(home.locator('article', { hasText: title }).first()).toContainText(/Promoted|Sponsored/i)
+        await expect(home.locator('article', { hasText: title }).first()).toContainText('Sponsored')
       })
       await test.step('Pause: Paused, gone from the Home', async () => {
         await card.getByRole('button', { name: 'Pause' }).click()
@@ -1565,20 +1578,30 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
     await page.getByRole('button', { name: 'New Campaign' }).click()
     const m = modalOf(page)
     const create = () => m.getByRole('button', { name: 'Create Campaign' }).click()
+    // a new campaign starts today and runs seven days (the dates are prefilled); the first failed Save shows the errors under their fields
+    const dates = m.locator('input[type=datetime-local]')
+    await expect(dates.nth(0), 'the run window is prefilled').not.toHaveValue('')
+    await expect(dates.nth(1)).not.toHaveValue('')
     await create(); await expect(m.getByText('Name is required')).toBeVisible()
     await m.locator('input.input').nth(0).fill(`${PQA} invalid`)
     await create(); await expect(m.getByText('Title is required')).toBeVisible()
+    await expect(m.getByText('Name is required'), 'an error goes away as soon as its field is right').toHaveCount(0)
     await m.locator('input.input').nth(1).fill('x')
     await create(); await expect(m.getByText('Budget must be greater than 0')).toBeVisible()
-    await m.locator('input[type=number]').nth(0).fill('20')
+    await m.getByLabel(/^Budget/).fill('20')
+    await dates.nth(0).fill('')
     await create(); await expect(m.getByText('Start and end dates are required')).toBeVisible()
-    const dates = m.locator('input[type=datetime-local]')
     await dates.nth(0).fill(toLocalInput(new Date(Date.now() + 86_400_000)))
     await dates.nth(1).fill(toLocalInput(new Date(Date.now() - 86_400_000)))
     await create(); await expect(m.getByText('End date must be after start date')).toBeVisible()
-    await m.locator('input[type=number]').nth(1).fill('-1')
+    await m.getByLabel(/^Daily Limit/).fill('-1')
     await dates.nth(1).fill(toLocalInput(new Date(Date.now() + 2 * 86_400_000)))
     await create(); await expect(m.getByText('Daily limit must be greater than 0')).toBeVisible()
+    await m.getByRole('button', { name: 'Discount', exact: true }).click()   // the Discount type asks for its value
+    await m.getByLabel(/^Daily Limit/).fill('')
+    await create(); await expect(m.getByText('Enter a percentage between 1 and 100')).toBeVisible()
+    await m.locator('input[type=number]').nth(0).fill('101')
+    await create(); await expect(m.getByText('Enter a percentage between 1 and 100')).toBeVisible()
     await m.getByRole('button', { name: 'Cancel' }).click()
     expect((await api.rows(`ad_campaigns?name=like.${encodeURIComponent(PQA + ' invalid*')}&select=id`)).length).toBe(0)
   })
@@ -1595,7 +1618,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
       await expect(chip(page, new RegExp(`^${label} \\(`))).toHaveText(`${label} (${n(s)})`)
     }
     await chip(page, /^Cancelled \(/).click()
-    await expect(lastDiv(page)).toHaveCount(n('cancelled'))
+    await expect(promoCards(page)).toHaveCount(n('cancelled'))
     await chip(page, /^All \(/).click()
     const ended = all.filter(c => c.status === 'active' && new Date(c.ends_at).getTime() < now)
     for (const c of ended) {
@@ -1603,7 +1626,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
       await expect(card, `"${c.name}" is active in the database but its end date has passed`).toContainText('Completed')
     }
     await chip(page, /^Completed \(/).click()
-    await expect(lastDiv(page), 'Completed chip lists the ended campaigns too').toHaveCount(n('completed'))
+    await expect(promoCards(page), 'Completed chip lists the ended campaigns too').toHaveCount(n('completed'))
   })
 
   test('the waiter and the kitchen cannot create or change campaigns (RLS), while the page stays hidden from them', async ({ browser }, testInfo) => {

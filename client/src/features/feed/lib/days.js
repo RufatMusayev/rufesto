@@ -13,6 +13,27 @@ export function bakuDay(d) {
 /** The day a feed item belongs to: the server's `day`, else the Baku day of `createdAt`. */
 export const dayOf = item => item.day || (item.createdAt ? bakuDay(item.createdAt) : '')
 
+const FRESH_MS = 6 * 3600 * 1000
+
+/**
+ * The day each item is filed under for the separators of the Friends feed (parallel to `items`). Items of a Baku day whose
+ * newest item is under 6 h old are filed under today: just after midnight a separator "Yesterday" above a post
+ * "1h ago" read as a bug, and the posts of both days flow into one "Today" group.
+ */
+export function separatorDays(items, now = Date.now()) {
+  const today = bakuDay(now)
+  const newest = new Map()
+  for (const it of items) {
+    const d = dayOf(it)
+    const at = Date.parse(it.createdAt) || 0
+    if (at > (newest.get(d) || 0)) newest.set(d, at)
+  }
+  return items.map(it => {
+    const d = dayOf(it)
+    return d !== today && now - (newest.get(d) || 0) < FRESH_MS ? today : d
+  })
+}
+
 /** 'today' | 'yesterday' | null for a 'YYYY-MM-DD' day. */
 export function relativeDay(day, now = Date.now()) {
   if (day === bakuDay(now)) return 'today'

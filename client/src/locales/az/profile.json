@@ -4,7 +4,6 @@
   "editTitle": "Profili redaktə et",
   "settings": "Ayarlar",
   "sections": "Profil bölmələri",
-
   "tabPosts": "Paylaşımlar",
   "tabBookings": "Rezervasiyalar",
   "tabReviews": "Rəylər",
@@ -13,7 +12,6 @@
   "statPosts": "Paylaşımlar",
   "statFriends": "Dostlar",
   "statVisits": "Ziyarətlər",
-
   "creditsBadge": "{{count}} kredit",
   "creditsOpen": "Resto-Kredit, {{count}} kredit. Ətraflı bax",
   "restoCredits": "Resto-Kreditlər",
@@ -35,7 +33,6 @@
     "gold": "Qızıl",
     "platinum": "Platin"
   },
-
   "openPost": "Paylaşımı aç",
   "newPost": "Yeni paylaşım",
   "noPostsTitle": "Hələ paylaşım yoxdur",
@@ -54,7 +51,6 @@
   "exploreRestaurants": "Restoranları kəşf et",
   "viewReceiptOf": "Çeqə bax, {{name}}",
   "restaurantFallback": "Restoran",
-
   "name": "Ad",
   "phone": "Telefon",
   "email": "E-poçt",
@@ -64,7 +60,6 @@
   "errInvalidPhone": "Düzgün telefon nömrəsi daxil edin: ölkə kodu ilə 7-15 rəqəm, məsələn {{example}}.",
   "errPhoneTaken": "Bu nömrə başqa hesabda istifadə olunur.",
   "errSaveFailed": "Profiliniz yadda saxlanılmadı. Yenidən cəhd edin.",
-
   "language": "Dil",
   "darkMode": "Qaranlıq rejim",
   "lightMode": "İşıqlı rejim",
@@ -73,7 +68,6 @@
   "deleteNote": "Hesabınızı və məlumatlarınızı silmək üçün dəstək xidməti ilə əlaqə saxlayın, biz kömək edəcəyik.",
   "contactSupport": "Dəstəklə əlaqə saxla",
   "signOut": "Çıxış",
-
   "shareFeedback": "Rəy bildir",
   "feedbackPromptGuest": "Fikrinizi bildirin. Hesab lazım deyil.",
   "feedbackPromptUser": "Fikrinizi bildirin: təkliflər, problemlər və ya tərif.",
@@ -96,5 +90,8 @@
   "tabShortBookings": "Rezerv",
   "tabShortReviews": "Rəylər",
   "tabShortSaved": "Saxlanan",
-  "tabShortVisits": "Ziyarət"
+  "tabShortVisits": "Ziyarət",
+  "statCredits": "Kredit",
+  "upcomingBookings": "Gələcək",
+  "pastVisits": "Keçmiş ziyarətlər"
 }

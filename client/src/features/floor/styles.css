@@ -2,7 +2,7 @@
    the pixel palette below is local to the sheet. The map itself is an SVG of whole-pixel cells (crisp edges). */
 
 .fl-sheet {
-  /* floor + furniture */
+  /* (on the BottomSheet root) floor + furniture */
   --fl-floor:      var(--s2);
   --fl-tile:       rgba(245, 240, 232, 0.04);
   --fl-wall:       #5A4C42;
@@ -17,12 +17,9 @@
   --fl-lit-edge:   #F0C8D4;
   --fl-mine:       var(--gold-h);
   --fl-mine-edge:  #FFF1C2;
-
-  width: 100%; max-width: 540px; margin: 0 auto;
-  display: flex; flex-direction: column;
-  max-height: 90vh; max-height: 90dvh;
-  overflow: hidden;
 }
+/* the BottomSheet body: chips, legend and the map's own scroller stack in a column; only .fl-scroll scrolls */
+.fl-body { display: flex; flex-direction: column; overflow: hidden; }
 
 [data-theme="light"] .fl-sheet {
   --fl-tile:       rgba(26, 18, 16, 0.045);
@@ -53,7 +50,7 @@
 [data-theme="light"] .fl-st-maintenance      { --fl-c: #4F5F73; }
 
 /* header */
-.fl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 6px 18px 10px; flex-shrink: 0; }
+.fl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 12px 10px 18px; flex-shrink: 0; }
 .fl-title-row { display: flex; align-items: center; gap: 8px; }
 .fl-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.2rem; font-weight: 700; color: var(--t1); line-height: 1.2; }
 .fl-live { display: inline-flex; align-items: center; gap: 4px; font-size: 0.62rem; font-weight: 700; color: var(--sage-text); letter-spacing: 0.6px; text-transform: uppercase; }
@@ -112,7 +109,7 @@
 @keyframes flRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* footer: hint or the tapped table */
-.fl-foot { flex: 0 0 auto; padding: 10px 14px calc(14px + env(safe-area-inset-bottom)); }
+.fl-foot { flex: 0 0 auto; }
 .fl-hint { text-align: center; font-size: 0.74rem; color: var(--note); padding: 8px 0; }
 
 .fl-detail { background: var(--s2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px 14px; animation: flRise 220ms var(--ease-out); }

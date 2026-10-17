@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
-import useEscapeClose from '../ui/useEscapeClose'
+import BottomSheet from '../ui/BottomSheet'
+import './callWaiter.css'
 
 const COOLDOWN_MS = 2 * 60 * 1000
 
@@ -19,7 +20,6 @@ const KINDS = [
 export default function CallWaiterSheet({ tableId }) {
   const { t } = useTranslation(['table', 'common'])
   const [open, setOpen] = useState(false)
-  useEscapeClose(() => setOpen(false), open)
   const [calling, setCalling] = useState(false)
   const [error, setError] = useState('')
   const [activeRequest, setActiveRequest] = useState(null)
@@ -109,54 +109,20 @@ export default function CallWaiterSheet({ tableId }) {
         {buttonLabel}
       </button>
 
-      {open && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="sheet">
-            <div className="sheet-handle" />
-            <div style={{ padding: '1rem 1.25rem 2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 700, color: 'var(--t1)' }}>
-                  {t('table:callWaiterTitle')}
-                </h2>
-                <button onClick={() => setOpen(false)} className="icon-btn" aria-label={t('common:close')}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
+      <BottomSheet id="waiter" open={open} onClose={() => setOpen(false)} title={t('table:callWaiterTitle')}>
+        {error && <p className="cw-error" role="alert">{error}</p>}
 
-              {error && (
-                <p style={{ color: 'var(--red)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{error}</p>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {KINDS.map(k => (
-                  <button
-                    key={k.id}
-                    onClick={() => handleCall(k.id)}
-                    disabled={calling}
-                    style={{
-                      width: '100%', padding: '13px 16px', borderRadius: 12,
-                      border: '1.5px solid var(--border)', background: 'var(--s2)',
-                      display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-                      textAlign: 'left', opacity: calling ? 0.6 : 1,
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>{k.icon}</span>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--t1)' }}>
-                      {t(`table:${k.labelKey}`)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <button className="btn btn-ghost" style={{ width: '100%', marginTop: 12 }} onClick={() => setOpen(false)}>
-                {t('common:cancel')}
-              </button>
-            </div>
-          </div>
+        <div className="cw-kinds">
+          {KINDS.map(k => (
+            <button type="button" key={k.id} className="cw-kind row-pressable" onClick={() => handleCall(k.id)} disabled={calling}>
+              <span className="cw-kind-icon" aria-hidden="true">{k.icon}</span>
+              <span className="cw-kind-label">{t(`table:${k.labelKey}`)}</span>
+            </button>
+          ))}
         </div>
-      )}
+
+        <button type="button" className="btn btn-ghost cw-cancel" onClick={() => setOpen(false)}>{t('common:cancel')}</button>
+      </BottomSheet>
     </>
   )
 }

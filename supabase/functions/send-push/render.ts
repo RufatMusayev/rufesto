@@ -99,6 +99,7 @@ const T: Record<string, Entry> = {
   bill_requested_plain: { en: ['Bill requested', 'A table asked for the bill.'], az: ['Hesab istənildi', 'Masa hesab istədi.'] },
   waiter_called: { en: ['Waiter called', 'Table {table} {action}.'], az: ['Ofisiant çağırıldı', '{table} nömrəli masa {action}.'] },
   waiter_called_plain: { en: ['Waiter called', 'A table called the waiter.'], az: ['Ofisiant çağırıldı', 'Masa ofisiant çağırdı.'] },
+  bill_paid: { en: ['Payment received', '{who} paid{amount}{method}.'], az: ['Ödəniş qəbul edildi', '{who}{amount}{method} ödədi.'] },
   booking_created: { en: ['New booking', 'New booking request.'], az: ['Yeni rezervasiya', 'Yeni rezervasiya sorğusu.'] },
   booking_created_detail: { en: ['New booking', 'New booking request: {detail}.'], az: ['Yeni rezervasiya', 'Yeni rezervasiya sorğusu: {detail}.'] },
   review_received: { en: ['New review', '{dish} got a {rating}-star review.'], az: ['Yeni rəy', '{dish} üçün {rating} ulduzlu rəy gəldi.'] },
@@ -115,6 +116,12 @@ const WAITER_ACTION: Record<string, { en: string; az: string }> = {
   water: { en: 'asked for water', az: 'su istəyir' },
   cutlery: { en: 'asked for cutlery', az: 'çəngəl-bıçaq istəyir' },
   clean: { en: 'asks to have the table cleaned', az: 'təmizlik istəyir' },
+}
+
+// bill_paid: how the table paid, as it follows the amount in each language (unknown methods add nothing)
+const PAY_METHOD: Record<string, { en: string; az: string }> = {
+  card: { en: ' by card', az: ' kartla' },
+  cash: { en: ' in cash', az: ' nağd' },
 }
 
 const WORDS = {
@@ -186,12 +193,21 @@ function dishNames(p: Obj): string[] {
   return out.filter(Boolean)
 }
 
+/**
+ * False for rows that must never reach a phone. A friend_request that already carries a `status`
+ * (accepted | declined | cancelled) is history: the request was answered or withdrawn and the row is read.
+ */
+export function isPushable(row: NotifRow, p: Obj | null): boolean {
+  if (row.type === 'friend_request' && p && p.status != null && p.status !== '') return false
+  return true
+}
+
 /** Which lookups the caller should do before render() so the text carries the names the inbox shows. */
 export function needsLookup(row: NotifRow, p: Obj | null) {
   const t = row.type
   const payload = p ?? {}
   return {
-    table: ['bill_requested', 'waiter_called', 'join_request'].includes(t) && !payload.table_number && !!payload.table_id,
+    table: ['bill_requested', 'bill_paid', 'waiter_called', 'join_request'].includes(t) && !payload.table_number && !!payload.table_id,
     restaurant:
       ['booking_invite', 'booking_confirmed', 'booking_cancelled', 'booking_no_show', 'booking_reminder', 'bill_settled', 'place_post', 'review_like', 'review_reply'].includes(t) &&
       !!(row.restaurant_id || payload.restaurant_id) &&
@@ -285,6 +301,16 @@ export function render(row: NotifRow, ctx: RenderCtx): Rendered {
     case 'bill_requested':
       key = table ? 'bill_requested' : 'bill_requested_plain'; vars = { table }
       to = p?.table_id ? `/bills?table=${enc(p.table_id)}` : '/bills'; break
+    case 'bill_paid': {
+      const amount = price(p?.amount ?? p?.total)
+      key = 'bill_paid'
+      vars = {
+        who: table ? (lang === 'en' ? `Table ${table}` : `${table} nömrəli masa`) : (lang === 'en' ? 'A table' : 'Masa'),
+        amount: amount ? ` ${amount}` : '',
+        method: PAY_METHOD[str(p?.method, 20).toLowerCase()]?.[lang] ?? '',
+      }
+      to = p?.table_id ? `/bills?table=${enc(p.table_id)}` : '/bills'; break
+    }
     case 'waiter_called': {
       const action = WAITER_ACTION[str(p?.kind, 20)] ?? WAITER_ACTION.assist
       key = table ? 'waiter_called' : 'waiter_called_plain'; vars = { table, action: action[lang] }

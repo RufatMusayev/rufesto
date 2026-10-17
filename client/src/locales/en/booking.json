@@ -6,7 +6,7 @@
   "retryCamera": "Retry Camera",
   "enterCodeManually": "Enter code manually",
   "useCameraInstead": "Use camera instead",
-  "pasteToken": "Paste table token (UUID)",
+  "pasteToken": "Table code, e.g. FINCAN-4821",
   "lookingUp": "Looking up…",
   "findTable": "Find Table",
   "errInvalidQR": "Invalid QR code. No table token found.",

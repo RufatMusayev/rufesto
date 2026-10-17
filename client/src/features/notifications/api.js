@@ -5,7 +5,7 @@
 // `notifications` table (grouping likes and comments itself), the bell counts unread rows, "read" updates the table.
 // Nothing here throws: every call resolves { data, error }.
 import { supabase } from '../../lib/supabase'
-import { STAFF_TYPES, categoryOfType, typesOfCategory, parsePayload } from '../../lib/notificationView'
+import { STAFF_TYPES, categoryOfType, parsePayload } from '../../lib/notificationView'
 
 const MISSING_CODES = new Set(['PGRST202', '42883', 'PGRST205', '42P01'])
 export const isMissing = e => !!e && (MISSING_CODES.has(e.code) || e.missing === true || /could not find the function|schema cache/i.test(e.message || ''))
@@ -45,6 +45,25 @@ function mapActor(a) {
   return { id: a.id || null, name: a.name || null, photo: a.profile_photo || a.photo || null }
 }
 
+const RELATIONS = new Set(['friends', 'incoming', 'outgoing', 'none'])
+const FRIEND_STATES = new Set(['accepted', 'declined', 'cancelled'])
+
+/**
+ * Where a friend request stands, from what the row says: sql/67 sends `actor_relation` ('friends' | 'incoming' | 'outgoing' |
+ * 'none') and `friendship_id` (the pending incoming request); an answered request also carries payload.status. Result:
+ * 'pending' (Confirm / Delete), 'accepted', 'gone' (declined or cancelled: the row is hidden) or null (not a request, or
+ * unknown: before sql/67 the row stays a plain line).
+ */
+function friendStatusOf(r) {
+  if (r.type !== 'friend_request') return null
+  const p = parsePayload(r.payload)
+  const s = p && FRIEND_STATES.has(p.status) ? p.status : null
+  if (s === 'declined' || s === 'cancelled') return 'gone'
+  if (s === 'accepted' || r.actor_relation === 'friends') return 'accepted'
+  if (r.actor_relation === 'incoming' && r.friendship_id) return 'pending'
+  return null
+}
+
 function mapItem(r) {
   const ids = Array.isArray(r.ids) && r.ids.length ? r.ids : [r.id]
   return {
@@ -57,6 +76,12 @@ function mapItem(r) {
     actors: (Array.isArray(r.actors) ? r.actors : []).map(mapActor).filter(Boolean),
     at: r.latest_at || r.sent_at,
     read: !!r.read,
+    // sql/67: every row of the group is seen. Before it, unread stands in for unseen, so "New" still means "since you last looked".
+    seen: r.seen == null ? !!r.read : !!r.seen,
+    thumb: typeof r.thumb === 'string' && r.thumb ? r.thumb : null,
+    actorRelation: RELATIONS.has(r.actor_relation) ? r.actor_relation : null,
+    friendshipId: r.friendship_id || null,
+    friendStatus: friendStatusOf(r),
     payload: r.payload,
     target: r.target && typeof r.target === 'object' ? r.target : null,
   }
@@ -91,7 +116,8 @@ function groupLegacy(rows) {
     }
     const item = {
       id: r.id, ids: [r.id], type: r.type, category: categoryOfType(r.type), groupKey: key, count: 1,
-      actors: actor ? [actor] : [], at: r.sent_at, read: !!r.read, payload: r.payload, target: null,
+      actors: actor ? [actor] : [], at: r.sent_at, read: !!r.read, seen: !!r.read, thumb: null, actorRelation: null,
+      friendshipId: null, friendStatus: null, payload: r.payload, target: null,
     }
     items.push(item)
     if (key) open.set(key, item)
@@ -99,13 +125,12 @@ function groupLegacy(rows) {
   return items
 }
 
-async function fetchLegacyInbox({ category, cursor, limit }) {
+async function fetchLegacyInbox({ cursor, limit }) {
   const uid = await myId()
   if (!uid) return { data: { items: [], nextCursor: null, unread: 0 }, error: null }
   let q = supabase.from('notifications').select('id, type, payload, read, sent_at')
     .eq('user_id', uid).order('sent_at', { ascending: false }).limit(limit)
-  if (category) q = q.in('type', typesOfCategory(category))
-  else q = q.not('type', 'in', `(${STAFF_TYPES.join(',')})`)
+  q = q.not('type', 'in', `(${STAFF_TYPES.join(',')})`)
   if (cursor) q = q.lt('sent_at', cursor)
   const { data, error } = await q
   if (error) return { data: null, error }
@@ -122,12 +147,12 @@ async function fetchLegacyInbox({ category, cursor, limit }) {
 }
 
 /**
- * One page of the guest inbox: { items, nextCursor, unread } (items grouped, newest first).
- * `cursor` is the previous page's nextCursor. `unread` counts unread ITEMS (groups) of the whole audience.
+ * One page of the guest inbox: { items, nextCursor, unread } (items grouped, newest first). The inbox has no category chips
+ * any more, so p_category is never sent. `cursor` is the previous page's nextCursor.
  */
-export async function fetchInbox({ category = null, cursor = null, limit = 30 } = {}) {
+export async function fetchInbox({ cursor = null, limit = 30 } = {}) {
   const res = await rpc('list', 'my_notifications', {
-    p_audience: 'guest', p_category: category, p_cursor: cursor, p_limit: limit,
+    p_audience: 'guest', p_cursor: cursor, p_limit: limit,
   })
   if (!res.error) {
     const d = one(res.data) || {}
@@ -140,7 +165,7 @@ export async function fetchInbox({ category = null, cursor = null, limit = 30 } 
       error: null,
     }
   }
-  if (res.error.missing) return fetchLegacyInbox({ category, cursor, limit })
+  if (res.error.missing) return fetchLegacyInbox({ cursor, limit })
   return res
 }
 

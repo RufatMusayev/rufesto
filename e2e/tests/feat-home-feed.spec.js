@@ -71,7 +71,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await expect(card.locator('header')).toContainText(fx.sakura.name)
       expect(new Set(await hrefsOf(card.locator('header a'))), 'every header link goes to the restaurant').toEqual(new Set([path]))
       await expect(card.locator('header a[href^="/u/"]'), 'no staff profile link').toHaveCount(0)
-      expect(new Set(await hrefsOf(card.locator('.soc-caption a')))).toEqual(new Set([path]))
+      await expect(card.locator('.soc-caption .soc-post-name'), 'the caption names the restaurant (plain text: the header already links it)').toHaveText(fx.sakura.name)
       const img = card.locator('.soc-photo img')
       await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth > 0), { message: 'the photo (signed r/<restaurant id>/ path) loads for a signed-out viewer' }).toBe(true)
       if (fx.dish) {
@@ -176,14 +176,14 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await expect(slots(page).first()).toBeVisible()
     }))
 
-    test('promo slot: an active ad campaign shows as a Promoted card at position 5', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
+    test('promo slot: an active ad campaign shows as a Sponsored card at position 5', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
       const { supa } = await openHome(page)
       const camps = (await anonRpc(page.request, supa, 'public_ad_campaigns')).data
       const live = (Array.isArray(camps) ? camps : []).filter(c => !c.dishes || c.dishes.available)
       test.skip(live.length === 0, 'no active ad_campaign with an available dish on this database')
       test.skip(await slots(page).count() < 5, 'fewer than 5 ranked items: no promo slot yet')
       const promo = slots(page).nth(4)   // slots 5, 10, 15, 20 (1-based) are promo slots; signed out without GPS every active promo qualifies
-      await expect(promo.getByText('Promoted', { exact: true })).toBeVisible()
+      await expect(promo.getByText('Sponsored', { exact: true })).toBeVisible()
       const text = await promo.innerText()
       expect(live.some(c => text.includes(c.restaurants.name)), 'the promo is one of the active campaigns').toBe(true)
     }))

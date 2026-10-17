@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Avatar, Pill } from '../../../components/ui'
+import { Avatar, Img, Pill } from '../../../components/ui'
 import { cleanDisplayName, timeAgo } from '../../../lib/helpers'
+import { tap } from '../../../lib/haptics'
 import { togglePostLike, deletePost } from '../api'
 import { useRequireAuth, useToast } from '../hooks'
 import { logFeedEvent } from '../../feed/events'
@@ -12,11 +13,14 @@ import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon, CameraIcon } from './Icon
 import { RestaurantPostHead, DishStrip, PhotoChips, TextCard, hasPhotoChips, restaurantPath } from './RestaurantPostParts'
 import ConfirmSheet from './ConfirmSheet'
 
-const DOUBLE_TAP_MS = 300
+const DOUBLE_TAP_MS = 280          // two taps within this long and ...
+const DOUBLE_TAP_PX = 24           // ... this far apart are a double tap (docs/UX-PLAN-2026-10-18.md 6.8)
 
 /**
  * A post. `full` is the /post/:id variant (no "view all comments" link, the comment
- * button calls onCommentClick). Like is optimistic; double-tapping the photo only ever likes.
+ * button calls onCommentClick). Like is optimistic; double-tapping the photo only ever likes (280 ms, 24 px, a short haptic, the
+ * brand glyph bursts); a single tap does nothing. `index` < 0 means "no rise-in": the feeds animate only the first six cards of
+ * the first page, never a page that was loaded later (docs/UX-PLAN-2026-10-18.md 6.8).
  * A post by a restaurant (item.author.type === 'restaurant') shows the restaurant in the header and,
  * when it carries a dish, the dish strip with "Available now" / "Sold out" and "Order this".
  * like and order_tap are logged to the feed events (pool / position are set when it came from Home).
@@ -39,7 +43,9 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
   const [resignedSrc, setResignedSrc] = useState(null)  // a freshly signed URL, after the first one failed
   const resigned = useRef(false)                      // one re-sign per photo before giving up
   const busy = useRef(false)
-  const lastTap = useRef(0)
+  const lastTap = useRef({ at: 0, x: 0, y: 0 })
+  const burstTimer = useRef(0)
+  useEffect(() => () => clearTimeout(burstTimer.current), [])
 
   useEffect(() => {
     setLiked(item.likedByMe)
@@ -63,6 +69,7 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
     else setImgFailed(true)
   }
 
+  const rise = !full && index >= 0
   const isResto = item.author?.type === 'restaurant'
   const name = isResto ? (item.author.name || item.restaurant?.name || '') : cleanDisplayName(item.user.name)
   const authorTo = isResto ? restaurantPath(item) : `/u/${item.user.id}`
@@ -80,7 +87,7 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
     const next = !liked
     setLiked(next)
     setLikeCount(c => Math.max(0, c + (next ? 1 : -1)))
-    if (next) { setPop(true); setTimeout(() => setPop(false), 360) }
+    if (next) { setPop(true); setTimeout(() => setPop(false), 360); tap(8) }
     const { data, error } = await togglePostLike(item.id)
     busy.current = false
     if (error) {
@@ -95,14 +102,19 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
     if (data.liked) feedEvent('like')
   }
 
-  function onPhotoTap() {
+  function onPhotoTap(e) {
     const now = Date.now()
-    if (now - lastTap.current < DOUBLE_TAP_MS) {
-      lastTap.current = 0
-      if (session) { setBurst(true); setTimeout(() => setBurst(false), 700) }
+    const prev = lastTap.current
+    if (now - prev.at < DOUBLE_TAP_MS && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) <= DOUBLE_TAP_PX) {
+      lastTap.current = { at: 0, x: 0, y: 0 }
+      if (session) {
+        setBurst(true)
+        clearTimeout(burstTimer.current)
+        burstTimer.current = setTimeout(() => setBurst(false), 650)
+      }
       like({ onlyLike: true })
     } else {
-      lastTap.current = now
+      lastTap.current = { at: now, x: e.clientX, y: e.clientY }
     }
   }
 
@@ -144,8 +156,8 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
 
   return (
     <article
-      className={`feed-post${full ? '' : ' stagger-item'}${priority ? ' soc-post-now' : ''} soc-post`}
-      style={full ? { animation: 'none', opacity: 1 } : (priority ? undefined : { animationDelay: `${Math.min(index, 8) * 60}ms` })}
+      className={`feed-post${rise ? ' stagger-item' : ''}${priority ? ' soc-post-now' : ''} soc-post`}
+      style={rise ? (priority ? undefined : { animationDelay: `${Math.min(index, 6) * 60}ms` }) : { animation: 'none', opacity: 1 }}
       data-dish-id={isResto && item.dish?.id ? item.dish.id : undefined}
     >
       <header className="soc-post-head">
@@ -180,12 +192,7 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
       {hasPhoto && (
         <div className={`soc-photo${chips ? ' soc-photo-shaded' : ''}${item.photoPending && !photoSrc ? ' soc-photo-pending' : ''}`} onClick={onPhotoTap}>
           {photoSrc && !imgFailed
-            ? (
-              <img
-                src={photoSrc} alt={t('post.photoAlt', { name })} decoding="async" draggable={false} onError={onPhotoError}
-                loading={priority ? 'eager' : 'lazy'} {...(priority ? { fetchpriority: 'high' } : {})}
-              />
-            )
+            ? <Img src={photoSrc} alt={t('post.photoAlt', { name })} priority={priority} onError={onPhotoError} />
             : item.photoPending && !imgFailed
               ? <div className="soc-photo-wait" role="img" aria-label={t('post.photoAlt', { name })} />
               : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}

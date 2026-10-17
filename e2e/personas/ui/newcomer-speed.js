@@ -17,8 +17,11 @@ const INIT = () => {
   const tick = () => {
     if (m.firstSlot == null) { const s = document.querySelector('.soc-feed-slot'); if (s) m.firstSlot = performance.now() }
     if (m.firstSlot != null && m.firstImg == null) {
-      const s = document.querySelector('.soc-feed-slot'); const img = s && s.querySelector('img')
-      if (!img || (img.complete && img.naturalWidth > 0)) m.firstImg = performance.now()
+      // the first card's PHOTO (a post photo or promo picture, not the 34 px avatar / logo); a text card has none
+      const s = document.querySelector('.soc-feed-slot')
+      const img = s && s.querySelector('.soc-photo img, .menu-card img, img[src*="post-photos"], img[src*="_w640"]')
+      const textCard = s && s.querySelector('.soc-textcard')
+      if (textCard || (img && img.complete && img.naturalWidth > 0)) m.firstImg = performance.now()
     }
     if (m.firstImg == null || m.firstSlot == null) requestAnimationFrame(tick)
   }
@@ -95,9 +98,9 @@ async function once(i) {
   r.restaurant = await page.evaluate(async () => {
     const a = document.querySelector('.soc-feed-slot a[href^="/restaurant/"]')
     const s = performance.now(); a.click()
-    const h1 = await window.__waitFor(() => document.querySelector('h1'))
-    const tile = await window.__waitFor(() => { const i = document.querySelector('.ig-grid-tile img'); return i && i.complete && i.naturalWidth > 0 })
-    return { toTitle: h1 < 0 ? null : (performance.now() - s) - (tile < 0 ? 0 : tile) + h1 - h1, toTitleMs: h1 < 0 ? null : h1, toFirstDishPhoto: tile < 0 ? null : performance.now() - s, path: location.pathname }
+    const h1 = await window.__waitFor(() => location.pathname.startsWith('/restaurant') && document.querySelector('h1') && !/home feed/i.test(document.querySelector('h1').innerText))
+    const tile = await window.__waitFor(() => [...document.images].some(i => i.getBoundingClientRect().width > 120 && i.getBoundingClientRect().top < innerHeight && i.getBoundingClientRect().top > 0 && i.complete && i.naturalWidth > 0))
+    return { toTitleMs: h1 < 0 ? null : h1, toFirstDishPhoto: tile < 0 ? null : performance.now() - s, path: location.pathname }
   })
   await browser.close()
   return r

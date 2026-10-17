@@ -1,0 +1,13 @@
+/* CallWaiterSheet (components/table/CallWaiterSheet.jsx), inside a BottomSheet. */
+.cw-error { color: var(--red); font-size: 0.8rem; margin-bottom: 0.75rem; }
+.cw-kinds { display: flex; flex-direction: column; gap: 8px; }
+.cw-kind {
+  width: 100%; min-height: var(--tap); padding: 13px 16px; border-radius: 12px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 12px;
+  border: 1.5px solid var(--border); background: var(--s2); color: var(--t1); font-family: inherit;
+}
+.cw-kind:disabled { opacity: 0.6; cursor: default; }
+.cw-kind.row-pressable:active { background: var(--s3); }
+.cw-kind-icon { font-size: 1.2rem; }
+.cw-kind-label { font-size: 0.88rem; font-weight: 600; }
+.cw-cancel { width: 100%; margin-top: 12px; }

@@ -46,9 +46,9 @@ export function RestaurantPostHead({ item, when, showSub = true }) {
   )
 }
 
-/** What PhotoChips would show: a restaurant post (distance, open now, dish availability) or a tagged restaurant. */
+/** What PhotoChips would show: a restaurant post (distance, open now, "Sold out") or a tagged restaurant. */
 export function hasPhotoChips(item, isResto) {
-  if (isResto) return item.km != null || !!item.openNow || item.dish?.available != null
+  if (isResto) return item.km != null || !!item.openNow || item.dish?.available === false
   return !!item.restaurant?.name
 }
 
@@ -63,7 +63,8 @@ function PinGlyph() {
 
 /**
  * Chips over the bottom of a post photo (docs/V2-CONTRACT.md 18.4): the restaurant (people's post) or its distance /
- * open state (restaurant post, whose header already names it), and the live availability pill of the dish.
+ * open state (restaurant post, whose header already names it), and "Sold out" when the dish ran out. An available dish
+ * shows nothing: "Order this" already says it is (docs/UX-PLAN-2026-10-18.md 1.2).
  * Taps on the chips are not taps on the photo (no double-tap like). The restaurant chip is a link whose box is a
  * 44px target around the 32px pill.
  */
@@ -80,9 +81,7 @@ export function PhotoChips({ item, isResto }) {
     <div className="soc-photo-chips" onClick={e => e.stopPropagation()}>
       {name && (place.slug ? <Link to={`/restaurant/${place.slug}`} className="soc-chip-link">{pill}</Link> : pill)}
       {info && <span className="soc-chip"><span className="soc-chip-text">{info}</span></span>}
-      {isResto && available != null && (
-        <span className={`soc-avail${soldOut ? ' soc-avail-off' : ''}`}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</span>
-      )}
+      {isResto && soldOut && <span className="soc-avail soc-avail-off">{t('post.soldOut')}</span>}
     </div>
   )
 }
@@ -106,7 +105,7 @@ export function TextCard({ item }) {
 }
 
 /**
- * Dish name + price + (without a photo) the live "Available now" / "Sold out" pill + the "Order this" button.
+ * Dish name + price + (without a photo) a "Sold out" pill when it ran out + the "Order this" button.
  * A dish that sold out (the page said so, or the 60 s refresh found out) shows a disabled "Sold out" button
  * instead of "Order this" (persona-leyla #8).
  */
@@ -123,9 +122,7 @@ export function DishStrip({ item, onOrder, showPill = true }) {
         <span className="soc-dish-name">{dish.name}</span>
         <span className="soc-dish-meta">
           {dish.price != null && <span className="soc-dish-price">{formatPrice(dish.price)}</span>}
-          {showPill && available != null && (
-            <Pill tone={soldOut ? 'red' : 'green'}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</Pill>
-          )}
+          {showPill && soldOut && <Pill tone="red">{t('post.soldOut')}</Pill>}
         </span>
       </div>
       {href && (soldOut ? (

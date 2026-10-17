@@ -10,9 +10,10 @@ const ROOT = path.join(__dirname, '..', '..', '..')
 const SCRATCH = process.env.LEYLA_SCRATCH || 'C:/Users/musay/AppData/Local/Temp/claude/C--Users-musay-Desktop-claude/9308ea1d-0f9a-4965-b895-2223492297b4/scratchpad'
 const ACCOUNTS = process.env.DEMO_ACCOUNTS || path.join(SCRATCH, 'demo-accounts.json')
 const SESSIONS = path.join(SCRATCH, 'leyla-sessions.json')   // access/refresh tokens, outside the repo
-const NOTES = path.join(SCRATCH, 'leyla-notes.jsonl')
-const TIMINGS = path.join(SCRATCH, 'leyla-timings.jsonl')
-const OUT = path.join(ROOT, 'e2e', 'tour-out', 'personas', 'leyla')
+const TAG = process.env.LEYLA_TAG ? '-' + process.env.LEYLA_TAG : ''
+const NOTES = path.join(SCRATCH, `leyla-notes${TAG}.jsonl`)
+const TIMINGS = path.join(SCRATCH, `leyla-timings${TAG}.jsonl`)
+const OUT = path.join(ROOT, 'e2e', 'tour-out', 'personas', 'leyla', process.env.OUT_SUB || '')
 fs.mkdirSync(OUT, { recursive: true })
 
 const CONSUMER = 'https://rufat-server.com'

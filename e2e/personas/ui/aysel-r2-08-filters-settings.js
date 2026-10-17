@@ -1,0 +1,55 @@
+// Round 2, part 7: filter chips (how long until the list appears), empty states, settings switches and quiet hours (saved on tap?).
+const L = require('./aysel-r2-lib')
+const texts = page => page.evaluate(() => [...document.querySelectorAll('li.ntf-li')].map(li => li.innerText.replace(/\n+/g, ' | ')))
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  const api = await L.api('Aysel Məmmədova')
+  await L.step('filters with timing', async () => {
+    await A.page.goto(L.CONSUMER + '/notifications'); await A.page.waitForSelector('li.ntf-li'); await A.page.waitForTimeout(1200)
+    for (const f of ['Social', 'Dine-in', 'Bookings', 'Places', 'All', 'Social']) {
+      const t0 = Date.now()
+      await A.page.getByRole('button', { name: f, exact: true }).or(A.page.getByRole('tab', { name: f, exact: true })).first().click()
+      await A.page.waitForFunction(() => !document.querySelector('.ntf-skel, [class*=skeleton], [class*=ntf-sk]') , null, { timeout: 15000 }).catch(() => {})
+      await A.page.waitForTimeout(150)
+      const ms = Date.now() - t0
+      const t = await texts(A.page)
+      const empty = await A.page.evaluate(() => (document.querySelector('.ntf-empty, [class*=empty]')?.innerText || '').replace(/\n+/g, ' | '))
+      L.log(f.padEnd(9), ms + 'ms', 'items', t.length, '|', t.length ? t[0].slice(0, 80) : 'EMPTY: ' + empty)
+      if (f === 'Bookings' || f === 'Places') await L.shot(A.page, '08-filter-' + f)
+    }
+  })
+  await L.step('settings', async () => {
+    const before = await api.rpc('get_notification_prefs')
+    L.log('prefs before:', JSON.stringify(before))
+    await A.page.goto(L.CONSUMER + '/settings/notifications'); await A.page.waitForTimeout(3000)
+    await L.shot(A.page, '08-settings')
+    const sw = A.page.locator('input[type=checkbox], [role=switch]')
+    L.log('switch count', await sw.count(), 'sizes', await sw.evaluateAll(es => es.map(e => { const r = (e.closest('label') || e).getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) })))
+    // toggle "Places" off and "Social" off, check saved
+    const row = name => A.page.locator('label, [class*=row], li, div').filter({ hasText: name }).filter({ has: A.page.locator('input[type=checkbox], [role=switch]') }).last()
+    const places = row('New posts from restaurants you follow')
+    await places.locator('input[type=checkbox], [role=switch]').first().click({ force: true }); await A.page.waitForTimeout(1200)
+    const after1 = await api.rpc('get_notification_prefs')
+    L.log('after switching Places off:', JSON.stringify(after1))
+    await places.locator('input[type=checkbox], [role=switch]').first().click({ force: true }); await A.page.waitForTimeout(1200)
+    L.log('after switching Places back on:', JSON.stringify(await api.rpc('get_notification_prefs')))
+    // quiet hours
+    const quiet = A.page.locator('input[type=checkbox], [role=switch]').last()
+    await quiet.click({ force: true }); await A.page.waitForTimeout(1000)
+    await L.shot(A.page, '08-settings-quiet')
+    L.log('quiet hours UI:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(-260), '| time inputs:', await A.page.evaluate(() => [...document.querySelectorAll('input[type=time]')].map(i => i.value)))
+    L.log('prefs after quiet on:', JSON.stringify(await api.rpc('get_notification_prefs')))
+    await quiet.click({ force: true }); await A.page.waitForTimeout(1000)
+    L.log('prefs after quiet off:', JSON.stringify(await api.rpc('get_notification_prefs')))
+    await A.page.reload(); await A.page.waitForTimeout(2500)
+    L.log('switches after reload:', await A.page.evaluate(() => [...document.querySelectorAll('input[type=checkbox], [role=switch]')].map(e => (e.checked ?? e.getAttribute('aria-checked')) + '/' + e.disabled)))
+  })
+  await L.step('push UI', async () => {
+    L.log('push row:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(60, 330))
+    L.log('Notification.permission in this headless context:', await A.page.evaluate(() => (typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')), '| serviceWorker', await A.page.evaluate(() => 'serviceWorker' in navigator), '| PushManager', await A.page.evaluate(() => 'PushManager' in window))
+    L.log('manifest link:', await A.page.evaluate(() => document.querySelector('link[rel=manifest]')?.href), '| sw registered:', await A.page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(r => r.active?.scriptURL || 'inactive')))
+  })
+  L.log('errors', A.errors.filter(e => !/ERR_ABORTED/.test(e)))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

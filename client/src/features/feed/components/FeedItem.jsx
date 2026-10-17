@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import PostCard from '../../social/components/PostCard'
-import ReviewCard from '../../social/components/ReviewCard'
+import CompactReview from '../../reviews/CompactReview'
 import PromoCard from '../../../components/PromoCard'
 import { logFeedEvent } from '../events'
 
@@ -26,11 +26,12 @@ function trackCampaign(id, event) {
 }
 
 /**
- * One slot of a feed: a post card, a promo card or (Friends) a review card. Posts and promos are watched for
- * impressions (>= 50 % visible for 1 s) and for taps on the card; Like / comment / order_tap are logged by
- * the cards themselves. Reviews are not feed-event items (feed_events knows posts and promos only), so they
- * are shown untracked. `className` replaces the slot wrapper's class (Discover puts promos in a rail). `priority`
- * marks one of the first photos of a feed (eager load, high fetch priority, no rise-in animation).
+ * One slot of a feed: a post card, a promo card or a review card (a friend's review on Friends, a "popular review" on
+ * Home). Posts, promos and popular reviews are watched for impressions (>= 50 % visible for 1 s) and for taps on the
+ * card; Like / comment / order_tap are logged by the cards themselves. A friend's review is not a feed-event item
+ * (feed_events knows reviews only with pool 'popular', sql/67), so it is shown untracked. Tapping a popular review
+ * opens its dish sheet, not the review. `className` replaces the slot wrapper's class. `priority` marks one of the
+ * first photos of a feed (eager load, high fetch priority, no rise-in animation).
  */
 export default function FeedItem({ item, index, events, onDeleted, priority = false, className = 'soc-feed-slot' }) {
   const ref = useRef(null)
@@ -38,25 +39,27 @@ export default function FeedItem({ item, index, events, onDeleted, priority = fa
   const navigate = useNavigate()
   const isPromo = item.kind === 'promo'
   const isReview = item.kind === 'review'
-  const type = isPromo ? 'promo' : 'post'
+  const popular = isReview && item.pool === 'popular'
+  const tracked = !isReview || popular
+  const type = isPromo ? 'promo' : isReview ? 'review' : 'post'
 
   useEffect(() => {
-    if (isReview) return undefined
+    if (!tracked) return undefined
     return events.observe(ref.current, {
       type, id: item.id, pool: item.pool, position: item.position,
       // the sponsored impression is counted when the card was really seen, once per load
       onImpression: isPromo ? () => trackCampaign(item.id, 'impression') : undefined,
     })
-  }, [events, type, isPromo, isReview, item.id, item.pool, item.position])
+  }, [events, type, isPromo, tracked, item.id, item.pool, item.position])
 
   function onClick(e) {
-    if (isReview) return
+    if (!tracked) return
     // "open" = any tap on the card that is not a control: photo, caption, dish strip, header and
     // "view all comments" links all count. Controls log their own events (like, comment, "Order this")
     // or none (share, more). Taps inside sheets / modals rendered by the card are not taps on the card.
     const el = e.target
     if (!e.currentTarget.contains(el)) return                          // portal child (sheet)
-    if (el.closest('.overlay, .soc-toast')) return                     // modal / toast drawn inside the card
+    if (el.closest('.overlay, .bs-root, .soc-toast')) return           // sheet / modal / toast drawn inside the card
     if (!isPromo && el.closest('button, input, textarea, select, .soc-act, .soc-order')) return
     const now = Date.now()
     if (now - lastOpen.current < OPEN_GAP_MS) return                   // a double tap on the photo is one open
@@ -67,11 +70,16 @@ export default function FeedItem({ item, index, events, onDeleted, priority = fa
   return (
     <div ref={ref} className={className} onClick={onClick}>
       {isReview ? (
-        <ReviewCard item={item} index={index} />
+        <CompactReview
+          item={item} variant="card" kicker={popular}
+          onOpen={popular && item.restaurant?.slug && item.dish?.id
+            ? r => navigate(`/restaurant/${r.restaurant.slug}?dish=${r.dish.id}`)
+            : undefined}
+        />
       ) : isPromo ? (
         <PromoCard
           campaign={toCampaign(item)}
-          index={index}
+          index={Math.max(0, index)}
           onDishClick={dish => {
             if (item.restaurant?.slug) navigate(`/restaurant/${item.restaurant.slug}?dish=${dish.id}&src=promo:${item.id}`)
           }}

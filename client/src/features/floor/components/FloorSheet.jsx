@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCart } from '../../../contexts/CartContext'
-import useEscapeClose from '../../../components/ui/useEscapeClose'
+import BottomSheet from '../../../components/ui/BottomSheet'
 import useFloorPlan from '../useFloorPlan'
 import { useCellSize, useMySeat } from '../hooks'
 import { COLS, layoutFloor } from '../layout'
@@ -16,8 +16,10 @@ const OTHER = '' // id of "tables without a section"
  * seat is a small square around its table (taken seats lit, free seats dim). Live: realtime `tables` changes
  * and a short poll refetch floor_plan(). Fit to width, scroll vertically; no pinch.
  * Props are the ones RestaurantPage already passes to FloorPlanSheet: restaurant, onClose, onReserve(table).
+ * A BottomSheet in self-managed mode: `onClose` is called once the exit animation has finished (the owner unmounts it).
  */
 export default function FloorSheet({ restaurant, onClose, onReserve }) {
+  const sheetApi = useRef(null)
   const { t } = useTranslation(['floor', 'common'])
   const cart = useCart() || {}
   const { plan, loading, error, live, reload } = useFloorPlan(restaurant.id)
@@ -26,8 +28,6 @@ export default function FloorSheet({ restaurant, onClose, onReserve }) {
   const stageRef = useRef(null)
   const cell = useCellSize(stageRef, COLS)
   const seat = useMySeat(cart.tableId)
-
-  useEscapeClose(onClose)
 
   const tables = plan?.tables
   const sectionList = useMemo(() => {
@@ -69,91 +69,96 @@ export default function FloorSheet({ restaurant, onClose, onReserve }) {
   const states = useMemo(() => new Set(visible.map(tb => tb.state)), [visible])
   const showMine = !!mine && mine.seatNo !== null && tablesById.has(mine.tableId)
 
-  return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="sheet fl-sheet" role="dialog" aria-modal="true" aria-labelledby="fl-title">
-        <div className="sheet-handle" />
+  const close = () => sheetApi.current?.close()
 
-        <header className="fl-head">
-          <div>
-            <div className="fl-title-row">
-              <h2 id="fl-title" className="fl-title">{t('title')}</h2>
-              {live && (
-                <span className="fl-live">
-                  <span className="avail-pulse fl-live-dot" aria-hidden="true" />
-                  {t('common:live')}
-                </span>
-              )}
-            </div>
-            <p className="fl-sub">{t('subtitle', { name: restaurant.name })}</p>
-          </div>
-          <button type="button" className="icon-btn fl-close" onClick={onClose} aria-label={t('close')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </header>
-
-        {sectionList.length > 1 && (
-          <div className="fl-chips no-scrollbar" role="group" aria-label={t('sectionsLabel')}>
-            <button type="button" className={`chip${activeSection === 'all' ? ' active' : ''}`} aria-pressed={activeSection === 'all'} onClick={() => setSection('all')}>
-              {t('sectionAll')}
-            </button>
-            {sectionList.map(s => (
-              <button key={s.id || 'other'} type="button" className={`chip${activeSection === s.id ? ' active' : ''}`} aria-pressed={activeSection === s.id} onClick={() => setSection(s.id)}>
-                {s.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {plan && visible.length > 0 && <Legend states={states} showMine={showMine} />}
-
-        <div className="fl-scroll">
-          <div className="fl-stage" ref={stageRef}>
-            {loading ? (
-              <div className="fl-state" role="status"><span className="spinner" aria-label={t('common:loading')} /></div>
-            ) : error && !plan ? (
-              <div className="fl-state" role="alert">
-                <p>{t('loadError')}</p>
-                <button type="button" className="btn btn-ghost" onClick={reload}>{t('retry')}</button>
-              </div>
-            ) : visible.length === 0 ? (
-              <div className="fl-state"><p>{t('empty')}</p></div>
-            ) : (
-              <PixelFloor
-                layout={layout}
-                tablesById={tablesById}
-                sectionNames={sectionNames}
-                cell={cell}
-                selectedId={selectedId}
-                mine={mine}
-                label={t('mapLabel', { name: restaurant.name })}
-                entranceLabel={t('entrance')}
-                onSelect={toggle}
-              />
-            )}
-          </div>
+  const head = (
+    <header className="fl-head">
+      <div>
+        <div className="fl-title-row">
+          <h2 id="fl-title" className="fl-title">{t('title')}</h2>
+          {live && (
+            <span className="fl-live">
+              <span className="avail-pulse fl-live-dot" aria-hidden="true" />
+              {t('common:live')}
+            </span>
+          )}
         </div>
+        <p className="fl-sub">{t('subtitle', { name: restaurant.name })}</p>
+      </div>
+      <button type="button" className="icon-btn fl-close" onClick={close} aria-label={t('close')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </header>
+  )
 
-        <div className="fl-foot">
-          {selected ? (
-            <TableDetail
-              key={selected.id}
-              table={selected}
-              sectionName={sectionNames.get(selected.sectionId) || ''}
-              held={held}
-              onClose={() => setSelectedId(null)}
-              onReserve={onReserve ? tb => onReserve({
-                id: tb.id, table_number: tb.number, capacity: tb.capacity, state: tb.state,
-                sections: { name: sectionNames.get(tb.sectionId) || null },
-              }) : null}
-            />
+  const foot = (
+    <div className="fl-foot">
+      {selected ? (
+        <TableDetail
+          key={selected.id}
+          table={selected}
+          sectionName={sectionNames.get(selected.sectionId) || ''}
+          held={held}
+          onClose={() => setSelectedId(null)}
+          onReserve={onReserve ? tb => onReserve({
+            id: tb.id, table_number: tb.number, capacity: tb.capacity, state: tb.state,
+            sections: { name: sectionNames.get(tb.sectionId) || null },
+          }) : null}
+        />
+      ) : (
+        <p className="fl-hint">{t('hint')}</p>
+      )}
+    </div>
+  )
+
+  return (
+    <BottomSheet
+      id="floor" size="large" className="fl-sheet" bodyClassName="fl-body" padded={false}
+      onClose={onClose} apiRef={sheetApi} labelledBy="fl-title" header={head} footer={foot}
+    >
+      {sectionList.length > 1 && (
+        <div className="fl-chips no-scrollbar" role="group" aria-label={t('sectionsLabel')}>
+          <button type="button" className={`chip${activeSection === 'all' ? ' active' : ''}`} aria-pressed={activeSection === 'all'} onClick={() => setSection('all')}>
+            {t('sectionAll')}
+          </button>
+          {sectionList.map(s => (
+            <button key={s.id || 'other'} type="button" className={`chip${activeSection === s.id ? ' active' : ''}`} aria-pressed={activeSection === s.id} onClick={() => setSection(s.id)}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {plan && visible.length > 0 && <Legend states={states} showMine={showMine} />}
+
+      <div className="fl-scroll">
+        <div className="fl-stage" ref={stageRef}>
+          {loading ? (
+            <div className="fl-state" role="status"><span className="spinner" aria-label={t('common:loading')} /></div>
+          ) : error && !plan ? (
+            <div className="fl-state" role="alert">
+              <p>{t('loadError')}</p>
+              <button type="button" className="btn btn-ghost" onClick={reload}>{t('retry')}</button>
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="fl-state"><p>{t('empty')}</p></div>
           ) : (
-            <p className="fl-hint">{t('hint')}</p>
+            <PixelFloor
+              layout={layout}
+              tablesById={tablesById}
+              sectionNames={sectionNames}
+              cell={cell}
+              selectedId={selectedId}
+              mine={mine}
+              label={t('mapLabel', { name: restaurant.name })}
+              entranceLabel={t('entrance')}
+              onSelect={toggle}
+            />
           )}
         </div>
       </div>
-    </div>
+    </BottomSheet>
   )
 }

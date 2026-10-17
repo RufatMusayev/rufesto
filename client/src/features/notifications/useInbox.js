@@ -1,50 +1,59 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchInbox, markRead, markAllRead, markAllSeen } from './api'
+import { fetchInbox, markRead, markAllSeen } from './api'
 import { onInboxInsert, refreshBadge } from './badge'
-import { signPostPhotos } from '../social/lib/postPhotos'
+import { signSmallPhotos } from '../social/lib/postPhotos'
+import { respondFriendRequest } from '../social/api'
 import { thumbOfItem } from '../../lib/notificationView'
+import { tap } from '../../lib/haptics'
 
 const PAGE = 30
+const LEAVE_MS = 200            // a deleted friend request collapses in this long (styles.css .is-leaving)
+const FADE_MS = 160             // the Confirm / Delete buttons fade away after Confirm
 
 /**
- * The guest inbox for one filter (`category` null = All): grouped items, the unread count, paging, optimistic
- * "read" updates and a silent refresh when a new row arrives over the realtime channel (badge.js owns that channel).
- * Each filter keeps its first page while the page is open, so switching chips paints at once and then refreshes.
+ * The guest inbox (docs/UX-PLAN-2026-10-18.md 2): grouped items, paging, a silent refresh when a new row arrives over the realtime
+ * channel (badge.js owns that channel) and the friend-request actions.
+ *  - "New" is a snapshot: an item that was unseen when it first reached this page keeps `isNew` while the page is open, even
+ *    though opening the inbox marks everything seen a moment later.
+ *  - Confirm / Delete answer the request from the row (optimistic; a failure puts the row back and reports it).
+ * Items of an answered-and-gone request (declined / cancelled) are never listed.
  */
-export default function useInbox(category) {
-  const key = category || 'all'
-  const cache = useRef(new Map())                 // filter -> { items, unread, next }
+export default function useInbox() {
   const req = useRef(0)                           // only the newest request may write
-  const [view, setView] = useState({ items: [], unread: 0, next: null, status: 'loading' })
+  const fresh = useRef(new Set())                 // ids shown under "New"
+  const [view, setView] = useState({ items: [], next: null, status: 'loading' })
   const [loadingMore, setLoadingMore] = useState(false)
+
+  const take = useCallback(items => {
+    for (const it of items) if (!it.seen) fresh.current.add(it.id)
+    return items.filter(i => i.friendStatus !== 'gone').map(i => ({ ...i, isNew: fresh.current.has(i.id) }))
+  }, [])
 
   const load = useCallback(async () => {
     const id = ++req.current
-    const { data, error } = await fetchInbox({ category, limit: PAGE })
-    if (id !== req.current) return
+    const { data, error } = await fetchInbox({ limit: PAGE })
+    if (id !== req.current) return null
     if (error) {
-      setView(v => (v.status === 'ready' ? v : { items: [], unread: 0, next: null, status: 'error' }))
-      return
+      setView(v => (v.status === 'ready' ? v : { items: [], next: null, status: 'error' }))
+      return error
     }
-    cache.current.set(key, data)
-    setView({ items: data.items, unread: data.unread, next: data.nextCursor, status: 'ready' })
-  }, [category, key])
+    setView({ items: take(data.items), next: data.nextCursor, status: 'ready' })
+    // looking at the list is what clears the bell: after the first read of the unseen rows
+    if (data.items.some(i => !i.seen)) markAllSeen().then(() => refreshBadge())
+    return null
+  }, [take])
 
-  // first load and every filter change: cached page at once if there is one, else the skeleton
   useEffect(() => {
-    const hit = cache.current.get(key)
-    if (hit) setView({ items: hit.items, unread: hit.unread, next: hit.nextCursor, status: 'ready' })
-    else setView({ items: [], unread: 0, next: null, status: 'loading' })
     load()
     return () => { req.current += 1 }
-  }, [key, load])
+  }, [load])
 
   // a new row while the page is open: show it, keep the bell at 0
   useEffect(() => {
     let t
     const off = onInboxInsert(() => {
       clearTimeout(t)
-      t = setTimeout(() => { load(); markAllSeen() }, 400)
+      t = setTimeout(() => load(), 400)
     })
     return () => { off(); clearTimeout(t) }
   }, [load])
@@ -53,37 +62,59 @@ export default function useInbox(category) {
     if (loadingMore || !view.next) return
     setLoadingMore(true)
     const id = req.current
-    const { data, error } = await fetchInbox({ category, cursor: view.next, limit: PAGE })
+    const { data, error } = await fetchInbox({ cursor: view.next, limit: PAGE })
     setLoadingMore(false)
     if (id !== req.current || error || !data) return
+    const more = take(data.items)
     setView(v => {
       const seen = new Set(v.items.map(i => i.id))
-      return { ...v, items: [...v.items, ...data.items.filter(i => !seen.has(i.id))], next: data.nextCursor }
+      return { ...v, items: [...v.items, ...more.filter(i => !seen.has(i.id))], next: data.nextCursor }
     })
-  }, [category, loadingMore, view.next])
+  }, [loadingMore, view.next, take])
 
-  /** Mark one item (all the rows of its group) read. Instant on screen; a failed write reloads the truth. */
+  const patch = useCallback((id, partial) => {
+    setView(v => ({ ...v, items: v.items.map(i => (i.id === id ? { ...i, ...partial } : i)) }))
+  }, [])
+
+  /** Mark one item (all the rows of its group) read. Instant on screen; a failed write is retried by the next visit. */
   const read = useCallback(item => {
     if (item.read) return
-    cache.current.clear()
-    setView(v => ({
-      ...v,
-      items: v.items.map(i => (i.id === item.id ? { ...i, read: true } : i)),
-      unread: Math.max(0, v.unread - 1),
-    }))
-    markRead(item.ids).then(({ error }) => { if (error) load(); refreshBadge() })
-  }, [load])
+    patch(item.id, { read: true })
+    markRead(item.ids).then(() => refreshBadge())
+  }, [patch])
 
-  const readAll = useCallback(() => {
-    setView(v => ({ ...v, items: v.items.map(i => ({ ...i, read: true })), unread: 0 }))
-    cache.current.clear()
-    markAllRead().then(({ error }) => { if (error) load(); refreshBadge() })
-  }, [load])
+  /** Confirm an incoming friend request. Resolves { error } (null on success). */
+  const confirm = useCallback(async item => {
+    tap(8)
+    patch(item.id, { friendStatus: 'accepted', fading: true, read: true })
+    setTimeout(() => patch(item.id, { fading: false }), FADE_MS)
+    const { error } = await respondFriendRequest(item.friendshipId, true)
+    if (error) {
+      patch(item.id, { friendStatus: 'pending', fading: false, read: false })
+      return { error }
+    }
+    markRead(item.ids).then(() => refreshBadge())
+    return { error: null }
+  }, [patch])
 
-  return { ...view, loadingMore, loadMore, read, readAll, reload: load }
+  /** Delete an incoming friend request: the row collapses at once. */
+  const decline = useCallback(async item => {
+    patch(item.id, { leaving: true, read: true })
+    const gone = setTimeout(() => setView(v => ({ ...v, items: v.items.filter(i => i.id !== item.id) })), LEAVE_MS)
+    const { error } = await respondFriendRequest(item.friendshipId, false)
+    if (error) {
+      clearTimeout(gone)
+      patch(item.id, { leaving: false, read: false })
+      return { error }
+    }
+    markRead(item.ids).then(() => refreshBadge())
+    return { error: null }
+  }, [patch])
+
+  return { ...view, loadingMore, loadMore, read, confirm, decline, reload: load }
 }
 
-/** Signed URLs for the post photos the items' payloads carry (the bucket is private): Map(path -> url | null). */
+/** Signed URLs for the storage paths the items' thumbnails name (the post-photos bucket is private): Map(path -> url | null). */
 export function useThumbUrls(items) {
   const [urls, setUrls] = useState(() => new Map())
   useEffect(() => {
@@ -94,7 +125,7 @@ export function useThumbUrls(items) {
     }
     if (!paths.length) return undefined
     let alive = true
-    signPostPhotos(paths).then(m => { if (alive) setUrls(prev => new Map([...prev, ...m])) })
+    signSmallPhotos(paths).then(m => { if (alive) setUrls(prev => new Map([...prev, ...m])) })
     return () => { alive = false }
   }, [items])
   return urls

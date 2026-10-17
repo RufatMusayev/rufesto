@@ -1,25 +1,26 @@
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { GridIcon, CalendarIcon, StarIcon, PlateIcon, ReceiptIcon } from './Icons'
+import { GridIcon, StarIcon, PlateIcon, ReceiptIcon } from './Icons'
 
-export const TAB_IDS = ['posts', 'bookings', 'reviews', 'saved', 'visits']
+// Bookings is not a tab any more: upcoming bookings sit at the top of Visits (docs/UX-PLAN-2026-10-18.md 1.5)
+export const TAB_IDS = ['posts', 'reviews', 'saved', 'visits']
 
 const ICONS = {
-  posts: GridIcon, bookings: CalendarIcon, reviews: StarIcon, saved: PlateIcon, visits: ReceiptIcon,
+  posts: GridIcon, reviews: StarIcon, saved: PlateIcon, visits: ReceiptIcon,
 }
 const LABELS = {
-  posts: 'tabPosts', bookings: 'tabBookings', reviews: 'tabReviews', saved: 'tabSaved', visits: 'tabVisits',
+  posts: 'tabPosts', reviews: 'tabReviews', saved: 'tabSaved', visits: 'tabVisits',
 }
-// the word under the icon: short enough for five side by side at 360px (the full label stays the aria-label / tooltip)
+// the word under the icon (the full label stays the aria-label / tooltip)
 const SHORT = {
-  posts: 'tabShortPosts', bookings: 'tabShortBookings', reviews: 'tabShortReviews', saved: 'tabShortSaved', visits: 'tabShortVisits',
+  posts: 'tabShortPosts', reviews: 'tabShortReviews', saved: 'tabShortSaved', visits: 'tabShortVisits',
 }
 
 export const tabDomId = id => `pf-tab-${id}`
 export const panelDomId = id => `pf-panel-${id}`
 
 /**
- * Sticky segmented tabs. All five show an icon with a short word under it (a bare icon says nothing); the active
+ * Sticky segmented tabs. All four show an icon with a short word under it (a bare icon says nothing); the active
  * one is the filled pill. Arrow keys, Home and End move between tabs (roving tabindex).
  */
 export default function ProfileTabs({ value, onChange }) {

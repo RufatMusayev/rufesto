@@ -120,15 +120,17 @@ function isRawIdToken(token) {
 
 /** Strip raw id hashes from auto-generated usernames like "Anonymous gffzcfcb".
  *  Handles both the full-string case and a trailing standalone hash token.
- *  Never renders a raw id in the UI — falls back to "Anonymous". */
-export function cleanDisplayName(name) {
-  if (!name) return 'Anonymous'
+ *  Never renders a raw id in the UI. An empty name gives `fallback`: pass the translated guest name
+ *  (t('common:guestName') = "Rufesto guest" / "Rufesto qonağı"); the English "Anonymous" is only the default for
+ *  callers that have no translation function (client-resto). */
+export function cleanDisplayName(name, fallback = 'Anonymous') {
+  if (!name) return fallback
   const parts = String(name).trim().split(/\s+/)
   if (parts.length > 1 && isRawIdToken(parts[parts.length - 1])) {
     parts.pop()
   }
   const cleaned = parts.join(' ').trim()
-  return cleaned || 'Anonymous'
+  return cleaned || fallback
 }
 
 export function stars(rating, max = 5) {

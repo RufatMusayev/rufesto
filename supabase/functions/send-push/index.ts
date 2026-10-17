@@ -9,7 +9,7 @@
 // DASHBOARD_ORIGIN (set with `supabase secrets set`); SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
-import { needsLookup, normalizeLang, parsePayload, render } from './render.ts'
+import { isPushable, needsLookup, normalizeLang, parsePayload, render } from './render.ts'
 import type { NotifRow } from './render.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -84,6 +84,9 @@ Deno.serve(async (req: Request) => {
     if (rowErr || !row) return json(200, { ok: true, sent: 0, skipped: 'not_found' })
     const n = row as NotifRow & { audience?: string | null }
     const audience = n.audience === 'staff' ? 'staff' : 'guest'
+    const payload = parsePayload(n.payload)
+    // e.g. a friend request that was already answered or withdrawn is history, not news
+    if (!isPushable(n, payload)) return json(200, { ok: true, sent: 0, skipped: 'not_pushable' })
 
     // Recipient settings. A switched-off device preference wins over a stale trigger decision.
     const [prefsRes, profileRes] = await Promise.all([
@@ -102,7 +105,6 @@ Deno.serve(async (req: Request) => {
     if (subsErr || !subs || subs.length === 0) return json(200, { ok: true, sent: 0, skipped: 'no_subscriptions' })
 
     // Names the inbox shows but the payload may not carry.
-    const payload = parsePayload(n.payload)
     const need = needsLookup(n, payload)
     const restaurantId = n.restaurant_id ?? (typeof payload?.restaurant_id === 'string' ? payload.restaurant_id : null)
     const [tableRes, restRes, actorRes] = await Promise.all([

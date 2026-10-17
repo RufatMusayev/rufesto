@@ -1,0 +1,42 @@
+/* AuthModal (components/AuthModal.jsx), inside a BottomSheet. */
+.au-x { display: flex; justify-content: flex-end; padding: 0 8px; margin-top: -8px; min-height: 8px; }
+.au-body { padding: 0 8px 8px; }
+.au-head { text-align: center; margin-bottom: 1.5rem; }
+.au-icon {
+  width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; font-size: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(139, 45, 66, 0.1); border: 1px solid rgba(139, 45, 66, 0.2);
+}
+.au-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--t1); margin-bottom: 6px; }
+.au-sub { font-size: 0.82rem; color: var(--t3); line-height: 1.5; }
+
+.au-oauth { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+.au-oauth-btn {
+  width: 100%; padding: 11px; border-radius: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border: 1px solid var(--border); background: var(--s2); color: var(--t1);
+  font-family: inherit; font-size: 0.86rem; font-weight: 600;
+}
+.au-oauth-btn.row-pressable:active { background: var(--s3); }
+.au-oauth-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.au-divider { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.25rem; color: var(--t3); font-size: 0.75rem; }
+.au-rule { flex: 1; height: 1px; background: var(--border); }
+
+.au-field { margin-bottom: 0.75rem; }
+.au-block { width: 100%; margin-top: 0.5rem; }
+.au-error { color: var(--red); font-size: 0.76rem; margin: 2px 0 10px; }
+.au-link {
+  display: block; width: 100%; margin-top: 1rem; padding: 0; background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 0.78rem; color: var(--t3); text-align: center;
+}
+.au-link-dev { font-size: 0.74rem; }
+.au-otp { text-align: center; font-family: 'DM Mono', monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: 0.4em; }
+.au-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.25rem 0 1.25rem; }
+.au-resend, .au-change { background: none; border: none; padding: 0; font-family: inherit; font-size: 0.78rem; cursor: pointer; }
+.au-resend { color: var(--accent-text); }
+.au-resend:disabled { color: var(--t3); cursor: default; opacity: 0.6; }
+.au-change { color: var(--t3); }
+.au-bar { color: var(--border); line-height: 1.5; }
+.au-req { color: var(--red); }
+.au-opt { color: var(--t3); font-weight: 400; }
+.au-terms { font-size: 0.7rem; color: var(--t3); text-align: center; margin-top: 1.25rem; }

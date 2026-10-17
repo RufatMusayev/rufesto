@@ -11,7 +11,7 @@ test.describe.configure({ mode: 'default', timeout: 90_000 })
 const TAGS = { tag: ['@guest', '@staff', '@consumer', '@feat'] }
 const PENNE = 'Penne alla Norma'
 const TWO = { two: true }
-const tipFor = (share, pct) => Math.round(Math.round(share * 100) * pct / 1000) * 10 / 100   // the app's rule: nearest 0.10
+const tipFor = (share, pct) => Math.round(Math.round(share * 100) * pct / 100) / 100   // the app's rule: to the qepik (features/bills/money.js tipForShare)
 
 /** g1 (host) seated, optionally g2 too; their orders placed and served over the API. Returns the orders. */
 async function dinner(A, table, { two = false, lines1 = [[PENNE, 2]], lines2 = [['Cappuccino', 2], ['Chianti Classico', 1]] } = {}) {

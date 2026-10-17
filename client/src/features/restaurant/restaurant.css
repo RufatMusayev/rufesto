@@ -9,7 +9,7 @@
 /* ---------- cover + back ---------- */
 .rst-cover { position: relative; height: 230px; overflow: hidden; }
 .rst-cover.skeleton { border-radius: 0; }
-@media (min-width: 769px) { .rst-cover { height: 280px; } }
+@media (min-width: 1024px) { .rst-cover { height: 280px; } }
 .rst-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .rst-cover-emoji {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -43,6 +43,9 @@
 .rst-stats { display: flex; gap: 18px; min-width: 0; padding-bottom: 8px; }
 @media (max-width: 380px) { .rst-stats { gap: 12px; } }
 .rst-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+button.rst-stat--tap { min-width: 44px; min-height: 44px; margin: -8px -4px; padding: 8px 4px; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; border-radius: 10px; justify-content: center; }
+button.rst-stat--tap:active { background: var(--s2); }
+button.rst-stat--tap:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rst-stat-n { font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--t1); }
 .rst-stat-l { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.2px; white-space: nowrap; color: var(--note); }
 
@@ -63,7 +66,7 @@
 .rst-address svg { width: 12px; height: 12px; flex: none; opacity: 0.7; }
 
 .rst-actions { display: flex; gap: 8px; margin-bottom: 14px; }
-.rst-floor { width: 44px; flex: none; padding: 0; border-radius: 10px; }
+.rst-floor { flex: none; gap: 6px; padding: 0 14px; border-radius: 10px; white-space: nowrap; font-size: 0.84rem; font-weight: 600; }
 .rst-floor svg { width: 18px; height: 18px; }
 .rst-follow {
   flex: 1; min-width: 0; min-height: 44px; border-radius: 10px; cursor: pointer;
@@ -148,7 +151,11 @@
 .rst-empty-title { margin-bottom: 4px; font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; font-weight: 700; color: var(--t1); }
 .rst-empty-body { max-width: 30ch; margin: 0 auto 16px; font-size: 0.84rem; line-height: 1.5; }
 
-.rst-promos { display: grid; gap: 8px; padding: 0 16px 12px; list-style: none; }
+/* promos: one row; two or more are a sideways snap row of 85 %-wide chips (UX plan 1.6) */
+.rst-promos { display: flex; gap: 8px; padding: 0 16px 12px; margin: 0; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
+.rst-promos::-webkit-scrollbar { display: none; }
+.rst-promos > li { flex: 1 0 100%; min-width: 0; scroll-snap-align: start; }
+.rst-promos.is-multi > li { flex: 0 0 85%; }
 .rst-promo {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 12px;
   font-family: inherit; font-size: 0.82rem; font-weight: 500; line-height: 1.35; text-align: left; color: var(--t1);

@@ -9,7 +9,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { fetchBadge, markAllSeen, badgeIsSeenBased } from './api'
+import { fetchBadge, badgeIsSeenBased } from './api'
 
 let count = 0
 let inboxOpen = false
@@ -41,12 +41,14 @@ function scheduleRefresh(ms = 300) {
   timer = setTimeout(refreshBadge, ms)
 }
 
-/** Called by the inbox page: true on mount (clears the badge, marks the rows seen), false on unmount. */
+/**
+ * Called by the inbox page: true on mount (the bell clears at once), false on unmount. Marking the rows seen is the page's
+ * own job (useInbox does it right after it has read them, so the "New" section can tell what was unseen).
+ */
 export function setInboxOpen(open) {
   inboxOpen = open
   if (!open) return
   if (badgeIsSeenBased()) set(0)
-  markAllSeen().then(() => scheduleRefresh(0))
 }
 
 /** Listener for rows the realtime channel just delivered (guest audience only): (row) => void. Returns the unsubscribe. */

@@ -1,47 +1,47 @@
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { timeAgo } from '../../lib/helpers'
-import { describeItem } from '../../lib/notificationView'
+import { Img } from '../../components/ui'
+import { timeShort } from '../../lib/timeShort'
+import { describeItem, richParts } from '../../lib/notificationView'
 import Leading from './Leading'
 
-function Thumb({ src }) {
-  const [broken, setBroken] = useState(false)
-  if (!src || broken) return null
-  return <img className="ntf-thumb" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
-}
-
 /**
- * One inbox line (a group of rows collapsed by the server). A button: tapping it marks the group read and goes to its
- * target. `thumbUrl` is the signed URL of the post / dish photo the payload carries, when there is one.
+ * One inbox line (a group of rows collapsed by the server), docs/UX-PLAN-2026-10-18.md 2.2: leading avatar or icon, the sentence
+ * with the actor and the venue in bold and the short time at its end, a 44 px thumbnail on the right. No background, stripe or
+ * dot for "unread": novelty is the "New" section. A tap marks the group read and goes to its target.
+ * An incoming friend request carries Confirm / Delete under the text (they do not open the row): Confirm turns the sentence
+ * into "X is now your friend." and fades the buttons away, Delete collapses the row.
+ * `thumbUrl` is the signed URL of the photo the item's `thumb` names, when it is a storage path.
  */
-function NotificationItem({ item, thumbUrl, onOpen }) {
+function NotificationItem({ item, hasTable, thumbUrl, onOpen, onConfirm, onDecline }) {
   const { t, i18n } = useTranslation('notifications')
-  const view = describeItem(item, t, i18n.language)
+  const view = describeItem(item, t, i18n.language, { hasTable })
   const thumb = view.thumb ? (view.thumb.src || thumbUrl || null) : null
+  const pending = item.friendStatus === 'pending'
 
   return (
-    <li className="stagger-item ntf-li">
-      <button
-        type="button"
-        className={`ntf-item${item.read ? '' : ' unread'}`}
-        onClick={() => onOpen(item, view.to)}
-      >
-        <Leading view={view} actors={item.actors} />
-        <span className="ntf-body">
-          <span className="ntf-text">{view.text}</span>
-          <span className="ntf-meta">
-            <time dateTime={item.at}>{timeAgo(item.at, i18n.language)}</time>
-            {item.count > 1 && !item.actors.length ? <span> · {t('updates', { count: item.count })}</span> : null}
+    <li className={`ntf-li${item.leaving ? ' is-leaving' : ''}`}>
+      <div className="ntf-li-in">
+        <button type="button" className="ntf-main" onClick={() => onOpen(item, view.to)}>
+          <Leading view={view} actors={item.actors} />
+          <span className="ntf-text" key={item.friendStatus || 'x'}>
+            {richParts(view.rich).map((p, i) => (p.b ? <strong key={i}>{p.s}</strong> : p.s))}
+            {' '}
+            <time className="ntf-time" dateTime={item.at}>{timeShort(item.at, i18n.language)}</time>
           </span>
-        </span>
-        <Thumb src={thumb} />
-        {item.read ? null : (
-          <>
-            <span className="ntf-dot" aria-hidden="true" />
-            <span className="sr-only">{t('unread')}</span>
-          </>
+          {thumb && <Img className="ntf-thumb" src={thumb} ratio="1/1" />}
+        </button>
+        {(pending || item.fading) && (
+          <div className={`ntf-actions${pending ? '' : ' is-fading'}`}>
+            <button type="button" className="ntf-btn ntf-btn-yes" disabled={!pending} onClick={() => onConfirm(item)}>
+              {t('friendConfirm')}
+            </button>
+            <button type="button" className="ntf-btn ntf-btn-no" disabled={!pending} onClick={() => onDecline(item)}>
+              {t('friendDelete')}
+            </button>
+          </div>
         )}
-      </button>
+      </div>
     </li>
   )
 }

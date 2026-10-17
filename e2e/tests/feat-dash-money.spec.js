@@ -76,7 +76,7 @@ const stat = (page, label) => page.locator('.v2-stats .stat-card').filter({ hasT
 /** What the Bills page shows right now: the three stat cards and the three filter chips. */
 async function billsSnapshot(page) {
   await expect(page.locator('.v2-stats .stat-card').first()).toBeVisible()
-  const chips = await page.locator('.v2-chips button.chip').allTextContents()
+  const chips = await page.locator('.chipscroll-track button.chip').allTextContents()   // the status chips and the range chips; the counts are on the status ones
   const count = name => Number(((chips.find(c => c.trim().startsWith(name)) || '').match(/\((\d+)\)/) || [])[1])
   return {
     active: Number(((await stat(page, 'Active bills').textContent()) || '').trim()),
@@ -100,9 +100,15 @@ async function expectBillsMatchApi(page, mgr, label = 'Bills page vs restaurant_
 
 /** The page opens on Active, where a bill disappears once it is paid: scenario tests watch it on All instead. */
 async function showAll(page) {
-  const all = page.locator('.v2-chips').getByRole('button', { name: /^All \(/ })
+  const all = page.locator('.chipscroll-track').getByRole('button', { name: /^All \(/ })
   await all.click()
   await expect(all).toHaveAttribute('aria-pressed', 'true')
+}
+
+/** Opens the card's "More actions" menu and picks Void bill (managers / admins only; the menu is the only place the action lives). */
+async function openVoid(card) {
+  await card.getByRole('button', { name: 'More actions' }).click()
+  await card.getByRole('menuitem', { name: 'Void bill', exact: true }).click()
 }
 
 /** The newest bill card of a table in the given state ('open' | 'requested' | 'paying' | 'paid' | 'void' | any). */
@@ -167,7 +173,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
 
       const cards = page.locator('article.v2-bill')
       const classes = () => cards.evaluateAll(els => els.map(e => [...e.classList].find(c => c.startsWith('v2-bill--')) || ''))
-      const chip = re => page.locator('.v2-chips').getByRole('button', { name: re })
+      const chip = re => page.locator('.chipscroll-track').getByRole('button', { name: re })
       await expect(chip(/^Active \(/)).toHaveAttribute('aria-pressed', 'true')   // opens on Active
       await expect(cards).toHaveCount(snap.chipActive)
       expect((await classes()).every(c => /--(open|requested|paying)$/.test(c)), `Active shows only unpaid bills: ${await classes()}`).toBe(true)
@@ -389,7 +395,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       })
 
       await test.step('the Void bill button shows the bill_has_payments message and puts the card back', async () => {
-        await card.getByRole('button', { name: 'Void bill', exact: true }).click()
+        await openVoid(card)
         await page.getByRole('dialog', { name: 'Void this bill?' }).getByRole('button', { name: 'Void bill', exact: true }).click()
         await expect(page.getByText('A paid share exists — refund first.'), 'the translated bill_has_payments message').toBeVisible({ timeout: 10_000 })
         await expect(card, 'the bill is still Paying, not Void').toHaveClass(/v2-bill--paying/, { timeout: 20_000 })
@@ -571,21 +577,26 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       await page.goto(rurl('/bills'))
       const card = billCard(page, T.number, 'open')
       await expect(card).toBeVisible()
-      const voidBtn = card.getByRole('button', { name: 'Void bill', exact: true })
-      await expect(voidBtn, 'a Void bill action on an unpaid bill card').toBeVisible({ timeout: 5_000 })
+      // a one-person bill that was never split: the whole-bill action stays; Void bill is in the "More actions" menu
+      const menuBtn = card.getByRole('button', { name: 'More actions' })
+      await expect(menuBtn, 'a "More actions" menu on an unpaid bill card').toBeVisible({ timeout: 5_000 })
       await expect(card.getByRole('button', { name: 'Mark whole bill paid' })).toBeVisible()
+      await menuBtn.click()
+      await expect(card.getByRole('menuitem', { name: 'Void bill', exact: true }), 'the menu offers Void bill').toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(card.getByRole('menuitem')).toHaveCount(0)
       await shot(testInfo, page, 'bills-void-action')
       const dlg = page.getByRole('dialog', { name: 'Void this bill?' })
-      await voidBtn.click()
+      await openVoid(card)
       await expect(dlg).toBeVisible()
       await expect(dlg).toContainText(`Table ${T.number}`)
       await dlg.getByRole('button', { name: 'Cancel', exact: true }).click()
       await expect(dlg).toHaveCount(0)
-      await voidBtn.click()
+      await openVoid(card)
       await page.keyboard.press('Escape')
       await expect(dlg, 'Esc closes the confirmation').toHaveCount(0)
       expect((await F.bills(mgr)).find(b => b.bill_id === bill.bill_id).status, 'still open after Cancel / Esc').toBe('open')
-      await voidBtn.click()
+      await openVoid(card)
       await dlg.getByRole('button', { name: 'Void bill', exact: true }).click()
       await expect(billCard(page, T.number, 'open'), 'a voided bill leaves the Active list').toHaveCount(0, { timeout: 20_000 })
       await showAll(page)   // Void bills are listed under All (Active holds open / requested / paying bills only)
@@ -627,11 +638,13 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
     })
 
     test('a refused Mark paid / Mark whole bill paid rolls the screen back and shows a readable message', async ({ fx }, testInfo) => {
-      const mgr = await fx.open('manager'); const g4 = await fx.open('g4')
+      const mgr = await fx.open('manager'); const g4 = await fx.open('g4'); const g5 = await fx.open('g5')
       const T = pickFree(await F.sedaTables(mgr), ['T2', 'T3'])
-      fx.cleanup(() => F.freeTable(mgr, T.id, [g4]))
+      fx.cleanup(() => F.freeTable(mgr, T.id, [g4, g5]))
       const dishes = await F.cheapDishes(mgr)
-      await F.seat(g4, T.code); await F.placeOrder(g4, T.id, dishes.slice(0, 1)); const bill = await F.myBill(g4)
+      // two diners, so two unpaid shares: with one share left the row's Mark paid is the only settle action (the whole-bill button is hidden)
+      await F.seat(g4, T.code); await F.seat(g5, T.code, g4)
+      await F.placeOrder(g4, T.id, dishes.slice(0, 1)); await F.placeOrder(g5, T.id, dishes.slice(1, 2)); const bill = await F.myBill(g4)
       const sp = await g4.rpc('split_bill', { p_bill_id: bill.bill_id, p_mode: 'own', p_assignments: {} })
       expect(sp.ok, `split_bill: ${F.errOf(sp)}`).toBe(true)
 
@@ -1335,9 +1348,9 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         expect(refused.ok, 'claim_table with the old code').toBe(false)
         expect(F.errOf(refused)).toBe('invalid_code')
         await g.page.goto(curl(`/t/${oldCode}`))
-        await expect(g.page.getByRole('heading', { name: 'Join this table?' })).toBeVisible({ timeout: 20_000 })
-        await g.page.getByRole('button', { name: 'Join', exact: true }).click()
+        await expect(g.page.getByRole('heading', { name: "Couldn't join this table" }), 'the page names a code the server does not know without a Join tap').toBeVisible({ timeout: 20_000 })
         await expect(g.page.locator('.claim-card')).toContainText('Invalid table code')
+        await expect(g.page.getByRole('button', { name: 'Join', exact: true })).toHaveCount(0)
         await expect(g.page).not.toHaveURL(curl('/table'))
         await uiClaim(g, newCode)
         await expect(g.page.getByRole('heading', { name: 'Your Table' })).toBeVisible()
@@ -1878,7 +1891,8 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
           .toEqual(staff.map(s => `${s.display_name} | ${label(s.role)} / ${s.active ? 'Active' : 'Inactive'}`).sort())
         expect(ui.every(u => u.avatar === u.name[0].toUpperCase()), 'avatar initials').toBe(true)
         const created = new Map(staff.map(s => [s.display_name, s.created_at]))
-        const order = ui.map(u => created.get(u.name))
+        const shared = new Set(staff.filter((s, i) => staff.findIndex(o => o.display_name === s.display_name) !== i).map(s => s.display_name))
+        const order = ui.filter(u => !shared.has(u.name)).map(u => created.get(u.name))   // rows with a shared name cannot be told apart
         expect(order, 'oldest team member first').toEqual([...order].sort())
         await expect(page.getByRole('heading', { name: 'Invite staff' })).toBeVisible()
         await expect(page.getByText('Coming soon: invite by email or phone')).toBeVisible()
@@ -2068,7 +2082,8 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
     // my-tips every floor role (waiter, host, cashier, manager, admin); kitchen none.
     const ALLOWED = {
       admin: ROUTES, manager: ROUTES,
-      cashier: ['/bills', '/my-tips'], waiter: ['/my-tips'], host: ['/my-tips'], kitchen: [],
+      // /settings opens for every staff role since V2-CONTRACT 21.5 (its Notifications tab); the money tabs stay manager / admin
+      cashier: ['/bills', '/my-tips', '/settings'], waiter: ['/my-tips', '/settings'], host: ['/my-tips', '/settings'], kitchen: ['/settings'],
     }
     const pathOf = page => new URL(page.url()).pathname
     const navHrefs = async (page, sel) => { await page.locator(sel).first().waitFor({ state: 'attached' }); return page.locator(sel).evaluateAll(as => as.map(a => new URL(a.href).pathname)) }
@@ -2139,7 +2154,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
     const loc = (lang, ns) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'client-resto', 'src', 'locales', lang, `${ns}.json`), 'utf8'))
     const EN = loc('en', 'v2'); const AZ = loc('az', 'v2')
     const placeholders = s => [...String(s).matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map(m => m[1]).sort()
-    const SAME_OK = new Set(['demoBadge', 'role_admin', 'methodDemo', 'dismiss', 'byDayItem'])   // identical in both languages on purpose
+    const SAME_OK = new Set(['demoBadge', 'role_admin', 'methodDemo', 'dismiss', 'byDayItem', 'mdNoteCount', 'mdSampleDish3'])   // identical in both languages on purpose
     const asAz = async who => { await who.page.addInitScript(() => { try { localStorage.setItem('rufesto_lang', 'az') } catch { /* blocked */ } }) }
     const text = page => page.locator('.dash-content').evaluate(el => el.textContent.replace(/\s+/g, ' '))
     /** English phrases of the v2 strings (>= 12 chars, static part of the longest piece) and raw i18n keys found in an Azerbaijani page. */
@@ -2187,7 +2202,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       await expect(azCard).toBeVisible({ timeout: 15_000 })
       let t = await text(page)
       expect(has(t, ['Aktiv hesablar', 'Yığılacaq məbləğ', 'Bu gün yığılan', /Aktiv \(\d+\)/, /Ödənilib \(\d+\)/, /Hamısı \(\d+\)/, `Masa ${T.number}`, 'Resepşn', /Borcu: ₼/, 'Ödənilib kimi işarələ', 'Bütün hesabı ödənilib kimi işarələ']), 'expected Azerbaijani copy missing').toEqual([])
-      await page.locator('.v2-chips').getByRole('button', { name: /^Hamısı/ }).click()
+      await page.locator('.chipscroll-track').getByRole('button', { name: /^Hamısı/ }).click()
       t = await text(page)
       expect(leaks(t), 'English leaking into the Bills page').toEqual([])
       await azCard.getByRole('button', { name: 'Bütün hesabı ödənilib kimi işarələ' }).click()
@@ -2246,7 +2261,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       await expect(page.locator('.v2-day')).toHaveCount(7)
       for (const label of ['İş saatları', 'Rezervasiya qaydaları', 'İşçilər']) await expect(page.getByRole('tab', { name: label })).toBeVisible()
       const dayNames = await page.locator('.v2-day .v2-day-name').allTextContents()
-      const wantDays = await page.evaluate(() => [1, 2, 3, 4, 5, 6, 0].map(d => new Date(Date.UTC(2024, 0, 7 + d)).toLocaleDateString('az-AZ', { weekday: 'long', timeZone: 'UTC' })))
+      const wantDays = ['Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə', 'Bazar']   // Monday first
       expect(dayNames, 'weekday names in Azerbaijani').toEqual(wantDays)
       await page.locator('#v2-day-1-close').fill('10:00')
       await expect(page.locator('.v2-day').first().getByRole('alert')).toHaveText('Bağlanış vaxtı açılışdan sonra olmalıdır')
@@ -2338,7 +2353,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         await shot(testInfo, who.page, `phone-${label.replace(/\W+/g, '-')}`)
       }
       await visit(mgr, W, '/bills', 'bills', async p => { await expect(p.locator('article.v2-bill').first()).toBeVisible({ timeout: 20_000 }) }, async p => {
-        await p.locator('.v2-chips').getByRole('button', { name: /^All \(/ }).click()
+        await p.locator('.chipscroll-track').getByRole('button', { name: /^All \(/ }).click()
         await W.check('bills all')
         await p.locator('article.v2-bill').first().getByRole('button', { name: 'Mark whole bill paid' }).first().click().catch(() => {})
         if (await p.getByRole('dialog').count()) { await W.check('bills confirm dialog'); await p.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click() }

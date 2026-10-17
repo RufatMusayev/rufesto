@@ -1,0 +1,114 @@
+/* BottomSheet (components/ui/BottomSheet.jsx), docs/UX-PLAN-2026-10-18.md 6.1 / 6.2.
+   portal(body) > .bs-root > .bs-scrim + .bs-panel > .bs-head + .bs-body[data-bs-scroll] + .bs-foot */
+
+/* ---- page behind an open sheet: one counted lock (lib/scrollLock.js) ---- */
+html.is-locked { overflow: hidden; overscroll-behavior: none; }
+/* body must not become a scroll container (it would, through its own overflow-x:hidden, once <html> clips): that
+   would un-stick every position:sticky header while a sheet is open */
+html.is-locked body { overflow: visible; }
+
+.bs-root {
+  position: fixed; left: 0; right: 0; z-index: 200;
+  top: var(--vv-top, 0px); height: var(--vvh, 100%);
+  display: flex; align-items: flex-end; justify-content: center;
+  overscroll-behavior: contain;
+}
+.bs-root[data-state="closed"] { pointer-events: none; }
+
+.bs-scrim {
+  position: absolute; inset: 0; cursor: pointer;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--dur-sheet-out) linear;
+  -webkit-tap-highlight-color: transparent;
+}
+.bs-root[data-state="open"] .bs-scrim { opacity: var(--bs-fade, 1); transition: opacity var(--dur-2) linear; }
+.bs-root[data-dragging] .bs-scrim { transition: none; }
+
+.bs-panel {
+  position: relative; display: flex; flex-direction: column;
+  width: 100%;
+  max-height: 92vh;
+  max-height: min(92dvh, calc(var(--vvh, 100dvh) - 24px));
+  background: var(--s1); color: var(--t1);
+  border-top: 1px solid var(--border-strong);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow: 0 -10px 40px -14px rgba(0, 0, 0, 0.5);
+  outline: none; overflow: hidden;
+  overscroll-behavior: contain;
+  transform: translate3d(0, 100%, 0);
+  transition: transform var(--dur-sheet-out) var(--ease-exit);
+  will-change: transform;
+}
+.bs-root[data-size="large"] .bs-panel {
+  height: 92vh;
+  height: min(92dvh, calc(var(--vvh, 100dvh) - 24px));
+}
+.bs-root[data-state="open"] .bs-panel {
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--dur-sheet-in) var(--ease-drawer);
+}
+@media (min-width: 600px) {
+  .bs-panel { max-width: 520px; }
+}
+
+/* head: handle + header. The whole head is the drag zone, so it takes no native touch gestures */
+.bs-head { flex: none; position: relative; z-index: 2; background: var(--s1); touch-action: none; user-select: none; -webkit-user-select: none; }
+.bs-grab { height: 24px; display: flex; align-items: center; justify-content: center; cursor: grab; }
+.bs-grab::before { content: ''; width: 36px; height: 4px; border-radius: 2px; background: var(--t4); }
+.bs-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 8px 4px 16px; }
+.bs-title { font-size: 1.15rem; font-weight: 700; line-height: 1.25; margin: 0; color: var(--t1); min-width: 0; }
+
+.bs-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.bs-body.bs-padded { padding: 4px 16px 16px; }
+.bs-body.bs-nofoot { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.bs-body.bs-padded.bs-nofoot { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+
+.bs-foot {
+  flex: none; position: relative; z-index: 2;
+  background: var(--s1); border-top: 1px solid var(--border);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+
+/* ---- variant "media": photo / video viewer, black, edge to edge ---- */
+.bs-root[data-variant="media"] .bs-panel {
+  background: #000; color: #F5F0E8; border: 0; border-radius: 0; box-shadow: none;
+  height: 100%; max-height: none; max-width: none;
+}
+.bs-root[data-variant="media"] .bs-head { position: absolute; top: 0; left: 0; right: 0; background: transparent; }
+.bs-root[data-variant="media"] .bs-grab::before { background: rgba(245, 240, 232, 0.5); }
+.bs-root[data-variant="media"] .bs-body.bs-padded { padding: 0; }
+
+/* ---- desktop (>= 1024px with a mouse): a centred dialog, no drag ---- */
+@media (min-width: 1024px) and (pointer: fine) {
+  .bs-root { align-items: center; }
+  .bs-panel {
+    width: min(520px, 94vw); max-width: none; max-height: 85vh;
+    border: 1px solid var(--border-strong); border-radius: var(--r-lg);
+    box-shadow: 0 32px 64px -16px rgba(0, 0, 0, 0.6);
+    transform: scale(0.96); opacity: 0;
+    transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+  }
+  .bs-root[data-state="open"] .bs-panel {
+    transform: scale(1); opacity: 1;
+    transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+  }
+  .bs-root[data-size="large"] .bs-panel { width: min(640px, 94vw); height: 85vh; }
+  .bs-root[data-variant="media"] .bs-panel { width: min(960px, 96vw); height: 92vh; border-radius: var(--r-lg); }
+  .bs-grab { display: none; }
+  .bs-title-row { padding-top: 12px; }
+}
+
+/* ---- reduced motion: no transform on open or close, a short fade instead ---- */
+@media (prefers-reduced-motion: reduce) {
+  .bs-panel,
+  .bs-root[data-state="open"] .bs-panel,
+  .bs-root[data-size="large"] .bs-panel {
+    transform: none; opacity: 0; transition: opacity 120ms linear;
+  }
+  .bs-root[data-state="open"] .bs-panel { opacity: 1; }
+  .bs-scrim, .bs-root[data-state="open"] .bs-scrim { transition: opacity 120ms linear; }
+}

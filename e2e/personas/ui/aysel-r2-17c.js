@@ -1,0 +1,22 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  const api = await L.api('Aysel Məmmədova')
+  L.log('session before:', JSON.stringify(await api.rpc('my_table_session')))
+  await A.page.goto(L.CONSUMER + '/table'); await A.page.waitForTimeout(2500)
+  L.log('table page:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 200))
+  await L.shot(A.page, '17c-table-after-manual')
+  const end = A.page.getByRole('button', { name: 'End Session' })
+  if (await end.count()) { await end.click(); await A.page.waitForTimeout(1500); L.log('ended; session now:', JSON.stringify(await api.rpc('my_table_session'))) }
+  await L.step('Reserve a table (scoped to the sheet)', async () => {
+    await A.page.goto(L.CONSUMER + '/'); await A.page.waitForSelector('.soc-feed-slot article'); await A.page.waitForTimeout(1200)
+    await A.page.getByRole('link', { name: 'Order this' }).first().click(); await A.page.waitForSelector('.sheet'); await A.page.waitForTimeout(1500)
+    const r = A.page.locator('.sheet').getByRole('button', { name: /Reserve a table/i }).or(A.page.locator('.sheet').getByRole('link', { name: /Reserve a table/i })).first()
+    L.log('reserve control tag:', await r.evaluate(e => e.tagName + ' ' + (e.getAttribute('href') || '')))
+    await r.click(); await A.page.waitForTimeout(2200)
+    L.log('landed:', A.page.url().replace(L.CONSUMER, ''), '|', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 160))
+    await L.shot(A.page, '17c-reserve')
+  })
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

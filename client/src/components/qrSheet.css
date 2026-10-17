@@ -1,0 +1,26 @@
+/* QRSheet (components/QRSheet.jsx): inside a BottomSheet. The #qr-reader video rules live in index.css. */
+.qr-prompt { color: var(--t3); font-size: 0.84rem; margin-bottom: 1rem; }
+.qr-viewfinder {
+  position: relative; width: 100%; max-width: 340px; min-height: 280px; margin: 0 auto 1rem;
+  border-radius: 16px; overflow: hidden; background: #000; border: 2px solid var(--border);
+}
+.qr-viewfinder #qr-reader { width: 100%; }
+.qr-scanning {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+  padding: 5px 16px; border-radius: 100px; white-space: nowrap;
+  background: rgba(0, 0, 0, 0.7); color: #F5F0E8; font-size: 0.72rem; font-weight: 600;
+}
+.qr-cam-error {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; max-width: 300px; min-height: 160px; margin: 0 auto 1rem; padding: 12px;
+  border: 2px dashed var(--border); border-radius: 16px; color: var(--t3); font-size: 0.78rem; text-align: center;
+}
+.qr-toggles { display: flex; gap: 8px; justify-content: center; margin-bottom: 1rem; }
+.qr-toggles .btn { font-size: 0.75rem; padding: 5px 14px; }
+.qr-input { margin-bottom: 0.75rem; }
+.qr-error { color: var(--red); font-size: 0.82rem; margin-bottom: 0.75rem; }
+.qr-submit, .qr-cancel { width: 100%; }
+.qr-cancel { margin-top: 0.5rem; }
+.qr-done { text-align: center; padding: 0.5rem 0 1rem; }
+.qr-done .state-icon { margin-top: 0.5rem; }
+.qr-done-hint { color: var(--t3); font-size: 0.85rem; }

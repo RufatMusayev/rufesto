@@ -8,6 +8,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
+import { isRestaurantOpen } from '../lib/helpers'
 import './MapPage.css'
 
 // Vite fingerprints/relocates these assets at build time, so Leaflet's own hardcoded
@@ -96,18 +97,15 @@ export default function MapPage() {
   const [map, setMap] = useState(null)
   const [restaurants, setRestaurants] = useState([])
   const [selected, setSelected] = useState(null)
-  const [query, setQuery] = useState('')
+  const [onlyOpen, setOnlyOpen] = useState(false)
   const [notice, setNotice] = useState(null)      // { kind: 'loading' | 'error', key } for the "my location" button
   const meRef = useRef(null)
   const noticeTimer = useRef(null)
 
-  // Search: restaurants whose name, cuisine or address contains the text; markers and chips follow it.
-  const needle = query.trim().toLowerCase()
+  // The map has one filter, "Open now" (search lives on the Search tab): markers and chips follow it.
   const visible = useMemo(
-    () => (needle
-      ? restaurants.filter(r => [r.name, r.cuisine_type, r.address].some(v => (v || '').toLowerCase().includes(needle)))
-      : restaurants),
-    [restaurants, needle],
+    () => (onlyOpen ? restaurants.filter(r => isRestaurantOpen(r.operating_hours)) : restaurants),
+    [restaurants, onlyOpen],
   )
 
   // react-router hands out a new navigate() on every location change; popups call it through a
@@ -118,7 +116,7 @@ export default function MapPage() {
     let cancelled = false
     supabase
       .from(rsrc())
-      .select('id, name, slug, cuisine_type, address, latitude, longitude')
+      .select('id, name, slug, cuisine_type, address, latitude, longitude, operating_hours(*)')
       .eq('status', 'active')
       .then(({ data }) => {
         if (cancelled) return
@@ -203,13 +201,13 @@ export default function MapPage() {
     }
   }, [map, visible, t])
 
-  // Typing in the search bar brings the matches into view (no animation: see disposeMap about timers).
+  // Switching "Open now" on brings the open places into view (no animation: see disposeMap about timers).
   useEffect(() => {
-    if (!map || !needle || visible.length === 0) return
+    if (!map || !onlyOpen || visible.length === 0) return
     const pts = visible.map(r => [r.latitude, r.longitude])
     if (pts.length === 1) map.setView(pts[0], 16, { animate: false })
     else map.fitBounds(pts, { padding: [70, 70], maxZoom: 16, animate: false })
-  }, [map, needle, visible])
+  }, [map, onlyOpen, visible])
 
   function showNotice(next, autoHide) {
     clearTimeout(noticeTimer.current)
@@ -249,18 +247,12 @@ export default function MapPage() {
       <h1 className="sr-only">{t('nav:map')}</h1>
       <div ref={containerRef} className="map-canvas" />
 
-      {/* Search overlay: a real field, clicking anywhere on the bar focuses it */}
-      <label className="map-search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" aria-hidden="true">
-          <circle cx="10.5" cy="10.5" r="7.5" />
-          <line x1="16.5" y1="16.5" x2="22" y2="22" strokeLinecap="round" />
-        </svg>
-        <input
-          type="search" className="map-search-input" value={query} autoComplete="off"
-          placeholder={t('map:searchPlaceholder')} aria-label={t('map:searchLabel')}
-          onChange={e => setQuery(e.target.value)}
-        />
-      </label>
+      <button
+        type="button" className={`map-filter chip pressable${onlyOpen ? ' active' : ''}`}
+        aria-pressed={onlyOpen} onClick={() => setOnlyOpen(v => !v)}
+      >
+        {t('map:openNow')}
+      </button>
 
       <button type="button" className="map-locate" onClick={locateMe} aria-label={t('map:locate')} title={t('map:locate')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -276,8 +268,8 @@ export default function MapPage() {
           {t(`map:${notice.key}`)}
         </div>
       )}
-      {needle && visible.length === 0 && !notice && (
-        <div className="map-notice" role="status">{t('map:noMatches')}</div>
+      {onlyOpen && visible.length === 0 && !notice && (
+        <div className="map-notice" role="status">{t('map:noneOpen')}</div>
       )}
 
       {/* Restaurant chips at bottom */}

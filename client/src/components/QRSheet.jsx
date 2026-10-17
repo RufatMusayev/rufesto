@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Html5Qrcode } from 'html5-qrcode'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { sanitizeTableCode } from '../lib/pendingClaim'
-import useEscapeClose from './ui/useEscapeClose'
+import BottomSheet from './ui/BottomSheet'
 import { claimErrorMessage } from '../features/dinein/mounts'
 import { stopScanner } from './QRSheetScanner'
+import './qrSheet.css'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
@@ -18,12 +18,13 @@ import { stopScanner } from './QRSheetScanner'
 // (shown on the success screen, then onClose; that caller also decides where to go next).
 //
 // Without `onCode` the sheet claims the table itself and, after the success screen, closes and opens /table.
+// It is a BottomSheet in controlled mode: the `onClose` prop is called once the exit animation has finished, so the
+// parent can unmount it; closing starts by dropping `open`, which also stops the camera at once.
 // The camera is stopped in exactly one place, the cleanup of the scanning effect below (through stopScanner,
 // which is idempotent and never throws): a decoded code, a mode switch, the success screen and closing/unmounting
 // all end that effect. Stopping it anywhere else, twice, blanked the whole app (QA persona-leyla #1).
 export default function QRSheet({ onClose, onCode }) {
   const { t } = useTranslation(['booking', 'table', 'common'])
-  const navigate = useNavigate()
   const { session } = useAuth()
   const { claimTable } = useCart()
   const [token,    setToken]    = useState('')
@@ -36,22 +37,25 @@ export default function QRSheet({ onClose, onCode }) {
   const [scanRun, setScanRun]       = useState(0)     // bumped to start a fresh camera run (see resumeScan)
   const [camError, setCamError]     = useState(false)
   const [manualMode, setManualMode] = useState(false)
+  const [open, setOpen] = useState(true)
+  const sheetApi = useRef(null)    // BottomSheet's { close, navigate }
+  const openRef = useRef(true)
+  openRef.current = open
+  const dismiss = useCallback(() => setOpen(false), [])
   const closeTimerRef = useRef(null)
   const stopRef = useRef(null)     // the stop of the previous camera run (a promise), awaited by the next run
   const aliveRef = useRef(true)
   const onCodeRef = useRef(onCode)
   onCodeRef.current = onCode
   const resultRef = useRef(null)   // always the latest handleQRResult: the camera callback outlives the render that made it
-  useEscapeClose(onClose)
-
   useEffect(() => {
     aliveRef.current = true
     return () => { aliveRef.current = false; clearTimeout(closeTimerRef.current) }
   }, [])
 
-  // One camera run per (scanning, manualMode, done, scanRun). Its cleanup is the only place that stops the camera.
+  // One camera run per (open, scanning, manualMode, done, scanRun). Its cleanup is the only place that stops the camera.
   useEffect(() => {
-    if (!scanning || manualMode || done) return undefined
+    if (!open || !scanning || manualMode || done) return undefined
 
     let scanner
     try {
@@ -92,7 +96,7 @@ export default function QRSheet({ onClose, onCode }) {
       stopRef.current = stopScanner(scanner)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanning, manualMode, done, scanRun])
+  }, [open, scanning, manualMode, done, scanRun])
 
   // Back to scanning after a refused claim. The bump makes a new camera run even if `scanning` is already true.
   function resumeScan() {
@@ -135,7 +139,7 @@ export default function QRSheet({ onClose, onCode }) {
 
     if (onCodeRef.current) {
       const res = await onCodeRef.current(code)
-      if (!aliveRef.current) return        // the guest closed the sheet meanwhile: say nothing, move nobody
+      if (!aliveRef.current || !openRef.current) return   // the guest closed the sheet meanwhile: say nothing, move nobody
       setLoading(false)
       if (res?.error) {
         setError(res.error)
@@ -145,12 +149,12 @@ export default function QRSheet({ onClose, onCode }) {
       setResult(res?.data ?? null)
       setDone(true)
       // this caller seats the guest itself and decides where to go once the sheet closes
-      closeTimerRef.current = setTimeout(onClose, 1400)
+      closeTimerRef.current = setTimeout(dismiss, 1400)
       return
     }
 
     const { data, error: claimErr } = await claimTable(code)
-    if (!aliveRef.current) return
+    if (!aliveRef.current || !openRef.current) return
     setLoading(false)
 
     if (claimErr) {
@@ -164,7 +168,7 @@ export default function QRSheet({ onClose, onCode }) {
     // Success screen for a moment, then close the sheet (the camera is long released by then) and open the table.
     // A pending guest (not yet approved by the host) lands on /table too, which renders the PendingJoin waiting
     // screen based on CartContext's sessionStatus.
-    closeTimerRef.current = setTimeout(() => { onClose(); navigate('/table') }, 1400)
+    closeTimerRef.current = setTimeout(() => sheetApi.current?.navigate('/table'), 1400)
   }
 
   async function handleLookup(e) {
@@ -182,162 +186,96 @@ export default function QRSheet({ onClose, onCode }) {
     setScanning(true)
   }
 
+  const pending = result?.session_status === 'pending'
+
   return (
-    <div
-      className="overlay"
-      onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ alignItems: 'flex-end' }}
+    <BottomSheet
+      id="qr" size="large" open={open} onClose={dismiss} onClosed={onClose} apiRef={sheetApi}
+      title={done ? undefined : t('booking:scanTitle')}
+      label={done ? (pending ? t('booking:requestSentTitle') : t('booking:youreSeated')) : undefined}
     >
-      <div className="sheet">
-        <div className="sheet-handle" />
-        <div style={{ padding: '1rem 1.5rem 2.5rem' }}>
-
-          {done ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-              {result?.session_status === 'pending' ? (
-                <div style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  background: 'rgba(196,154,44,0.12)', border: '1px solid var(--gold)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 16px',
-                }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 15" />
-                  </svg>
-                </div>
-              ) : (
-                <div style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  background: 'var(--sage-bg)', border: '1px solid var(--sage)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 16px',
-                }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-              )}
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>
-                {result?.session_status === 'pending' ? t('booking:requestSentTitle') : t('booking:youreSeated')}
-              </h2>
-              {result && (
-                <div style={{ color: 'var(--t2)', fontSize: '0.85rem', marginBottom: 4 }}>
-                  {result.restaurant_name}
-                  {result.table_number != null && ` · ${t('common:tableLabel', { number: result.table_number })}`}
-                </div>
-              )}
-              <p style={{ color: 'var(--t3)', fontSize: '0.85rem' }}>
-                {result?.session_status === 'pending' ? t('booking:pendingApprovalHint') : t('booking:seatedHint')}
-              </p>
+      {done ? (
+        <div className="qr-done">
+          <div className={`state-icon ${pending ? '' : 'state-icon-sage'}`} aria-hidden="true">
+            {pending ? (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 15" />
+              </svg>
+            ) : (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </div>
+          <h2 className="state-title">{pending ? t('booking:requestSentTitle') : t('booking:youreSeated')}</h2>
+          {result && (
+            <div className="state-body">
+              {result.restaurant_name}
+              {result.table_number != null && ` · ${t('common:tableLabel', { number: result.table_number })}`}
             </div>
-          ) : (
-            <>
-              {/* Title */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                <h2 style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '1.2rem', fontWeight: 700, color: 'var(--t1)',
-                }}>
-                  {t('booking:scanTitle')}
-                </h2>
-                <button className="icon-btn" onClick={onClose} aria-label={t('common:close')}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <p style={{ color: 'var(--t3)', fontSize: '0.84rem', marginBottom: '1.25rem' }}>
-                {t('booking:scanPrompt')}
-              </p>
-
-              {/* Camera viewfinder */}
-              {!manualMode && !camError && (
-                <div style={{
-                  width: '100%', maxWidth: 340, margin: '0 auto 1rem',
-                  borderRadius: 16, overflow: 'hidden',
-                  background: '#000',
-                  border: '2px solid var(--border)',
-                  position: 'relative',
-                  minHeight: 280,
-                }}>
-                  <div id="qr-reader" style={{ width: '100%' }} />
-                  {scanning && (
-                    <div style={{
-                      position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-                      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
-                      borderRadius: 100, padding: '5px 16px',
-                      fontSize: '0.72rem', fontWeight: 600, color: '#F5F0E8',
-                      whiteSpace: 'nowrap', zIndex: 10,
-                    }}>
-                      {t('booking:scanning')}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Camera error state */}
-              {camError && !manualMode && (
-                <div style={{
-                  width: '100%', maxWidth: 300, height: 160, margin: '0 auto 1rem',
-                  border: '2px dashed var(--border)', borderRadius: 16,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 8,
-                  color: 'var(--t3)', fontSize: '0.78rem', textAlign: 'center',
-                }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 1l22 22M21 21H3a2 2 0 01-2-2V8a2 2 0 012-2h3l2-3h8l2 3h3a2 2 0 012 2v9" />
-                  </svg>
-                  <span>{t('booking:cameraDenied')}</span>
-                  <button onClick={handleRetryCamera} className="btn btn-ghost"
-                    style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
-                    {t('booking:retryCamera')}
-                  </button>
-                </div>
-              )}
-
-              {/* Manual mode hidden QR reader target */}
-              {manualMode && <div id="qr-reader" style={{ display: 'none' }} />}
-
-              {/* Toggle buttons */}
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: '1rem' }}>
-                {!manualMode && (
-                  <button className="btn btn-ghost"
-                    style={{ fontSize: '0.75rem', padding: '5px 14px' }}
-                    onClick={() => { setManualMode(true); setScanning(false); setError('') }}>
-                    {t('booking:enterCodeManually')}
-                  </button>
-                )}
-                {manualMode && (
-                  <button className="btn btn-ghost"
-                    style={{ fontSize: '0.75rem', padding: '5px 14px' }}
-                    onClick={handleRetryCamera}>
-                    {t('booking:useCameraInstead')}
-                  </button>
-                )}
-              </div>
-
-              {/* Manual token / access code input */}
-              <form onSubmit={handleLookup}>
-                <input
-                  className="input"
-                  placeholder={t('booking:pasteToken')}
-                  value={token}
-                  onChange={e => setToken(e.target.value)}
-                  style={{ marginBottom: '0.75rem' }}
-                  required
-                />
-                {error && <p style={{ color: 'var(--red)', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{error}</p>}
-                <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || !token.trim()}>
-                  {loading ? <><span className="spinner" /> {t('booking:claiming')}</> : t('booking:findTable')}
-                </button>
-              </form>
-              <button className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }} onClick={onClose}>
-                {t('common:cancel')}
-              </button>
-            </>
           )}
+          <p className="qr-done-hint">{pending ? t('booking:pendingApprovalHint') : t('booking:seatedHint')}</p>
         </div>
-      </div>
-    </div>
+      ) : (
+        <>
+          <p className="qr-prompt">{t('booking:scanPrompt')}</p>
+
+          {/* Camera viewfinder */}
+          {!manualMode && !camError && (
+            <div className="qr-viewfinder">
+              <div id="qr-reader" />
+              {scanning && <div className="qr-scanning">{t('booking:scanning')}</div>}
+            </div>
+          )}
+
+          {/* Camera error state */}
+          {camError && !manualMode && (
+            <div className="qr-cam-error">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M1 1l22 22M21 21H3a2 2 0 01-2-2V8a2 2 0 012-2h3l2-3h8l2 3h3a2 2 0 012 2v9" />
+              </svg>
+              <span>{t('booking:cameraDenied')}</span>
+              <button type="button" onClick={handleRetryCamera} className="btn btn-ghost">{t('booking:retryCamera')}</button>
+            </div>
+          )}
+
+          {/* Manual mode hidden QR reader target */}
+          {manualMode && <div id="qr-reader" hidden />}
+
+          {/* Toggle buttons */}
+          <div className="qr-toggles">
+            {!manualMode && (
+              <button type="button" className="btn btn-ghost" onClick={() => { setManualMode(true); setScanning(false); setError('') }}>
+                {t('booking:enterCodeManually')}
+              </button>
+            )}
+            {manualMode && (
+              <button type="button" className="btn btn-ghost" onClick={handleRetryCamera}>
+                {t('booking:useCameraInstead')}
+              </button>
+            )}
+          </div>
+
+          {/* Manual token / access code input */}
+          <form onSubmit={handleLookup}>
+            <input
+              className="input qr-input"
+              placeholder={t('booking:pasteToken')}
+              aria-label={t('booking:pasteToken')}
+              autoComplete="off"
+              spellCheck={false}
+              value={token}
+              onChange={e => setToken(e.target.value)}
+              required
+            />
+            {error && <p className="qr-error" role="alert">{error}</p>}
+            <button type="submit" className="btn btn-primary qr-submit" disabled={loading || !token.trim()}>
+              {loading ? <><span className="spinner" /> {t('booking:claiming')}</> : t('booking:findTable')}
+            </button>
+          </form>
+          <button type="button" className="btn btn-ghost qr-cancel" onClick={dismiss}>{t('common:cancel')}</button>
+        </>
+      )}
+    </BottomSheet>
   )
 }

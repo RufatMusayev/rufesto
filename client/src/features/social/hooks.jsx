@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import AuthModal from '../../components/AuthModal'
@@ -22,7 +23,11 @@ export function useRequireAuth() {
   return { session, authLoading: loading, requireAuth, authModal, openAuth: () => setOpen(true) }
 }
 
-/** One short status message, auto-dismissed after `ms`. `show(i18nKey, 'error' | 'info')`, e.g. 'social:errors.generic'. */
+/**
+ * One short status message, auto-dismissed after `ms`. `show(i18nKey, 'error' | 'info')`, e.g. 'social:errors.generic'.
+ * It is drawn in a portal on <body>: a card or a sheet panel carries a transform, which would turn its fixed child into
+ * a child of the panel (cut off, or behind the keyboard).
+ */
 export function useToast(ms = 3500) {
   const { t } = useTranslation('social')
   const [msg, setMsg] = useState(null)
@@ -34,7 +39,10 @@ export function useToast(ms = 3500) {
     timer.current = setTimeout(() => setMsg(null), ms)
   }, [ms, t])
   const toast = msg
-    ? <div className={`soc-toast soc-toast-${msg.kind}`} role={msg.kind === 'error' ? 'alert' : 'status'}>{msg.text}</div>
+    ? createPortal(
+      <div className={`soc-toast soc-toast-${msg.kind}`} role={msg.kind === 'error' ? 'alert' : 'status'}>{msg.text}</div>,
+      document.body,
+    )
     : null
   return { toast, showToast: show }
 }

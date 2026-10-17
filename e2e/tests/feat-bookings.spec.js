@@ -550,7 +550,7 @@ test.describe('invites', { tag: TAGS }, () => {
       .find(r => r.bookings && r.bookings.status !== 'cancelled')
     if (old) {
       await page.goto(url(`/b/${old.code}`))
-      await expect(page.getByText("This invite isn't valid anymore", { exact: true }), 'an expired invite').toBeVisible()
+      await expect(page.getByText(/^(This invite isn't valid anymore|This booking isn't accepting invites)$/), 'an expired invite (or one of a booking whose invites are off)').toBeVisible()
       await expect(page.getByRole('button', { name: /Join|Sign in to join/ })).toHaveCount(0)
     } else {
       test.info().annotations.push({ type: 'note', description: 'no expired, non-cancelled invite on the preview to open' })

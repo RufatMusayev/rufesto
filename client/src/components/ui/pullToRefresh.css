@@ -1,0 +1,13 @@
+/* ui/PullToRefresh.jsx (docs/UX-PLAN-2026-10-18.md 6.6). The indicator sits above the content; the content slides down. */
+.ptr { position: relative; }
+.ptr-indicator {
+  position: absolute; top: 8px; left: 50%; width: 28px; height: 28px; margin-left: -14px;
+  opacity: 0; pointer-events: none; z-index: 1; color: var(--accent-text);
+}
+.ptr-indicator svg { display: block; }
+.ptr-track { stroke: var(--border-strong); }
+.ptr-arc { stroke: currentColor; }
+.ptr.is-refreshing .ptr-indicator svg { animation: spin 0.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ptr.is-refreshing .ptr-indicator svg { animation: none; }
+}

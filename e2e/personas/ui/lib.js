@@ -8,12 +8,15 @@ const { chromium, devices } = require('@playwright/test')
 const { signInGuest } = require('../../support/guest')
 
 const BASE = (process.env.CONSUMER_URL || 'https://rufat-server.com').replace(/\/+$/, '')
-const OUT = path.join(__dirname, '..', '..', 'tour-out', 'personas', 'newcomer')
-const RES = path.join(__dirname, 'results')
+const ROUND = process.env.ROUND || ''   // ROUND=round2 -> screenshots in tour-out/personas/newcomer/round2, numbers in results/round2
+const OUT = path.join(__dirname, '..', '..', 'tour-out', 'personas', 'newcomer', ROUND)
+const RES = path.join(__dirname, 'results', ROUND)
 const ACCOUNTS = process.env.DEMO_ACCOUNTS ||
   'C:/Users/musay/AppData/Local/Temp/claude/C--Users-musay-Desktop-claude/9308ea1d-0f9a-4965-b895-2223492297b4/scratchpad/demo-accounts.json'
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(RES, { recursive: true })
 
+// never dump request headers (they hold keys) when a call times out: one short line instead of the stack
+process.on('unhandledRejection', e => { console.error('ERR', String((e && e.message) || e).split(/\r?\n/)[0].slice(0, 200)); process.exit(1) })
 const sessCache = {}
 const GEO = {
   sabuncu: { latitude: 40.442, longitude: 49.948 },
@@ -36,8 +39,8 @@ async function open(opts = {}) {
     locale: opts.locale || 'en-US',
     timezoneId: 'Asia/Baku',
     geolocation: opts.geo || undefined,
-    permissions: opts.geo ? ['geolocation'] : [],
-    serviceWorkers: 'block',
+    permissions: [...(opts.geo ? ['geolocation'] : []), ...(opts.perms || [])],
+    serviceWorkers: opts.sw ? 'allow' : 'block',
   })
   const init = []
   if (opts.lang) init.push(['rufesto_lang', opts.lang])
@@ -50,7 +53,9 @@ async function open(opts = {}) {
     let c = sessCache[opts.as]
     if (!c) {
       const a = account(opts.as)
-      const who = await signInGuest(page, { email: a.email, password: a.password })
+      let who = null, err = null
+      for (let i = 0; i < 4 && !who; i++) { try { who = await signInGuest(page, { email: a.email, password: a.password }) } catch (e) { err = e; await new Promise(r => setTimeout(r, 4000)) } }   // the auth API sometimes stalls
+      if (!who) throw err
       c = sessCache[opts.as] = { key: `sb-${new URL(who.supabase.url).hostname.split('.')[0]}-auth-token`, value: JSON.stringify(who.session) }
     } else {
       await ctx.addInitScript(([k, v]) => { try { if (!localStorage.getItem(k)) localStorage.setItem(k, v) } catch { } }, [c.key, c.value])

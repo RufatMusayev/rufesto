@@ -13,7 +13,7 @@ import { useFeedEvents } from './useFeedEvents'
 import { useNewPostCount } from './useNewPostCount'
 import { useEagerPhotos } from './useEagerPhotos'
 import { useNearEnd, nearEndIndex, nearEndSupported } from './useNearEnd'
-import { dayOf } from './lib/days'
+import { separatorDays } from './lib/days'
 import FeedItem from './components/FeedItem'
 import CaughtUp from './components/CaughtUp'
 import DaySeparator from './components/DaySeparator'
@@ -23,6 +23,7 @@ import { FeedSkeletons } from './components/FeedSkeleton'
 import './styles.css'
 import './cards.css'
 
+const RISE_ITEMS = 6                 // only the first cards of the first page rise in (never a page loaded later)
 const keyOf = it => `${it.kind}-${it.id}`
 const FIND_BAR_BELOW = 3             // fewer friends than this: the tab keeps a "Find friends" entry in its header
 
@@ -67,6 +68,7 @@ export default function FriendsFeed({ active = true }) {
   const marker = nearEndIndex(s.items.length)
   const shown = useMemo(() => new Set(s.items.map(keyOf)), [s.items])
   const eager = useEagerPhotos(s.items, active)
+  const days = useMemo(() => separatorDays(s.items), [s.items])
 
   function showNew() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -112,11 +114,11 @@ export default function FriendsFeed({ active = true }) {
       {!authLoading && s.status === 'error' && <FeedStatus error={s.error} onRetry={() => friendsFeed.reload()} />}
       {!authLoading && ready && s.items.map((it, i) => (
         <Fragment key={keyOf(it)}>
-          {(i === 0 || dayOf(s.items[i - 1]) !== dayOf(it)) && <DaySeparator day={dayOf(it)} />}
+          {(i === 0 || days[i - 1] !== days[i]) && <DaySeparator day={days[i]} />}
           {i === marker && <span ref={markerRef} className="soc-marker" aria-hidden="true" />}
           <FeedItem
             item={it} events={events} onDeleted={friendsFeed.remove}
-            index={Math.max(0, i - s.pageStart)} priority={eager.has(keyOf(it))}
+            index={i < RISE_ITEMS ? i : -1} priority={eager.has(keyOf(it))}
           />
         </Fragment>
       ))}

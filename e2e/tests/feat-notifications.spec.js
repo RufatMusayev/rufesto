@@ -27,10 +27,13 @@ async function openBell(page) {
   await expect(page).toHaveURL(url('/notifications'))
 }
 
-/** The badge shows the DB's unread count (9+ above nine). Staff accounts also get restaurant events, so compare live instead of expecting 0. */
+/** The badge shows what the DB calls unseen for the guest inbox (notifications_badge; 9+ above nine). Opening the inbox marks rows seen, reading them is a separate step. */
 async function badgeMatchesDb(page, user) {
-  return (await S.bellCount(page)) === Math.min((await S.unreadIds(user)).length, 10)
+  const b = (await user.api.rpc('notifications_badge')).data
+  return (await S.bellCount(page)) === Math.min(b.guest_unseen, 10)
 }
+/** Unread ITEMS of the guest inbox (grouped, like the header count of the page). */
+const unreadItems = async user => (await user.api.rpc('my_notifications', { p_audience: 'guest', p_limit: 1 })).data.unread
 
 /** The bell goes up by itself (realtime) within the 3 s of the acceptance criteria. */
 async function bellRises(page, testInfo, what, before = 0) {
@@ -253,7 +256,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
   })
 
   // ---------------------------------------------------------------------------------- list behaviour
-  test('list: header count equals the unread rows, "Mark all read" clears rows, header count and bell', async ({ page, browser }, testInfo) => {
+  test('list: header count equals the unread items, "Mark all read" clears them, header count and bell', async ({ page, browser }, testInfo) => {
     test.setTimeout(80_000)
     const { me, other, otherName } = await pair(page, browser, testInfo)
     try {
@@ -263,12 +266,13 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await page.goto(url('/notifications'))
       await expect(item(page, `${otherName} sent you a friend request.`)).toBeVisible()
       await expect(item(page, `${otherName} liked your post.`)).toBeVisible()
-      const unread = (await S.unreadIds(me)).length
-      await expect(page.locator('h1')).toContainText(String(unread))
+      const unread = await unreadItems(me)   // the like and the request are two items (two types), each counted once
+      expect(unread, 'unread items').toBeGreaterThanOrEqual(2)
+      await expect(page.locator('.ntf-count'), 'the header counts unread items').toHaveText(String(unread > 99 ? '99+' : unread))
       await page.getByRole('button', { name: 'Mark all read' }).click()
       await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
-      await expect(page.locator('h1').locator('span')).toHaveCount(0)
-      await expect.poll(async () => (await S.unreadIds(me)).length, 'DB: nothing unread').toBe(0)
+      await expect(page.locator('.ntf-count')).toHaveCount(0)
+      await expect.poll(() => unreadItems(me), 'DB: nothing unread in the guest inbox').toBe(0)
       await expect.poll(() => badgeMatchesDb(page, me), 'the bell badge goes away with the unread rows').toBe(true)
       await page.reload()
       await expect(item(page, `${otherName} liked your post.`)).toBeVisible()
@@ -276,38 +280,40 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
     } finally { await done(me, other) }
   })
 
-  test('list: bill_settled (review1) reads "Your bill is paid (...). Receipt RF-..." and opens the receipt; no row shows raw JSON or type names', async ({ page }) => {
+  test('list: bill_settled (review1) reads "Your bill at <restaurant> is paid (...). Receipt RF-..." and opens the receipt; no row shows raw JSON or type names', async ({ page }) => {
     const u = await S.asUser(page, 1)
     const rows = (await u.api.get(`notifications?user_id=eq.${u.api.id}&type=eq.bill_settled&select=id,read,payload&order=sent_at.desc&limit=3`)).data
     test.skip(!rows.length, 'review1 has no bill_settled row')
-    const row = rows[0], p = JSON.parse(row.payload)
+    const row = rows[0], p = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload
     try {
       await page.goto(url('/notifications'))
       const all = item(page, /./)
       await expect(all.first()).toBeVisible()
       for (const text of await all.allInnerTexts()) expect(text, 'a row prints raw JSON / ids / snake_case type names').not.toMatch(/[{}]|_id\b|\b(booking|friend|bill|post|join)_[a-z_]+\b|undefined|\[object/)
       const mine = item(page, `Receipt ${p.receipt}`)
-      await expect(mine).toContainText(/Your bill is paid \(.+\)\. Receipt RF-\d{8}-\d{6}\./)
+      await expect(mine).toContainText(/Your bill( at .+)? is paid \(.+\)\. Receipt RF-\d{8}-\d{6}\./)
       await mine.click()
       await expect(page).toHaveURL(url(`/receipt/${p.bill_id}`))
       await expect(page.getByText('Receipt not found')).toHaveCount(0)
       await expect(page.getByText('Trattoria Bella Roma').first()).toBeVisible()
-    } finally { if (!row.read) await u.api.patch(`notifications?id=eq.${row.id}`, { read: false }) }
+    } finally { if (!row.read) await u.api.rpc('mark_notifications', { p_ids: [row.id], p_read: false, p_seen_only: false, p_audience: 'guest' }) }
   })
 
-  test('list: staff-facing rows a guest account may hold (booking_created, bill_requested) are plain sentences too', async ({ page }) => {
+  test('list: staff-facing rows (booking_created, bill_requested) of a staff account never show in its guest inbox (they are in the staff bell)', async ({ page }) => {
     const u = await S.asUser(page, MANAGER)
     const has = (await u.api.get(`notifications?user_id=eq.${u.api.id}&type=in.(booking_created,bill_requested)&select=id&limit=1`)).data
     test.skip(!has.length, 'no staff-facing notification on this account')
     await page.goto(url('/notifications'))
-    await expect(item(page, /New booking request\.|A table asked for the bill\./).first()).toBeVisible()
+    await expect(page.locator('.ntf-list').first()).toBeVisible()
+    await expect(page.getByText(/New booking request\.|A table asked for the bill\./), 'staff sentences in the guest inbox').toHaveCount(0)
+    const inbox = (await u.api.rpc('my_notifications', { p_audience: 'guest', p_limit: 50 })).data.items
+    expect(inbox.filter(i => i.category === 'staff' || /^(booking_created|bill_requested)$/.test(i.type)), 'staff items in the guest inbox answer').toEqual([])
     for (const text of await item(page, /./).allInnerTexts()) expect(text).not.toMatch(/[{}]|_id\b|\b[a-z]+_[a-z_]+\b/)
   })
 
   test('list: empty state "You\'re all caught up" (list answered empty), no header badge', async ({ page }) => {
     await S.asUser(page, RECIPIENT)
-    await page.route('**/rest/v1/notifications*', route => (route.request().method() === 'GET' && /limit=50/.test(route.request().url())
-      ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }) : route.continue()))
+    await page.route('**/rest/v1/rpc/my_notifications', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], next_cursor: null, unread: 0 }) }))
     await page.goto(url('/notifications'))
     await expect(page.getByText("You're all caught up")).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)

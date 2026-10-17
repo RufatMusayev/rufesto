@@ -2,7 +2,7 @@
 // Unit test for the push text renderer (supabase/functions/send-push/render.ts), no dependencies.
 //   node scripts/push-render-test.mjs        (Node 22.18+ strips the TypeScript types itself)
 import assert from 'node:assert/strict'
-import { bakuTime, bakuWhen, needsLookup, normalizeLang, parsePayload, render } from '../supabase/functions/send-push/render.ts'
+import { bakuTime, bakuWhen, isPushable, needsLookup, normalizeLang, parsePayload, render } from '../supabase/functions/send-push/render.ts'
 
 const ctxBase = { consumerOrigin: 'https://rufat-server.com', dashboardOrigin: 'https://resto.rufat-server.com/' }
 const row = (type, payload, extra = {}) => ({ id: 'n1', user_id: 'u1', type, payload, audience: 'guest', ...extra })
@@ -50,10 +50,11 @@ const samples = [
   row('review_reply', { name: 'Aysel', review_id: 'rv-1', dish_name: 'Margherita', dish_id: 'd-1', restaurant_slug: 'bella-roma' }),
   row('order_ready', { order_id: 'o-1', dishes: ['Margherita', 'Tiramisu'] }),
   row('place_post', { post_id: 'p-9', restaurant_name: 'Bella Roma', restaurant_slug: 'bella-roma' }),
+  row('bill_paid', { table_id: 't-1', table_number: 'T4', restaurant_id: 'r-1', bill_id: 'bl-1', intent_id: 'i-1', amount: 45.2, food: 40, tip: 5.2, method: 'card', payer: 'Aysel' }, { audience: 'staff' }),
   row('review_received', { dish_name: 'Margherita', rating: 4 }, { audience: 'staff' }),
   row('stock_alert', { ingredient_name: 'Mozzarella', alert_type: 'low_stock' }, { audience: 'staff' }),
 ]
-assert.equal(samples.length, 24, 'every type in the brief has a sample')
+assert.equal(samples.length, 25, 'every type in the brief has a sample')
 
 const seen = new Set()
 for (const lang of ['en', 'az']) {
@@ -74,7 +75,7 @@ for (const lang of ['en', 'az']) {
     seen.add(r.type)
   }
 }
-assert.equal(seen.size, 24)
+assert.equal(seen.size, 25)
 
 // ---- wording and targets
 const at = (type, lang) => go(lang, samples.find(s => s.type === type))
@@ -101,6 +102,13 @@ assert.equal(at('bill_requested', 'en').url, 'https://resto.rufat-server.com/bil
 assert.equal(at('bill_requested', 'en').body, 'A table asked for the bill.') // no table number in the payload and no lookup done
 assert.equal(go('en', samples[0], { tableNumber: 'T4' }).body, 'Table T4 asked for the bill.')
 assert.equal(go('az', samples[0], { tableNumber: 'T4' }).body, 'T4 nömrəli masa hesab istədi.')
+assert.equal(at('bill_paid', 'en').body, 'Table T4 paid ₼45.20 by card.')
+assert.equal(at('bill_paid', 'az').body, 'T4 nömrəli masa ₼45.20 kartla ödədi.')
+assert.equal(at('bill_paid', 'en').url, 'https://resto.rufat-server.com/bills?table=t-1')
+assert.equal(at('bill_paid', 'en').urgent, false)
+assert.equal(go('en', row('bill_paid', { table_id: 't-1', amount: 9 }, { audience: 'staff' })).body, 'A table paid ₼9.00.')
+assert.equal(go('az', row('bill_paid', { method: 'cash' }, { audience: 'staff' })).body, 'Masa nağd ödədi.')
+assert.equal(go('en', row('bill_paid', { amount: 10, method: 'card' }, { audience: 'staff' }), { tableNumber: 'T9' }).body, 'Table T9 paid ₼10.00 by card.')
 assert.equal(at('waiter_called', 'en').body, 'Table T2 asked for water.')
 assert.equal(at('waiter_called', 'az').body, 'T2 nömrəli masa su istəyir.')
 assert.equal(at('waiter_called', 'en').url, 'https://resto.rufat-server.com/waiter')
@@ -136,7 +144,18 @@ assert.ok(!/[\u0000-\u001f]/.test(messy.body) && messy.body.length < 100, messy.
 assert.equal(go('en', row('post_like', { name: 'Aysel', post_id: 'p-1' })).body, 'Aysel liked your post.')
 assert.equal(go('en', row('post_like', JSON.stringify({ name: 'Aysel', post_id: 'p-1' }))).body, 'Aysel liked your post.')
 
+// ---- rows that must never be pushed
+assert.equal(isPushable(row('friend_request', { name: 'A', status: 'accepted' }), parsePayload({ name: 'A', status: 'accepted' })), false)
+assert.equal(isPushable(row('friend_request', {}), { status: 'declined' }), false)
+assert.equal(isPushable(row('friend_request', {}), { status: 'cancelled' }), false)
+assert.equal(isPushable(row('friend_request', {}), { name: 'A', friendship_id: 'f' }), true)
+assert.equal(isPushable(row('friend_request', {}), { status: '' }), true)
+assert.equal(isPushable(row('friend_request', 'plain text'), null), true)
+assert.equal(isPushable(row('friend_accepted', {}), { status: 'accepted' }), true) // only friend_request is history
+assert.equal(isPushable(row('post_like', {}), { name: 'A' }), true)
+
 // ---- lookups the Edge Function does
+assert.equal(needsLookup(row('bill_paid', { table_id: 't' }, { audience: 'staff' }), { table_id: 't' }).table, true)
 assert.deepEqual(needsLookup(samples[0], parsePayload(samples[0].payload)), { table: true, restaurant: false, actor: false })
 assert.deepEqual(needsLookup(samples[1], parsePayload(samples[1].payload)), { table: false, restaurant: false, actor: false })
 assert.equal(needsLookup(row('place_post', { post_id: 'p' }, { restaurant_id: 'r-1' }), { post_id: 'p' }).restaurant, true)

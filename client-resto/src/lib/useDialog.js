@@ -2,10 +2,24 @@ import { useEffect, useRef } from 'react'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+// Counted page-scroll lock (UX-PLAN 6.2, the dashboard's body.modal-open flavour): the class goes on with the first
+// open dialog and off with the last one. A dialog opened over another (a confirm over the notification panel) used
+// to unlock the page when it closed first.
+let scrollLocks = 0
+
+export function lockScroll() {
+  if (scrollLocks++ === 0) document.body.classList.add('modal-open')
+}
+
+export function unlockScroll() {
+  scrollLocks = Math.max(0, scrollLocks - 1)
+  if (scrollLocks === 0) document.body.classList.remove('modal-open')
+}
+
 /**
  * Behaviour of a modal dialog, for the element that carries role="dialog" (put the returned ref on it):
  * focus moves into it on open, Tab / Shift+Tab stay inside it, Escape calls `onClose`, the page behind does not
- * scroll (body.modal-open), and focus goes back to what opened it on close.
+ * scroll (counted lock, body.modal-open), and focus goes back to what opened it on close.
  * `onClose` may change on every render; the latest one is used.
  */
 export default function useDialog(onClose) {
@@ -16,7 +30,7 @@ export default function useDialog(onClose) {
   useEffect(() => {
     const node = ref.current
     const opener = document.activeElement
-    document.body.classList.add('modal-open')
+    lockScroll()
 
     const focusables = () => [...(node?.querySelectorAll(FOCUSABLE) || [])].filter(el => el.offsetParent !== null || el === document.activeElement)
     // Focus lands on the dialog itself (announced with its label); Tab then goes to the first control. Putting it
@@ -46,7 +60,7 @@ export default function useDialog(onClose) {
 
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.classList.remove('modal-open')
+      unlockScroll()
       if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus()
     }
   }, [])

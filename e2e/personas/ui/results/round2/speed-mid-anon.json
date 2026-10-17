@@ -1,0 +1,230 @@
+{
+  "table": {
+    "runs": 3,
+    "ttfb": [
+      162.09999999403954,
+      166.30000001192093
+    ],
+    "fcp": [
+      1008,
+      1008
+    ],
+    "lcp": [
+      5480,
+      5604
+    ],
+    "homeFeedEnd": [
+      2889,
+      2958.5999999940395
+    ],
+    "firstCard": [
+      3153.9000000059605,
+      3184.5999999940395
+    ],
+    "firstCardPhoto": [
+      5472.9000000059605,
+      5594.600000023842
+    ],
+    "load": [
+      2110.0999999940395,
+      2110.800000011921
+    ],
+    "cls": 0,
+    "kb": 279,
+    "jsKb": 257,
+    "imgKb": 0,
+    "requests": 23,
+    "longTasksLoad": 10,
+    "tbtLike": 791,
+    "scroll_avgFps": 60,
+    "scroll_p95FrameMs": 16.8,
+    "scroll_maxFrameMs": 16.8,
+    "scroll_over50": 0,
+    "scroll_longTasks": 0,
+    "scroll_longTaskMs": 0,
+    "tab_discover_first_painted": 96.39999997615814,
+    "tab_discover_first_ready": 439.30000001192093,
+    "tab_friends_painted": 81.69999998807907,
+    "tab_friends_ready": 85,
+    "tab_home_painted": 97,
+    "tab_home_ready": 97.30000001192093,
+    "tab_discover_again_painted": 427.19999998807907,
+    "tab_discover_again_ready": 427.7999999821186,
+    "resto_title": 2678.4000000059605,
+    "resto_first_dish_photo": 5621,
+    "discover_sections": 6
+  },
+  "runs": [
+    {
+      "ttfb": 161.2000000178814,
+      "dcl": 2108.5999999940395,
+      "load": 2110.0999999940395,
+      "fcp": 1008,
+      "lcp": 5480,
+      "cls": 0,
+      "firstCard": 3027.9000000059605,
+      "firstCardPhoto": 5472.9000000059605,
+      "homeFeedEnd": 2875.5999999940395,
+      "homeFeedDur": 495.19999998807907,
+      "requests": 23,
+      "kb": 279,
+      "jsKb": 257,
+      "imgKb": 0,
+      "longTasksLoad": 10,
+      "longTaskMsLoad": 947,
+      "tbtLike": 447,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          96.39999997615814,
+          298.89999997615814
+        ],
+        "toFriends": [
+          48.60000002384186,
+          49.400000005960464
+        ],
+        "toHome": [
+          83.80000001192093,
+          84
+        ],
+        "toDiscoverAgain": [
+          299.7000000178814,
+          300.10000002384186
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 33,
+        "imgsLoaded": 0
+      },
+      "restaurant": {
+        "toTitleMs": 2678.4000000059605,
+        "toFirstDishPhoto": 6238.9000000059605,
+        "path": "/restaurant/fincan-coffee"
+      }
+    },
+    {
+      "ttfb": 166.30000001192093,
+      "dcl": 2110.4000000059605,
+      "load": 2110.800000011921,
+      "fcp": 1000,
+      "lcp": 5604,
+      "cls": 0,
+      "firstCard": 3153.9000000059605,
+      "firstCardPhoto": 5594.600000023842,
+      "homeFeedEnd": 2889,
+      "homeFeedDur": 513,
+      "requests": 23,
+      "kb": 279,
+      "jsKb": 257,
+      "imgKb": 0,
+      "longTasksLoad": 9,
+      "longTaskMsLoad": 1241,
+      "tbtLike": 791,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          95.19999998807907,
+          439.30000001192093
+        ],
+        "toFriends": [
+          81.69999998807907,
+          85
+        ],
+        "toHome": [
+          97,
+          97.30000001192093
+        ],
+        "toDiscoverAgain": [
+          427.19999998807907,
+          427.7999999821186
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 33,
+        "imgsLoaded": 0
+      },
+      "restaurant": {
+        "toTitleMs": 2959.7999999821186,
+        "toFirstDishPhoto": 5621,
+        "path": "/restaurant/fincan-coffee"
+      }
+    },
+    {
+      "ttfb": 162.09999999403954,
+      "dcl": 2102.9000000059605,
+      "load": 2103.2000000178814,
+      "fcp": 1008,
+      "lcp": 5216,
+      "cls": 0,
+      "firstCard": 3184.5999999940395,
+      "firstCardPhoto": 5205.4000000059605,
+      "homeFeedEnd": 2958.5999999940395,
+      "homeFeedDur": 539.0999999940395,
+      "requests": 22,
+      "kb": 279,
+      "jsKb": 257,
+      "imgKb": 0,
+      "longTasksLoad": 10,
+      "longTaskMsLoad": 1460,
+      "tbtLike": 960,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          115.30000001192093,
+          1053.5000000298023
+        ],
+        "toFriends": [
+          126.2000000178814,
+          127.59999999403954
+        ],
+        "toHome": [
+          140.90000000596046,
+          141.40000000596046
+        ],
+        "toDiscoverAgain": [
+          538.9000000059605,
+          539.3000000119209
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 33,
+        "imgsLoaded": 0
+      },
+      "restaurant": {
+        "toTitleMs": 2547.0999999940395,
+        "toFirstDishPhoto": 5410,
+        "path": "/restaurant/fincan-coffee"
+      }
+    }
+  ]
+}

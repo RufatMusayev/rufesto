@@ -1,12 +1,12 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LoadError from '../../../components/LoadError'
 import { getFeed } from '../../social/api'
 import PostCard from '../../social/components/PostCard'
-import ReviewCard from '../../social/components/ReviewCard'
+import CompactReview from '../../reviews/CompactReview'
 import FeedSkeleton from './FeedSkeleton'
 import DaySeparator from './DaySeparator'
-import { dayOf } from '../lib/days'
+import { separatorDays } from '../lib/days'
 import { isDeleted, onPostDeleted } from '../deleted'
 
 const key = it => `${it.kind}-${it.id}`
@@ -49,7 +49,8 @@ export default function CaughtUp({ scope = 'all', userId, empty, shown, onDiscov
     setMore({ loading: false, error: false })
   }
 
-  const items = tail.items.filter(i => !shown.has(key(i)) && !isDeleted(i))
+  const items = useMemo(() => tail.items.filter(i => !shown.has(key(i)) && !isDeleted(i)), [tail.items, shown])
+  const days = useMemo(() => separatorDays(items), [items])
   const nothing = empty && !tail.loading && items.length === 0
   const bodyKey = userId ? (friends ? 'feed.caughtUpFriendsBody' : 'home.caughtUpBody') : 'home.caughtUpGuestBody'
 
@@ -70,10 +71,10 @@ export default function CaughtUp({ scope = 'all', userId, empty, shown, onDiscov
       {userId && tail.error && <LoadError onRetry={load} />}
       {items.map((it, i) => (
         <Fragment key={key(it)}>
-          {byDay && (i === 0 || dayOf(items[i - 1]) !== dayOf(it)) && <DaySeparator day={dayOf(it)} />}
+          {byDay && (i === 0 || days[i - 1] !== days[i]) && <DaySeparator day={days[i]} />}
           {it.kind === 'review'
-            ? <ReviewCard item={it} index={i} />
-            : <PostCard item={it} index={i} />}
+            ? <CompactReview item={it} variant="card" />
+            : <PostCard item={it} index={-1} />}
         </Fragment>
       ))}
 

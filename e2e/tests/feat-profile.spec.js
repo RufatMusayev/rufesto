@@ -278,13 +278,13 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await p.getByRole('button', { name: 'Settings' }).click()
       await expect(s.getByText('Settings', { exact: true })).toBeVisible()
       // language
-      await s.getByRole('button', { name: 'AZ', exact: true }).click()
+      await s.locator('button[lang="az"]').click()
       await expect(s.getByText(az.settings, { exact: true })).toBeVisible()
       expect(await p.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('az')
       await p.reload()
       await expect(p.getByRole('tab', { name: az.tabPosts, exact: true }), 'AZ survives a reload').toBeVisible()
       await p.getByRole('button', { name: az.settings }).click()
-      await s.getByRole('button', { name: 'EN', exact: true }).click()
+      await s.locator('button[lang="en"]').click()
       await expect(s.getByText('Settings', { exact: true })).toBeVisible()
       // theme
       const theme = () => p.evaluate(() => document.documentElement.getAttribute('data-theme'))

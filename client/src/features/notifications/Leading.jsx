@@ -1,41 +1,27 @@
 import { Avatar } from '../../components/ui'
+import { LineIcon } from './Icons'
 
-// The left column of an inbox row, always 48px wide so the text lines up:
-//  - actors: the person's avatar (one), or up to three overlapping avatars for a group, with the type's glyph as a badge;
-//  - venue: the restaurant's own avatar (a place_post / promotion has no person behind it);
-//  - icon: the type's glyph in a tinted circle (bookings, bills, food ready...).
+/**
+ * The left column of an inbox row, always 44 px wide (docs/UX-PLAN-2026-10-18.md 2.2). No emoji badges:
+ *  - one person: their avatar;
+ *  - a group: two 32 px avatars, offset, each with a 2 px ring in the page colour;
+ *  - a venue: the restaurant's own avatar (a place_post has a place behind it, not a person);
+ *  - nobody (a booking, a bill, a table): a --s3 circle with a line icon.
+ */
 export default function Leading({ view, actors }) {
   if (view.lead === 'actors' && actors.length > 0) {
-    const shown = actors.slice(0, 3)
-    if (shown.length === 1) {
-      const a = shown[0]
-      return (
-        <span className="ntf-lead">
-          <Avatar name={a.name} src={a.photo} size={44} />
-          <span className="ntf-badge ntf-badge-br" aria-hidden="true">{view.icon}</span>
-        </span>
-      )
+    if (actors.length === 1) {
+      return <span className="ntf-lead"><Avatar name={actors[0].name} src={actors[0].photo} size={44} /></span>
     }
     return (
-      <span className="ntf-lead ntf-lead-multi">
-        <span className="ntf-av ntf-av-1"><Avatar name={shown[0].name} src={shown[0].photo} size={30} /></span>
-        <span className="ntf-av ntf-av-2"><Avatar name={shown[1].name} src={shown[1].photo} size={30} /></span>
-        {shown[2] ? <span className="ntf-av ntf-av-3"><Avatar name={shown[2].name} src={shown[2].photo} size={22} /></span> : null}
-        <span className="ntf-badge ntf-badge-tr" aria-hidden="true">{view.icon}</span>
+      <span className="ntf-lead ntf-lead-pair">
+        <span className="ntf-av ntf-av-1"><Avatar name={actors[0].name} src={actors[0].photo} size={32} /></span>
+        <span className="ntf-av ntf-av-2"><Avatar name={actors[1].name} src={actors[1].photo} size={32} /></span>
       </span>
     )
   }
   if (view.lead === 'venue' && view.venue) {
-    return (
-      <span className="ntf-lead">
-        <Avatar name={view.venue.name} src={view.venue.logo} size={44} />
-        <span className="ntf-badge ntf-badge-br" aria-hidden="true">{view.icon}</span>
-      </span>
-    )
+    return <span className="ntf-lead"><Avatar name={view.venue.name} src={view.venue.logo} size={44} /></span>
   }
-  return (
-    <span className={`ntf-lead ntf-tone-${view.tone}`}>
-      <span className="ntf-lead-icon" aria-hidden="true">{view.icon}</span>
-    </span>
-  )
+  return <span className="ntf-lead ntf-lead-icon"><LineIcon name={view.icon} size={20} /></span>
 }

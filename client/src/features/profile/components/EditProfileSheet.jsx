@@ -7,16 +7,18 @@ import { PHONE_FORMAT_EXAMPLE, normalizePhone } from '../../../lib/phone'
 const FORM_ID = 'pf-edit-form'
 
 /** Small sheet to change the display name and phone. The email is shown read-only (only the guest sees it). */
-export default function EditProfileSheet({ open, onClose, profile, email }) {
+export default function EditProfileSheet({ open, onClose, profile, email, onFeedback }) {
   const { t } = useTranslation(['profile', 'common'])
   const { updateProfile } = useAuth()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    setDeleteOpen(false)
     setName(profile?.name || '')
     setPhone(profile?.phone || '')
     setError('')
@@ -80,6 +82,21 @@ export default function EditProfileSheet({ open, onClose, profile, email }) {
         ) : null}
         {error ? <p className="pf-error" role="alert">{error}</p> : null}
       </form>
+
+      <div className="pf-delete">
+        <button
+          type="button" className="pf-link-btn pf-delete-link"
+          aria-expanded={deleteOpen} aria-controls="pf-delete-note" onClick={() => setDeleteOpen(v => !v)}
+        >
+          {t('profile:deleteAccount')}
+        </button>
+        {deleteOpen ? (
+          <div id="pf-delete-note" className="pf-delete-note" role="note">
+            <p>{t('profile:deleteNote')}</p>
+            <button type="button" className="btn btn-ghost" onClick={onFeedback}>{t('profile:contactSupport')}</button>
+          </div>
+        ) : null}
+      </div>
     </Sheet>
   )
 }

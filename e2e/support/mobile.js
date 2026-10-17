@@ -61,6 +61,7 @@ function measureLayout() {
     const r = h.getBoundingClientRect()
     if (r.left >= iw || r.right <= 0) continue   // scrolled away inside a carousel
     if (inScroller(h)) continue                  // a card of a rail that is only partly on screen
+    if (r.width <= 2 || r.height <= 2 || h.clientWidth <= 2) continue   // a visually hidden (sr-only) heading, e.g. the page's own h1
     const range = document.createRange()
     range.selectNodeContents(h)
     const t = range.getBoundingClientRect()

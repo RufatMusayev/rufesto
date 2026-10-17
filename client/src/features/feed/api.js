@@ -96,7 +96,7 @@ export async function getFriendsNewCount({ since }) {
 
 /**
  * CONTRACT 17.4: log_feed_events(p_events jsonb) -> int (rows written). Each event:
- *   { item_type 'post'|'promo', item_id uuid, event 'impression'|'open'|'like'|'comment'|'save'|'order_tap'|'hide',
+ *   { item_type 'post'|'promo'|'review' (review: sql/67), item_id uuid, event 'impression'|'open'|'like'|'comment'|'save'|'order_tap'|'hide',
  *     pool?, position?, anon_key? }  (<= 50 per call; anon_key only for signed-out viewers)
  */
 export function logFeedEvents(events) {

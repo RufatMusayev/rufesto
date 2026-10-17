@@ -126,7 +126,7 @@ export async function getOwnPosts(userId) {
 export async function getMyReviews(userId) {
   const { data, error } = await run(() => supabase
     .from('reviews')
-    .select(`*, dishes(name, category, price, restaurant_id, ${rsrc()}(name, slug))`)
+    .select(`*, dishes(id, name, category, price, photo, restaurant_id, ${rsrc()}(id, name, slug))`)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(30))
@@ -138,8 +138,9 @@ export async function getMyReviews(userId) {
       body: r.body || null,
       createdAt: r.created_at,
       verified: !!r.is_verified,
-      dish: { name: r.dishes?.name || null, category: r.dishes?.category || null },
-      restaurant: r.dishes?.restaurants ? { name: r.dishes.restaurants.name, slug: r.dishes.restaurants.slug } : null,
+      photo: r.photo || null,
+      dish: { id: r.dishes?.id || null, name: r.dishes?.name || null, category: r.dishes?.category || null, photo: r.dishes?.photo || null },
+      restaurant: r.dishes?.restaurants ? { id: r.dishes.restaurants.id || null, name: r.dishes.restaurants.name, slug: r.dishes.restaurants.slug } : null,
     })),
     error: null,
   }

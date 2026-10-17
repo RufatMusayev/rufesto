@@ -31,7 +31,7 @@ test.describe('table: joining', TAGS, () => {
       await expect(page.getByRole('heading', { name: 'Sign in to join your table' })).toBeVisible()
       await expect(page.getByText("Sign in and we'll seat you at the table you just scanned.")).toBeVisible()
       await expect(page.getByRole('button', { name: 'Sign in' }).first()).toBeVisible()
-      await expect(page.getByRole('heading', { name: 'Welcome back' }), 'the sign-in sheet opens by itself').toBeVisible()
+      await expect(page.getByRole('heading', { name: /^Welcome( back)?$/ }), 'the sign-in sheet opens by itself').toBeVisible()
       await expect(page.getByRole('button', { name: 'Join', exact: true })).toHaveCount(0)
       expect(['free', 'cleared'], 'visiting the link must not seat anyone').toContain(await F.tableState(A.mgr, table.id))
       await page.goto(url('/t/bad%20code!'))

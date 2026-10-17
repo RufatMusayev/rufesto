@@ -1,5 +1,5 @@
 // Runs before the first paint: a classic script in <head> served from the same origin (the enforced CSP allows
-// 'self' scripts, not inline ones). Three jobs, all tiny:
+// 'self' scripts, not inline ones). Four jobs, all tiny:
 //  1. the theme goes on <html> now, so a guest never sees a flash of the wrong one while the app boots: the saved choice
 //     (rufesto_theme, written only by the toggle), else the operating system's colour scheme. The browser theme-color
 //     follows it;
@@ -21,6 +21,8 @@
     if (lang !== 'az' && lang !== 'en') lang = String(navigator.language || 'en').slice(0, 2) === 'az' ? 'az' : 'en'
     root.lang = lang
   } catch (e) { /* keep lang="en" */ }
+  // 4. only Home has the top bar, so the first-paint placeholder of it is hidden on every other route (index.css)
+  root.setAttribute('data-boot-home', location.pathname === '/' ? '1' : '0')
   var css = document.getElementById('gf-css')
   if (css) {
     var show = function () { css.media = 'all' }

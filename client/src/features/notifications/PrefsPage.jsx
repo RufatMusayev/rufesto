@@ -35,7 +35,7 @@ function ToggleRow({ label, hint, checked, onChange, disabled }) {
   )
 }
 
-/** "Push notifications on this device": hidden without a VAPID key; a note instead of the switch where push cannot work. */
+/** "Push notifications": hidden without a VAPID key; a note instead of the switch where push cannot work. */
 function PushSection({ onChanged }) {
   const { t } = useTranslation('notifications')
   const [state, setState] = useState(null)             // { status } | null while checking
@@ -67,7 +67,6 @@ function PushSection({ onChanged }) {
 
   return (
     <>
-      <h2 className="ntf-section-title">{t('prefsPushSection')}</h2>
       <div className="ntf-card">
         {canSwitch ? (
           <ToggleRow
@@ -105,7 +104,6 @@ function QuietHours({ prefs, change, disabled }) {
   const toId = useId()
   return (
     <>
-      <h2 className="ntf-section-title">{t('prefsQuietSection')}</h2>
       <div className="ntf-card">
         <ToggleRow
           label={t('prefsQuietLabel')} hint={t('prefsQuietHint')} checked={on} disabled={disabled}
@@ -134,7 +132,7 @@ function QuietHours({ prefs, change, disabled }) {
   )
 }
 
-/** /settings/notifications: this device's push switch, what to be notified about, quiet hours. Saves as you tap. */
+/** /settings/notifications: the push switch, what to be notified about, quiet hours: three cards, no headings. Saves as you tap. */
 export default function PrefsPage() {
   const { session, loading } = useAuth()
   const { t } = useTranslation('notifications')
@@ -159,7 +157,6 @@ export default function PrefsPage() {
       <div className="ntf-prefs">
         <PushSection onChanged={reload} />
 
-        <h2 className="ntf-section-title">{t('prefsCategoriesSection')}</h2>
         <div className="ntf-card" aria-busy={load === 'loading'}>
           {CATEGORY_ROWS.map(r => (
             <ToggleRow

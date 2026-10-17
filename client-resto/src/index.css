@@ -623,6 +623,11 @@ body.modal-open { overflow: hidden; }
   animation: sheetIn 0.24s var(--ease-out);
 }
 @keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Reduced motion (UX-PLAN 6): dialogs and sheets do not scale or slide in, they fade in 120 ms. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .modal, .modal.more-sheet { animation: fadeIn 120ms linear; }
+}
 .more-sheet-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
 .more-sheet-badge { width: 36px; height: 36px; font-size: 0.85rem; }
 .more-sheet-who { flex: 1; min-width: 0; }

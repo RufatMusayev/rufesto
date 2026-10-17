@@ -1,0 +1,361 @@
+{
+  "audit_home_dark": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 112,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 26,
+    "noAltAttr": [],
+    "emptyAlt": 9,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 1.71,
+        "need": 3,
+        "px": 112,
+        "color": "rgb(245, 240, 232)",
+        "bg": "rgb(36,28,24)",
+        "sample": "“",
+        "el": "span.soc-textcard-mark"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_friends_signedout_dark": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 14,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 0,
+    "noAltAttr": [],
+    "emptyAlt": 0,
+    "bgOnly": 1,
+    "lowContrast": [],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_discover_dark": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 166,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 33,
+    "noAltAttr": [],
+    "emptyAlt": 29,
+    "bgOnly": 1,
+    "lowContrast": [],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_restaurant_dark": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 20,
+    "smallGroups": [
+      "1x button.rst-seg-btn|From Brew & Books|148x38",
+      "1x button.rst-seg-btn|Guests|74x38"
+    ],
+    "noName": [],
+    "imgs": 4,
+    "noAltAttr": [],
+    "emptyAlt": 3,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 1.9,
+        "need": 4.5,
+        "px": 11.2,
+        "color": "rgba(245, 240, 232, 0.22)",
+        "bg": "rgb(26,18,16)",
+        "sample": "·",
+        "el": "span.rst-dot"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_dish_sheet_dark": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 64,
+    "smallGroups": [
+      "1x input|Search the menu|294x42",
+      "1x button.mn-diet|Vegan 8|71x32",
+      "1x button.mn-diet|Vegetarian 17|103x32",
+      "2x button.dds-replies-btn|1 reply|60x36",
+      "1x button.dds-replies-btn|Reply|56x36"
+    ],
+    "noName": [],
+    "imgs": 25,
+    "noAltAttr": [],
+    "emptyAlt": 23,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 1.79,
+        "need": 4.5,
+        "px": 10.88,
+        "color": "rgb(74, 62, 53)",
+        "bg": "rgb(26,18,16)",
+        "sample": "Beverages",
+        "el": "div"
+      },
+      {
+        "ratio": 1.79,
+        "need": 4.5,
+        "px": 10.24,
+        "color": "rgb(74, 62, 53)",
+        "bg": "rgb(26,18,16)",
+        "sample": "1d ago",
+        "el": "span"
+      },
+      {
+        "ratio": 1.9,
+        "need": 4.5,
+        "px": 11.2,
+        "color": "rgba(245, 240, 232, 0.22)",
+        "bg": "rgb(26,18,16)",
+        "sample": "·",
+        "el": "span.rst-dot"
+      },
+      {
+        "ratio": 2.24,
+        "need": 4.5,
+        "px": 12.48,
+        "color": "rgb(139, 45, 66)",
+        "bg": "rgb(26,18,16)",
+        "sample": "View menu →",
+        "el": "a.dds-menu-link"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_home_light": {
+    "theme": "light",
+    "lang": "en",
+    "targets": 112,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 26,
+    "noAltAttr": [],
+    "emptyAlt": 9,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 1.02,
+        "need": 3,
+        "px": 112,
+        "color": "rgb(245, 240, 232)",
+        "bg": "rgb(237,229,216)",
+        "sample": "“",
+        "el": "span.soc-textcard-mark"
+      },
+      {
+        "ratio": 1.1,
+        "need": 3,
+        "px": 27.2,
+        "color": "rgb(245, 240, 232)",
+        "bg": "rgb(237,229,216)",
+        "sample": "Bu həftə sonu yeni souslarım",
+        "el": "p.soc-textcard-quote"
+      },
+      {
+        "ratio": 2.46,
+        "need": 4.5,
+        "px": 12.16,
+        "color": "rgb(245, 240, 232)",
+        "bg": "rgb(161,154,145)",
+        "sample": "Dönər Bakı Express",
+        "el": "span.soc-chip-text"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_friends_signedout_light": {
+    "theme": "light",
+    "lang": "en",
+    "targets": 14,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 0,
+    "noAltAttr": [],
+    "emptyAlt": 0,
+    "bgOnly": 1,
+    "lowContrast": [],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_discover_light": {
+    "theme": "light",
+    "lang": "en",
+    "targets": 166,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 33,
+    "noAltAttr": [],
+    "emptyAlt": 29,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 2.75,
+        "need": 4.5,
+        "px": 13.12,
+        "color": "rgb(212, 170, 60)",
+        "bg": "rgb(106,98,91)",
+        "sample": "₼13.50",
+        "el": "span.dsc-price"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_restaurant_light": {
+    "theme": "light",
+    "lang": "en",
+    "targets": 20,
+    "smallGroups": [
+      "1x button.rst-seg-btn|From Brew & Books|148x38",
+      "1x button.rst-seg-btn|Guests|74x38"
+    ],
+    "noName": [],
+    "imgs": 4,
+    "noAltAttr": [],
+    "emptyAlt": 3,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 1.61,
+        "need": 4.5,
+        "px": 11.2,
+        "color": "rgba(26, 18, 16, 0.22)",
+        "bg": "rgb(245,240,232)",
+        "sample": "·",
+        "el": "span.rst-dot"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_find_people": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 20,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 0,
+    "noAltAttr": [],
+    "emptyAlt": 0,
+    "bgOnly": 1,
+    "lowContrast": [],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_profile": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 22,
+    "smallGroups": [],
+    "noName": [],
+    "imgs": 0,
+    "noAltAttr": [],
+    "emptyAlt": 0,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 2.33,
+        "need": 3,
+        "px": 40,
+        "color": "rgb(154, 140, 131)",
+        "bg": "rgb(26,18,16)",
+        "sample": "📷",
+        "el": "div.empty-icon"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "audit_composer": {
+    "theme": "dark",
+    "lang": "en",
+    "targets": 14,
+    "smallGroups": [],
+    "noName": [
+      "textarea.input 380x114 @y641"
+    ],
+    "imgs": 0,
+    "noAltAttr": [],
+    "emptyAlt": 0,
+    "bgOnly": 1,
+    "lowContrast": [
+      {
+        "ratio": 2.41,
+        "need": 4.5,
+        "px": 12.16,
+        "color": "rgb(245, 240, 232)",
+        "bg": "rgb(139,45,66)",
+        "sample": "Post",
+        "el": "button.btn"
+      }
+    ],
+    "h1s": 1,
+    "viewport": "width=device-width, initial-scale=1.0"
+  },
+  "focus_order_first14": [
+    "button|Notifications|tabindex=null|outline=solid 2px|y=6",
+    "button|Switch language to Eng|tabindex=null|outline=solid 3px|y=6",
+    "button|Switch language to Azə|tabindex=null|outline=solid 3px|y=6",
+    "button|Toggle theme|tabindex=null|outline=solid 2px|y=6",
+    "button[tab]|Home|tabindex=0|outline=solid 2px|y=73",
+    "button|Use my location for ne|tabindex=null|outline=solid 2px|y=134",
+    "a|Aysel Məmmədova|tabindex=null|outline=auto 1px|y=191",
+    "a|Aysel Məmmədova|tabindex=null|outline=solid 2px|y=191",
+    "a|Fincan Coffee|tabindex=null|outline=solid 2px|y=664",
+    "button|Like|tabindex=null|outline=solid 2px|y=716",
+    "a|Comments|tabindex=null|outline=solid 2px|y=716",
+    "button|Share|tabindex=null|outline=solid 2px|y=716",
+    "a|View 1 comment|tabindex=null|outline=solid 2px|y=834",
+    "a|Aysel Məmmədova|tabindex=null|outline=auto 1px|y=904"
+  ],
+  "tablist": [
+    {
+      "txt": "Home",
+      "sel": "true",
+      "tabindex": "0",
+      "controls": "home-panel-home",
+      "id": "home-tab-home"
+    },
+    {
+      "txt": "Friends",
+      "sel": "false",
+      "tabindex": "-1",
+      "controls": "home-panel-friends",
+      "id": "home-tab-friends"
+    },
+    {
+      "txt": "Discover",
+      "sel": "false",
+      "tabindex": "-1",
+      "controls": "home-panel-discover",
+      "id": "home-tab-discover"
+    }
+  ],
+  "arrowright_moves_selection": [
+    "false",
+    "true",
+    "false"
+  ],
+  "tabpanel_roles": 3,
+  "bottom_nav": [
+    "a|aria-label=Home|current=page|88x44",
+    "a|aria-label=Explore|current=null|88x44",
+    "button|aria-label=Scan QR|current=null|54x54",
+    "a|aria-label=Map|current=null|88x44",
+    "a|aria-label=Profile|current=null|88x44"
+  ]
+}

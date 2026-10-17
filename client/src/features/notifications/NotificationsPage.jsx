@@ -1,37 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
+import { useCart } from '../../contexts/CartContext'
+import { PullToRefresh } from '../../components/ui'
 import LoadError from '../../components/LoadError'
-import { bakuDateOf } from '../bookings/timeFormat'
+import { useToast } from '../social/hooks'
 import NotificationItem from './NotificationItem'
-import FilterChips from './FilterChips'
 import { InboxSkeleton, EmptyInbox } from './InboxStates'
 import SignedOut from './SignedOut'
-import { GearIcon } from './Icons'
+import { GearIcon, ChevronLeftIcon } from './Icons'
 import useInbox, { useThumbUrls } from './useInbox'
-import { setInboxOpen } from './badge'
+import { setInboxOpen, refreshBadge } from './badge'
+import { markAllRead } from './api'
 import { thumbOfItem } from '../../lib/notificationView'
 import './styles.css'
 
 const DAY_MS = 86400000
 
-/** Items (newest first) cut into Today / Yesterday / Earlier on the Baku calendar, the clock the app shows times in. */
-function sectionsOf(items) {
-  const today = bakuDateOf(Date.now())
-  const yesterday = bakuDateOf(Date.now() - DAY_MS)
-  const out = []
-  for (const it of items) {
-    const d = bakuDateOf(it.at)
-    const id = d === today ? 'today' : d === yesterday ? 'yesterday' : 'earlier'
-    const last = out[out.length - 1]
-    if (last && last.id === id) last.items.push(it)
-    else out.push({ id, items: [it] })
-  }
-  return out
+/**
+ * Items (newest first) cut into New / This week / Earlier (docs/UX-PLAN-2026-10-18.md 2.2). New = unseen when the page opened;
+ * This week = the rest younger than 7 days; Earlier = everything else. Rolling windows, never calendar days, so a row can
+ * never sit under a heading that contradicts its time.
+ */
+function sectionsOf(items, now) {
+  const week = now - 7 * DAY_MS
+  const by = { new: [], week: [], earlier: [] }
+  for (const it of items) by[it.isNew ? 'new' : (new Date(it.at).getTime() >= week ? 'week' : 'earlier')].push(it)
+  return ['new', 'week', 'earlier'].filter(id => by[id].length).map(id => ({ id, items: by[id] }))
 }
 
-/** The signed URL for an item's post photo (null when it carries a ready URL, none, or the path could not be signed). */
+/** The signed URL for an item's photo when its thumbnail is a storage path (null when it is a ready URL, none, or unsigned). */
 function thumbUrlFor(thumbs, item) {
   const th = thumbOfItem(item)
   return th && th.path ? thumbs.get(th.path) || null : null
@@ -44,16 +43,32 @@ export default function NotificationsPage() {
   return <Inbox uid={session.user.id} />
 }
 
-/** Title bar + the page column; `children` is what is under the header. */
-function Shell({ children, header }) {
+/** Page header: back (only when there is somewhere to go back to), the title, the settings gear. Nothing else. */
+function Header() {
   const { t } = useTranslation('notifications')
+  const navigate = useNavigate()
+  // history.state.idx > 0 means there is somewhere to go back to inside the app
+  const canGoBack = typeof window !== 'undefined' && (window.history.state?.idx ?? 0) > 0
+  return (
+    <header className="ntf-head">
+      {canGoBack ? (
+        <button type="button" className="icon-btn ntf-back" onClick={() => navigate(-1)} aria-label={t('prefsBack')}>
+          <ChevronLeftIcon size={22} />
+        </button>
+      ) : <span className="ntf-head-gap" aria-hidden="true" />}
+      <h1 className="ntf-title">{t('title')}</h1>
+      <Link to="/settings/notifications" className="icon-btn ntf-gear" aria-label={t('settings')}>
+        <GearIcon size={22} />
+      </Link>
+    </header>
+  )
+}
+
+/** The page column with its header; `children` is what is under the header. */
+function Shell({ children }) {
   return (
     <div className="ntf-page">
-      {header || (
-        <div className="ntf-head">
-          <div className="ntf-bar"><h1 className="ntf-title">{t('title')}</h1></div>
-        </div>
-      )}
+      <Header />
       {children}
     </div>
   )
@@ -62,16 +77,21 @@ function Shell({ children, header }) {
 function Inbox({ uid }) {
   const { t } = useTranslation('notifications')
   const navigate = useNavigate()
-  const [category, setCategory] = useState(null)
-  const inbox = useInbox(category)
-  const { items, unread, status, next, loadingMore, loadMore, read, readAll, reload } = inbox
+  const { tableId } = useCart()
+  const { toast, showToast } = useToast()
+  const inbox = useInbox()
+  const { items, status, next, loadingMore, loadMore, read, confirm, decline, reload } = inbox
   const thumbs = useThumbUrls(items)
   const sentinel = useRef(null)
 
-  // opening the inbox is "looking at the bell": the badge clears, the rows become seen (not read)
+  // Opening the inbox is "looking at the bell": the badge clears at once (useInbox marks the rows seen once it has read them).
+  // Leaving it marks everything read, so `read` stops mattering in the UI.
   useEffect(() => {
     setInboxOpen(true)
-    return () => setInboxOpen(false)
+    return () => {
+      setInboxOpen(false)
+      markAllRead().then(() => refreshBadge())
+    }
   }, [uid])
 
   // the next page loads by itself when the end of the list comes near; the button below it is the same thing by hand
@@ -88,62 +108,58 @@ function Inbox({ uid }) {
     if (to) navigate(to)
   }, [read, navigate])
 
-  const sections = useMemo(() => sectionsOf(items), [items])
+  const answer = useCallback(async (run, item) => {
+    const { error } = await run(item)
+    if (error) {
+      showToast(error.key)
+      reload()                                   // a request that is no longer there (answered elsewhere): show the truth
+    }
+  }, [showToast, reload])
+  const onConfirm = useCallback(item => answer(confirm, item), [answer, confirm])
+  const onDecline = useCallback(item => answer(decline, item), [answer, decline])
 
-  const header = (
-    <div className="ntf-head">
-      <div className="ntf-bar">
-        <h1 className="ntf-title">
-          {t('title')}
-          {unread > 0 ? (
-            <span className="ntf-count" aria-label={t('unreadCount', { count: unread })}>{unread > 99 ? '99+' : unread}</span>
-          ) : null}
-        </h1>
-        <div className="ntf-actions">
-          {unread > 0 ? (
-            <button type="button" className="btn btn-ghost ntf-markall" onClick={readAll}>{t('markAllRead')}</button>
-          ) : null}
-          <Link to="/settings/notifications" className="icon-btn ntf-gear" aria-label={t('settings')}>
-            <GearIcon size={20} />
-          </Link>
-        </div>
-      </div>
-      <FilterChips value={category} onChange={setCategory} />
-    </div>
-  )
+  const now = Date.now()
+  const sections = useMemo(() => sectionsOf(items, now), [items]) // eslint-disable-line react-hooks/exhaustive-deps
+  const hasTable = !!tableId
 
   return (
-    <Shell header={header}>
-      {status === 'loading' ? <InboxSkeleton /> : null}
-      {status === 'error' ? <LoadError onRetry={reload} /> : null}
-      {status === 'ready' && items.length === 0 ? <EmptyInbox category={category} /> : null}
-      {status === 'ready' && items.length > 0 ? (
-        <div>
-          {sections.map(s => (
-            <section key={s.id} aria-labelledby={`ntf-day-${s.id}`}>
-              <h2 className="ntf-day" id={`ntf-day-${s.id}`}>{t(s.id)}</h2>
-              <ul className="ntf-list">
-                {s.items.map(it => (
-                  <NotificationItem
-                    key={it.id}
-                    item={it}
-                    thumbUrl={thumbUrlFor(thumbs, it)}
-                    onOpen={open}
-                  />
-                ))}
-              </ul>
-            </section>
-          ))}
-          {next ? (
-            <div className="ntf-more" ref={sentinel}>
-              <button type="button" className="btn btn-ghost" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? t('loadingMore') : t('loadMore')}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+    <Shell>
+      <PullToRefresh onRefresh={reload}>
+        {status === 'loading' ? <InboxSkeleton /> : null}
+        {status === 'error' ? <LoadError onRetry={reload} /> : null}
+        {status === 'ready' && items.length === 0 ? <EmptyInbox /> : null}
+        {status === 'ready' && items.length > 0 ? (
+          <div className="ntf-fade">
+            {sections.map(s => (
+              <section key={s.id} aria-labelledby={`ntf-sec-${s.id}`}>
+                <h2 className="ntf-sec" id={`ntf-sec-${s.id}`}>{t(s.id === 'new' ? 'sectionNew' : s.id === 'week' ? 'sectionWeek' : 'sectionEarlier')}</h2>
+                <ul className="ntf-list">
+                  {s.items.map(it => (
+                    <NotificationItem
+                      key={it.id}
+                      item={it}
+                      hasTable={hasTable}
+                      thumbUrl={thumbUrlFor(thumbs, it)}
+                      onOpen={open}
+                      onConfirm={onConfirm}
+                      onDecline={onDecline}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+            {next ? (
+              <div className="ntf-more" ref={sentinel}>
+                <button type="button" className="btn btn-ghost" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? t('loadingMore') : t('loadMore')}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </PullToRefresh>
       <div className="ntf-end" />
+      {toast}
     </Shell>
   )
 }

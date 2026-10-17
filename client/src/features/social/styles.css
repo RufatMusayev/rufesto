@@ -20,7 +20,7 @@
 .soc-topbar-title { flex: 1; min-width: 0; font-size: 1.1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .soc-topbar-title-center { text-align: center; }
 .soc-topbar-right { display: flex; align-items: center; justify-content: flex-end; min-width: 36px; }
-@media (max-width: 768px) { .soc-topbar { top: var(--nav-h); } }
+@media (max-width: 1023px) { .soc-topbar { top: var(--nav-h); } }
 
 /* tabs / chips */
 .soc-tabs { display: flex; gap: 8px; padding: 12px 16px 0; overflow-x: auto; }
@@ -63,7 +63,7 @@
 .soc-row-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border-radius: 8px; }
 .soc-row-main:focus-visible, .soc-post-name:focus-visible, .soc-post-where:focus-visible,
 .soc-act:focus-visible, .soc-entry:focus-visible, .soc-result:focus-visible, .soc-tile:focus-visible,
-.soc-seg-btn:focus-visible, .soc-fab:focus-visible, .soc-newpill:focus-visible, .soc-viewall:focus-visible,
+.soc-newpill:focus-visible, .soc-viewall:focus-visible,
 .soc-tabs .chip:focus-visible, .soc-photo-empty:focus-visible,
 .soc-photo-clear:focus-visible, .soc-picked-x:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
@@ -110,13 +110,12 @@
 .soc-photo img { width: 100%; height: 100%; object-fit: cover; }
 .soc-photo-wait { width: 100%; height: 100%; }
 .soc-photo-missing { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--t3); }
-.soc-burst { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; color: var(--accent); animation: socBurst 400ms var(--ease-out) both; }
-@keyframes socBurst {
-  0% { transform: scale(0.4); opacity: 0; }
-  35% { transform: scale(1.12); opacity: 1; }
-  70% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.04); opacity: 0; }
-}
+/* double-tap like: the brand glyph scales 0 -> 1.15 -> 1 with the spring and fades out by 650 ms */
+.soc-burst { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; color: var(--accent-text); animation: socBurstFade 650ms linear both; }
+.soc-burst > svg { animation: socBurstScale 450ms var(--spring-pop) both; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45)); }
+@keyframes socBurstScale { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes socBurstFade { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+.soc-photo img { -webkit-user-drag: none; user-select: none; }
 .soc-actions { display: flex; align-items: center; gap: 4px; padding: 4px 10px 6px; }
 .soc-act { color: var(--t1); width: var(--tap); height: var(--tap); text-decoration: none; }
 .soc-act-wide { width: auto; min-width: var(--tap); padding: 0 6px; }
@@ -125,31 +124,6 @@
 .soc-act-likes { margin-left: 4px; }
 .soc-caption { padding: 0 16px 12px; font-size: 0.9rem; line-height: 1.5; color: var(--t1); white-space: pre-wrap; overflow-wrap: anywhere; }
 .soc-viewall { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 16px; margin-top: -6px; font-size: 0.8rem; color: var(--t3); }
-.soc-review-head { padding-bottom: 4px; }
-.soc-stars { color: var(--gold); font-size: 0.75rem; letter-spacing: 1px; font-family: 'DM Mono', monospace; flex-shrink: 0; align-self: flex-start; padding-top: 2px; }
-.soc-review-body { padding: 2px 16px 6px 62px; }
-.soc-review-text { font-size: 0.92rem; line-height: 1.5; color: var(--t1); overflow-wrap: anywhere; }
-.soc-review-pill { margin-top: 8px; }
-.soc-review-photo { width: 100%; max-height: 420px; object-fit: cover; border-radius: 14px; border: 1px solid var(--border); margin-top: 10px; }
-.soc-review-actions { padding-bottom: 6px; }
-/* no empty band between the last line of the body (text, "Verified visit") and the action row: the row's 44px buttons pull up */
-.soc-review-body { padding-bottom: 0; }
-.soc-review .soc-review-actions { margin-top: -8px; }
-.soc-review-text + .soc-review-pill { margin-top: 6px; }
-/* the reply count under the actions is a button, styled like the "View all comments" link */
-.soc-viewall-btn { background: none; border: none; font-family: inherit; cursor: pointer; margin-top: -2px; }
-/* the reply thread of a review, inside its card */
-.soc-replies { padding: 0 14px 12px; border-top: 1px solid var(--border); margin-top: 4px; }
-.soc-replies .soc-comment { padding: 6px 0; }
-.soc-replies-empty { padding: 12px 0 4px; font-size: 0.8rem; color: var(--t3); }
-.soc-composer.soc-composer-inline { position: static; padding: 6px 0 0; border-top: none; background: none; }
-.soc-composer-inline .soc-composer-error { margin-left: 0; }
-/* dish and venue on one meta line: the dish gives way first, the venue stays readable (it shrinks only past 60 %) */
-.soc-where { display: flex; align-items: baseline; }
-.soc-where > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.soc-where-dish { flex: 0 100 auto; }
-.soc-where-sep { flex: 0 0 auto; white-space: pre; }
-.soc-where-place { flex: 0 1 auto; max-width: 60%; }
 
 /* restaurant post: dish strip under the photo (name, price, Available now / Sold out, Order this) */
 .soc-dish { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 2px; }
@@ -172,12 +146,21 @@
   background: var(--accent); color: #F5F0E8; font-size: 0.78rem; font-weight: 700;
   box-shadow: 0 6px 20px rgba(0,0,0,0.3); animation: feedItemIn 240ms var(--ease-out) both;
 }
-@media (min-width: 769px) { .soc-newpill { top: 8px; } }
+@media (min-width: 1024px) { .soc-newpill { top: 8px; } }
 
 /* Home tabs + FAB + profile entry */
-.soc-seg { display: flex; gap: 4px; max-width: 470px; margin: 12px auto 4px; padding: 4px; border-radius: 12px; background: var(--s2); border: 1px solid var(--border); width: calc(100% - 32px); }
-.soc-seg-btn { flex: 1; min-height: var(--tap); padding: 0; border: none; border-radius: 9px; background: transparent; color: var(--t2); font-size: 0.82rem; font-weight: 600; transition: background-color var(--t-ui), color var(--t-ui), transform var(--t-fast); }
-.soc-seg-btn:active { transform: scale(0.97); }
+.soc-htabs { position: relative; display: flex; align-items: center; max-width: 470px; margin: 0 auto; padding: 0 4px 0 16px; border-bottom: 1px solid var(--border); }
+.soc-htabs-list { position: relative; display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-width: 0; }
+.soc-htab { min-height: var(--tap); padding: 0 8px; border: none; background: transparent; color: var(--t3); font-size: 0.94rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 150ms var(--ease-out); }
+.soc-htab.active { color: var(--t1); }
+.soc-htab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+/* the underline: a one-tab-wide track that slides by whole tabs, with a 24 x 2 bar centred in it */
+.soc-htab-ind { position: absolute; left: 0; bottom: -1px; width: 50%; height: 2px; display: flex; justify-content: center; pointer-events: none; transition: transform 200ms var(--ease-out); }
+.soc-htab-ind > span { width: 24px; height: 2px; border-radius: 1px; background: var(--accent-text); }
+.soc-htab-ind[data-i="1"] { transform: translateX(100%); }
+.soc-htab-geo { flex: none; width: var(--tap); height: var(--tap); color: var(--t2); }
+.soc-htab-geo.is-on { color: var(--accent-text); }
+@media (prefers-reduced-motion: reduce) { .soc-htab-ind, .soc-htab { transition: none; } }
 /* a Home tab that is not shown stays mounted. Where supported, it is skipped by the renderer but its layout is kept, so coming back
    does not lay out and repaint the whole tab again (hidden alone would); elsewhere it is plain display:none */
 .soc-tabpanel[hidden] { display: none; }
@@ -186,20 +169,7 @@
 .soc-findbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px 12px; }
 .soc-findbar-text { flex: 1; min-width: 0; font-size: 0.8rem; color: var(--t2); line-height: 1.4; }
 .soc-findbar-btn { flex-shrink: 0; padding: 0 1rem; }
-.soc-seg-btn.active { background: var(--t1); color: var(--bg); }
-.soc-fab {
-  position: fixed; right: 16px; bottom: calc(var(--bottom-h) + 16px); z-index: 70;
-  width: 52px; height: 52px; border-radius: 50%; border: none;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--gold); color: #1A1210; box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-  transition: transform var(--t-fast);
-}
-.soc-fab:active { transform: scale(0.93); }
-/* scrolling down to read: the "+" slides away (so it never sits on "Order this"); scrolling up or stopping at the top brings it back */
-.soc-fab-away { transform: translateY(calc(100% + var(--bottom-h) + 24px)); pointer-events: none; }
-.soc-fab { transition: transform 220ms var(--ease-out); }
-.soc-fab-raised { bottom: calc(var(--bottom-h) + 80px); }
-@media (min-width: 769px) { .soc-fab { bottom: 24px; right: 24px; } .soc-fab-raised { bottom: 88px; } .soc-toast { bottom: 24px; } }
+@media (min-width: 1024px) { .soc-toast { bottom: 24px; } }
 .soc-entry { display: flex; align-items: center; gap: 12px; min-height: var(--tap); padding: 12px 0; border-bottom: 1px solid var(--border); color: var(--t1); }
 .soc-entry-icon { display: flex; color: var(--t2); }
 .soc-entry-label { flex: 1; font-size: 0.86rem; font-weight: 500; }
@@ -220,7 +190,7 @@
 
 /* post page: comments + sticky composer */
 .soc-page-thread { display: flex; flex-direction: column; padding-bottom: 0; min-height: calc(100dvh - var(--nav-h) - var(--bottom-h)); }
-@media (min-width: 769px) { .soc-page-thread { min-height: 100dvh; } }
+@media (min-width: 1024px) { .soc-page-thread { min-height: 100dvh; } }
 .soc-post-wrap { flex: 1; }
 .soc-comments { padding: 8px 16px 16px; }
 .soc-comments-empty { text-align: center; padding: 24px 0; }
@@ -231,7 +201,7 @@
 .soc-comment-time { font-size: 0.7rem; color: var(--t3); font-family: 'DM Mono', monospace; }
 .soc-comment-del { width: 28px; height: 28px; color: var(--t3); flex-shrink: 0; }
 .soc-composer { position: sticky; bottom: var(--bottom-h); z-index: 30; padding: 8px 12px; background: var(--bg); border-top: 1px solid var(--border); }
-@media (min-width: 769px) { .soc-composer { bottom: 0; } }
+@media (min-width: 1024px) { .soc-composer { bottom: 0; } }
 .soc-composer-row { display: flex; align-items: center; gap: 8px; }
 .soc-composer-input { flex: 1; min-width: 0; border-radius: 100px; padding: 0.5rem 1rem; }
 .soc-composer-error { margin: 0 0 6px 36px; }

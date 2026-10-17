@@ -10,9 +10,7 @@
 }
 
 .soc-feed .soc-post,
-.soc-feed .soc-review,
-.soc-feed-slot > .menu-card,
-.dsc .soc-review {
+.soc-feed-slot > .menu-card {
   max-width: none; margin: 0 var(--gutter) 16px;
   background: var(--s2); border: 1px solid var(--border); border-radius: var(--card-r);
 }
@@ -31,16 +29,12 @@
 .soc-feed-slot > .menu-card { cursor: default; }
 .soc-feed-slot > .menu-card:active { transform: none; }
 
-/* star ratings in gold that stays readable on --s2 in the light theme too */
-.soc-feed .soc-stars, .dsc .soc-stars { color: var(--gold-text); }
-
 /* header of a card: name in the sans face, restaurant in the serif face where it is the author */
 .soc-feed .soc-post-head { padding: 12px 8px 10px 14px; }
 .soc-feed .soc-actions { padding: 2px 6px 4px; }
 .soc-feed .soc-caption { padding: 0 14px 12px; }
 .soc-feed .soc-viewall { padding: 0 14px; }
 .soc-feed .soc-dish { padding: 10px 14px 2px; }
-.soc-feed .soc-review-body { padding: 2px 14px 6px 60px; }
 
 /* the more-row, caught-up block and sign-in banner sit on the same gutter */
 .soc-feed .soc-feed-more { padding: 8px 16px 20px; }
@@ -55,5 +49,3 @@
   .soc-feed .soc-newpill { animation: none; }
 }
 
-/* review photos get a fixed box: no layout shift when the image arrives */
-.soc-feed .soc-review-photo, .dsc .soc-review-photo { aspect-ratio: 4 / 3; max-height: none; background: var(--s3); }

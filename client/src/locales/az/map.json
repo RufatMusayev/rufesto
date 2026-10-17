@@ -1,12 +1,11 @@
 {
-  "searchPlaceholder": "Restoran axtarın…",
-  "searchLabel": "Xəritədə restoran axtarın",
   "locate": "Mənim yerim",
   "locating": "Yeriniz müəyyən edilir…",
   "locateDenied": "Bu sayt üçün məkan icazəsi bağlıdır. Harada olduğunuzu görmək üçün brauzer ayarlarında icazə verin.",
   "locateFailed": "Yeriniz müəyyən edilmədi. Bir az sonra yenidən cəhd edin.",
   "locateUnsupported": "Bu brauzer məkanınızı paylaşa bilmir.",
-  "noMatches": "Axtarışa uyğun restoran yoxdur.",
   "viewMenu": "Menyuya bax",
-  "restaurant": "Restoran"
+  "restaurant": "Restoran",
+  "openNow": "İndi açıq",
+  "noneOpen": "Hazırda açıq restoran yoxdur."
 }

@@ -12,6 +12,7 @@ export const mapUser = u => ({
   id: u?.id || null,
   name: u?.name || null,
   photo: u?.profile_photo || u?.photo || null,
+  topReviewer: !!u?.top_reviewer,           // _review_json (sql/67); false elsewhere
 })
 
 const mapRestaurant = r => (r ? {
@@ -33,7 +34,7 @@ const mapPostPhoto = v => ({
 const num = v => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v))
 // price / available only come with home_feed and the v2 post item (live kitchen toggle); null = unknown
 const mapDish = d => (d ? {
-  id: d.id || null, name: d.name || '', photo: d.photo || null,
+  id: d.id || null, name: d.name || '', photo: d.photo || null, category: d.category || null,
   price: num(d.price), available: d.available == null ? null : !!d.available,
 } : null)
 
@@ -145,9 +146,12 @@ export const mapFeedItem = r => (r.kind === 'promo' ? mapPromo(r) : {
   // friends_feed only: the Baku calendar day the item belongs to ('YYYY-MM-DD'), for the day separators
   day: r.day || null,
   // home_feed only (null elsewhere)
-  pool: r.pool || null,                     // 'nearby' | 'following' | 'discover'
+  pool: r.pool || null,                     // 'nearby' | 'following' | 'discover' | 'popular' (a review)
   position: num(r.position),                // the server's 1-based slot in its page; Home re-numbers across the whole list
   km: num(r.km),                            // nearby pool only
+  // popular reviews (home_feed, sql/67): why this review is on Home ('liked' | 'top_reviewer') and its likes in 14 days
+  reason: r.reason || null,
+  likes14d: num(r.likes_14d),
   openNow: r.open_now == null ? null : !!r.open_now,
 })
 

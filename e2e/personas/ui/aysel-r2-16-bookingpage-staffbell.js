@@ -1,0 +1,32 @@
+const L = require('./aysel-r2-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  const api = await L.api('Aysel Məmmədova')
+  const bk = (await api.rpc('list_my_bookings')).find(x => x.status === 'confirmed' || x.status === 'pending')
+  L.log('booking:', bk && [bk.booking_id, bk.status].join(' '))
+  await L.step('staff bell panel (manager)', async () => {
+    const M = await L.desk(b, 'Səid Əhmədov')
+    await M.page.goto(L.RESTO + '/bookings'); await M.page.waitForTimeout(3500)
+    await M.page.locator('[aria-label*="otification" i]').first().click(); await M.page.waitForTimeout(1500)
+    await L.shot(M.page, '16-staff-bell-panel')
+    L.log('panel:', (await M.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 900))
+    await M.ctx.close()
+  })
+  await L.step('booking page + cancel by the host', async () => {
+    await A.page.goto(L.CONSUMER + '/bookings/' + bk.booking_id); await A.page.waitForTimeout(3000)
+    await L.shot(A.page, '16-booking-page')
+    L.log('booking page:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 520))
+    L.log('buttons:', await A.page.evaluate(() => [...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.innerText.trim()).filter(Boolean)))
+    const cancel = A.page.getByRole('button', { name: /^Cancel/i }).first()
+    if (await cancel.count()) {
+      await cancel.click(); await A.page.waitForTimeout(900)
+      await L.shot(A.page, '16-cancel-confirm')
+      L.log('confirm dialog:', (await A.page.evaluate(() => (document.querySelector('.sheet, [role=dialog], .overlay')?.innerText || '').replace(/\n+/g, ' | ').slice(0, 220))))
+      await A.page.getByRole('button', { name: /^(Yes|Cancel booking|Cancel reservation|Confirm)/i }).last().click(); await A.page.waitForTimeout(2000)
+      L.log('after cancel:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 300))
+    }
+    L.log('final status:', (await api.rpc('list_my_bookings')).find(x => x.booking_id === bk.booking_id)?.status)
+  })
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

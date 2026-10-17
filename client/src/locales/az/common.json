@@ -50,5 +50,29 @@
   "errorReload": "Yenidən yüklə",
   "errorHome": "Ana səhifəyə qayıt",
   "language": "Dil",
-  "switchToLanguage": "Dili dəyişin: {{language}}"
+  "switchToLanguage": "Dili dəyişin: {{language}}",
+  "timeShort": {
+    "now": "indi",
+    "m": "{{n}} dəq",
+    "h": "{{n}} saat",
+    "d": "{{n}} gün",
+    "w": "{{n}} həftə",
+    "date": "{{day}} {{month}}",
+    "dateYear": "{{day}} {{month}} {{year}}",
+    "months": [
+      "yan",
+      "fev",
+      "mar",
+      "apr",
+      "may",
+      "iyn",
+      "iyl",
+      "avq",
+      "sen",
+      "okt",
+      "noy",
+      "dek"
+    ]
+  },
+  "guestName": "Rufesto qonağı"
 }

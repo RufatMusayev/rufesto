@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Pill } from '../../../components/ui'
 import { formatPrice } from '../../../lib/helpers'
+import { useDishAvailable } from '../../feed/dishAvailability'
+import { distanceLabel } from '../lib/distance'
 
 // Pieces of a post whose author is a restaurant (docs/V2-CONTRACT.md 17.2 / 17.5). PostCard stays the
 // single card; it swaps in these for the header and adds the dish strip under the photo.
@@ -17,7 +19,7 @@ export const restaurantPath = item => {
 }
 
 const placeInfo = (item, t) => [
-  item.km != null ? t('post.kmAway', { km: item.km }) : null,
+  distanceLabel(t, item.km),
   item.openNow ? t('post.openNow') : null,
 ].filter(Boolean).join(' · ')
 
@@ -62,52 +64,75 @@ function PinGlyph() {
 /**
  * Chips over the bottom of a post photo (docs/V2-CONTRACT.md 18.4): the restaurant (people's post) or its distance /
  * open state (restaurant post, whose header already names it), and the live availability pill of the dish.
- * Taps on the chips are not taps on the photo (no double-tap like).
+ * Taps on the chips are not taps on the photo (no double-tap like). The restaurant chip is a link whose box is a
+ * 44px target around the 32px pill.
  */
 export function PhotoChips({ item, isResto }) {
   const { t } = useTranslation('social')
   const place = item.restaurant
   const dish = item.dish
-  const soldOut = dish?.available === false
+  const available = useDishAvailable(dish?.id, dish?.available ?? null)
+  const soldOut = available === false
   const info = isResto ? placeInfo(item, t) : ''
   const name = !isResto && place?.name ? place.name : ''
-  const label = <><PinGlyph /><span className="soc-chip-text">{name}</span></>
+  const pill = <span className="soc-chip"><PinGlyph /><span className="soc-chip-text">{name}</span></span>
   return (
     <div className="soc-photo-chips" onClick={e => e.stopPropagation()}>
-      {name && (place.slug
-        ? <Link to={`/restaurant/${place.slug}`} className="soc-chip">{label}</Link>
-        : <span className="soc-chip">{label}</span>)}
+      {name && (place.slug ? <Link to={`/restaurant/${place.slug}`} className="soc-chip-link">{pill}</Link> : pill)}
       {info && <span className="soc-chip"><span className="soc-chip-text">{info}</span></span>}
-      {isResto && dish?.available != null && (
+      {isResto && available != null && (
         <span className={`soc-avail${soldOut ? ' soc-avail-off' : ''}`}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</span>
       )}
     </div>
   )
 }
 
-/** Dish name + price + (without a photo) the live "Available now" / "Sold out" pill + the "Order this" button. */
+/**
+ * A restaurant post that is only words (persona-newcomer N15): a designed card as tall as it is wide instead of a thin
+ * strip. The caption is set as a serif quote on the accent colour, the venue sits in a chip at the bottom.
+ */
+export function TextCard({ item }) {
+  const name = item.author.name || item.restaurant?.name || ''
+  const to = restaurantPath(item)
+  const size = item.text.length > 160 ? 'sm' : item.text.length > 70 ? 'md' : 'lg'
+  const pill = <span className="soc-chip"><PinGlyph /><span className="soc-chip-text">{name}</span></span>
+  return (
+    <div className={`soc-textcard soc-textcard-${size}`}>
+      <span className="soc-textcard-mark" aria-hidden="true">&ldquo;</span>
+      <p className="soc-textcard-quote">{item.text}</p>
+      {name && (to ? <Link to={to} className="soc-chip-link">{pill}</Link> : pill)}
+    </div>
+  )
+}
+
+/**
+ * Dish name + price + (without a photo) the live "Available now" / "Sold out" pill + the "Order this" button.
+ * A dish that sold out (the page said so, or the 60 s refresh found out) shows a disabled "Sold out" button
+ * instead of "Order this" (persona-leyla #8).
+ */
 export function DishStrip({ item, onOrder, showPill = true }) {
   const { t } = useTranslation('social')
   const dish = item.dish
+  const available = useDishAvailable(dish?.id, dish?.available ?? null)
   const base = restaurantPath(item)
   const href = base && dish?.id ? `${base}?dish=${dish.id}&src=post:${item.id}` : null
-  const soldOut = dish.available === false
+  const soldOut = available === false
   return (
     <div className="soc-dish">
       <div className="soc-dish-info">
         <span className="soc-dish-name">{dish.name}</span>
         <span className="soc-dish-meta">
           {dish.price != null && <span className="soc-dish-price">{formatPrice(dish.price)}</span>}
-          {showPill && dish.available != null && (
+          {showPill && available != null && (
             <Pill tone={soldOut ? 'red' : 'green'}>{t(soldOut ? 'post.soldOut' : 'post.availableNow')}</Pill>
           )}
         </span>
       </div>
-      {href && (
-        <Link to={href} className={`btn soc-order ${soldOut ? 'btn-ghost' : 'btn-primary'}`} onClick={onOrder}>
-          {t('post.orderThis')}
-        </Link>
-      )}
+      {href && (soldOut ? (
+        <button type="button" className="btn btn-ghost soc-order" disabled>{t('post.soldOut')}</button>
+      ) : (
+        <Link to={href} className="btn btn-primary soc-order" onClick={onOrder}>{t('post.orderThis')}</Link>
+      ))}
     </div>
   )
 }

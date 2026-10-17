@@ -91,5 +91,10 @@
   "sendAnother": "Başqa göndər",
   "errSelectRating": "Zəhmət olmasa reytinq seçin.",
   "errWriteMessage": "Zəhmət olmasa mesaj yazın.",
-  "errSendFailed": "Rəy göndərilə bilmədi. Yenidən cəhd edin."
+  "errSendFailed": "Rəy göndərilə bilmədi. Yenidən cəhd edin.",
+  "tabShortPosts": "Postlar",
+  "tabShortBookings": "Rezerv",
+  "tabShortReviews": "Rəylər",
+  "tabShortSaved": "Saxlanan",
+  "tabShortVisits": "Ziyarət"
 }

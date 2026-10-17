@@ -14,8 +14,14 @@
   --gold-bg:  #F5E6C8;
   --t1:       #F5F0E8;
   --t2:       #A89890;
-  --t3:       #6B5E56;
+  /* --t3 is the third text tier (times, counts, labels): >= 4.5:1 (WCAG AA) on --bg, --s2 and --s3 in both themes.
+     --t4 is for decoration only (dividers, disabled glyphs). */
+  --t3:       #9A8C83;
   --t4:       #4A3E35;
+  /* burgundy as TEXT (links such as "View dish"): the accent itself is only 2:1 on the dark surfaces */
+  --accent-text: #E8A5B7;
+  /* gold as TEXT: readable on --s2 in both themes (the light theme overrides it) */
+  --gold-text:   var(--gold);
   --green:    #3B6D11;
   --green-light: #C0DD97;
   --red:      #A32D2D;
@@ -66,9 +72,11 @@
   --s4:       #C8BDB0;
   --border:   rgba(26,18,16,0.10);
   --t1:       #1A1210;
-  --t2:       #6B5E56;
-  --t3:       #A89890;
+  --t2:       #5A4E47;
+  --t3:       #665A52;
   --t4:       #C8BDB0;
+  --accent-text: #8B2D42;
+  --gold-text:   #7A5C0E;
   --primary-light: #E8C4D0;
   --border-strong: rgba(26,18,16,0.22);
   --warning-bg: rgba(186,117,23,0.08);
@@ -560,6 +568,15 @@ body.modal-open { overflow: hidden; }
 
 a.btn { text-decoration: none; }
 
+/* text for screen readers only (the one <h1> of a page that has no visible title) */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* floating buttons step out of the way while a sheet / modal is open (a sheet is mounted only while open) */
+body:has(.overlay) .soc-fab, body:has(.overlay) .cart-fab { visibility: hidden; }
+
 /* /t/:code deep-link page */
 .claim-page { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
 .claim-card { width: 100%; max-width: 400px; }
@@ -621,14 +638,24 @@ a.btn { text-decoration: none; }
 .lang-switcher { display: flex; gap: 4px; align-items: center; }
 .lang-btn {
   padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent;
-  color: var(--color-text-muted, #888); font-size: 12px; font-weight: 400; letter-spacing: 0.05em;
+  color: var(--t2); font-size: 12px; font-weight: 400; letter-spacing: 0.05em;
   cursor: pointer; transition: all 0.15s;
 }
 .lang-btn.active {
   border-color: var(--color-gold, #C49A2C); background: var(--color-gold-alpha, rgba(196,154,44,0.15));
-  color: var(--color-gold, #C49A2C); font-weight: 700;
+  color: var(--gold-text); font-weight: 700;
 }
 .lang-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* the phone header's switch: two 44px targets side by side, readable text colours on the header background */
+.lang-switcher-bar { gap: 0; }
+
+/* crash screen (components/ErrorBoundary) and the spinner shown while a lazy page loads */
+.app-crash { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px 24px; text-align: center; background: var(--bg); color: var(--t1); }
+.app-crash-icon { font-size: 2.4rem; }
+.app-crash-title { font-size: 1.4rem; font-weight: 700; }
+.app-crash-body { max-width: 340px; font-size: 0.9rem; line-height: 1.55; color: var(--t2); }
+.app-crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+.route-fallback { min-height: 50vh; display: flex; align-items: center; justify-content: center; }
 @media (max-width: 768px), (pointer: coarse) {
   .lang-btn { min-width: var(--tap); min-height: var(--tap); }
 }

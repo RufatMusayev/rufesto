@@ -20,5 +20,9 @@
   "decrease": "{{name}} sayını azalt",
   "increase": "{{name}} sayını artır",
   "remove": "{{name}} sifarişdən çıxar",
-  "rateEstimate": "Təxmini məbləğ: dəqiq məbləğ sifariş verəndə təsdiqlənir."
+  "rateEstimate": "Təxmini məbləğ: dəqiq məbləğ sifariş verəndə təsdiqlənir.",
+  "addedToast": "{{name}} əlavə olundu",
+  "addedCount_one": "Sifarişinizdə {{count}} məhsul",
+  "addedCount_other": "Sifarişinizdə {{count}} məhsul",
+  "viewOrder": "Bax"
 }

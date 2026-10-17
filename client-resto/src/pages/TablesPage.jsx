@@ -12,6 +12,8 @@ import { tableStateLabel } from '../components/waiter/waiterHelpers'
 import TableQRModal from '../components/TableQRModal'
 import { PrintAllQrButton } from '../features/v2/mounts'
 import ActionBanner from '../components/ActionBanner'
+import ChipScroller from '../components/ChipScroller'
+import '../features/v2/styles.css'
 
 // Active-orders window for the table floor: 24h is generous for a single
 // dine-in visit while still dropping stale open orders from earlier days.
@@ -116,7 +118,7 @@ export default function TablesPage() {
         <h1 className="page-title">{t('dashboard:tablesTitle')}</h1>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <PrintAllQrButton />
-          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
+          <div className="page-live" style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.72rem', color:'var(--green)' }}>
             <span className="dash-live-dot" /> {t('common:live')}
           </div>
         </div>
@@ -125,7 +127,7 @@ export default function TablesPage() {
       {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       {sections.length > 1 && (
-        <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '0.75rem' }} className="no-scrollbar">
+        <ChipScroller role="group" aria-label={t('dashboard:tablesTitle')} className="chipscroll--tight">
           <button className={`chip${!activeSection ? ' active' : ''}`} onClick={() => setActiveSection(null)}>
             {t('dashboard:allAreas', { count: tables.length })}
           </button>
@@ -136,10 +138,10 @@ export default function TablesPage() {
                 onClick={() => setActiveSection(s.id)}>{s.name} ({cnt})</button>
             )
           })}
-        </div>
+        </ChipScroller>
       )}
 
-      <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
+      <ChipScroller role="group" aria-label={t('dashboard:legend')}>
         <button className={`chip${stateFilter === 'all' ? ' active' : ''}`} onClick={() => setStateFilter('all')}>
           {t('dashboard:filterAll')} ({tables.length})
         </button>
@@ -154,7 +156,7 @@ export default function TablesPage() {
             </button>
           )
         })}
-      </div>
+      </ChipScroller>
 
       {loading ? (
         <div className="tbl-grid">

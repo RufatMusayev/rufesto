@@ -5,12 +5,17 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
 import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
-import { bakuTodayStartISO, bakuTimeLabel } from '../lib/time'
+import { bakuDayLabel, bakuTimeLabel } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import { canAccess, roleCan } from '../lib/roles'
 import ActionBanner from '../components/ActionBanner'
+import ChipScroller from '../components/ChipScroller'
+import DayRangeChips from '../features/v2/components/DayRangeChips'
+import useDayRange from '../features/v2/hooks/useDayRange'
+import { SUMMARY_PRESETS, isTodayRange, rangeInstants } from '../features/v2/historyRange'
+import '../features/v2/styles.css'
 
 // Real `order_status` values. `submitted` / `refunded` chips only appear while
 // there is an order in that status (or the chip is selected).
@@ -30,6 +35,12 @@ export default function OrdersPage() {
   const role = staffRow?.role
   const canFlow = roleCan(role, 'orderFlow')
   const canSettle = canAccess(role, '/bills')
+  const rangeState = useDayRange('today')
+  const { range } = rangeState
+  const rangeRef = useRef(range)
+  rangeRef.current = range
+  const loadRef = useRef(null)
+  const loadSeq = useRef(0)
   const [orders, setOrders] = useState([])
   // Guest names by user id. Only floor staff may ask, and only through the RPC: a waiter no longer reads `users`,
   // and nobody here needs a guest's e-mail or phone. askedIds stops a realtime reload re-asking known guests.
@@ -41,13 +52,14 @@ export default function OrdersPage() {
   const [acting, setActing] = useState(null)
   const [actionError, setActionError] = useState('')
 
+  // Realtime: the handlers always load whichever range is on screen (loadRef), so switching range never needs a
+  // new channel.
   useEffect(() => {
-    if (!restaurantId) return
+    if (!restaurantId) return undefined
     askedIds.current = new Set()
     setGuestNames({})
-    loadOrders()
 
-    const debouncedLoad = debounce(loadOrders, 400)
+    const debouncedLoad = debounce(() => loadRef.current(), 400)
     const ch = supabase
       .channel(`dash-orders-${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, debouncedLoad)
@@ -61,18 +73,32 @@ export default function OrdersPage() {
     return () => { debouncedLoad.cancel(); stop() }
   }, [restaurantId])
 
+  // First load, and again whenever the range (or restaurant) changes.
+  useEffect(() => {
+    if (!restaurantId) return
+    setLoading(true)
+    loadOrders()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, rangeState.key])
+
   async function loadOrders() {
+    const mine = ++loadSeq.current
+    const { fromISO, toISO } = rangeInstants(rangeRef.current)
     const { data } = await supabase
       .from('orders')
       .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
       .eq('restaurant_id', restaurantId)
-      .gte('placed_at', bakuTodayStartISO())
+      .gte('placed_at', fromISO)
+      .lt('placed_at', toISO)
       .order('placed_at', { ascending: false })
+      .limit(1000)
+    if (mine !== loadSeq.current) return   // the user has moved to another range meanwhile
 
     setOrders(data || [])
     setLoading(false)
     loadGuestNames(data || [])
   }
+  loadRef.current = loadOrders
 
   async function loadGuestNames(rows) {
     const ids = [...new Set(rows.map(o => o.user_id).filter(id => id && !askedIds.current.has(id)))]
@@ -113,30 +139,33 @@ export default function OrdersPage() {
   const statusCounts = {}
   for (const o of orders) statusCounts[o.status] = (statusCounts[o.status] || 0) + 1
 
-  const todayRevenue = orders
+  // The value of the orders placed (VAT included), cancelled and refunded ones left out. This is NOT money
+  // collected: that is the Overview's revenue and the Bills page.
+  const orderValue = orders
     .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
     .reduce((s, o) => s + (o.total_amount || 0), 0)
+  const today = isTodayRange(range)
 
   return (
-    <div style={{ padding: '1.25rem' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border)' }}>
-        <div>
+    <div className="ord-page">
+      <div className="ord-head">
+        <div className="ord-head-main">
           <h1 className="page-title">{t('dashboard:ordersTitle')}</h1>
-          <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
-            {t('dashboard:ordersToday', { count: orders.length })}
+          <span className="ord-sub">
+            {t(today ? 'dashboard:ordersToday' : 'dashboard:ordersInRange', { count: orders.length })}
           </span>
         </div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:'1.35rem', fontWeight:900, color:'var(--gold)', lineHeight:1.1 }}>
-            {formatPrice(todayRevenue)}
-          </div>
-          <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>{t('dashboard:todaysRevenue')}</div>
+        <div className="ord-value">
+          <div className="ord-value-num">{formatPrice(orderValue)}</div>
+          <div className="ord-value-label">{t('dashboard:ordersValueLabel')}</div>
         </div>
       </div>
 
+      <DayRangeChips state={rangeState} presets={SUMMARY_PRESETS} />
+
       {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
-      <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }} className="no-scrollbar">
+      <ChipScroller role="group" aria-label={t('dashboard:ordersTitle')}>
         {FILTERS.map(f => {
           const cnt = f === 'all' ? orders.length : (statusCounts[f] || 0)
           if (OPTIONAL_FILTERS.includes(f) && cnt === 0 && filter !== f) return null
@@ -148,18 +177,18 @@ export default function OrdersPage() {
             </button>
           )
         })}
-      </div>
+      </ChipScroller>
 
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />)}
+        <div className="ord-list" aria-hidden="true">
+          {[1,2,3,4].map(i => <div key={i} className="skeleton ord-skel" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">📋</div>{t('dashboard:noOrdersMatch')}</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div className="ord-list">
           {filtered.map(o => (
-            <OrderCard key={o.id} order={o}
+            <OrderCard key={o.id} order={o} showDate={!today}
               expanded={expanded.has(o.id)}
               onToggle={() => toggleExpand(o.id)}
               onUpdateStatus={updateStatus}
@@ -175,12 +204,13 @@ export default function OrdersPage() {
   )
 }
 
-function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestName, canFlow, canSettle }) {
+function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestName, canFlow, canSettle, showDate }) {
   const { t, i18n } = useTranslation(['dashboard', 'common'])
   const s = orderStatusStyle(order.status)
   const items = order.order_items || []
   // Restaurant time (Baku), like "today" above, whatever zone the viewer's device is set to.
-  const time = order.placed_at ? bakuTimeLabel(order.placed_at, i18n.language) : ''
+  const clock = order.placed_at ? bakuTimeLabel(order.placed_at, i18n.language) : ''
+  const time = showDate && order.placed_at ? `${bakuDayLabel(order.placed_at, i18n.language)} ${clock}` : clock
   const showServed = canFlow && order.status === 'ready'
   const showSettle = canSettle && order.status === 'served'
   const showCancel = canFlow && CANCELLABLE.includes(order.status)

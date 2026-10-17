@@ -116,16 +116,17 @@ export async function requestReception({ billId, mode }) {
 /** Dishes of the bill the user may still review: category (for the emoji) and whether a review exists.
  *  reviews has UNIQUE (dish_id, user_id), so a dish reviewed before (any time) cannot be reviewed again. */
 export async function dishReviewState(userId, dishIds) {
-  if (!dishIds.length) return { data: { categories: {}, reviewed: [] }, error: null }
+  if (!dishIds.length) return { data: { categories: {}, photos: {}, reviewed: [] }, error: null }
   const [dishes, mine] = await Promise.all([
-    call(() => supabase.from('dishes').select('id, category').in('id', dishIds)),
+    call(() => supabase.from('dishes').select('id, category, photo').in('id', dishIds)),
     call(() => supabase.from('reviews').select('dish_id').eq('user_id', userId).in('dish_id', dishIds)),
   ])
   if (mine.error) return { data: null, error: mine.error }
-  // categories only decorate the emoji: a failed dishes read is not fatal
+  // category and photo only decorate the row (thumbnail or emoji): a failed dishes read is not fatal
   const categories = {}
-  for (const d of dishes.data || []) categories[d.id] = d.category
-  return { data: { categories, reviewed: (mine.data || []).map(r => r.dish_id) }, error: null }
+  const photos = {}
+  for (const d of dishes.data || []) { categories[d.id] = d.category; photos[d.id] = d.photo || null }
+  return { data: { categories, photos, reviewed: (mine.data || []).map(r => r.dish_id) }, error: null }
 }
 
 export async function submitReview({ userId, dishId, rating, body }) {

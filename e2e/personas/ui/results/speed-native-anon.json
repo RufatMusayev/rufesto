@@ -2,135 +2,77 @@
   "table": {
     "runs": 5,
     "ttfb": [
-      432.39999997615814,
-      562.3000000119209
+      483.7999999821186,
+      832.1999999880791
     ],
     "fcp": [
-      1064,
-      1160
+      1328,
+      1504
     ],
     "lcp": [
-      3500,
-      3700
+      3888,
+      4264
     ],
     "homeFeedEnd": [
-      1562.5,
-      1767
+      2001.800000011921,
+      2078.899999976158
     ],
     "firstCard": [
-      2292.5,
-      2628.899999976158
+      2573.199999988079,
+      2614.199999988079
     ],
     "firstCardPhoto": [
-      3460.199999988079,
-      3675.199999988079
+      3847.0999999940395,
+      4227.4000000059605
     ],
     "load": [
-      1008,
-      1113.6000000238419
+      1227.199999988079,
+      1438.9000000059605
     ],
     "cls": 0,
-    "kb": 603,
-    "jsKb": 460,
-    "imgKb": 108,
+    "kb": 594,
+    "jsKb": 468,
+    "imgKb": 83,
     "requests": 20,
     "longTasksLoad": 2,
-    "tbtLike": 30,
-    "scroll_avgFps": 60,
-    "scroll_p95FrameMs": 16.7,
-    "scroll_maxFrameMs": 16.8,
+    "tbtLike": 146,
+    "scroll_avgFps": 59.8,
+    "scroll_p95FrameMs": 16.8,
+    "scroll_maxFrameMs": 33.4,
     "scroll_over50": 0,
     "scroll_longTasks": 0,
     "scroll_longTaskMs": 0,
-    "tab_discover_first_painted": 21.900000005960464,
-    "tab_discover_first_ready": 80.89999997615814,
-    "tab_friends_painted": 45.5,
-    "tab_friends_ready": 45.79999998211861,
-    "tab_home_painted": 50,
-    "tab_home_ready": 50.099999994039536,
-    "tab_discover_again_painted": 162.30000001192093,
-    "tab_discover_again_ready": 162.40000000596046,
-    "resto_title": 1406.199999988079,
-    "resto_first_dish_photo": 1827,
+    "tab_discover_first_painted": 24.099999994039536,
+    "tab_discover_first_ready": 105,
+    "tab_friends_painted": 44,
+    "tab_friends_ready": 44.400000005960464,
+    "tab_home_painted": 64.09999999403954,
+    "tab_home_ready": 64.2000000178814,
+    "tab_discover_again_painted": 170.19999998807907,
+    "tab_discover_again_ready": 170.2999999821186,
+    "resto_title": 521.6999999880791,
+    "resto_first_dish_photo": null,
     "discover_sections": 6
   },
   "runs": [
     {
-      "ttfb": 420.89999997615814,
-      "dcl": 967.5999999940395,
-      "load": 967.5999999940395,
-      "fcp": 1012,
-      "lcp": 3500,
+      "ttfb": 437.89999997615814,
+      "dcl": 1029.2999999821186,
+      "load": 1029.3999999761581,
+      "fcp": 1072,
+      "lcp": 3888,
       "cls": 0,
-      "firstCard": 2628.899999976158,
-      "firstCardPhoto": 3455.899999976158,
-      "homeFeedEnd": 1514.699999988079,
-      "homeFeedDur": 501.69999998807907,
-      "requests": 19,
-      "kb": 603,
-      "jsKb": 460,
-      "imgKb": 108,
-      "longTasksLoad": 2,
-      "longTaskMsLoad": 141,
-      "tbtLike": 41,
-      "scroll": {
-        "frames": 301,
-        "avgFps": 60,
-        "p95FrameMs": 16.7,
-        "maxFrameMs": 16.8,
-        "over50": 0,
-        "longTasks": 0,
-        "longTaskMs": 0,
-        "scrolledPx": 4832
-      },
-      "tabs": {
-        "toDiscoverFirst": [
-          21,
-          92.40000000596046
-        ],
-        "toFriends": [
-          43.099999994039536,
-          43.400000005960464
-        ],
-        "toHome": [
-          65.30000001192093,
-          65.30000001192093
-        ],
-        "toDiscoverAgain": [
-          162.30000001192093,
-          162.40000000596046
-        ]
-      },
-      "discover": {
-        "sections": 6,
-        "imgs": 38,
-        "imgsLoaded": 3
-      },
-      "restaurant": {
-        "toTitle": 1382.4000000059605,
-        "toTitleMs": 1380.9000000059605,
-        "toFirstDishPhoto": 1827,
-        "path": "/restaurant/brew-and-books"
-      }
-    },
-    {
-      "ttfb": 562.3000000119209,
-      "dcl": 1113.6000000238419,
-      "load": 1113.6000000238419,
-      "fcp": 1160,
-      "lcp": 3688,
-      "cls": 0,
-      "firstCard": 2292.5,
-      "firstCardPhoto": 3640.4000000059605,
-      "homeFeedEnd": 1767,
-      "homeFeedDur": 593,
+      "firstCard": 2445.199999988079,
+      "firstCardPhoto": 3847.0999999940395,
+      "homeFeedEnd": 1895.8999999761581,
+      "homeFeedDur": 823.0999999940395,
       "requests": 20,
-      "kb": 603,
-      "jsKb": 460,
-      "imgKb": 108,
+      "kb": 594,
+      "jsKb": 468,
+      "imgKb": 83,
       "longTasksLoad": 2,
-      "longTaskMsLoad": 129,
-      "tbtLike": 29,
+      "longTaskMsLoad": 132,
+      "tbtLike": 32,
       "scroll": {
         "frames": 301,
         "avgFps": 60,
@@ -143,194 +85,136 @@
       },
       "tabs": {
         "toDiscoverFirst": [
-          22.299999982118607,
-          80.89999997615814
+          17.80000001192093,
+          80
         ],
         "toFriends": [
-          48.599999994039536,
-          48.900000005960464
+          44,
+          44.400000005960464
         ],
         "toHome": [
-          46.099999994039536,
-          46.29999998211861
+          32.599999994039536,
+          32.599999994039536
         ],
         "toDiscoverAgain": [
-          166.10000002384186,
-          166.10000002384186
+          122.09999999403954,
+          122.09999999403954
         ]
       },
       "discover": {
         "sections": 6,
         "imgs": 38,
-        "imgsLoaded": 4
+        "imgsLoaded": 2
       },
       "restaurant": {
-        "toTitle": 1407.5,
-        "toTitleMs": 1406.199999988079,
-        "toFirstDishPhoto": 1609.4000000059605,
+        "toTitle": 15589.199999988079,
+        "toTitleMs": 574.5,
+        "toFirstDishPhoto": null,
         "path": "/restaurant/brew-and-books"
       }
     },
     {
-      "ttfb": 449,
-      "dcl": 1006.5999999940395,
-      "load": 1008,
-      "fcp": 1056,
-      "lcp": 3488,
+      "ttfb": 435.90000000596046,
+      "dcl": 1004.3000000119209,
+      "load": 1006.3000000119209,
+      "fcp": 1080,
+      "lcp": 3372,
       "cls": 0,
-      "firstCard": 2147.300000011921,
-      "firstCardPhoto": 3460.199999988079,
-      "homeFeedEnd": 1695.199999988079,
-      "homeFeedDur": 625.2999999821186,
+      "firstCard": 2063.699999988079,
+      "firstCardPhoto": 3327.199999988079,
+      "homeFeedEnd": 1585.5999999940395,
+      "homeFeedDur": 532.0999999940395,
       "requests": 20,
-      "kb": 603,
-      "jsKb": 460,
-      "imgKb": 108,
+      "kb": 594,
+      "jsKb": 468,
+      "imgKb": 83,
       "longTasksLoad": 2,
-      "longTaskMsLoad": 130,
-      "tbtLike": 30,
+      "longTaskMsLoad": 144,
+      "tbtLike": 44,
       "scroll": {
-        "frames": 297,
-        "avgFps": 59.2,
-        "p95FrameMs": 16.7,
+        "frames": 278,
+        "avgFps": 55.4,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 216.6,
+        "over50": 2,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4464
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          16.799999982118607,
+          62.69999998807907
+        ],
+        "toFriends": [
+          27,
+          27.299999982118607
+        ],
+        "toHome": [
+          36.30000001192093,
+          36.60000002384186
+        ],
+        "toDiscoverAgain": [
+          132.09999999403954,
+          132.19999998807907
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 38,
+        "imgsLoaded": 1
+      },
+      "restaurant": {
+        "toTitle": 15537.90000000596,
+        "toTitleMs": 521.6999999880791,
+        "toFirstDishPhoto": null,
+        "path": "/restaurant/brew-and-books"
+      }
+    },
+    {
+      "ttfb": 832.1999999880791,
+      "dcl": 1438.7999999821186,
+      "load": 1438.9000000059605,
+      "fcp": 1504,
+      "lcp": 4264,
+      "cls": 0,
+      "firstCard": 2614.199999988079,
+      "firstCardPhoto": 4227.4000000059605,
+      "homeFeedEnd": 2045.699999988079,
+      "homeFeedDur": 512.5,
+      "requests": 20,
+      "kb": 594,
+      "jsKb": 468,
+      "imgKb": 83,
+      "longTasksLoad": 2,
+      "longTaskMsLoad": 262,
+      "tbtLike": 162,
+      "scroll": {
+        "frames": 300,
+        "avgFps": 59.8,
+        "p95FrameMs": 16.8,
         "maxFrameMs": 33.4,
         "over50": 0,
         "longTasks": 0,
         "longTaskMs": 0,
-        "scrolledPx": 4768
+        "scrolledPx": 4816
       },
       "tabs": {
         "toDiscoverFirst": [
-          18.099999994039536,
-          78.40000000596046
+          25,
+          108.5
         ],
         "toFriends": [
-          42.39999997615814,
-          42.69999998807907
+          49,
+          49.400000005960464
         ],
         "toHome": [
-          56.30000001192093,
-          56.400000005960464
+          64.09999999403954,
+          64.2000000178814
         ],
         "toDiscoverAgain": [
-          129.69999998807907,
-          129.80000001192093
-        ]
-      },
-      "discover": {
-        "sections": 6,
-        "imgs": 38,
-        "imgsLoaded": 4
-      },
-      "restaurant": {
-        "toTitle": 2227.300000011921,
-        "toTitleMs": 2226.0999999940395,
-        "toFirstDishPhoto": 2450.300000011921,
-        "path": "/restaurant/brew-and-books"
-      }
-    },
-    {
-      "ttfb": 432.39999997615814,
-      "dcl": 993.7999999821186,
-      "load": 995.2999999821186,
-      "fcp": 1116,
-      "lcp": 3700,
-      "cls": 0,
-      "firstCard": 2295.399999976158,
-      "firstCardPhoto": 3675.199999988079,
-      "homeFeedEnd": 1562.5,
-      "homeFeedDur": 501.80000001192093,
-      "requests": 21,
-      "kb": 591,
-      "jsKb": 460,
-      "imgKb": 96,
-      "longTasksLoad": 2,
-      "longTaskMsLoad": 167,
-      "tbtLike": 67,
-      "scroll": {
-        "frames": 301,
-        "avgFps": 60,
-        "p95FrameMs": 16.7,
-        "maxFrameMs": 16.8,
-        "over50": 0,
-        "longTasks": 0,
-        "longTaskMs": 0,
-        "scrolledPx": 4832
-      },
-      "tabs": {
-        "toDiscoverFirst": [
-          22.400000005960464,
-          74.90000000596046
-        ],
-        "toFriends": [
-          46.10000002384186,
-          46.400000005960464
-        ],
-        "toHome": [
-          48.10000002384186,
-          48.30000001192093
-        ],
-        "toDiscoverAgain": [
-          154.5,
-          154.59999999403954
-        ]
-      },
-      "discover": {
-        "sections": 6,
-        "imgs": 38,
-        "imgsLoaded": 4
-      },
-      "restaurant": {
-        "toTitle": 1382.4000000357628,
-        "toTitleMs": 1380.699999988079,
-        "toFirstDishPhoto": 1570.6000000238419,
-        "path": "/restaurant/brew-and-books"
-      }
-    },
-    {
-      "ttfb": 421.5,
-      "dcl": 1006.5,
-      "load": 1008.2000000178814,
-      "fcp": 1064,
-      "lcp": 2792,
-      "cls": 0,
-      "firstCard": 2112.4000000059605,
-      "firstCardPhoto": 2749.4000000059605,
-      "homeFeedEnd": 1555.6000000238419,
-      "homeFeedDur": 488.60000002384186,
-      "requests": 19,
-      "kb": 603,
-      "jsKb": 460,
-      "imgKb": 108,
-      "longTasksLoad": 2,
-      "longTaskMsLoad": 120,
-      "tbtLike": 20,
-      "scroll": {
-        "frames": 301,
-        "avgFps": 60,
-        "p95FrameMs": 16.7,
-        "maxFrameMs": 16.8,
-        "over50": 0,
-        "longTasks": 0,
-        "longTaskMs": 0,
-        "scrolledPx": 4832
-      },
-      "tabs": {
-        "toDiscoverFirst": [
-          21.900000005960464,
-          81.90000000596046
-        ],
-        "toFriends": [
-          45.5,
-          45.79999998211861
-        ],
-        "toHome": [
-          50,
-          50.099999994039536
-        ],
-        "toDiscoverAgain": [
-          171.10000002384186,
-          171.30000001192093
+          170.19999998807907,
+          170.2999999821186
         ]
       },
       "discover": {
@@ -339,9 +223,125 @@
         "imgsLoaded": 3
       },
       "restaurant": {
-        "toTitle": 1432.4000000059605,
-        "toTitleMs": 1431.4000000059605,
-        "toFirstDishPhoto": 1879,
+        "toTitle": 15511.200000017881,
+        "toTitleMs": 492.89999997615814,
+        "toFirstDishPhoto": null,
+        "path": "/restaurant/brew-and-books"
+      }
+    },
+    {
+      "ttfb": 557.5,
+      "dcl": 1223.0999999940395,
+      "load": 1227.199999988079,
+      "fcp": 1328,
+      "lcp": 3260,
+      "cls": 0,
+      "firstCard": 2589.199999988079,
+      "firstCardPhoto": 3227.5,
+      "homeFeedEnd": 2001.800000011921,
+      "homeFeedDur": 656.7000000178814,
+      "requests": 19,
+      "kb": 594,
+      "jsKb": 468,
+      "imgKb": 83,
+      "longTasksLoad": 3,
+      "longTaskMsLoad": 296,
+      "tbtLike": 146,
+      "scroll": {
+        "frames": 289,
+        "avgFps": 57.6,
+        "p95FrameMs": 16.7,
+        "maxFrameMs": 83.3,
+        "over50": 3,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4640
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          28.200000017881393,
+          106.90000000596046
+        ],
+        "toFriends": [
+          46.10000002384186,
+          46.5
+        ],
+        "toHome": [
+          67,
+          67.09999999403954
+        ],
+        "toDiscoverAgain": [
+          205.19999998807907,
+          205.19999998807907
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 38,
+        "imgsLoaded": 6
+      },
+      "restaurant": {
+        "toTitle": 15571.300000011921,
+        "toTitleMs": 490.89999997615814,
+        "toFirstDishPhoto": null,
+        "path": "/restaurant/brew-and-books"
+      }
+    },
+    {
+      "ttfb": 483.7999999821186,
+      "dcl": 1352.0999999940395,
+      "load": 1354.8999999761581,
+      "fcp": 1424,
+      "lcp": 3952,
+      "cls": 0,
+      "firstCard": 2573.199999988079,
+      "firstCardPhoto": 3905.0999999940395,
+      "homeFeedEnd": 2078.899999976158,
+      "homeFeedDur": 627.2999999821186,
+      "requests": 20,
+      "kb": 594,
+      "jsKb": 468,
+      "imgKb": 83,
+      "longTasksLoad": 3,
+      "longTaskMsLoad": 328,
+      "tbtLike": 178,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toDiscoverFirst": [
+          24.099999994039536,
+          105
+        ],
+        "toFriends": [
+          40.599999994039536,
+          41.099999994039536
+        ],
+        "toHome": [
+          64.90000000596046,
+          64.90000000596046
+        ],
+        "toDiscoverAgain": [
+          176.7000000178814,
+          176.7000000178814
+        ]
+      },
+      "discover": {
+        "sections": 6,
+        "imgs": 38,
+        "imgsLoaded": 4
+      },
+      "restaurant": {
+        "toTitle": 15588.09999999404,
+        "toTitleMs": 586.2000000178814,
+        "toFirstDishPhoto": null,
         "path": "/restaurant/brew-and-books"
       }
     }

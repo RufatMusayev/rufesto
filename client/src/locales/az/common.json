@@ -44,5 +44,11 @@
   "notFoundTitle": "Səhifə tapılmadı",
   "notFoundBody": "Keçid səhv yazılmış və ya yarımçıq ola bilər, ya da səhifə köçürülüb.",
   "browseRestaurants": "Restoranlara bax",
-  "verifiedVisit": "Təsdiqlənmiş ziyarət"
+  "verifiedVisit": "Təsdiqlənmiş ziyarət",
+  "errorTitle": "Nəsə səhv getdi",
+  "errorBody": "Səhifə bərpa edə bilmədiyi bir problemlə qarşılaşdı. Yenidən yükləmək adətən kömək edir.",
+  "errorReload": "Yenidən yüklə",
+  "errorHome": "Ana səhifəyə qayıt",
+  "language": "Dil",
+  "switchToLanguage": "Dili dəyişin: {{language}}"
 }

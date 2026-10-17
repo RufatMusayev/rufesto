@@ -1,0 +1,9 @@
+/* components/DishThumb.jsx: a square dish picture for list rows. Size comes from --dish-thumb. */
+.dish-thumb {
+  width: var(--dish-thumb, 40px); height: var(--dish-thumb, 40px); flex-shrink: 0; border-radius: 10px;
+  object-fit: cover; background: var(--s3); border: 1px solid var(--border);
+}
+.dish-thumb--emoji {
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+  font-size: calc(var(--dish-thumb, 40px) * 0.5);
+}

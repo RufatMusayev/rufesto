@@ -9,6 +9,7 @@ const os = require('os')
 const path = require('path')
 const base = require('./fixtures')
 const { CONSUMER_URL, RESTO_URL, creds, supabaseOverride, tableCode: QA_TABLE_CODE } = require('./env')
+const R = require('./restaurant')
 
 const BELLA = '10000000-0000-0000-0000-000000000001'
 const DOC = path.join(__dirname, '..', '..', 'docs', 'REVIEW-ACCOUNTS.md')
@@ -377,14 +378,14 @@ async function joinTable(page, code) {
 }
 /** Table screen -> restaurant page (menu). */
 async function openMenu(page) {
-  await page.getByRole('link', { name: 'Add More Items' }).click()
+  await R.menuLink(page).click()   // "Browse the menu" on an empty table, "Add More Items" once it has orders
   await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
-  await expect(page.locator('.menu-card').first()).toBeVisible()
+  await R.showMenu(page)   // a seated guest lands on the Menu tab; the helper also covers the Posts tab
 }
 const cartSheet = page => page.locator('.overlay').last().locator('.sheet')
 /** Dish sheet of `name` -> "Add to Order" (the cart sheet opens by itself). */
 async function addToCart(page, name) {
-  await page.locator('.menu-card').filter({ hasText: name }).first().click()
+  await R.rowOpen(R.dishRow(page, name).first()).click()
   await page.getByRole('button', { name: /^Add to Order/ }).click()
   await expect(cartSheet(page).getByRole('heading', { name: 'Your Order' })).toBeVisible()
 }

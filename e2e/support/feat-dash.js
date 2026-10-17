@@ -58,7 +58,7 @@ const contextOptions = (use, lang = 'en') => ({
     origins: [CONSUMER_URL, RESTO_URL].map(u => ({ origin: new URL(u).origin, localStorage: [{ name: 'rufesto_lang', value: lang }] })),
   },
   viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
-  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch,
+  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch, colorScheme: use.colorScheme,
 })
 
 const NOISE = /static\.cloudflareinsights\.com/i

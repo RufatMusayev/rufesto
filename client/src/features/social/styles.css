@@ -93,17 +93,22 @@
 .soc-post-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px 16px; }
 .soc-post-who { flex: 1; min-width: 0; }
 .soc-post-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* name + restaurant are two text links stacked in one header: 24px tall each at least (WCAG 2.5.8), the avatar link beside them is the 44px one */
+/* name + restaurant are two text links stacked in one header. Each is a real 44px box (padding), pulled back with the
+   same negative margin so the header keeps its height; where the two boxes meet, the name wins (z-index), and the
+   restaurant link takes its extra padding below the text, so neither steals the other's glyphs. */
 .soc-post-name { font-weight: 700; font-size: 0.88rem; color: var(--t1); }
-.soc-post-line > .soc-post-name { display: inline-flex; align-items: center; min-height: 24px; }
+.soc-post-line > .soc-post-name { display: inline-block; position: relative; z-index: 1; line-height: 21px; padding: 12px 0 11px; margin: -12px 0 -11px; }
 /* the avatar link is a 44px target; negative margins keep the header exactly where it was */
 .soc-post-author, .soc-comment-author { display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: var(--tap); min-height: var(--tap); }
 .soc-post-author { margin: -4px -4px -4px -4px; }
 .soc-comment-author { margin: -8px -8px -8px -8px; }
 .soc-post-time { font-size: 0.72rem; color: var(--t3); font-family: 'DM Mono', monospace; }
-.soc-post-where { display: block; min-height: 24px; font-size: 0.74rem; color: var(--t3); line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.soc-post-where { display: block; font-size: 0.74rem; color: var(--t3); line-height: 24px; padding: 8px 0 12px; margin: -8px 0 -12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .soc-photo { position: relative; aspect-ratio: 4 / 5; background: var(--s3); overflow: hidden; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+/* the photo is still being signed (feeds): the box shimmers instead of showing the "missing" glyph */
+.soc-photo-pending { background: linear-gradient(90deg, var(--s3) 25%, var(--s4) 50%, var(--s3) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
 .soc-photo img { width: 100%; height: 100%; object-fit: cover; }
+.soc-photo-wait { width: 100%; height: 100%; }
 .soc-photo-missing { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--t3); }
 .soc-burst { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; color: var(--accent); animation: socBurst 400ms var(--ease-out) both; }
 @keyframes socBurst {
@@ -126,19 +131,39 @@
 .soc-review-text { font-size: 0.92rem; line-height: 1.5; color: var(--t1); overflow-wrap: anywhere; }
 .soc-review-pill { margin-top: 8px; }
 .soc-review-photo { width: 100%; max-height: 420px; object-fit: cover; border-radius: 14px; border: 1px solid var(--border); margin-top: 10px; }
-.soc-review-actions { padding-bottom: 10px; }
+.soc-review-actions { padding-bottom: 6px; }
+/* no empty band between the last line of the body (text, "Verified visit") and the action row: the row's 44px buttons pull up */
+.soc-review-body { padding-bottom: 0; }
+.soc-review .soc-review-actions { margin-top: -8px; }
+.soc-review-text + .soc-review-pill { margin-top: 6px; }
+/* the reply count under the actions is a button, styled like the "View all comments" link */
+.soc-viewall-btn { background: none; border: none; font-family: inherit; cursor: pointer; margin-top: -2px; }
+/* the reply thread of a review, inside its card */
+.soc-replies { padding: 0 14px 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+.soc-replies .soc-comment { padding: 6px 0; }
+.soc-replies-empty { padding: 12px 0 4px; font-size: 0.8rem; color: var(--t3); }
+.soc-composer.soc-composer-inline { position: static; padding: 6px 0 0; border-top: none; background: none; }
+.soc-composer-inline .soc-composer-error { margin-left: 0; }
+/* dish and venue on one meta line: the dish gives way first, the venue stays readable (it shrinks only past 60 %) */
+.soc-where { display: flex; align-items: baseline; }
+.soc-where > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soc-where-dish { flex: 0 100 auto; }
+.soc-where-sep { flex: 0 0 auto; white-space: pre; }
+.soc-where-place { flex: 0 1 auto; max-width: 60%; }
 
 /* restaurant post: dish strip under the photo (name, price, Available now / Sold out, Order this) */
 .soc-dish { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 2px; }
 .soc-dish-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .soc-dish-name { font-size: 0.92rem; font-weight: 700; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .soc-dish-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.soc-dish-price { font-family: 'DM Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--gold); }
+.soc-dish-price { font-family: 'DM Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--gold-text); }
 .soc-order { flex-shrink: 0; min-height: var(--tap); padding: 0 1.1rem; text-decoration: none; }
+.soc-order:disabled { opacity: 1; cursor: default; color: var(--t3); }
 
 /* feed */
 .soc-feed { max-width: 470px; margin: 0 auto; }
-.soc-feed-end { height: 80px; }
+/* the last row clears the floating "+" (52px + 16px gap) and the bottom nav */
+.soc-feed-end { height: calc(var(--tap) + 72px + env(safe-area-inset-bottom, 0px)); }
 .soc-feed-banner { padding: 8px 16px 12px; }
 .soc-feed-more { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 16px; }
 .soc-newpill {
@@ -153,6 +178,14 @@
 .soc-seg { display: flex; gap: 4px; max-width: 470px; margin: 12px auto 4px; padding: 4px; border-radius: 12px; background: var(--s2); border: 1px solid var(--border); width: calc(100% - 32px); }
 .soc-seg-btn { flex: 1; min-height: var(--tap); padding: 0; border: none; border-radius: 9px; background: transparent; color: var(--t2); font-size: 0.82rem; font-weight: 600; transition: background-color var(--t-ui), color var(--t-ui), transform var(--t-fast); }
 .soc-seg-btn:active { transform: scale(0.97); }
+/* a Home tab that is not shown stays mounted. Where supported, it is skipped by the renderer but its layout is kept, so coming back
+   does not lay out and repaint the whole tab again (hidden alone would); elsewhere it is plain display:none */
+.soc-tabpanel[hidden] { display: none; }
+@supports (content-visibility: hidden) { .soc-tabpanel[hidden] { display: block; content-visibility: hidden; } }
+/* "Find friends" entry at the top of the Friends tab while the viewer has fewer than 3 friends */
+.soc-findbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px 12px; }
+.soc-findbar-text { flex: 1; min-width: 0; font-size: 0.8rem; color: var(--t2); line-height: 1.4; }
+.soc-findbar-btn { flex-shrink: 0; padding: 0 1rem; }
 .soc-seg-btn.active { background: var(--t1); color: var(--bg); }
 .soc-fab {
   position: fixed; right: 16px; bottom: calc(var(--bottom-h) + 16px); z-index: 70;
@@ -162,6 +195,9 @@
   transition: transform var(--t-fast);
 }
 .soc-fab:active { transform: scale(0.93); }
+/* scrolling down to read: the "+" slides away (so it never sits on "Order this"); scrolling up or stopping at the top brings it back */
+.soc-fab-away { transform: translateY(calc(100% + var(--bottom-h) + 24px)); pointer-events: none; }
+.soc-fab { transition: transform 220ms var(--ease-out); }
 .soc-fab-raised { bottom: calc(var(--bottom-h) + 80px); }
 @media (min-width: 769px) { .soc-fab { bottom: 24px; right: 24px; } .soc-fab-raised { bottom: 88px; } .soc-toast { bottom: 24px; } }
 .soc-entry { display: flex; align-items: center; gap: 12px; min-height: var(--tap); padding: 12px 0; border-bottom: 1px solid var(--border); color: var(--t1); }
@@ -219,12 +255,30 @@
 /* chips over a post photo (restaurant, distance, availability) on a soft bottom gradient; drawn over a photo, so light in both themes */
 :root { --on-photo: #F5F0E8; --glass: rgba(20, 14, 12, 0.58); --photo-shade: rgba(14, 10, 8, 0.8); }
 .soc-photo-shaded::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(to top, var(--photo-shade), transparent); pointer-events: none; }
-.soc-photo-chips { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; pointer-events: none; }
+/* the row is 44px tall (the link is a real 44px target around the 32px pill), so it sits 6px lower than the pill's old 12px */
+.soc-photo-chips { position: absolute; left: 12px; right: 12px; bottom: 6px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tap); pointer-events: none; }
 .soc-photo-chips > * { pointer-events: auto; }
-.soc-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 32px; padding: 0 12px; border-radius: 100px; background: var(--glass); color: var(--on-photo); border: 1px solid rgba(245, 240, 232, 0.18); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 0.76rem; font-weight: 600; line-height: 1; }
-a.soc-chip::after { content: ''; position: absolute; inset: -6px 0; }
+.soc-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 32px; padding: 0 12px; border-radius: 100px; background: var(--glass); color: var(--on-photo); border: 1px solid rgba(245, 240, 232, 0.18); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 0.76rem; font-weight: 600; line-height: 1; }
+.soc-chip-link { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; min-height: var(--tap); }
 .soc-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.soc-chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.soc-chip-link:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; border-radius: 100px; }
+/* text card: a restaurant post that is only words (N15). As tall as wide (the box grows if the words need more); the accent colour is the same in both themes, like the photo overlays */
+.soc-textcard {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; aspect-ratio: 1 / 1;
+  padding: 28px 24px 8px; color: var(--on-photo); background: var(--accent);
+  background: linear-gradient(150deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 58%, #000) 100%);
+  overflow: hidden;
+}
+.soc-textcard-mark { position: absolute; top: 4px; left: 16px; font-family: 'Playfair Display', Georgia, serif; font-size: 7rem; line-height: 1; opacity: 0.18; pointer-events: none; }
+.soc-textcard-quote {
+  position: relative; margin: auto 0; font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-style: italic;
+  line-height: 1.3; overflow-wrap: anywhere; white-space: pre-line; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+.soc-textcard-lg .soc-textcard-quote { font-size: 1.7rem; -webkit-line-clamp: 7; }
+.soc-textcard-md .soc-textcard-quote { font-size: 1.35rem; -webkit-line-clamp: 9; }
+.soc-textcard-sm .soc-textcard-quote { font-size: 1.1rem; -webkit-line-clamp: 11; }
+.soc-textcard .soc-chip-link { align-self: flex-start; margin-left: -4px; }
+.soc-textcard .soc-chip { background: rgba(20, 14, 12, 0.35); }
 .soc-avail { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; color: var(--on-photo); background: var(--green); }
 .soc-avail-off { background: var(--red); }
 

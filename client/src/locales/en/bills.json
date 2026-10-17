@@ -150,5 +150,9 @@
     "request_failed": "Couldn't notify the staff. Please try again.",
     "review_failed": "Couldn't send your review. Please try again.",
     "review_exists": "You've already reviewed this dish."
-  }
+  },
+  "paidCheckTitle": "Paid ✓",
+  "youPaid": "You paid",
+  "paidAtBody": "Your bill at {{restaurant}} is settled.",
+  "paidAtBodyPlain": "Your bill is settled."
 }

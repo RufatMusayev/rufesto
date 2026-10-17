@@ -30,7 +30,7 @@ const ORDERS_POLL_MS = 20000
 function fetchVisitOrders(tableId, userId, startedAt) {
   let q = supabase
     .from('orders')
-    .select('*, order_items(*, dishes(name, category, price))')
+    .select('*, order_items(*, dishes(name, category, price, photo))')
     .eq('table_id', tableId)
     .eq('user_id', userId)
     .in('status', CURRENT_VISIT_STATUSES)
@@ -269,6 +269,10 @@ export default function TablePage() {
     o.status === 'served' || o.status === 'ready'
   )
 
+  const tableSub = [
+    `#${tableInfo?.table_number || '—'}`, tableInfo?.restaurants?.name, tableInfo?.sections?.name,
+  ].filter(Boolean).join(' · ')
+
   const emoji = tableInfo?.restaurants ? cuisineEmoji(tableInfo.restaurants.cuisine_type) : '🍽️'
   const bgGrad = tableInfo?.restaurants ? cuisineBackground(tableInfo.restaurants.cuisine_type) : 'var(--s3)'
 
@@ -310,7 +314,7 @@ export default function TablePage() {
             }}>
               {emoji}
             </div>
-            <div style={{ flex: 1 }}>
+            <div className="dn-table-id">
               <h1 style={{
                 fontFamily: "'Playfair Display', serif",
                 fontSize: '1.25rem', fontWeight: 700, color: '#F5F0E8',
@@ -318,14 +322,8 @@ export default function TablePage() {
               }}>
                 {t('table:yourTable')}
               </h1>
-              <div style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', marginTop: 2,
-              }}>
-                #{tableInfo?.table_number || '—'}
-                {tableInfo?.restaurants?.name && ` · ${tableInfo.restaurants.name}`}
-                {tableInfo?.sections?.name && ` · ${tableInfo.sections.name}`}
-              </div>
+              {/* one line, cut with an ellipsis (the full text is the tooltip), never wrapped */}
+              <div className="dn-table-sub" title={tableSub}>{tableSub}</div>
               {seatNo ? <div className="dn-table-seat"><SeatChip seatNo={seatNo} /></div> : null}
             </div>
 
@@ -391,7 +389,7 @@ export default function TablePage() {
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2" style={{ width: 17, height: 17, stroke: 'currentColor' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            {t('table:addMoreItems')}
+            {liveOrders.length === 0 ? t('table:browseMenu') : t('table:addMoreItems')}
           </Link>
         )}
 

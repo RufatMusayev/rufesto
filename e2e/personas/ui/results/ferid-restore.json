@@ -1,0 +1,8 @@
+{
+  "follow_Dönər Bakı Express_ms": 56,
+  "console": [],
+  "pageErrors": [],
+  "bad": [
+    "FAILED HEAD https://qqwvtuckljwvwrvyrjbn.supabase.co/rest/v1/notifications net::ERR_ABORTED"
+  ]
+}

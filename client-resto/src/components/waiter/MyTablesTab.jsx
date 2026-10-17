@@ -1,9 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '@shared/helpers'
 import { TABLE_COLORS } from '@shared/constants'
 import { tableStateLabel } from './waiterHelpers'
+import TableFacts from './TableFacts'
+import TableOrders from './TableOrders'
 
-export default function MyTablesTab({ tables, acting, onRelease }) {
+// My Tables: each card shows who is at the table, what the kitchen is doing, and the orders themselves with a "Mark
+// served" button on the ones that are ready, so serving does not need a trip to the Orders page.
+export default function MyTablesTab({ tables, facts, orders = {}, acting, canServe = false, onServe, onRelease }) {
   const { t } = useTranslation(['dashboard', 'common'])
 
   if (tables.length === 0) {
@@ -11,40 +14,28 @@ export default function MyTablesTab({ tables, acting, onRelease }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '0.75rem' }}>
+    <div className="wt-grid">
       {tables.map(tbl => {
         const s = TABLE_COLORS[tbl.state] || TABLE_COLORS.free
-        const openCalls = tbl.requests.filter(r => r.status === 'open' || r.status === 'acknowledged').length
-        const acting_ = acting === tbl.table_id
+        const busy = acting === tbl.table_id
 
         return (
-          <div key={tbl.table_id} style={{ background: 'var(--s2)', borderRadius: 14, overflow: 'hidden', border: `1.5px solid ${s.border}` }}>
-            <div style={{ height: 2, background: s.color, opacity: 0.6 }} />
-            <div style={{ padding: '0.85rem 1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('dashboard:tableLabel', { number: tbl.table_number })}</span>
+          <div key={tbl.table_id} className="wt-card" style={{ borderColor: s.border }}>
+            <div className="wt-card-bar" style={{ background: s.color }} />
+            <div className="wt-card-body">
+              <div className="wt-card-head">
+                <span className="wt-card-title">{t('dashboard:tableLabel', { number: tbl.table_number })}</span>
                 <span className="badge" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                   {tableStateLabel(t, tbl.state)}
                 </span>
               </div>
-              {tbl.section && <div style={{ fontSize: '0.7rem', color: 'var(--t3)', marginBottom: 6 }}>{tbl.section}</div>}
+              {tbl.section && <div className="wt-card-section">{tbl.section}</div>}
 
-              <div style={{ fontSize: '0.78rem', color: 'var(--t2)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span>{t('dashboard:bookingGuests', { count: tbl.guests })}</span>
-                {tbl.pending_guests > 0 && (
-                  <span style={{ color: 'var(--gold)' }}>{t('dashboard:waiterPendingGuests', { count: tbl.pending_guests })}</span>
-                )}
-                {tbl.outstanding > 0 && (
-                  <span style={{ fontWeight: 700, color: 'var(--t1)' }}>{t('dashboard:waiterOutstanding', { amount: formatPrice(tbl.outstanding) })}</span>
-                )}
-                {openCalls > 0 && (
-                  <span style={{ color: 'var(--red)', fontWeight: 600 }}>{t('dashboard:waiterOpenCalls', { count: openCalls })}</span>
-                )}
-              </div>
+              <TableFacts table={tbl} facts={facts[tbl.table_id]} />
+              <TableOrders orders={orders[tbl.table_id] || []} canServe={canServe} actingId={acting} onServe={onServe} />
 
-              <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: '100%' }}
-                disabled={acting_} onClick={() => onRelease(tbl.table_id)}>
-                {acting_ ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:waiterRelease')}
+              <button type="button" className="btn btn-ghost btn-sm wt-card-btn" disabled={busy} onClick={() => onRelease(tbl.table_id)}>
+                {busy ? <span className="spinner wt-spinner" /> : t('dashboard:waiterRelease')}
               </button>
             </div>
           </div>

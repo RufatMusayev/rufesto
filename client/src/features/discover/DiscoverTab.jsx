@@ -27,10 +27,12 @@ import './styles.css'
  * Discover tab (docs/V2-CONTRACT.md 18.3): one discover() call renders every section, in this order: cuisine
  * chips, Open now near you, Trending dishes, New places, Promos, Top reviews, All restaurants. A section with
  * nothing to show is hidden. The answer is kept in discoverStore (one per viewer + location + cuisine), so
- * the tab never refetches on a switch; the first request is made on route load (feed/prefetch.js). Follow and
- * like work as on the old Home list (user_follows / likes), shared by every card.
+ * the tab never refetches on a switch (coming back asks the store to make sure the answer is fresh: a no-op, or a
+ * quiet refetch after a follow / friend change, during which the old answer stays on screen and unchanged sections
+ * are not re-rendered); the first request is made on route load (feed/prefetch.js). Follow and like work as on the
+ * old Home list (user_follows / likes), shared by every card.
  */
-export default function DiscoverTab() {
+export default function DiscoverTab({ active = true }) {
   const { t } = useTranslation('social')
   const { session, loading: authLoading } = useAuth()
   const { requireAuth, authModal } = useRequireAuth()
@@ -47,7 +49,7 @@ export default function DiscoverTab() {
   useEffect(() => {
     if (authLoading || geo.pending) return
     ensureDiscover({ userId, lat, lng, cuisine })
-  }, [authLoading, geo.pending, userId, lat, lng, cuisine])
+  }, [authLoading, geo.pending, userId, lat, lng, cuisine, active])
 
   // until the session is read, the answer prefetched for the stored session is the right one
   const args = { userId: authLoading ? currentViewer() : userId, lat, lng, cuisine }

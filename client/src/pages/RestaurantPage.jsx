@@ -10,6 +10,7 @@ import CartErrorBanner from '../features/restaurant/CartErrorBanner'
 import PageSkeleton from '../features/restaurant/PageSkeleton'
 import PostsTab from '../features/restaurant/PostsTab'
 import RestaurantHeader from '../features/restaurant/RestaurantHeader'
+import RestaurantNotFound from '../features/restaurant/RestaurantNotFound'
 import RestaurantTabs, { TAB_IDS } from '../features/restaurant/RestaurantTabs'
 import MenuTab from '../features/restaurant/menu/MenuTab'
 import { findDish, toSheetDish } from '../features/restaurant/mappers'
@@ -61,7 +62,10 @@ function RestaurantView({ slug }) {
   const deciding = !!restaurant && !known
   if (known) visited.current.add(tab)                       // a tab mounts on its first visit and then stays: no refetch
 
-  useEffect(() => { if (status === 'missing') navigate('/', { replace: true }) }, [status, navigate])
+  // An unknown / inactive slug (header read finds nothing, or restaurant_menu says restaurant_not_found) gets its own
+  // "Restaurant not found" page; it is not a redirect, so a mistyped or stale link says what happened.
+  const notFound = status === 'missing' || (menuState.status === 'error' && menuState.error?.code === 'restaurant_not_found')
+
   useEffect(() => {
     const id = setTimeout(() => setImpatient(true), 1500)
     return () => clearTimeout(id)
@@ -103,6 +107,7 @@ function RestaurantView({ slug }) {
     openDishById(dishParam)
   }, [dishParam, menuState.status, restaurant, slug, openDishById])
 
+  if (notFound) return <RestaurantNotFound />
   if (status === 'loading' || deciding) return <PageSkeleton />
   if (status === 'error') return <div className="rst-page"><LoadError onRetry={retry} /></div>
   if (!restaurant) return null

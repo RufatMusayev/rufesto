@@ -23,7 +23,7 @@
 }
 .soc-caught-mark {
   width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: var(--s3); color: var(--accent); font-size: 1.1rem; font-weight: 700;
+  background: var(--s3); color: var(--accent-text); font-size: 1.1rem; font-weight: 700;
 }
 .soc-caught-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; font-weight: 700; color: var(--t1); }
 .soc-caught-body { max-width: 320px; font-size: 0.82rem; color: var(--t2); line-height: 1.5; }

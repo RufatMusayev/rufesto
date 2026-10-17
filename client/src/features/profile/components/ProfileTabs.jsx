@@ -10,14 +10,17 @@ const ICONS = {
 const LABELS = {
   posts: 'tabPosts', bookings: 'tabBookings', reviews: 'tabReviews', saved: 'tabSaved', visits: 'tabVisits',
 }
+// the word under the icon: short enough for five side by side at 360px (the full label stays the aria-label / tooltip)
+const SHORT = {
+  posts: 'tabShortPosts', bookings: 'tabShortBookings', reviews: 'tabShortReviews', saved: 'tabShortSaved', visits: 'tabShortVisits',
+}
 
 export const tabDomId = id => `pf-tab-${id}`
 export const panelDomId = id => `pf-panel-${id}`
 
 /**
- * Sticky segmented tabs. The active tab shows icon + label, the others only the icon (five labels
- * do not fit at 360px, least of all in Azerbaijani). Arrow keys, Home and End move between tabs
- * (roving tabindex).
+ * Sticky segmented tabs. All five show an icon with a short word under it (a bare icon says nothing); the active
+ * one is the filled pill. Arrow keys, Home and End move between tabs (roving tabindex).
  */
 export default function ProfileTabs({ value, onChange }) {
   const { t } = useTranslation('profile')
@@ -52,7 +55,7 @@ export default function ProfileTabs({ value, onChange }) {
               onClick={() => onChange(id)}
             >
               <Icon size={18} />
-              <span className="pf-tab-label">{t(LABELS[id])}</span>
+              <span className="pf-tab-label">{t(SHORT[id])}</span>
             </button>
           )
         })}

@@ -15,6 +15,7 @@ const { CONSUMER_URL, creds, tableCode } = require('../support/env')
 const { signInGuest } = require('../support/guest')
 const { openAs, resetTable, rest } = require('../support/v2')
 const { walker, bottomNav, leafletStacking } = require('../support/mobile')
+const R = require('../support/restaurant')
 
 const url = path => CONSUMER_URL + path
 const RESTAURANT = '/restaurant/bella-roma'
@@ -36,7 +37,7 @@ async function closeSheet(page, w, label) {
 async function openRestaurant(page) {
   await page.goto(url(RESTAURANT))
   await expect(heading(page, 'Trattoria Bella Roma').first()).toBeVisible()
-  await expect(page.locator('.menu-card').first()).toBeVisible()
+  await expect(R.tabBtn(page, 'Posts')).toBeVisible()   // the page opens on its Posts tab (the menu is the Menu tab, R.showMenu)
 }
 
 test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
@@ -215,24 +216,27 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     await expect(heading(page, 'Scan Table QR')).toHaveCount(0)
   })
 
-  test('Restaurant: menu categories scroll sideways, a dish sheet opens and closes', async ({ page, watch }, testInfo) => {
+  test('Restaurant: the Posts and Menu tabs fit, the section chips scroll sideways, a dish sheet opens and closes', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     await openRestaurant(page)
-    await w.check('restaurant')
-    await w.scrollThrough('restaurant')
+    await settle(page, 4_000)
+    await w.check('restaurant, posts tab')
+    await w.scrollThrough('restaurant, posts tab')
 
-    const last = page.getByRole('button', { name: /Wines/ })
-    const strip = page.getByRole('button', { name: /Pasta/ }).locator('xpath=ancestor::div[contains(@class,"no-scrollbar")][1]')
+    await w.tap(R.tabBtn(page, 'Menu'), 'Menu tab')
+    await R.showMenu(page)
+    await w.check('restaurant, menu tab')
+    await w.scrollThrough('restaurant, menu tab')
+
+    const strip = page.locator('.mn-chips')
     const dims = await strip.evaluate(el => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }))
-    expect(dims.scrollWidth, 'the category strip should scroll sideways at 390px').toBeGreaterThan(dims.clientWidth)
-    await w.tap(last, 'Menu category (last one)')
-    await expect.poll(() => strip.evaluate(el => el.scrollLeft), 'strip scrolled to the last category').toBeGreaterThan(0)
-    await expect(page.locator('.menu-card').first()).toBeVisible()
-    await w.check('restaurant, last category')
-    await w.tap(page.getByRole('button', { name: /All/ }).first(), 'Menu category All')
+    expect(dims.scrollWidth, 'the section chips should scroll sideways at 390px').toBeGreaterThan(dims.clientWidth)
+    await w.tap(page.locator('.mn-chip').last(), 'Menu section chip (last one)')
+    await expect.poll(() => strip.evaluate(el => el.scrollLeft), 'chip row scrolled to the last section').toBeGreaterThan(0)
+    await w.check('restaurant, last section')
 
-    await w.tap(page.locator('.menu-card').first(), 'Menu dish card')
+    await w.tap(R.rowButtons(page).first(), 'Menu dish row')
     await expect(page.locator('.sheet')).toBeVisible()
     await expect(page.locator('.sheet').getByText(/₼\s*\d/).first()).toBeVisible()
     await w.check('dish sheet')
@@ -358,11 +362,11 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
       })
 
       await test.step('cart: add a dish, place the order', async () => {
-        await w.tap(page.getByRole('link', { name: 'Add More Items' }), 'Add More Items link')
+        await w.tap(R.menuLink(page), 'Browse the menu / Add More Items link')
         await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
         const add = page.getByRole('button', { name: /^Add to Order/ })
-        const tiles = page.locator('.menu-card')
-        await expect(tiles.first()).toBeVisible()
+        await R.showMenu(page)
+        const tiles = R.rowButtons(page)
         for (let i = 0, n = await tiles.count(); i < n && !(await add.isVisible()); i++) {   // skip sold-out dishes
           await w.tap(tiles.nth(i), 'Menu dish card')
           await add.waitFor({ timeout: 2_000 }).catch(() => sheetClose(page).tap())

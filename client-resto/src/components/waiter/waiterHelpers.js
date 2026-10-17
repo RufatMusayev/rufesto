@@ -46,3 +46,46 @@ export function isUrgent(createdAt, now) {
   if (!createdAt) return false
   return now - new Date(createdAt).getTime() >= URGENT_AFTER_MS
 }
+
+// ── Order facts per table (All Tables / My Tables cards) ──
+// waiter_overview() knows guests, calls and the amount due but not what the kitchen is doing, so the page also reads
+// the live orders (not paid / cancelled / refunded) and boils them down per table.
+
+/** Which order state a waiter should see first: food waiting to be picked up beats food still cooking, and so on. */
+const ORDER_STATE_PRIORITY = ['ready', 'preparing', 'submitted', 'open', 'served']
+
+const rank = status => {
+  const i = ORDER_STATE_PRIORITY.indexOf(status)
+  return i === -1 ? ORDER_STATE_PRIORITY.length : i
+}
+
+/**
+ * { [tableId]: { status, oldest } } from live orders ({ table_id, status, placed_at }).
+ * `status` = the most pressing order state at the table, `oldest` = when its first live order was placed (the age of
+ * the visit as far as the kitchen knows it).
+ */
+export function summariseTableOrders(orders) {
+  const byTable = {}
+  for (const o of orders || []) {
+    if (!o.table_id) continue
+    const cur = byTable[o.table_id] || { status: o.status, oldest: o.placed_at }
+    if (rank(o.status) < rank(cur.status)) cur.status = o.status
+    if (o.placed_at && (!cur.oldest || o.placed_at < cur.oldest)) cur.oldest = o.placed_at
+    byTable[o.table_id] = cur
+  }
+  return byTable
+}
+
+/** { [tableId]: order[] } - the live orders of each table, the oldest first (the order a kitchen cooks them in). */
+export function groupOrdersByTable(orders) {
+  const byTable = {}
+  for (const o of orders || []) {
+    if (!o.table_id) continue
+    ;(byTable[o.table_id] = byTable[o.table_id] || []).push(o)
+  }
+  for (const list of Object.values(byTable)) list.sort((a, b) => String(a.placed_at).localeCompare(String(b.placed_at)))
+  return byTable
+}
+
+/** A table whose party has paid and left; it stays "cleared" until a floor role resets it to free. */
+export const CLEARED_STATE = 'cleared'

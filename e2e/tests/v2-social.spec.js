@@ -7,7 +7,7 @@ const { signInGuest } = require('../support/guest')
 const { openAs, rpc, tinyPng } = require('../support/v2')
 
 const url = path => CONSUMER_URL + path
-const MANAGER = 'QA Manager'
+const MANAGER = 'Rəna Əliyeva'   // display name of the QA manager account (preview staff-hygiene rename 2026-10-17)
 const GUEST = 'QA Guest'
 
 test.describe('v2 social', { tag: ['@guest', '@consumer', '@v2'] }, () => {

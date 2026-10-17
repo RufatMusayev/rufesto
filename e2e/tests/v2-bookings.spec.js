@@ -90,7 +90,7 @@ test.describe('v2 bookings', { tag: ['@guest', '@consumer', '@v2'] }, () => {
         await page.reload()
         await expect(members(page).getByText('2 of 4 joined')).toBeVisible()
         await expect(members(page).locator('li.bk-member:not(.bk-member-open)')).toHaveCount(2)
-        await expect(members(page).getByText('QA Manager')).toBeVisible()
+        await expect(members(page).getByText('Rəna Əliyeva')).toBeVisible()
       })
 
       await test.step('member leaves; host is alone again', async () => {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pill } from '../../../components/ui'
 import { useAuth } from '../../../contexts/AuthContext'
-import { categoryEmoji } from '../../../lib/helpers'
+import DishThumb from '../../../components/DishThumb'
 import { dishReviewState, getBill, submitReview } from '../api'
 import { dishName } from '../mappers'
 
@@ -73,7 +73,8 @@ export default function ReviewPrompt({ billId, bill: given }) {
       setDishes(open.map(c => ({
         dishId: c.dishId,
         name: dishName(c, lang),
-        emoji: categoryEmoji(data?.categories?.[c.dishId]),
+        category: data?.categories?.[c.dishId] || null,
+        photo: data?.photos?.[c.dishId] || null,
       })))
       setPhase(open.length ? 'form' : 'hidden')
     })
@@ -134,7 +135,8 @@ export default function ReviewPrompt({ billId, bill: given }) {
       <ul className="bl-review-list">
         {dishes.map(d => (
           <li key={d.dishId} className="bl-review-row">
-            <span className="bl-review-dish"><span aria-hidden="true">{d.emoji}</span> {d.name}</span>
+            <DishThumb name={d.name} category={d.category} photo={d.photo} size={44} />
+            <span className="bl-review-dish">{d.name}</span>
             <div className="bl-stars" role="radiogroup" aria-label={d.name}>
               {[1, 2, 3, 4, 5].map(n => (
                 <button

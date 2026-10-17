@@ -6,6 +6,16 @@ import { addMoney, parseTip, tipForShare } from './money'
 const SPLIT_DEBOUNCE_MS = 250      // rapid taps on the picker: the last one wins, one request goes out
 const SAVED_GRACE_MS = 8000        // how long a saved choice may wait for the bill read to show it
 
+const demoOffKey = id => `rufesto_demo_off_${id}`
+function readDemoOff(id) {
+  if (!id) return false
+  try { return sessionStorage.getItem(demoOffKey(id)) === '1' } catch { return false }
+}
+function rememberDemoOff(id) {
+  if (!id) return
+  try { sessionStorage.setItem(demoOffKey(id), '1') } catch { /* private mode: it is learned again */ }
+}
+
 /**
  * Everything the guest chooses before paying (split mode, tip, waiter, method) and the numbers derived from
  * it. The amounts of the three split modes come from the server (`bill.modes`, or the stored share once a
@@ -22,10 +32,12 @@ export default function usePayPlan(bill, tableId, reload) {
   const [splitError, setSplitError] = useState(null)        // { code, key } of the last failed save
   const [tipSel, setTipSel] = useState({ pct: 0, custom: null })   // custom: null = a % chip, string = custom input
   const [waiterSel, setWaiterSel] = useState(null)          // null = the assigned waiter, else staff id | 'team'
-  // Reception is the default: the bill view-model does not say whether the restaurant allows the demo card,
-  // so the card row is only offered, never preselected (it can still turn out to be demo_disabled).
-  const [methodSel, setMethod] = useState('reception')
-  const [demoOff, setDemoOff] = useState(false)          // the restaurant switched demo payments off (demo_disabled)
+  // The card (demo) is the default when the venue takes it. The bill says so when it can (restaurant.demo_payments);
+  // when it does not, the card is tried first and a demo_disabled answer switches to reception for good (remembered
+  // per restaurant for this tab session, so the next bill there starts on reception).
+  const restaurantId = bill?.restaurant?.id || null
+  const [methodSel, setMethod] = useState('demo')
+  const [demoOff, setDemoOff] = useState(() => bill?.restaurant?.demoPayments === false || readDemoOff(restaurantId))   // demo payments are off here
   const [waiters, setWaiters] = useState([])
 
   const active = !!bill && ['open', 'requested', 'paying'].includes(bill.status)
@@ -187,7 +199,7 @@ export default function usePayPlan(bill, tableId, reload) {
     setMode: chooseMode,
     splitBusy, splitSaving: saving, splitError,
     setMethod,
-    disableDemo: () => setDemoOff(true),
+    disableDemo: () => { rememberDemoOff(restaurantId); setDemoOff(true) },
     setTipPct: pct => setTipSel({ pct, custom: null }),
     setTipCustom: text => setTipSel({ pct: 0, custom: text }),
     setWaiter: setWaiterSel,

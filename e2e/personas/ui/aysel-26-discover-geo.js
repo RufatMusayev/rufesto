@@ -1,0 +1,13 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova', { geo: { latitude: 40.386, longitude: 49.818 }, storage: { rufesto_home_tab: 'discover' } })
+  await A.page.goto(L.CONSUMER + '/'); await A.page.waitForSelector('.dsc .dsc-rc'); await A.page.waitForTimeout(1000)
+  await A.page.getByRole('button', { name: 'Use my location for nearby' }).click()
+  await A.page.waitForFunction(() => /Open now near you|within/.test(document.body.innerText), null, { timeout: 15000 }).catch(() => L.log('no near heading'))
+  await A.page.waitForTimeout(1800)
+  const secs = await A.page.evaluate(() => [...document.querySelectorAll('.dsc section')].map(s => (s.querySelector('h2')?.innerText || '?') + ': ' + [...s.querySelectorAll('.dsc-rc')].map(c => c.querySelector('h3')?.innerText + ' [' + (c.querySelector('.dsc-rc-meta')?.innerText || '') + ']').join(', ')))
+  L.log(secs.join('\n'))
+  await L.shot(A.page, '26-discover-geo')
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

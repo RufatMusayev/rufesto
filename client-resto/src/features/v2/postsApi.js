@@ -14,6 +14,12 @@ export const POST_BUCKET = 'post-photos'
 const SIGN_TTL_S = 3600
 const PAGE_SIZE = 20
 
+/** `r/<id>/abc.jpg` -> `r/<id>/abc_w640.jpg`: the 640 px copy next to a post photo (sql/65). Anything else is returned as it is. */
+export function smallPhotoPath(path) {
+  if (typeof path !== 'string' || /_w640\.[A-Za-z0-9]+$/.test(path)) return path     // (no lookbehind: older Safari fails to parse it)
+  return path.replace(/(\.[A-Za-z0-9]+)$/, '_w640$1')
+}
+
 async function run(fn) {
   try {
     const res = await fn()
@@ -34,19 +40,31 @@ export async function fetchPostDishes(restaurantId) {
 }
 
 /**
- * Uploads the prepared JPEG to `post-photos` at `r/<restaurant id>/<uuid>.jpg` and returns the path.
+ * Uploads the prepared JPEG to `post-photos` at `r/<restaurant id>/<uuid>.jpg` and returns the path. `smallBlob` (the
+ * 640 px copy from prepareImage) goes next to it as `r/<restaurant id>/<uuid>_w640.jpg`, in the same round trip; it is
+ * best effort: if it fails the post is still published and the lists show the full photo.
  * CONTRACT: sql/58 storage policies let a manager of the restaurant insert into the `r/<restaurant id>/` folder.
  */
-export async function uploadPostPhoto(restaurantId, blob) {
+export async function uploadPostPhoto(restaurantId, blob, smallBlob = null) {
   const path = `r/${restaurantId}/${crypto.randomUUID()}.jpg`
-  const res = await run(() => supabase.storage.from(POST_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false }))
-  return res.error ? { data: null, error: res.error } : { data: path, error: null }
+  const smallPath = smallBlob ? smallPhotoPath(path) : null
+  const put = (to, body) => run(() => supabase.storage.from(POST_BUCKET).upload(to, body, { contentType: 'image/jpeg', upsert: false }))
+  const [main, small] = await Promise.all([put(path, blob), smallPath ? put(smallPath, smallBlob) : null])
+  if (main.error) {
+    if (small && !small.error) removePostPhoto(path)             // removes the small copy too; nothing will point at it
+    return { data: null, error: main.error }
+  }
+  return { data: path, error: null }
 }
 
-/** Best effort: deletes an uploaded object nobody references (a failed publish, a deleted post). Never reports a failure. */
+/**
+ * Best effort: deletes an uploaded photo nobody references (a failed publish, a deleted post), its 640 px copy with it.
+ * Never reports a failure.
+ */
 export async function removePostPhoto(path) {
   if (!path || !path.startsWith('r/')) return
-  try { await supabase.storage.from(POST_BUCKET).remove([path]) } catch { /* the object stays; harmless */ }
+  const small = smallPhotoPath(path)
+  try { await supabase.storage.from(POST_BUCKET).remove(small !== path ? [path, small] : [path]) } catch { /* the objects stay; harmless */ }
 }
 
 /** Publishes a restaurant post. `photoPath` and `caption` are each optional, but not both (empty_post). */
@@ -93,9 +111,31 @@ async function signPhotos(paths) {
   return out
 }
 
-/** A fresh signed URL for one photo path, or null. Used once by a card whose signed URL expired. */
+/** A fresh signed URL for one (FULL) photo path, or null. Used once by a card whose signed URL expired or whose small copy failed. */
 export async function signPostPhoto(path) {
   return (await signPhotos([path])).get(path) || null
+}
+
+/**
+ * Display URLs for a page of photo paths: the 640 px copies, signed in ONE call for the whole page. A path whose copy
+ * cannot be signed (older post, small upload failed) gets its full photo, signed in a second call. Map(path -> url | null),
+ * keyed by the full path. Never throws.
+ */
+async function signSmallPhotos(paths) {
+  const unique = [...new Set(paths)]
+  const smalls = await signPhotos(unique.map(smallPhotoPath))
+  const out = new Map()
+  const missing = []
+  for (const p of unique) {
+    const url = smallPhotoPath(p) !== p ? smalls.get(smallPhotoPath(p)) : null
+    if (url) out.set(p, url)
+    else missing.push(p)
+  }
+  if (missing.length) {
+    const full = await signPhotos(missing)
+    for (const p of missing) out.set(p, full.get(p) || null)
+  }
+  return out
 }
 
 function mapPost(raw) {
@@ -120,14 +160,14 @@ export async function fetchRestaurantPosts(restaurantId, cursor = null) {
   if (res.error) return res
   const body = Array.isArray(res.data) ? res.data[0] : res.data
   const items = (Array.isArray(body?.items) ? body.items : []).filter(r => r && r.id).map(mapPost)
-  const signed = await signPhotos(items.map(i => i.photoPath).filter(Boolean))
+  const signed = await signSmallPhotos(items.map(i => i.photoPath).filter(Boolean))        // the list shows the 640 px copies
   for (const item of items) if (item.photoPath) item.photoUrl = signed.get(item.photoPath) || null
   return { data: { items, nextCursor: body?.next_cursor || null }, error: null }
 }
 
 /**
  * Deletes a post (the poster or a manager of the tagged restaurant may). A post that is already gone counts as
- * deleted. The photo object is removed afterwards, best effort.
+ * deleted. The photo (and its 640 px copy) is removed afterwards, best effort.
  */
 export async function deletePost(post) {
   // CONTRACT: delete_post(p_id uuid) -> void; error post_not_found (sql/40b).

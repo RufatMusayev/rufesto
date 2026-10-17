@@ -3,13 +3,19 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
 
-/** Sponsored campaign card — interleaved into the home feed. */
+/** Sponsored campaign card — interleaved into the home feed. One label only: the pill ("Sponsored" / "Reklam"). */
 export default function PromoCard({ campaign, index, onDishClick }) {
   const { t } = useTranslation('feed')
   const navigate = useNavigate()
   const dish = campaign.dishes
   const restaurant = campaign.restaurants
   const photo = campaign.image_url || dish?.photo
+  // "-15 %" / "-₼5" when the campaign says how much it takes off (the card never shows the raw "[discount:...]" prefix)
+  const pct = Number(campaign.discount_percent) > 0 ? Number(campaign.discount_percent) : null
+  const off = Number(campaign.discount_amount) > 0 ? Number(campaign.discount_amount) : null
+  const badge = pct
+    ? { text: '−' + pct + ' %', aria: t('discountPercentOff', { value: pct }) }
+    : off ? { text: '−₼' + (Number.isInteger(off) ? off : off.toFixed(2)), aria: t('discountAmountOff', { value: off }) } : null
 
   function handleClick() {
     // Fire-and-forget click tracking — never block the UI on this
@@ -29,7 +35,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
       onClick={handleClick}
       style={{ animationDelay: `${Math.min(index, 8) * 60}ms`, cursor: 'pointer' }}
     >
-      {/* Header — restaurant + promoted label */}
+      {/* Header — restaurant + the one sponsored label */}
       <div style={{
         display: 'flex', alignItems: 'center', padding: '12px 16px', gap: 10,
       }}>
@@ -45,18 +51,9 @@ export default function PromoCard({ campaign, index, onDishClick }) {
           <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--t1)' }}>
             {restaurant?.name}
           </span>
-          <div style={{ fontSize: '0.68rem', color: 'var(--t3)', marginTop: 1 }}>
-            {t('sponsored')}
-          </div>
         </div>
-        <span style={{
-          fontSize: '0.6rem', fontWeight: 700, color: 'var(--gold)',
-          textTransform: 'uppercase', letterSpacing: 1,
-          padding: '3px 9px', borderRadius: 100, flexShrink: 0,
-          background: 'rgba(196,154,44,0.12)', border: '1px solid rgba(196,154,44,0.35)',
-        }}>
-          {t('promoted')}
-        </span>
+        {badge && <span className="promo-discount" aria-label={badge.aria}>{badge.text}</span>}
+        <span className="promo-label">{t('sponsored')}</span>
       </div>
 
       {/* Image — campaign image, dish photo, or category gradient */}
@@ -70,7 +67,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
           userSelect: 'none',
         }}>
           {photo ? (
-            <img src={photo} alt={dish?.name || campaign.title || campaign.name} loading="lazy"
+            <img src={photo} alt={dish?.name || campaign.title || campaign.name} loading="lazy" decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
           ) : (
             <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
@@ -123,12 +120,12 @@ export default function PromoCard({ campaign, index, onDishClick }) {
           )}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600 }}>
+          <span style={{ fontSize: '0.78rem', color: 'var(--accent-text)', fontWeight: 600 }}>
             {dish ? t('viewDish') : t('visitRestaurant')}
           </span>
           {dish?.review_count > 0 && (
             <span style={{
-              fontSize: '0.7rem', color: 'var(--gold)',
+              fontSize: '0.7rem', color: 'var(--gold-text)',
               fontFamily: "'DM Mono', monospace",
             }}>
               ★ {Number(dish.avg_rating || 0).toFixed(1)} ({dish.review_count})

@@ -1,18 +1,39 @@
-import { useEffect, useState, useRef } from 'react'
+import { lazy, Suspense, useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
-import { categoryEmoji, dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
+import { dishBackground, formatPrice, timeAgo, cleanDisplayName } from '../lib/helpers'
+import { dishEmoji } from '../lib/dishEmoji'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useRequireAuth } from '../features/social/hooks'
 import useEscapeClose from './ui/useEscapeClose'
 import VerifiedPill from './ui/VerifiedPill'
+import DishReviewThread from './DishReviewThread'
 import './DishDetailSheet.css'
 
+// the scanner (html5-qrcode) is only fetched when a guest taps "Scan table QR to order"
+const QRSheet = lazy(() => import('./QRSheet'))
+
+const TOAST_MS = 2600
+const REVIEW_COLS = '*, users(name, profile_photo)'
+
 export default function DishDetailSheet({ dish, onClose }) {
-  const { t, i18n } = useTranslation(['menu', 'common'])
-  const { addDish, tableId, cartError, clearCartError } = useCart()
+  const { t, i18n } = useTranslation(['menu', 'common', 'restaurant', 'bookings'])
+  const { addDish, tableId, restaurantId: seatedRestaurantId, restaurantName: seatedName, cartError, clearCartError } = useCart()
+  const [showScan, setShowScan] = useState(false)
   const { session } = useAuth()
+  // Like, save and review need a signed-in guest: a signed-out tap opens the sign-in sheet (as on Home) and never
+  // flips a local state that nothing would store. The guest taps again once signed in.
+  const { requireAuth, authModal } = useRequireAuth()
+  const [toast, setToast] = useState('')
+  const toastTimer = useRef(null)
+  useEffect(() => () => clearTimeout(toastTimer.current), [])
+  function showToast(text) {
+    clearTimeout(toastTimer.current)
+    setToast(text)
+    toastTimer.current = setTimeout(() => setToast(''), TOAST_MS)
+  }
   useEscapeClose(onClose)
   const [reviews, setReviews] = useState([])
   const [ingredients, setIngredients] = useState([])
@@ -36,14 +57,19 @@ export default function DishDetailSheet({ dish, onClose }) {
   const tapCount = useRef(0)
 
   useEffect(() => {
-    supabase
+    // Reviews come with their reply count (an embedded count of review_comments, flagged ones are hidden by RLS).
+    // If the embed is refused for any reason the reviews are read again without it, never lost.
+    const readReviews = cols => supabase
       .from('reviews')
-      .select('*, users(name, profile_photo)')
+      .select(cols)
       .eq('dish_id', dish.id)
       .eq('is_flagged', false)
       .order('created_at', { ascending: false })
       .limit(20)
-      .then(({ data }) => setReviews(data || []))
+    readReviews(`${REVIEW_COLS}, review_comments(count)`).then(({ data, error }) => {
+      if (!error) { setReviews(data || []); return }
+      readReviews(REVIEW_COLS).then(({ data: plain }) => setReviews(plain || []))
+    })
 
     supabase
       .from('dish_ingredients')
@@ -84,12 +110,18 @@ export default function DishDetailSheet({ dish, onClose }) {
     }
   }, [dish.id, session?.user?.id])
 
-  async function toggleLike() {
+  // Returns false (and opens the sign-in sheet) when nobody is signed in; nothing changes then.
+  function toggleLike() {
+    if (!requireAuth()) return false
+    persistLike()
+    return true
+  }
+
+  async function persistLike() {
     const next = !liked
     setLiked(next)
     setLikeCount(c => c + (next ? 1 : -1))
     if (next) setLikePop(true)
-    if (!session) return
     try {
       if (next) {
         const { error } = await supabase.from('likes').insert({
@@ -110,6 +142,8 @@ export default function DishDetailSheet({ dish, onClose }) {
   }
 
   const hasReviewed = session && reviews.some(r => r.user_id === session.user.id)
+  // seated, but at another restaurant than this dish's: adding would be refused, so the sheet says where they sit
+  const seatedElsewhere = !!tableId && !!dish.restaurant_id && !!seatedRestaurantId && dish.restaurant_id !== seatedRestaurantId
 
   function handleDoubleTap() {
     tapCount.current++
@@ -118,9 +152,11 @@ export default function DishDetailSheet({ dish, onClose }) {
     } else if (tapCount.current === 2) {
       clearTimeout(tapTimer.current)
       tapCount.current = 0
-      if (!liked) toggleLike()
-      setShowHeart(true)
-      setTimeout(() => setShowHeart(false), 900)
+      // the burst only plays for a like that really happens (signed-out: the sign-in sheet opens instead)
+      if (liked || toggleLike()) {
+        setShowHeart(true)
+        setTimeout(() => setShowHeart(false), 900)
+      }
     }
   }
 
@@ -156,9 +192,10 @@ export default function DishDetailSheet({ dish, onClose }) {
   }
 
   async function handleToggleSave() {
+    if (!requireAuth()) return
     const next = !saved
     setSaved(next)
-    if (!session) return
+    if (next) setSavePop(true)
     try {
       if (next) {
         const { error } = await supabase.from('saved_dishes').upsert(
@@ -166,9 +203,11 @@ export default function DishDetailSheet({ dish, onClose }) {
           { onConflict: 'user_id,dish_id' }
         )
         if (error) { console.error('Save failed:', error.message); setSaved(false) }
+        else showToast(t('restaurant:dish.savedToast'))
       } else {
         const { error } = await supabase.from('saved_dishes').delete().eq('user_id', session.user.id).eq('dish_id', dish.id)
         if (error) { console.error('Unsave failed:', error.message); setSaved(true) }
+        else showToast(t('restaurant:dish.unsavedToast'))
       }
     } catch (err) {
       console.error('Save error:', err)
@@ -209,7 +248,7 @@ export default function DishDetailSheet({ dish, onClose }) {
             fontSize: '1rem', flexShrink: 0,
             border: '1.5px solid var(--border)',
           }}>
-            {categoryEmoji(dish.category)}
+            {dishEmoji(dish)}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
@@ -235,31 +274,20 @@ export default function DishDetailSheet({ dish, onClose }) {
           </button>
         </div>
 
-        {/* Dish image — 4:5 */}
+        {/* Dish image: 4:5, but never taller than 40% of the screen (see .dds-photo) */}
         <div
           onClick={handleDoubleTap}
-          style={{
-            width: '100%', aspectRatio: '4/5',
-            background: dish.photo ? '#000' : dishBackground(dish.category),
-            position: 'relative',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '7rem',
-            cursor: 'pointer',
-            overflow: 'hidden',
-            userSelect: 'none',
-            filter: dish.available ? 'none' : 'grayscale(0.45) brightness(0.65)',
-          }}
+          className={`dds-photo${dish.available ? '' : ' is-sold'}`}
+          style={{ background: dish.photo ? '#000' : dishBackground(dish.category) }}
         >
           {dish.photo ? (
-            <img src={dish.photo} alt={dish.name} loading="lazy" style={{
-              width: '100%', height: '100%', objectFit: 'cover',
-            }} />
+            <img src={dish.photo} alt={dish.name} loading="lazy" className="dds-photo-img" />
           ) : (
             <span style={{
               filter: 'drop-shadow(0 10px 28px rgba(0,0,0,0.5))',
               transition: 'transform 0.4s ease',
             }}>
-              {categoryEmoji(dish.category)}
+              {dishEmoji(dish)}
             </span>
           )}
 
@@ -347,24 +375,19 @@ export default function DishDetailSheet({ dish, onClose }) {
           )}
         </div>
 
-        {/* Action bar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 16,
-        }}>
+        {/* Action bar: each action is an icon AND a word (title + aria-label say more); like / save / review ask a signed-out guest to sign in */}
+        <div className="dds-actions">
           <button
-            className="icon-btn"
+            type="button"
+            className={`dds-act${liked ? ' is-on' : ''}`}
             onClick={toggleLike}
+            title={liked ? t('restaurant:dish.unlikeAria') : t('restaurant:dish.likeAria')}
+            aria-label={liked ? t('restaurant:dish.unlikeAria') : t('restaurant:dish.likeAria')}
           >
             <svg viewBox="0 0 24 24"
-              className={likePop ? 'like-btn-active' : undefined}
+              className={`dds-act-icon dds-act-icon--like${likePop ? ' like-btn-active' : ''}`}
               onAnimationEnd={() => setLikePop(false)}
-              style={{
-              width: 24, height: 24,
-              fill: liked ? 'var(--accent)' : 'none',
-              stroke: liked ? 'var(--accent)' : 'var(--t1)',
-              strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
-              transition: 'fill 0.15s var(--ease-out), stroke 0.15s var(--ease-out)',
-            }}>
+              aria-hidden="true">
               <path d="M8 14c-1.5-1-2.5-2.8-2-4.5.5-1.8 2-2.5 3.5-2s2.5 2 2 3.8c-.3 1-1 1.7-1.8 2" />
               <path d="M9.7 13.3c.8-.3 1.8-.2 2.8.5" />
               <path d="M12.5 13.8c.5-2.5 1.2-5 2-6.5.6-1 1.8-1.2 2.5-.5s.5 2-.2 3.5" />
@@ -372,41 +395,42 @@ export default function DishDetailSheet({ dish, onClose }) {
               <path d="M15.2 15c.6-1.5 1.2-3 1.8-4 .4-.7 1.3-.8 1.8-.2s.2 1.5-.3 2.8" />
               <path d="M7.5 15c-.5.8-.8 2-.5 3 .5 1.5 2 2.5 4 2.8s4-.2 5.5-1.5c1-1 1.5-2.5 1.5-4" />
             </svg>
+            <span className="dds-act-label">{liked ? t('restaurant:dish.liked') : t('restaurant:dish.like')}</span>
           </button>
 
           <button
-            className="icon-btn"
-            onClick={() => setShowReviewForm(f => !f)}
-            style={{ color: 'var(--t1)' }}
+            type="button"
+            className="dds-act"
+            onClick={() => { if (requireAuth()) setShowReviewForm(f => !f) }}
+            title={t('restaurant:dish.reviewAria')}
+            aria-label={t('restaurant:dish.reviewAria')}
           >
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.7" style={{ width: 24, height: 24, stroke: 'currentColor' }}>
-              <path d="M7 2v8a3 3 0 006 0V2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M10 2v20" strokeLinecap="round" />
-              <path d="M17 2v6c0 1.1.9 2 2 2h0c0 1.1-.9 2-2 2v10" strokeLinecap="round" strokeLinejoin="round" />
+            <svg viewBox="0 0 24 24" className="dds-act-icon" aria-hidden="true">
+              <path d="M7 2v8a3 3 0 006 0V2" />
+              <path d="M10 2v20" />
+              <path d="M17 2v6c0 1.1.9 2 2 2h0c0 1.1-.9 2-2 2v10" />
             </svg>
+            <span className="dds-act-label">{t('restaurant:dish.review')}</span>
           </button>
 
-          <div style={{ flex: 1 }} />
+          <div className="dds-actions-gap" />
 
           <button
-            className="icon-btn"
-            onClick={() => { if (!saved) setSavePop(true); handleToggleSave() }}
-            style={{ color: saved ? 'var(--accent)' : 'var(--t1)' }}
+            type="button"
+            className={`dds-act${saved ? ' is-on' : ''}`}
+            onClick={handleToggleSave}
+            title={saved ? t('restaurant:dish.unsaveAria') : t('restaurant:dish.saveAria')}
+            aria-label={saved ? t('restaurant:dish.unsaveAria') : t('restaurant:dish.saveAria')}
           >
             <svg viewBox="0 0 24 24"
-              className={savePop ? 'like-btn-active' : undefined}
+              className={`dds-act-icon dds-act-icon--save${savePop ? ' like-btn-active' : ''}`}
               onAnimationEnd={() => setSavePop(false)}
-              style={{
-              width: 24, height: 24,
-              fill: 'none',
-              stroke: 'currentColor',
-              strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
-              transition: 'fill 0.15s var(--ease-out), stroke 0.15s var(--ease-out)',
-            }}>
-              <ellipse cx="12" cy="14" rx="8" ry="4" fill={saved ? 'var(--accent)' : 'none'} />
+              aria-hidden="true">
+              <ellipse cx="12" cy="14" rx="8" ry="4" />
               <path d="M12 3v7" />
               <circle cx="12" cy="3" r="1.5" fill="currentColor" />
             </svg>
+            <span className="dds-act-label">{saved ? t('restaurant:dish.saved') : t('restaurant:dish.save')}</span>
           </button>
         </div>
 
@@ -419,19 +443,10 @@ export default function DishDetailSheet({ dish, onClose }) {
           </div>
         )}
 
-        {/* Caption */}
+        {/* Caption: the name is in the header already, so only what the dish is */}
         <div style={{ padding: '0 14px 10px' }}>
-          <p style={{ fontSize: '0.85rem', lineHeight: 1.55 }}>
-            <span style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontWeight: 700, color: 'var(--t1)',
-            }}>
-              {dish.name}
-            </span>
-            {' '}
-            <span style={{ color: 'var(--t2)', fontWeight: 400 }}>
-              {dish.description || t('menu:categoryDish', { category: dish.category })}
-            </span>
+          <p style={{ fontSize: '0.85rem', lineHeight: 1.55, color: 'var(--t2)' }}>
+            {dish.description || t('menu:categoryDish', { category: dish.category })}
           </p>
 
           {dish.restaurants?.slug && (
@@ -538,13 +553,14 @@ export default function DishDetailSheet({ dish, onClose }) {
         {/* Separator */}
         <div style={{ height: 1, background: 'var(--border)', margin: '0 14px' }} />
 
-        {/* Add to order */}
-        {dish.available && tableId ? (
+        {/* Next step. Seated here: add to the order. Seated at another restaurant: say where. Not seated: two real
+            buttons, scan the table QR (order from your phone) or reserve a table; never a dead end. */}
+        {dish.available && tableId && !seatedElsewhere ? (
           <div style={{ padding: '12px 14px' }}>
             <button
               className="btn btn-primary"
               style={{ width: '100%', padding: '11px 0', fontSize: '0.88rem', fontWeight: 700, borderRadius: 12 }}
-              onClick={() => { clearCartError(); addDish(dish); onClose() }}
+              onClick={() => { clearCartError(); addDish(dish, { open: true }); onClose() }}
               onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
               onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
               onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -552,17 +568,25 @@ export default function DishDetailSheet({ dish, onClose }) {
               {t('menu:addToOrder', { price: formatPrice(dish.price) })}
             </button>
           </div>
-        ) : dish.available && !tableId ? (
-          <div style={{ padding: '12px 14px' }}>
-            <div style={{
-              width: '100%', padding: '11px 0',
-              textAlign: 'center', fontSize: '0.82rem',
-              color: 'var(--t3)', fontWeight: 500,
-              background: 'var(--s2)', borderRadius: 12,
-              border: '1px solid var(--border)',
-            }}>
-              {t('menu:enterTablePrompt')}
-            </div>
+        ) : dish.available && seatedElsewhere ? (
+          <div className="dds-next">
+            <p className="dds-next-note" role="status">
+              {seatedName
+                ? <Trans t={t} i18nKey="restaurant:dish.seatedAt" values={{ venue: seatedName }} components={{ b: <strong /> }} />
+                : t('restaurant:dish.seatedElsewhere')}
+            </p>
+          </div>
+        ) : dish.available ? (
+          <div className="dds-next">
+            <p className="dds-next-hint">{t('restaurant:dish.orderHint')}</p>
+            <button type="button" className="btn btn-primary dds-next-btn" onClick={() => { if (requireAuth()) setShowScan(true) }}>
+              {t('restaurant:dish.scanToOrder')}
+            </button>
+            {dish.restaurants?.slug ? (
+              <Link to={`/book/${dish.restaurants.slug}`} className="btn btn-ghost dds-next-btn">
+                {t('bookings:reserve')}
+              </Link>
+            ) : null}
           </div>
         ) : null}
 
@@ -618,6 +642,11 @@ export default function DishDetailSheet({ dish, onClose }) {
                         border: '1px solid var(--border)', display: 'block',
                       }} />
                     )}
+                    <DishReviewThread
+                      reviewId={r.id}
+                      initialCount={Number(r.review_comments?.[0]?.count) || 0}
+                      requireAuth={requireAuth}
+                    />
                   </div>
                 </div>
               ))}
@@ -751,6 +780,9 @@ export default function DishDetailSheet({ dish, onClose }) {
 
         <div style={{ height: 24 }} />
       </div>
+      {toast ? <div className="dds-toast" role="status">{toast}</div> : null}
+      {authModal}
+      {showScan ? <Suspense fallback={null}><QRSheet onClose={() => setShowScan(false)} /></Suspense> : null}
     </div>
   )
 }

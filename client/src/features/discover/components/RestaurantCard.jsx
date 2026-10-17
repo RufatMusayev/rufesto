@@ -4,8 +4,8 @@ import PostMenu from '../../../components/PostMenu'
 import { LikeIcon } from '../../social/components/Icons'
 import CoverImage, { restaurantSources } from './CoverImage'
 import { useActions } from '../ActionsContext'
-
-const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
+import { cuisineLabel } from '../cuisine'
+import { distanceLabel } from '../../social/lib/distance'
 
 function StatusPill({ r }) {
   const { t } = useTranslation('social')
@@ -44,7 +44,7 @@ export default function RestaurantCard({ r, variant = 'rail' }) {
   const act = useActions()
   const list = variant === 'list'
   const to = r.slug ? `/restaurant/${r.slug}` : null
-  const meta = [cap(r.cuisine), r.km != null ? t('post.kmAway', { km: r.km }) : null].filter(Boolean).join(' · ')
+  const meta = [cuisineLabel(t, r.cuisine), distanceLabel(t, r.km)].filter(Boolean).join(' · ')
   const liked = act.liked(r)
   const likes = act.likeCount(r)
   const photo = (

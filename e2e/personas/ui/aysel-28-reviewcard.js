@@ -1,0 +1,17 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova', { storage: { rufesto_home_tab: 'friends' } })
+  await A.page.goto(L.CONSUMER + '/'); await A.page.waitForSelector('.soc-feed article'); await A.page.waitForTimeout(1500)
+  const rc = A.page.locator('.soc-feed article').filter({ hasText: 'Cinnamon Roll' }).filter({ hasText: 'Rated' }).first()
+  await rc.scrollIntoViewIfNeeded()
+  L.log('review card interactive elements:', await rc.evaluate(a => [...a.querySelectorAll('a,button')].map(e => (e.tagName + ':' + (e.getAttribute('aria-label') || e.innerText || '').trim().replace(/\n+/g, ' ') + ' h=' + Math.round(e.getBoundingClientRect().height) + ' href=' + (e.getAttribute('href') || '')))))
+  const url0 = A.page.url()
+  await rc.locator('.soc-act-likes, [class*="likes"]').first().click({ timeout: 3000 }).catch(() => L.log('no clickable counts line'))
+  await rc.click({ position: { x: 150, y: 80 } }); await A.page.waitForTimeout(1200)
+  L.log('url after tapping review body:', A.page.url().replace(L.CONSUMER, ''), A.page.url() === url0 ? '(no navigation)' : '')
+  const replies = rc.getByText(/\d+ repl/)
+  L.log('replies text count', await replies.count())
+  if (await replies.count()) { await replies.first().click({ timeout: 3000 }).catch(() => {}); await A.page.waitForTimeout(1000); L.log('url after tapping replies:', A.page.url().replace(L.CONSUMER, '')) }
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

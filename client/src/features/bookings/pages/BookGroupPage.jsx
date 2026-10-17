@@ -187,6 +187,7 @@ export default function BookGroupPage() {
       return
     }
     setCreated({ ...data, withInvite })
+    import('../../notifications/prompt').then(m => m.maybeAskForPush('booking')).catch(() => {})   // once per device, never blocks
   }
 
   const page = (title, children) => (

@@ -140,8 +140,9 @@ async function discoverFollow(page, names, on) {
       }
     }
     if (stage === 'restore') {
-      await discoverFollow(page, ['Şirvan Mətbəxi', 'Burger Qala'], false)
-      await discoverFollow(page, ['Dönər Bakı Express', 'Burger Qala', 'Şirvan Mətbəxi'], true)
+      // original sim state = follows of ...06 (Dönər Bakı Express), ...07 (Burger Qala), ...08 (Şirvan Mətbəxi); Burger Qala + Şirvan are already followed
+      await loadHome(page)
+      await discoverFollow(page, ['Dönər Bakı Express'], true)
       await L.shot(page, 'B90-ferid-restored')
     }
   } catch (e) { note('ERROR', String(e).slice(0, 500)); await L.shot(page, `B99-error-${stage}`).catch(() => { }) }

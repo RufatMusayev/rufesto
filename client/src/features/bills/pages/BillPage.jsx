@@ -12,6 +12,8 @@ import { STATUS_KEY, STATUS_TONE } from '../status'
 import TopBar from '../components/TopBar'
 import SignInCard from '../components/SignInCard'
 import BillSkeleton from '../components/BillSkeleton'
+import SettledMemo from '../components/SettledMemo'
+import { readSettled } from '../lastSettled'
 import BillView from './BillView'
 
 /**
@@ -51,7 +53,12 @@ export default function BillPage() {
   } else if (!billId && !hadTable.current && lookingForTable) {
     body = <BillSkeleton />
   } else if (!billId && !hadTable.current) {
-    body = (
+    // no table (the server clears it once the bill settles): a bill settled earlier in this session is still shown
+    // as Paid with its receipt; only a guest with nothing behind them sees "Nothing to pay yet"
+    const settled = readSettled()
+    body = settled ? (
+      <div className="bl-body"><SettledMemo settled={settled} /></div>
+    ) : (
       <div className="bl-body">
         <EmptyState icon="🧾" title={t('bills:noBillTitle')} body={t('bills:noBillBody')}
           action={<Link to="/table" className="btn btn-primary">{t('bills:backToTable')}</Link>} />

@@ -130,7 +130,7 @@ async function signIn(page, acct) {
 /** The project's device settings for an extra context, so it looks like the first one (phone or desktop). */
 const contextOptions = use => ({
   storageState: use.storageState, viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
-  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch,
+  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch, colorScheme: use.colorScheme,
 })
 
 /** A second browser context signed in as `acct`: { context, page, session, supabase, close }. Reuses cached sessions. */

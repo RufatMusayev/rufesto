@@ -57,7 +57,7 @@ const storageKey = supabase => `sb-${new URL(supabase.url).hostname.split('.')[0
 /** The project's device settings, so a second context looks like the first one (see support/v2.js). */
 const contextOptions = use => ({
   viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
-  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch,
+  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch, colorScheme: use.colorScheme,
 })
 
 /**
@@ -214,9 +214,9 @@ async function befriend(a, b) {
 }
 
 /**
- * Make `a` and `b` friends when they are not. docs/REVIEW-ACCOUNTS.md says review1 is friends with review2 and review3, but the
- * friendships of the review accounts were wiped from the preview (the demo-world simulation). Resolves true when THIS call created the
- * friendship, so the caller can undo it with resetPair; false when it existed already (then nothing is ever removed).
+ * Make `a` and `b` friends when they are not. docs/REVIEW-ACCOUNTS.md says review1 is friends with review2 and review3; the demo-world
+ * simulation once wiped those friendships (they are restored now), so this is a guard that normally does nothing. Resolves true when THIS
+ * call created the friendship, so the caller can undo it with resetPair; false when it existed already (then nothing is ever removed).
  */
 async function ensureFriends(a, b) {
   const mine = await a.api.rpc('my_friends')

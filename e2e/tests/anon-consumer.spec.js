@@ -104,4 +104,26 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: /continue with email/i })).toBeVisible()
   })
+
+  // The app follows the OS colour scheme on a first visit (the suite itself runs on dark: playwright.config.js colorScheme).
+  for (const scheme of ['light', 'dark']) {
+    test(`a first visit follows the OS colour scheme (${scheme})`, async ({ browser }) => {
+      const context = await browser.newContext({ colorScheme: scheme })
+      try {
+        const page = await context.newPage()
+        await page.goto(url('/'))
+        await expect(page.locator('html')).toHaveAttribute('data-theme', scheme)
+      } finally { await context.close() }
+    })
+  }
+
+  test('a stored theme choice wins over the OS colour scheme', async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: 'light' })
+    try {
+      const page = await context.newPage()
+      await page.addInitScript(() => { try { localStorage.setItem('rufesto_theme', 'dark') } catch { /* storage blocked */ } })
+      await page.goto(url('/'))
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    } finally { await context.close() }
+  })
 })

@@ -11,8 +11,8 @@ const DONE_MS = 3500
 
 // Composer card of the Posts page: optional photo (resized in the browser), caption, optional dish tag, Publish.
 // The photo goes to `post-photos` first, then create_restaurant_post gets its path. If the server definitely
-// refuses the post the uploaded object is removed again; after a network / unknown failure it is kept (the post
-// may exist). `onPublished()` lets the page refresh its list.
+// refuses the post the uploaded photo (and its 640 px copy) is removed again; after a network / unknown failure it is
+// kept (the post may exist). `onPublished()` lets the page refresh its list.
 export default function PostComposer({ restaurantId, onPublished }) {
   const { t } = useTranslation('v2')
   const uid = useId()
@@ -21,7 +21,7 @@ export default function PostComposer({ restaurantId, onPublished }) {
   const aliveRef = useRef(true)
   const doneTimer = useRef(null)
 
-  const [photo, setPhoto] = useState(null)          // { blob, url }
+  const [photo, setPhoto] = useState(null)          // { blob, url, small } (small = the 640 px copy, or null)
   const [preparing, setPreparing] = useState(false)
   const [caption, setCaption] = useState('')
   const [dishId, setDishId] = useState('')
@@ -64,7 +64,7 @@ export default function PostComposer({ restaurantId, onPublished }) {
     setPreparing(true)
     try {
       const next = await prepareImage(file)
-      if (aliveRef.current) replacePhoto({ blob: next.blob, url: next.url })
+      if (aliveRef.current) replacePhoto({ blob: next.blob, url: next.url, small: next.small })
       else URL.revokeObjectURL(next.url)
     } catch (err) {
       if (aliveRef.current) setError(err)
@@ -86,7 +86,7 @@ export default function PostComposer({ restaurantId, onPublished }) {
     let creating = false                            // true once create_restaurant_post was sent
     try {
       if (photo) {
-        const up = await uploadPostPhoto(restaurantId, photo.blob)
+        const up = await uploadPostPhoto(restaurantId, photo.blob, photo.small)
         if (up.error) throw up.error
         path = up.data
       }
@@ -109,7 +109,7 @@ export default function PostComposer({ restaurantId, onPublished }) {
         if (aliveRef.current) setError(Object.assign(new Error('post_unconfirmed'), { cause: err }))
         onPublished?.()
       } else {
-        if (path) removePostPhoto(path)             // the server refused the post: do not leave the object behind
+        if (path) removePostPhoto(path)             // the server refused the post: do not leave the photo (and its small copy) behind
         if (aliveRef.current) setError(err)
       }
     } finally {

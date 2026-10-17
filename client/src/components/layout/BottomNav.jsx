@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCart } from '../../contexts/CartContext'
 import AuthModal from '../AuthModal'
-import QRSheet from '../QRSheet'
+
+// the scanner (html5-qrcode is ~100 kB) is fetched when the guest first taps the QR button
+const QRSheet = lazy(() => import('../QRSheet'))
 
 export default function BottomNav() {
   const { session } = useAuth()
@@ -94,6 +96,7 @@ export default function BottomNav() {
 
         <NavLink
           to="/profile"
+          aria-label={t('profile')}
           onClick={handleProfilePress}
           end={false}
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.4rem 0' }}
@@ -108,7 +111,7 @@ export default function BottomNav() {
       </nav>
 
       {sheet === 'auth'  && <AuthModal  onClose={() => setSheet(null)} />}
-      {sheet === 'qr'    && <QRSheet    onClose={() => setSheet(null)} />}
+      {sheet === 'qr'    && <Suspense fallback={null}><QRSheet onClose={() => setSheet(null)} /></Suspense>}
     </>
   )
 }

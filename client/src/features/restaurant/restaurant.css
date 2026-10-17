@@ -185,3 +185,7 @@
   .rst-panel { animation: none; }
   .rst-tab-bar, .rst-tile, .rst-follow, .rst-seg-btn, .rst-back, .rst-promo--tap { transition: none; }
 }
+
+/* ---------- unknown restaurant (RestaurantNotFound) ---------- */
+.rst-missing { max-width: 440px; margin: 0 auto; padding: 48px 16px; }
+.rst-missing-card { padding: 8px 0; }

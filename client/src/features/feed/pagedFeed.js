@@ -8,6 +8,8 @@
 // A page answers { items, exclude, caughtUp, radiusKm }; the next page sends back `exclude`.
 import { createStore } from './store'
 import { MAX_EXCLUDE } from './api'
+import { applySigned } from '../social/lib/postPhotos'
+import { isDeleted } from './deleted'
 
 export const PAGE_SIZE = 20
 const STALE_MS = 5 * 60 * 1000          // a tab that comes back after this long refreshes in the background
@@ -23,6 +25,19 @@ const keyOf = it => `${it.kind}-${it.id}`
 // `position` sent with every event is the 1-based index across the whole loaded list (page 2 starts at 21),
 // not the server's per-page slot, so positions stay comparable between pages.
 const numbered = (items, offset) => items.map((it, i) => ({ ...it, position: offset + i + 1 }))
+
+/**
+ * A refresh that brings back the same cards keeps the objects already on screen (a card whose JSON is unchanged is
+ * the same reference), so React skips them and a quiet refresh repaints nothing that did not change.
+ */
+function reuse(prev, next) {
+  if (!prev.length) return next
+  const old = new Map(prev.map(it => [keyOf(it), it]))
+  return next.map(it => {
+    const was = old.get(keyOf(it))
+    return was && JSON.stringify(was) === JSON.stringify(it) ? was : it
+  })
+}
 
 /** The viewer + location a loaded list belongs to: a different one means a different answer. */
 export const viewKey = ({ userId, lat, lng }) => `${userId || 'anon'}|${lat ?? ''},${lng ?? ''}`
@@ -47,14 +62,26 @@ export function createPagedFeed({ fetchPage, onFresh }) {
       return
     }
     onFresh?.()
+    const first = numbered(data.items.filter(it => !isDeleted(it)), 0)
     store.set({
-      items: numbered(data.items, 0),
+      items: keep ? reuse(store.get().items, first) : first,
       exclude: data.exclude,
       caughtUp: data.caughtUp || data.exclude.length > MAX_EXCLUDE,
       radiusKm: data.radiusKm ?? null,
       pageStart: 0, status: 'ready', error: null, refreshing: false,
       loadedAt: Date.now(), loadedIso: iso, more: { loading: false, error: false },
     })
+    settle(data.signed, mine)
+  }
+
+  /** Photos still being signed (the cards are already on screen): put each batch of URLs in when it arrives. */
+  function settle(signed, mine) {
+    for (const batch of signed || []) {
+      batch.then(map => {
+        if (mine !== seq) return
+        store.update(s => ({ ...s, items: applySigned(s.items, map) }))
+      })
+    }
   }
 
   return {
@@ -94,7 +121,7 @@ export function createPagedFeed({ fetchPage, onFresh }) {
       if (error) { store.set({ more: { loading: false, error: true } }); return }
       store.update(cur => {
         const seen = new Set(cur.items.map(keyOf))
-        const fresh = data.items.filter(i => !seen.has(keyOf(i)))
+        const fresh = data.items.filter(i => !seen.has(keyOf(i)) && !isDeleted(i))
         return {
           ...cur,
           items: [...cur.items, ...numbered(fresh, cur.items.length)],
@@ -106,10 +133,27 @@ export function createPagedFeed({ fetchPage, onFresh }) {
           more: { loading: false, error: false },
         }
       })
+      settle(data.signed, mine)
     },
 
     /** Marks the loaded list stale: the next ensure() refreshes it in the background (the old list stays until then). */
     invalidate() { store.set({ loadedAt: 0 }) },
+
+    /**
+     * Changes fields of one item that is in the list (a like or a comment made on another screen), so the card shows
+     * it when it mounts again. Nothing happens when the item is not here or the fields are already equal.
+     */
+    patch(kind, id, partial) {
+      store.update(s => {
+        let hit = false
+        const items = s.items.map(it => {
+          if (it.kind !== kind || it.id !== id || Object.keys(partial).every(k => it[k] === partial[k])) return it
+          hit = true
+          return { ...it, ...partial }
+        })
+        return hit ? { ...s, items } : s
+      })
+    },
 
     /** Drops a deleted post from the list. */
     remove(id) {

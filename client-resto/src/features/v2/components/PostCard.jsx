@@ -8,8 +8,9 @@ import StatusPill from './StatusPill'
 
 // One of the restaurant's posts in the Posts list: photo, caption, tagged dish with its live availability,
 // like / comment counts, relative time and a Delete button (`onDelete(post)` opens the confirm dialog).
-// Signed photo URLs last an hour; a page left open longer gets an image error, so the card re-signs its one
-// path once and retries before it falls back to the placeholder.
+// The photo is the 640 px copy (the full photo for a post without one). Signed photo URLs last an hour; a page left
+// open longer, or a copy that fails to load, gets an image error, so the card signs its one FULL path once and
+// retries before it falls back to the placeholder.
 export default function PostCard({ post, onDelete }) {
   const { t, i18n } = useTranslation('v2')
   const [src, setSrc] = useState(post.photoUrl)

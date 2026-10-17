@@ -10,6 +10,7 @@ services:
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY:-}
     ports:
       # cloudflared runs on the host (not in this compose network) and reaches this
       # container over localhost, so bind loopback-only — nothing needs to reach

@@ -49,6 +49,30 @@ const mapAuthor = (a, user) => {
   return { type: 'user', id: u.id, name: u.name, slug: null, photo: u.photo }
 }
 
+// Stop-gap the dashboard used before campaigns had discount columns: the description starts with
+// "[discount:percent=15]" or "[discount:amount=5]". It is read here and never shown.
+const DISCOUNT_PREFIX = /^\s*\[discount:(percent|amount)=(\d+(?:[.,]\d+)?)\]\s*/i
+
+/**
+ * The discount of a promo and its clean description. Real fields win (discount_percent / discount_amount on the
+ * campaign, sql/63); otherwise the prefix above is parsed. A value of 0 or less is no discount.
+ */
+export function mapDiscount(r) {
+  let description = String(r.description || '')
+  let percent = num(r.discount_percent)
+  let amount = num(r.discount_amount)
+  const m = description.match(DISCOUNT_PREFIX)
+  if (m) {
+    description = description.slice(m[0].length)
+    const v = Number(m[2].replace(',', '.'))
+    if (percent == null && amount == null) {
+      if (m[1].toLowerCase() === 'percent') percent = v
+      else amount = v
+    }
+  }
+  return { description, percent: percent > 0 ? percent : null, amount: amount > 0 ? amount : null }
+}
+
 /** home_feed promo slot -> view-model (the card adapter lives in features/feed). */
 const mapPromo = r => ({
   kind: 'promo',
@@ -57,7 +81,9 @@ const mapPromo = r => ({
   position: num(r.position),
   restaurant: mapRestaurant(r.restaurant),
   title: r.title || '',
-  description: r.description || '',
+  description: mapDiscount(r).description,
+  discountPercent: mapDiscount(r).percent,
+  discountAmount: mapDiscount(r).amount,
   imageUrl: r.image_url || null,
   dish: mapDish(r.dish),
   startsAt: r.starts_at || null,
@@ -81,11 +107,19 @@ export const mapRequest = r => ({
   createdAt: r.created_at || null,
 })
 
+/**
+ * search_users row. The second line under a result (FindPeople) uses what the RPC sends: `mutual_friends` (int),
+ * else `district`, else `joined_at` ("Joined <month>"). Today's search_users (sql/47c) sends none of them, so no
+ * second line shows until the RPC grows one; the mapper already reads the names above.
+ */
 export const mapSearchRow = r => ({
   id: r.id,
   name: r.name || null,
   photo: r.profile_photo || null,
   status: mapStatus(r.friendship_status ?? r.friendship),
+  mutual: Math.max(0, Number(r.mutual_friends ?? r.mutual_count) || 0),
+  district: (typeof r.district === 'string' && r.district.trim()) || null,
+  joinedAt: r.joined_at || null,
 })
 
 /** A feed entry: kind 'post' | 'review' | 'promo' (promo only from home_feed). */

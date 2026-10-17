@@ -6,12 +6,12 @@ import LanguageSwitcher from '../../../components/LanguageSwitcher'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme } from '../../../contexts/ThemeContext'
 import {
-  GlobeIcon, MoonIcon, BellIcon, ForkKnifeIcon, SignOutIcon, TrashIcon, ChevronIcon,
+  GlobeIcon, MoonIcon, BellIcon, GearIcon, ForkKnifeIcon, SignOutIcon, TrashIcon, ChevronIcon,
 } from './Icons'
 
 /** Language, theme, notifications, feedback, sign out, and the "contact support" note for deleting an account. */
 export default function SettingsSheet({ open, onClose, onFeedback }) {
-  const { t } = useTranslation(['profile', 'nav'])
+  const { t } = useTranslation(['profile', 'nav', 'notifications'])
   const { signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -47,6 +47,12 @@ export default function SettingsSheet({ open, onClose, onFeedback }) {
         <Link to="/notifications" className="pf-set-row pf-set-link" onClick={onClose}>
           <span className="pf-set-icon"><BellIcon size={20} /></span>
           <span className="pf-set-label">{t('nav:notifications')}</span>
+          <ChevronIcon size={16} />
+        </Link>
+
+        <Link to="/settings/notifications" className="pf-set-row pf-set-link" onClick={onClose}>
+          <span className="pf-set-icon"><GearIcon size={20} /></span>
+          <span className="pf-set-label">{t('notifications:settings')}</span>
           <ChevronIcon size={16} />
         </Link>
 

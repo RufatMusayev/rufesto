@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   listFriends, listRequests, respondFriendRequest, cancelFriendRequest, removeFriend, subscribeFriendships,
-  countIncomingRequests,
+  countIncomingRequests, countFriends,
 } from './api'
 import { useOnVisible } from './hooks'
+import { SOCIAL_WRITE_EVENT } from '../../lib/supabase'
 
 const EMPTY = { friends: [], incoming: [], outgoing: [], loading: true, error: null }
 
@@ -77,6 +78,26 @@ export function useFriendsData(userId) {
   }, [])
 
   return { ...state, reload: load, accept, decline, cancel, unfriend }
+}
+
+/**
+ * How many friends the viewer has (accepted friendships): null until known, or signed out. Read once, again when
+ * `active` turns true (the Friends tab is shown) and after any friend write made in this app (a request accepted,
+ * a friend removed). One HEAD count request each time.
+ */
+export function useFriendCount(userId, active = true) {
+  const [count, setCount] = useState(null)
+  useEffect(() => {
+    if (!userId) { setCount(null); return undefined }
+    if (!active) return undefined
+    let alive = true
+    const refresh = () => countFriends(userId).then(({ data }) => { if (alive && data != null) setCount(data) })
+    refresh()
+    const onWrite = e => { if (e.detail === 'friend') refresh() }
+    window.addEventListener(SOCIAL_WRITE_EVENT, onWrite)
+    return () => { alive = false; window.removeEventListener(SOCIAL_WRITE_EVENT, onWrite) }
+  }, [userId, active])
+  return count
 }
 
 /** Number of incoming friend requests (live), for the Profile row badge. */

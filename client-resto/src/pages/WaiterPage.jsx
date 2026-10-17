@@ -3,23 +3,34 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { debounce } from '../lib/debounce'
-import { friendlyError } from '../lib/errors'
+import { friendlyError, writeError } from '../lib/errors'
+import { roleCan } from '../lib/roles'
 import { subscribeResync } from '../lib/realtime'
 import CallsTab from '../components/waiter/CallsTab'
 import MyTablesTab from '../components/waiter/MyTablesTab'
 import AllTablesTab from '../components/waiter/AllTablesTab'
+import { CLEARED_STATE, groupOrdersByTable, summariseTableOrders } from '../components/waiter/waiterHelpers'
+import '../features/v2/styles.css'
 import { MyTipsCard } from '../features/v2/mounts'
 import ActionBanner from '../components/ActionBanner'
+import ChipScroller from '../components/ChipScroller'
 
 // Safety-net refresh for events realtime can't deliver (see the effect below).
 const FALLBACK_POLL_MS = 60000
-// waiter_overview() excludes tables nobody's at from "All tables".
-const IDLE_STATES = ['free', 'maintenance', 'cleared']
+// Tables nobody is at stay out of "All tables". A cleared table is NOT idle: it still needs a hand (reset to free).
+const IDLE_STATES = ['free', 'maintenance']
+// Live orders older than this belong to an earlier visit and say nothing about the table now.
+const ORDERS_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export default function WaiterPage() {
-  const { restaurantId } = useAuth()
+  const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['dashboard', 'common'])
+  // Resetting a cleared table writes tables.state, which the database allows for waiter, host, manager and admin only.
+  const canReset = roleCan(staffRow?.role, 'tableState')
+  // Marking an order served writes orders.status, allowed for waiter, host, manager and admin (the same rule as Orders).
+  const canServe = roleCan(staffRow?.role, 'orderFlow')
   const [tables, setTables] = useState([])
+  const [liveOrders, setLiveOrders] = useState([]) // orders not yet paid, with their items: facts per table + the My Tables list
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState(null) // null until the first load picks a default
   const [acting, setActing] = useState(null) // id of the request/table being acted on
@@ -29,13 +40,21 @@ export default function WaiterPage() {
 
   const load = useCallback(async () => {
     if (!restaurantId) return
-    const { data, error } = await supabase.rpc('waiter_overview', { p_restaurant_id: restaurantId })
+    const [{ data, error }, ordersR] = await Promise.all([
+      supabase.rpc('waiter_overview', { p_restaurant_id: restaurantId }),
+      // Order state and age for the table cards. Not essential: when this read fails the cards simply have fewer lines.
+      supabase.from('orders').select('id, table_id, status, placed_at, total_amount, order_items(quantity, dishes(name))')
+        .eq('restaurant_id', restaurantId)
+        .not('status', 'in', '("paid","cancelled","refunded")')
+        .gte('placed_at', new Date(Date.now() - ORDERS_WINDOW_MS).toISOString()),
+    ])
     if (error) {
       setActionError(friendlyError(error, t))
       setLoading(false)
       return
     }
     setTables(data?.tables || [])
+    setLiveOrders(ordersR.error ? [] : (ordersR.data || []))
     setLoading(false)
   }, [restaurantId, t])
 
@@ -127,6 +146,9 @@ export default function WaiterPage() {
     () => tables.filter(tbl => tbl.guests > 0 || !IDLE_STATES.includes(tbl.state)),
     [tables]
   )
+  const orderFacts = useMemo(() => summariseTableOrders(liveOrders), [liveOrders])
+  const ordersByTable = useMemo(() => groupOrdersByTable(liveOrders), [liveOrders])
+  const clearedCount = useMemo(() => tables.filter(tbl => tbl.state === CLEARED_STATE).length, [tables])
 
   // Pick the default tab once, right after the first load resolves.
   useEffect(() => {
@@ -150,14 +172,33 @@ export default function WaiterPage() {
 
   const handleAck     = (id) => runAction(id, 'ack_service_request', { p_id: id })
   const handleResolve = (id) => runAction(id, 'resolve_service_request', { p_id: id })
+  // Same write the Orders page makes for "Mark Served" (orders.status = 'served'); the table card shows the new state
+  // once the reload has read it back.
+  async function handleServe(orderId) {
+    setActing(orderId)
+    setActionError('')
+    const err = writeError(await supabase.from('orders').update({ status: 'served' }).eq('id', orderId).select('id'))
+    if (err) setActionError(friendlyError(err, t))
+    await load()
+    setActing(null)
+  }
+  // A paid, emptied table goes cleared -> free (the table state machine allows exactly that step).
+  async function handleReset(tableId) {
+    setActing(tableId)
+    setActionError('')
+    const err = writeError(await supabase.from('tables').update({ state: 'free' }).eq('id', tableId).select('id'))
+    if (err) setActionError(friendlyError(err, t))
+    await load()
+    setActing(null)
+  }
   const handleTake     = (tableId) => runAction(tableId, 'take_table', { p_table_id: tableId })
   const handleRelease  = (tableId) => runAction(tableId, 'release_table', { p_table_id: tableId })
 
   return (
-    <div style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+    <div className="wt-page">
+      <div className="wt-head">
         <h1 className="page-title">{t('dashboard:navWaiter')}</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', color: 'var(--green)' }}>
+        <div className="page-live wt-live">
           <span className="dash-live-dot" /> {t('common:live')}
         </div>
       </div>
@@ -166,31 +207,35 @@ export default function WaiterPage() {
 
       <MyTipsCard />
 
-      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem' }} className="no-scrollbar">
-        <button className={`chip${tab === 'calls' ? ' active' : ''}`} style={{ position: 'relative' }} onClick={() => selectTab('calls')}>
+      <ChipScroller role="group" aria-label={t('dashboard:navWaiter')}>
+        <button type="button" className={`chip wt-tab${tab === 'calls' ? ' active' : ''}`} onClick={() => selectTab('calls')}>
           {t('dashboard:waiterTabCalls', { count: calls.length })}
-          {hasNewCall && tab !== 'calls' && (
-            <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: 'var(--red)' }} />
-          )}
+          {hasNewCall && tab !== 'calls' && <span className="wt-dot wt-dot--red" aria-hidden="true" />}
         </button>
-        <button className={`chip${tab === 'mine' ? ' active' : ''}`} onClick={() => selectTab('mine')}>
+        <button type="button" className={`chip${tab === 'mine' ? ' active' : ''}`} onClick={() => selectTab('mine')}>
           {t('dashboard:waiterTabMyTables')}
         </button>
-        <button className={`chip${tab === 'all' ? ' active' : ''}`} onClick={() => selectTab('all')}>
+        <button type="button" className={`chip${tab === 'all' ? ' active' : ''}`} onClick={() => selectTab('all')}>
           {t('dashboard:waiterTabAllTables')}
+          {clearedCount > 0 && (
+            <span className="wt-count" title={t('dashboard:waiterNeedsReset', { count: clearedCount })} aria-label={t('dashboard:waiterNeedsReset', { count: clearedCount })}>
+              {clearedCount}
+            </span>
+          )}
         </button>
-      </div>
+      </ChipScroller>
 
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />)}
+        <div className="wt-skels" aria-hidden="true">
+          {[1, 2, 3].map(i => <div key={i} className="skeleton wt-skel" />)}
         </div>
       ) : tab === 'calls' ? (
         <CallsTab calls={calls} acting={acting} onAck={handleAck} onResolve={handleResolve} />
       ) : tab === 'mine' ? (
-        <MyTablesTab tables={myTables} acting={acting} onRelease={handleRelease} />
+        <MyTablesTab tables={myTables} facts={orderFacts} orders={ordersByTable} acting={acting} canServe={canServe}
+          onServe={handleServe} onRelease={handleRelease} />
       ) : (
-        <AllTablesTab tables={activeTables} acting={acting} onTake={handleTake} />
+        <AllTablesTab tables={activeTables} facts={orderFacts} acting={acting} canReset={canReset} onTake={handleTake} onReset={handleReset} />
       )}
     </div>
   )

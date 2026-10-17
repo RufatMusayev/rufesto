@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { formatPrice } from '../../../lib/helpers'
+import { useDishAvailable } from '../../feed/dishAvailability'
 import CoverImage from './CoverImage'
 
 /**
@@ -10,6 +11,7 @@ import CoverImage from './CoverImage'
  */
 export default function DishCard({ d }) {
   const { t } = useTranslation('social')
+  const available = useDishAvailable(d.id, d.available)       // live: a dish that sold out since the answer was built
   const place = d.restaurant
   const to = place?.slug ? `/restaurant/${place.slug}?dish=${d.id}` : null
   const body = (
@@ -18,8 +20,8 @@ export default function DishCard({ d }) {
         <CoverImage sources={[{ url: d.photo }]} name={d.name} />
         <span className="dsc-shade" aria-hidden="true" />
         <span className="dsc-over dsc-over-top">
-          <span className={`dsc-pill ${d.available ? 'dsc-pill-open' : 'dsc-pill-off'}`}>
-            {t(d.available ? 'discover.available' : 'post.soldOut')}
+          <span className={`dsc-pill ${available ? 'dsc-pill-open' : 'dsc-pill-off'}`}>
+            {t(available ? 'discover.available' : 'post.soldOut')}
           </span>
         </span>
         {d.price != null && (
@@ -38,7 +40,7 @@ export default function DishCard({ d }) {
     </>
   )
   return (
-    <article className="dsc-dc">
+    <article className="dsc-dc" data-dish-id={d.id}>
       {to ? <Link to={to} className="dsc-dc-link">{body}</Link> : <div className="dsc-dc-link">{body}</div>}
     </article>
   )

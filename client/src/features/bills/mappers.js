@@ -80,6 +80,8 @@ export function mapBill(raw) {
       name: raw.restaurant?.name || '',
       slug: raw.restaurant?.slug || '',
       address: raw.restaurant?.address || '',
+      // true / false when the bill JSON says whether the venue takes the demo card (restaurant.demo_payments), null = not said
+      demoPayments: typeof raw.restaurant?.demo_payments === 'boolean' ? raw.restaurant.demo_payments : null,
     },
     table: { id: raw.table?.id ?? null, label: raw.table?.label ?? '' },
     currency: raw.currency || 'AZN',

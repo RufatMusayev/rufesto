@@ -1,50 +1,68 @@
 import { useTranslation } from 'react-i18next'
 import { TABLE_COLORS } from '@shared/constants'
-import { tableStateLabel } from './waiterHelpers'
+import { CLEARED_STATE, tableStateLabel } from './waiterHelpers'
+import TableFacts from './TableFacts'
 
-export default function AllTablesTab({ tables, acting, onTake }) {
+// Every table that has guests, an order or a state worth a look. Cleared tables (paid, guests gone) come first with
+// a "Reset table" button for the roles that may change a table's state; the rest show the same facts as My Tables.
+export default function AllTablesTab({ tables, facts, acting, canReset, onTake, onReset }) {
   const { t } = useTranslation(['dashboard', 'common'])
 
   if (tables.length === 0) {
     return <div className="empty"><div className="empty-icon">🍽️</div>{t('dashboard:waiterNoActiveTables')}</div>
   }
 
+  // Cleared first (they need a hand), then the floor in table order (the sort is stable).
+  const ordered = [...tables].sort((a, b) => (b.state === CLEARED_STATE) - (a.state === CLEARED_STATE))
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '0.75rem' }}>
-      {tables.map(tbl => {
+    <div className="wt-grid">
+      {ordered.map(tbl => {
         const s = TABLE_COLORS[tbl.state] || TABLE_COLORS.free
-        const acting_ = acting === tbl.table_id
+        const busy = acting === tbl.table_id
+        const cleared = tbl.state === CLEARED_STATE
 
         return (
-          <div key={tbl.table_id} style={{
-            background: 'var(--s2)', borderRadius: 14, overflow: 'hidden',
-            border: tbl.is_mine ? '1.5px solid var(--accent)' : `1.5px solid ${s.border}`,
-          }}>
-            <div style={{ height: 2, background: s.color, opacity: 0.6 }} />
-            <div style={{ padding: '0.85rem 1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('dashboard:tableLabel', { number: tbl.table_number })}</span>
+          <div key={tbl.table_id} className={`wt-card${tbl.is_mine ? ' is-mine' : ''}`} style={tbl.is_mine ? undefined : { borderColor: s.border }}>
+            <div className="wt-card-bar" style={{ background: s.color }} />
+            <div className="wt-card-body">
+              <div className="wt-card-head">
+                <span className="wt-card-title">{t('dashboard:tableLabel', { number: tbl.table_number })}</span>
                 <span className="badge" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                   {tableStateLabel(t, tbl.state)}
                 </span>
               </div>
-              {tbl.section && <div style={{ fontSize: '0.7rem', color: 'var(--t3)', marginBottom: 8 }}>{tbl.section}</div>}
+              {tbl.section && <div className="wt-card-section">{tbl.section}</div>}
 
-              <div style={{ fontSize: '0.78rem', marginBottom: 10 }}>
-                {tbl.is_mine ? (
-                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{t('dashboard:waiterMine')}</span>
-                ) : tbl.assigned_name ? (
-                  <span style={{ color: 'var(--t2)' }}>{tbl.assigned_name}</span>
-                ) : (
-                  <span style={{ color: 'var(--t3)' }}>{t('dashboard:waiterUnassigned')}</span>
-                )}
-              </div>
+              {cleared ? (
+                <>
+                  <p className="wt-card-note">{t('dashboard:waiterClearedNote')}</p>
+                  {canReset && (
+                    <button type="button" className="btn btn-primary btn-sm wt-card-btn" disabled={busy} onClick={() => onReset(tbl.table_id)}>
+                      {busy ? <span className="spinner wt-spinner" /> : t('dashboard:waiterResetTable')}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="wt-card-owner">
+                    {tbl.is_mine ? (
+                      <span className="wt-owner--mine">{t('dashboard:waiterMine')}</span>
+                    ) : tbl.assigned_name ? (
+                      <span className="wt-owner--name">{tbl.assigned_name}</span>
+                    ) : (
+                      <span className="wt-owner--none">{t('dashboard:waiterUnassigned')}</span>
+                    )}
+                  </div>
 
-              {!tbl.is_mine && (
-                <button className="btn btn-ghost btn-sm" style={{ width: '100%' }}
-                  disabled={acting_} onClick={() => onTake(tbl.table_id)}>
-                  {acting_ ? <span className="spinner" style={{ width: 12, height: 12 }} /> : t('dashboard:waiterTakeTable')}
-                </button>
+                  <TableFacts table={tbl} facts={facts[tbl.table_id]} />
+
+                  {!tbl.is_mine && (
+                    <button type="button" className="btn btn-ghost btn-sm wt-card-btn" disabled={busy} onClick={() => onTake(tbl.table_id)}>
+                      {busy ? <span className="spinner wt-spinner" /> : t('dashboard:waiterTakeTable')}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

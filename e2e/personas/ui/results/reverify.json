@@ -1,0 +1,83 @@
+{
+  "bundle": "index-D9ZRBzZM.js",
+  "time": "2026-10-17T08:34:55.188Z",
+  "dish_sheet_unlabelled_icons": 3,
+  "dish_like_shows_1_like_signed_out": true,
+  "dish_like_save_signin_prompt": false,
+  "dish_like_save_writes": [],
+  "japanese_chip_sections": {
+    "Open now": 1,
+    "Trending dishes": 12,
+    "New places": 2,
+    "Promos": 0,
+    "Top reviews": 0,
+    "All restaurants": 1
+  },
+  "profile_signedout_has_language_switch": false,
+  "home_header_has_language_switch": false,
+  "bottom_nav": [
+    "Home",
+    "Explore",
+    "Scan QR",
+    "Map",
+    null
+  ],
+  "restaurant_first_screen": [
+    "Rufesto",
+    "24",
+    "dishes",
+    "6",
+    "followers",
+    "22",
+    "reviews",
+    "26/26",
+    "seats",
+    "Trattoria Bella Roma",
+    "Italian Restaurant",
+    "·",
+    "Open",
+    "· until 23:30",
+    "Authentic Roman trattoria bringing the soul of Italy to Baku. Family recipes, fresh pasta, and wood-fired pizza.",
+    "Nizami St 42",
+    "Reserve a table",
+    "Follow",
+    "Posts",
+    "Menu",
+    "From Trattoria Bella Roma",
+    "Guests",
+    "Live acoustic guitar this Saturday from 20:00. Tables fill up early."
+  ],
+  "restaurant_unnamed_buttons": [
+    "a 88x44 @y786"
+  ],
+  "home_top6_before": [
+    "M Mehriban Rzayeva · 16m ago Burger Qala",
+    "Dönər Bakı Express · 22h ago Open now 2 ",
+    "A Aysel Məmmədova · 12m ago Fincan Coffe",
+    "Burger Qala · 20h ago Open now Burger Qa",
+    "🍴 Dönər Bakı Express Sponsored PROMOTED",
+    "Şirvan Mətbəxi · 2d ago Open now Availab"
+  ],
+  "home_top6_after_follow_tabswitch": [
+    "M Mehriban Rzayeva · 16m ago Burger Qala",
+    "Dönər Bakı Express · 22h ago Open now 2 ",
+    "A Aysel Məmmədova · 12m ago Fincan Coffe",
+    "Burger Qala · 20h ago Open now Burger Qa",
+    "🍴 Dönər Bakı Express Sponsored PROMOTED",
+    "Şirvan Mətbəxi · 2d ago Open now Availab"
+  ],
+  "home_unchanged_after_follow_without_reload": true,
+  "undo_follow_done": true,
+  "friends_tab_after_first_post_text": [
+    "TODAY",
+    "M",
+    "Mehriban Rzayeva",
+    "· 16m ago",
+    "Burger Qala",
+    "Mehriban Rzayeva Lunch at Burger Qala today. The classic burger with extra pickles did not disappoint.",
+    "✓",
+    "You're all caught up",
+    "Earlier posts from you and your friends, newest first:"
+  ],
+  "friends_tab_find_friends_cta": 0
+}

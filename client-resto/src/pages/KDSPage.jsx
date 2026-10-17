@@ -121,7 +121,7 @@ export default function KDSPage() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <h1 className="page-title">{t('kitchen')}</h1>
-          <div style={{ display:'flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:100, background:'rgba(45,122,26,0.1)', border:'1px solid rgba(45,122,26,0.2)' }}>
+          <div className="page-live" style={{ display:'flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:100, background:'rgba(45,122,26,0.1)', border:'1px solid rgba(45,122,26,0.2)' }}>
             <span className="dash-live-dot" />
             <span style={{ fontSize:'0.68rem', fontWeight:700, color:'var(--green)' }}>{t('live')}</span>
           </div>

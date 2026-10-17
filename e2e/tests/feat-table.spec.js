@@ -4,6 +4,7 @@
 // guest lock, picks a FREE Bella Roma table (never T5 = QA_TABLE_CODE), seats the guests over the API where the seating is not the
 // thing under test, and resets the table in `finally`. App bugs stay failing tests (documented in docs/qa/consumer-table.md).
 const F = require('../support/feat-table')
+const R = require('../support/restaurant')
 const { test, expect, url, rurl } = F
 
 test.skip(!F.haveAccounts, 'docs/REVIEW-ACCOUNTS.md must list review1-3 and the Bella Roma manager / waiter1 / kitchen accounts')
@@ -61,7 +62,7 @@ test.describe('table: joining', TAGS, () => {
       await expect(page.getByText(`#${table.number} · Trattoria Bella Roma`)).toBeVisible()
       await expect(page.getByText(/^active$/i)).toBeVisible()
       await expect(page.getByText('No orders yet')).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Add More Items' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Browse the menu', exact: true }), 'an empty table offers "Browse the menu"').toBeVisible()
       const mine = (await g1.rpc('my_table_session')).body
       expect(mine).toMatchObject({ table_id: table.id, session_status: 'active', is_host: true, seat_no: null })
       expect(await F.tableState(mgr, table.id)).toBe('occupied')
@@ -354,6 +355,31 @@ test.describe('table: cart, order and kitchen', TAGS, () => {
       await sheet.getByRole('button', { name: 'Remove one Cappuccino' }).click()   // qty 1 -> removes the line
       await expect(sheet.getByText('Your cart is empty')).toBeVisible()
       await expect(sheet.getByRole('button', { name: /^Place Order/ })).toHaveCount(0)
+    })
+  })
+
+  // CartContext.addDish no longer opens the order sheet: "+" on a menu row (seated guests) and "Add to order" in the dish sheet differ.
+  test('menu "+" while seated: a toast and the cart badge, the order sheet stays closed, View opens it; sold-out rows have no "+"', async ({ ui }) => {
+    await F.withTable(ui, {}, async ({ table }) => {
+      const { page } = await ui.open('g1')
+      await F.joinTable(page, table.code)
+      await F.openMenu(page)
+      const add = page.locator('.mn-row:has(.mn-add)').first()
+      const name = (await add.locator('.mn-name').innerText()).trim()
+      const toast = page.locator('.cart-toast')
+      await add.locator('.mn-add').click()
+      await expect(toast).toContainText(`Added ${name}`)
+      await expect(toast).toContainText(/1 item in your order/)
+      await expect(page.locator('.overlay'), 'the order sheet stays closed after "+"').toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Open cart' }), 'the cart badge counts it').toContainText('1')
+      await add.locator('.mn-add').click()
+      await expect(toast).toContainText(/2 items in your order/)
+      await expect(page.locator('.mn-row.is-sold .mn-add'), 'no "+" on a sold-out dish').toHaveCount(0)
+      await toast.getByRole('button', { name: 'View' }).click()
+      const sheet = F.cartSheet(page)
+      await expect(sheet.getByRole('heading', { name: 'Your Order' })).toBeVisible()
+      await expect(sheet.locator('.cart-row').filter({ hasText: name }).locator('.cart-qty-num')).toHaveText('2')
+      await expect(toast, 'no toast while the sheet is open').toHaveCount(0)
     })
   })
 

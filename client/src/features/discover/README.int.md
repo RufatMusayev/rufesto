@@ -11,8 +11,9 @@ One `discover()` call renders the tab. Sections, in this order, each with a seri
 ## Files (`client/src/features/discover/`)
 
 - `api.js` the only file that calls Supabase: `getDiscover` (rpc), `getRestaurantLikes`, `setRestaurantLike`, `setFollow`, mappers `mapDiscover` / `mapRestaurantCard` / `mapDishCard`.
-- `discoverStore.js` module-level store (see Speed): answers per viewer + location + cuisine, cuisine chip state, optimistic follow / like state, `ensureDiscover`, `reloadDiscover`, `toggleFollow`, `toggleLike`, `currentViewer`.
-- `DiscoverTab.jsx` the tab; `ActionsContext.js` follow / like state shared by every card.
+- `discoverStore.js` module-level store (see Speed): answers per viewer + location + cuisine, cuisine chip state, optimistic follow / like state, `ensureDiscover`, `reloadDiscover`, `invalidateDiscover` (follows / friends changed: every answer refreshes quietly on its next visit), `patchDiscoverReview` (a like or reply made on a top-review card is kept), `toggleFollow`, `toggleLike`, `currentViewer`.
+- `DiscoverTab.jsx` the tab (`active` prop: becoming the shown tab asks the store to make sure its answer is fresh); `ActionsContext.js` follow / like state shared by every card.
+- `cuisine.js` `cuisineLabel(t, key)`: cuisine names through `social:cuisine.<slug>` (English and Azerbaijani for Italian, Azerbaijani, Japanese, Cafe, Fast Food, Georgian, Turkish and about twenty more; an unknown value is shown as written, capitalised). Used by the chips, the restaurant cards and the restaurant picker of the new-post screen.
 - `components/`: `CuisineChips`, `RestaurantRail` + `RestaurantCard` (variants `rail` / `list`), `DishRail` + `DishCard`, `PromoRail` (reuses `feed/components/FeedItem` + `PromoCard`), `ReviewList` (reuses `social/components/ReviewCard`), `AllRestaurantsList`, `Section` (+ `Rail`), `CoverImage`, `DiscoverSkeleton` (+ `DiscoverFallback`).
 - `styles.css` (prefix `dsc-`, 105 lines). Shared card chrome and tokens: `feed/cards.css`, photo overlays: `social/styles.css`.
 
@@ -31,13 +32,16 @@ Missing RPC (PostgREST 404 / PGRST202, the error code `unavailable`): the tab sh
 - Restaurant cover: `cover_photo`, then `cover_fallback` (first available dish photo, from the RPC), then `logo` (contained, not cropped), then the initials of the name on a tokens-only tile. An image that fails to load moves to the next one. No emoji art anywhere.
 - Restaurant card: status pill over the photo ("Open · closes 23:00" / "Closed"), "Trending" pill, name in Playfair, `cuisine · km`, rating ★ and review count, follower count, Follow button. Rails show Follow to signed-in viewers only (18.3); the "All restaurants" list also offers it to signed-out viewers, where a tap opens the sign-in sheet (as the old list did). The list card adds address, free seats (only while open), the like button (🤌 with count), "View menu →" and the share / copy-link menu (`PostMenu`). The list renders 12 cards and a "Show more" button adds 12 more.
 - Follow is shared: following in "Open now" shows in "All restaurants" at once; the follower count moves by one.
-- Dish card: one link to `/restaurant/<slug>?dish=<id>` (RestaurantPage opens that dish's sheet), Available / Sold out pill and price over the photo. `DishDetailSheet` is no longer used on Home (the old reviews and promos opened it; reviews now link to the restaurant, promo dishes to `?dish=`).
-- Promos: the existing `PromoCard` in a rail, tracked like Home (impression after 50 % for 1 s, click via `track_campaign`; feed events pool `promo`).
+- Dish card: one link to `/restaurant/<slug>?dish=<id>` (RestaurantPage opens that dish's sheet), Available / Sold out pill and price over the photo. The pill is live: `feed/dishAvailability.js` re-reads the availability of the visible cards' dishes every 60 s and on window focus (leyla #7). `DishDetailSheet` is no longer used on Home (the old reviews and promos opened it; reviews now link to the restaurant, promo dishes to `?dish=`).
+- Promos: the existing `PromoCard` in a rail, tracked like Home (impression after 50 % for 1 s, click via `track_campaign`; feed events pool `promo`). One label ("Sponsored" / "Reklam") and, when the promo carries `discount_percent` / `discount_amount` (sql/63), a "-15 %" / "-₼5" badge; a leading `[discount:percent=n]` / `[discount:amount=n]` in the description is parsed in `social/mappers.js` (`mapDiscount`) and never shown.
 - Top reviews: the existing `ReviewCard` (like, dish chip, photo, verified pill). The old reply thread and "save dish" on the home review card are not part of that card.
 - Location: `useViewerLocation` is one module-level state shared with Home and Friends (one permission, one fix, one pill). A tap in either tab updates all of them; Discover refetches once with the coordinates.
 - Cuisine chips: "All" + `cuisines`; the chip list comes from the unfiltered answer. Each cuisine answer is cached (up to 8 answers kept), so picking a chip you used before costs nothing.
 
 ## Speed
+
+- **Coming back to the tab (persona-newcomer N21)**: the tab stays mounted. While another Home tab is shown it is `content-visibility: hidden` where supported (`.soc-tabpanel[hidden]` in `social/styles.css`; plain `display: none` elsewhere), so its layout is kept and showing it again does not lay out and paint everything. Sections are `memo`ised, and a quiet refresh that brings the same answer keeps the object on screen (JSON equality in `discoverStore.run`), so nothing re-renders. Measured with CPU x4: back to Discover 207 ms -> 106 ms (4 runs, real backend, signed out); the first visit is about the same (82 -> 107 ms).
+- A follow or friend change made anywhere marks every answer stale (`lib/supabase.js` announces the write); the answer refreshes in the background on the next visit and the old one stays on screen meanwhile.
 
 - `discoverStore` keeps answers outside React: no refetch on a tab switch, nor when the guest leaves Home and comes back (stale after 5 min: refreshed in the background while the old answer stays on screen).
 - `feed/prefetch.js` (imported by `HomePage.jsx`, runs when the app boots on `/`) requests the remembered tab first, then Discover and Friends in idle time, and `HomeTabs` preloads their chunks in idle time.
@@ -60,4 +64,5 @@ Missing RPC (PostgREST 404 / PGRST202, the error code `unavailable`): the tab sh
 - Not run against the real `discover` (not on preview when this was built); layout, states, actions and requests were verified with contract-shaped fixtures. Check 1 and 2 above need real data.
 - Restaurant likes are counted by reading `likes` rows (as the old list did, capped by PostgREST's row limit); a `like_count` on the restaurant card would remove the read.
 - `e2e/tests/feat-discovery.spec.js` targets the old markup (stories bar, `.menu-card` restaurant posts, "View menu →" from the `feed` namespace, reply threads, double-tap like) and will need updating; not touched (outside scope).
-- The `/rufesto` skill File System Map (`~/.claude/commands/rufesto.md`) has no `features/*` entries; not updated.
+- The `/rufesto` skill File System Map has entries for `features/discover` since the persona fix round.
+- The cuisine filter is applied by the server (`p_cuisine`) to every section and "followed first / nearest first" ordering is the database's job (sql/63); the chips only send the cuisine key.

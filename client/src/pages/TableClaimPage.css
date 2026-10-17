@@ -1,0 +1,4 @@
+/* /t/<code> join card (pages/TableClaimPage.jsx): which restaurant and table the guest is about to join. */
+.claim-venue { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 10px; }
+.claim-venue-name { font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: var(--t1); overflow-wrap: anywhere; }
+.claim-venue-table { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--t2); }

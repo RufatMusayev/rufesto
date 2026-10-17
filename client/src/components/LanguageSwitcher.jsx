@@ -2,19 +2,27 @@ import { useTranslation } from 'react-i18next'
 import { SUPPORTED_LANGS } from '../lib/i18n'
 
 const LANG_LABELS = { en: 'EN', az: 'AZ' }
+// each language in its own words, for the accessible name of its button
+const LANG_NAMES = { en: 'English', az: 'Azərbaycan dili' }
 
+/**
+ * EN / AZ switch. The choice is stored by the language detector in localStorage (rufesto_lang), so it is the same
+ * signed in or out: the phone header, the desktop sidebar and Profile > Settings all use this component.
+ */
 export default function LanguageSwitcher({ className = '' }) {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation('common')
   const current = i18n.language?.slice(0, 2) || 'en'
 
   return (
-    <div className={`lang-switcher ${className}`}>
+    <div className={`lang-switcher ${className}`} role="group" aria-label={t('language')}>
       {SUPPORTED_LANGS.map(lang => (
         <button
           key={lang}
           type="button"
+          lang={lang}
           className={`lang-btn${current === lang ? ' active' : ''}`}
           aria-pressed={current === lang}
+          aria-label={t('switchToLanguage', { language: LANG_NAMES[lang] })}
           onClick={() => i18n.changeLanguage(lang)}
         >
           {LANG_LABELS[lang]}

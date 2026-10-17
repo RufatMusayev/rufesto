@@ -1,7 +1,13 @@
-// Client-side photo preparation for posts: longest edge <= 1600px, JPEG q0.85, <= 5 MB.
-export const MAX_EDGE = 1600
+// Client-side photo preparation for posts: the main JPEG (longest edge <= 1080px, q0.85, <= 5 MB) and a small copy
+// (longest edge <= 640px, q~0.78, <= ~120 KB) that feeds and grids show (stored next to the main photo as
+// `<path>_w640.jpg`, see lib/postPhotos.js smallPhotoPath). 1080 matches the dashboard app:
+// the photo: a post is shown in a phone-wide column, so a 1600px original only cost upload time and page weight.
+export const MAX_EDGE = 1080
 export const MAX_BYTES = 5 * 1024 * 1024
 const QUALITIES = [0.85, 0.7, 0.55]
+export const SMALL_EDGE = 640
+export const SMALL_TARGET_BYTES = 120 * 1024
+const SMALL_QUALITIES = [0.78, 0.68, 0.58, 0.5]
 
 const fail = code => Object.assign(new Error(code), { code })
 
@@ -24,7 +30,39 @@ async function decode(file) {
 
 const toBlob = (canvas, quality) => new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
 
-/** Returns { blob, url, width, height }. Rejects with an Error whose `code` is 'not_an_image' | 'photo_too_large'. */
+/**
+ * The small copy of an already drawn canvas: a JPEG with the longest edge <= 640px, quality stepped down until it is
+ * <= 120 KB (the smallest try is kept when none gets there). Never throws: null means "no small copy", the post is
+ * published with the main photo only and the feeds fall back to it.
+ */
+async function makeSmall(source, width, height) {
+  try {
+    const scale = Math.min(1, SMALL_EDGE / Math.max(width, height))
+    const w = Math.max(1, Math.round(width * scale))
+    const h = Math.max(1, Math.round(height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(source, 0, 0, w, h)         // `source` is the main canvas: already flattened onto white
+    let best = null
+    for (const q of SMALL_QUALITIES) {
+      const blob = await toBlob(canvas, q)
+      if (!blob) continue
+      best = blob
+      if (blob.size <= SMALL_TARGET_BYTES) break
+    }
+    return best
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Returns { blob, url, width, height, small } where `small` is the 640px JPEG Blob or null.
+ * Rejects with an Error whose `code` is 'not_an_image' | 'photo_too_large'.
+ */
 export async function prepareImage(file) {
   if (!file || !/^image\//.test(file.type || '')) throw fail('not_an_image')
   let bitmap
@@ -43,12 +81,13 @@ export async function prepareImage(file) {
   const ctx = canvas.getContext('2d')
   ctx.fillStyle = '#ffffff'            // JPEG has no alpha: flatten transparent PNGs onto white
   ctx.fillRect(0, 0, width, height)
+  ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(bitmap, 0, 0, width, height)
   if (typeof bitmap.close === 'function') bitmap.close()
 
   for (const q of QUALITIES) {
     const blob = await toBlob(canvas, q)
-    if (blob && blob.size <= MAX_BYTES) return { blob, url: URL.createObjectURL(blob), width, height }
+    if (blob && blob.size <= MAX_BYTES) return { blob, url: URL.createObjectURL(blob), width, height, small: await makeSmall(canvas, width, height) }
   }
   throw fail('photo_too_large')
 }

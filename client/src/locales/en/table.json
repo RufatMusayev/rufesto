@@ -80,5 +80,6 @@
   "errInvalidSeat": "That seat doesn't exist at this table. Scan the code on your own seat or enter the table code.",
   "errSeatTaken": "That seat is already taken. Pick another seat or enter the plain table code.",
   "orderCancelledNote": "Order #{{number}} was cancelled by the restaurant.",
-  "tableCleared": "This table has been cleared. Open your bill or receipt below, then leave the table when you are done."
+  "tableCleared": "This table has been cleared. Open your bill or receipt below, then leave the table when you are done.",
+  "browseMenu": "Browse the menu"
 }

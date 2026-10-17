@@ -9,6 +9,7 @@ const { test, expect, settle } = require('../support/fixtures')
 const { CONSUMER_URL } = require('../support/env')
 const F = require('../support/feat-bookings')
 const { openAs } = F
+const R = require('../support/restaurant')
 
 const { url, BELLA, SAKURA, anonApi, bakuClock, hm, rawKeys } = F
 const NAMES = { 'bella-roma': 'Trattoria Bella Roma', 'seda-ocagi': 'Səda Ocağı', 'sakura-house': 'Sakura House' }
@@ -490,7 +491,7 @@ test.describe('map', { tag: ['@anon', '@consumer', '@feat'] }, () => {
 /* ============================================================ RESTAURANT */
 
 test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () => {
-  const tiles = p => p.locator('.menu-card')
+  const tiles = p => R.rows(p)   // the printed menu's dish rows (the old .menu-card grid is gone, docs/V2-CONTRACT.md 19.2)
   const stat = (p, label) => p.getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]')
   // The follower count is public: the page reads it through the count-only RPC (sql/55b; anon no longer has SELECT on user_follows, and a
   // signed-in guest only sees their own follow rows), so the test reads the same RPC as anon.
@@ -519,7 +520,8 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
         const free = now.filter(t => t.state === 'free').reduce((n, t) => n + t.capacity, 0)
         return (await stat(page, 'seats').innerText()) === `${free}/${now.reduce((n, t) => n + t.capacity, 0)}`
       }, 'free seats / total seats on the page equal the tables').toBe(true)
-      await expect(tiles(page)).toHaveCount(dishes.length)
+      await R.showMenu(page)
+      await expect(tiles(page), 'one row per dish of the menu').toHaveCount(dishes.length)
       noErrors(watch)
     })
   }
@@ -588,55 +590,62 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     }
   })
 
-  test('menu category chips filter the dishes and scroll sideways when they do not fit', async ({ page, isMobile }) => {
+  test('menu sections: chips and headings follow the menu, a chip jumps to its section, the chip row scrolls sideways on a phone', async ({ page, isMobile }) => {
     const api = await anonApi(page)
-    const dishes = await dishRows(api, BELLA)
-    const sections = await api.get(`menu_sections?select=id,name,sort_order,menus!inner(restaurant_id,is_active)&menus.restaurant_id=eq.${BELLA}&menus.is_active=eq.true&order=sort_order`)
-    await page.goto(url('/restaurant/bella-roma'))
-    await expect(tiles(page)).toHaveCount(dishes.length)
-    const strip = page.locator('div.no-scrollbar').filter({ hasText: sections[0].name }).first()
-    await expect(strip.getByRole('button')).toHaveCount(sections.length + 1)
-    for (const s of sections) {
-      const chipBtn = strip.locator('button').filter({ hasText: s.name })
-      await chipBtn.scrollIntoViewIfNeeded()
-      await chipBtn.click()
-      await expect(tiles(page), `dishes under the ${s.name} chip`).toHaveCount(dishes.filter(d => d.menu_section_id === s.id).length)
-    }
+    const menu = (await api.rpc('restaurant_menu', { p_slug: 'bella-roma' })).body
+    const sections = menu.sections.filter(s => s.dishes.length)
+    expect(sections.length, 'Bella Roma has several sections').toBeGreaterThan(1)
+    await R.gotoMenu(page, 'bella-roma')
+    const chips = page.locator('.mn-chip')
+    await expect(chips, 'one chip per printed section, in order').toHaveText(sections.map(s => s.name))
+    await expect(page.locator('.mn-sec-title')).toHaveText(sections.map(s => s.name))
+    for (const [i, s] of sections.entries()) await expect(page.locator('.mn-sec').nth(i).locator('.mn-row'), `dishes under ${s.name}`).toHaveCount(s.dishes.length)
+    const last = chips.last()
+    await last.scrollIntoViewIfNeeded()
+    await last.click()
+    await expect(page.locator('.mn-sec-title').last(), 'the last section is on screen after its chip is tapped').toBeInViewport()
     if (isMobile) {
+      const strip = page.locator('.mn-chips')
       const dims = await strip.evaluate(el => ({ sw: el.scrollWidth, cw: el.clientWidth, left: el.scrollLeft }))
-      expect(dims.sw, 'the chip strip scrolls sideways on a phone').toBeGreaterThan(dims.cw)
-      expect(dims.left, 'the strip scrolled to reveal the last chip').toBeGreaterThan(0)
+      expect(dims.sw, 'the chip row scrolls sideways on a phone').toBeGreaterThan(dims.cw)
+      await expect.poll(() => strip.evaluate(el => el.scrollLeft), 'the row followed the jump to the last chip').toBeGreaterThan(0)
     }
-    await strip.locator('button').filter({ hasText: 'All' }).click()
-    await expect(tiles(page)).toHaveCount(dishes.length)
   })
 
-  test('dietary chips show their counts, combine, and Clear resets', async ({ page }) => {
+  test('menu search and dietary tags: they show their counts, combine, and Clear resets', async ({ page }) => {
     const dishes = await dishRows(await anonApi(page), BELLA)
-    await page.goto(url('/restaurant/bella-roma'))
+    await R.gotoMenu(page, 'bella-roma')
     await expect(tiles(page)).toHaveCount(dishes.length)
+    const diets = page.getByRole('group', { name: 'Dietary filters' })
     const vegan = dishes.filter(d => d.is_vegan).length
     const veg = dishes.filter(d => d.is_vegetarian).length
-    await expect(page.getByRole('button', { name: new RegExp(`Vegan\\s*${vegan}$`) })).toBeVisible()
-    await expect(page.getByRole('button', { name: new RegExp(`Vegetarian\\s*${veg}$`) })).toBeVisible()
-    await page.getByRole('button', { name: /Vegetarian/ }).click()
+    await expect(diets.getByRole('button', { name: new RegExp(`Vegan\\s*${vegan}$`) })).toBeVisible()
+    await expect(diets.getByRole('button', { name: new RegExp(`Vegetarian\\s*${veg}$`) })).toBeVisible()
+    await diets.getByRole('button', { name: /Vegetarian/ }).click()
     await expect(tiles(page)).toHaveCount(veg)
-    await page.getByRole('button', { name: /Vegan/ }).click()
+    await diets.getByRole('button', { name: /Vegan/ }).click()
     await expect(tiles(page), 'Vegan + Vegetarian together').toHaveCount(dishes.filter(d => d.is_vegan && d.is_vegetarian).length)
-    await page.getByRole('button', { name: 'Clear', exact: true }).click()
+    await diets.getByRole('button', { name: 'Clear', exact: true }).click()
+    await expect(tiles(page)).toHaveCount(dishes.length)
+    const search = page.getByRole('searchbox', { name: 'Search the menu' })
+    await search.fill('zzzzqq')
+    await expect(page.getByText('Nothing matches')).toBeVisible()
+    await expect(tiles(page)).toHaveCount(0)
+    await search.fill('')
     await expect(tiles(page)).toHaveCount(dishes.length)
   })
 
-  test('grid and list view show the same dishes; the list adds prices and availability', async ({ page }) => {
+  test('the menu is a printed list, not a photo grid: a row per dish with its price, sold-out dishes tagged, no grid / list toggle', async ({ page }) => {
     const dishes = await dishRows(await anonApi(page), BELLA)
-    await page.goto(url('/restaurant/bella-roma'))
+    await R.gotoMenu(page, 'bella-roma')
     await expect(tiles(page)).toHaveCount(dishes.length)
-    const toggles = page.locator('button.tap-h').filter({ has: page.locator('svg rect, svg line') })
-    await toggles.nth(1).click()
-    await expect(tiles(page)).toHaveCount(dishes.length)
-    const row = tiles(page).filter({ hasText: dishes[0].name }).first()
-    await expect(row).toContainText(money(dishes[0].price))
-    await expect(row).toContainText(dishes[0].available ? 'Available' : /sold out/i)
+    await expect(page.locator('.menu-card'), 'the old dish grid is gone').toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^(grid|list)( view)?$/i }), 'no grid / list toggle').toHaveCount(0)
+    for (const d of dishes.slice(0, 6)) {
+      const row = R.byId(page, d.id)
+      await expect(row.locator('.mn-price'), `${d.name}: price`).toHaveText(money(d.price))
+      await expect(row.locator('.mn-tag--sold'), `${d.name}: Sold out tag`).toHaveCount(d.available ? 0 : 1)
+    }
   })
 
   test('dish sheet for a guest: price, description, ingredients, allergens request, reviews list', async ({ page, watch }) => {
@@ -648,9 +657,8 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     const soldOut = dishes.find(d => !d.available)
     const allergenCalls = []
     page.on('response', r => { if (/\/rest\/v1\/dish_allergens/.test(r.url())) allergenCalls.push(r.status()) })
-    await page.goto(url('/restaurant/bella-roma'))
-    await expect(tiles(page).first()).toBeVisible()
-    const open = async d => { await tiles(page).filter({ hasText: d.name }).first().click(); await expect(page.locator('.overlay')).toBeVisible() }
+    await R.gotoMenu(page, 'bella-roma')
+    const open = async d => { await R.rowOpen(R.byId(page, d.id)).click(); await expect(page.locator('.overlay')).toBeVisible() }
     const close = async () => { await page.keyboard.press('Escape'); await expect(page.locator('.overlay')).toHaveCount(0) }
 
     await test.step('ingredients (visible to guests), price, table prompt', async () => {
@@ -849,13 +857,15 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
 
   test('Restaurant page, dish sheet and floor plan in Azerbaijani', async ({ page, watch }) => {
     await page.goto(url('/restaurant/bella-roma'))
-    await expect(page.locator('.menu-card').first()).toBeVisible()
-    await expectAz(page, [['restaurant', 'statDishes'], ['restaurant', 'statFollowers'], ['restaurant', 'statReviews'], ['restaurant', 'statSeats'], ['restaurant', 'follow'], ['bookings', 'reserve'], ['restaurant', 'all']], 'Restaurant')
+    await expect(R.tabBtn(page, 'Posts').or(R.tabBtn(page, 'Paylaşımlar'))).toBeVisible()
+    await expectAz(page, [['restaurant', 'statDishes'], ['restaurant', 'statFollowers'], ['restaurant', 'statReviews'], ['restaurant', 'statSeats'], ['restaurant', 'follow'], ['bookings', 'reserve'], ['restaurant', 'tabs.posts'], ['restaurant', 'tabs.menu']], 'Restaurant')
     await expect(page.getByText(/Açıqdır|Bağlıdır/).first(), 'open / closed state').toBeVisible()
     // the order prompt only shows for an available dish, and the first card may be sold out right now: open an available one
-    const [open] = await (await anonApi(page)).get(`dishes?restaurant_id=eq.${BELLA}&available=eq.true&select=name&order=name.asc&limit=1`)
+    const [open] = await (await anonApi(page)).get(`dishes?restaurant_id=eq.${BELLA}&available=eq.true&select=id,name&order=name.asc&limit=1`)
     test.skip(!open, 'Trattoria Bella Roma has no available dish right now')
-    await page.locator('.menu-card').filter({ hasText: open.name }).first().click()
+    await R.tabBtn(page, 'Menyu').click()
+    await expect(R.rows(page).first()).toBeVisible()
+    await R.rowOpen(R.byId(page, open.id)).click()
     await expectAz(page, [['menu', 'enterTablePrompt']], 'Dish sheet')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Zal planı' }).click()

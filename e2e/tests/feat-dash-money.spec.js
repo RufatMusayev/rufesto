@@ -196,6 +196,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
 
       await test.step('guest asks to pay at reception (consumer app)', async () => {
         await guestOpensBill(g4)
+        await g4.page.getByRole('radio', { name: /Pay at reception/ }).click()   // the bill may open on Card (demo) when the venue has demo payments on
         await g4.page.getByRole('button', { name: /^Notify staff/ }).click()
         await expect(g4.page.getByRole('heading', { name: 'Staff notified' })).toBeVisible()
       })

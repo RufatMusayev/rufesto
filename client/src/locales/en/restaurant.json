@@ -62,5 +62,36 @@
     "noMatch": "Nothing matches your filters",
     "clearFilters": "Clear search and filters",
     "liveNote": "Availability updates live"
+  },
+  "notFound": {
+    "title": "Restaurant not found",
+    "body": "This link may be mistyped or out of date, or the restaurant is no longer on Rufesto."
+  },
+  "dish": {
+    "like": "Like",
+    "liked": "Liked",
+    "likeAria": "Like this dish",
+    "unlikeAria": "Liked. Tap to remove your like",
+    "review": "Review",
+    "reviewAria": "Write a review",
+    "save": "Save",
+    "saved": "Saved",
+    "saveAria": "Save to your list",
+    "unsaveAria": "Saved. Tap to remove from your list",
+    "savedToast": "Saved to your list",
+    "unsavedToast": "Removed from your list",
+    "replies_one": "{{count}} reply",
+    "replies_other": "{{count}} replies",
+    "reply": "Reply",
+    "hideReplies": "Hide replies",
+    "replyPlaceholder": "Write a reply…",
+    "replySend": "Send",
+    "replyFailed": "Couldn't send your reply. Try again.",
+    "repliesFailed": "Couldn't load the replies.",
+    "retry": "Try again",
+    "scanToOrder": "Scan table QR to order",
+    "orderHint": "To order, scan the QR code on your table. Not here yet? Reserve a table.",
+    "seatedAt": "You're seated at <b>{{venue}}</b>. Order from that menu.",
+    "seatedElsewhere": "You're seated at another restaurant. Order from that menu."
   }
 }

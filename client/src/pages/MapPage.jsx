@@ -87,7 +87,7 @@ function disposeMap(m) {
 }
 
 export default function MapPage() {
-  const { t } = useTranslation(['map', 'common'])
+  const { t } = useTranslation(['map', 'common', 'nav'])
   const navigate = useNavigate()
   const containerRef = useRef(null)
   const markersRef = useRef({})
@@ -246,6 +246,7 @@ export default function MapPage() {
 
   return (
     <div className={`map-page${visible.length > 0 ? ' map-page--chips' : ''}`}>
+      <h1 className="sr-only">{t('nav:map')}</h1>
       <div ref={containerRef} className="map-canvas" />
 
       {/* Search overlay: a real field, clicking anywhere on the bar focuses it */}

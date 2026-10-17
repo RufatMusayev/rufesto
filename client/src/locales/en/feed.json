@@ -17,6 +17,8 @@
   "reviewPhotoAlt": "Review photo",
   "promoted": "Promoted",
   "sponsored": "Sponsored",
+  "discountPercentOff": "{{value}}% off",
+  "discountAmountOff": "₼{{value}} off",
   "viewDish": "View dish →",
   "visitRestaurant": "Visit restaurant →",
   "postOptions": "Post options",

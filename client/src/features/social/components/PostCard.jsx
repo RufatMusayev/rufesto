@@ -6,9 +6,10 @@ import { cleanDisplayName, timeAgo } from '../../../lib/helpers'
 import { togglePostLike, deletePost } from '../api'
 import { useRequireAuth, useToast } from '../hooks'
 import { logFeedEvent } from '../../feed/events'
+import { patchFeedItem, forgetPost } from '../../feed/feeds'
 import { resignPostPhoto } from '../lib/postPhotos'
 import { LikeIcon, ForkKnifeIcon, ShareIcon, MoreIcon, CameraIcon } from './Icons'
-import { RestaurantPostHead, DishStrip, PhotoChips, hasPhotoChips, restaurantPath } from './RestaurantPostParts'
+import { RestaurantPostHead, DishStrip, PhotoChips, TextCard, hasPhotoChips, restaurantPath } from './RestaurantPostParts'
 import ConfirmSheet from './ConfirmSheet'
 
 const DOUBLE_TAP_MS = 300
@@ -19,8 +20,11 @@ const DOUBLE_TAP_MS = 300
  * A post by a restaurant (item.author.type === 'restaurant') shows the restaurant in the header and,
  * when it carries a dish, the dish strip with "Available now" / "Sold out" and "Order this".
  * like and order_tap are logged to the feed events (pool / position are set when it came from Home).
+ * `priority` (the first photos of a feed) loads the photo eagerly with high fetch priority and skips the rise-in
+ * animation, so the first card is painted as soon as it is in the DOM. A photo that is still being signed
+ * (item.photoPending) shows a shimmering box of the final size. A restaurant post without a photo is a text card.
  */
-export default function PostCard({ item, index = 0, full = false, onDeleted, onCommentClick }) {
+export default function PostCard({ item, index = 0, full = false, priority = false, onDeleted, onCommentClick }) {
   const { t, i18n } = useTranslation('social')
   const { session, requireAuth, authModal } = useRequireAuth()
   const { toast, showToast } = useToast()
@@ -32,7 +36,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [imgFailed, setImgFailed] = useState(false)   // the signed URL expired or the file is gone
-  const [photoSrc, setPhotoSrc] = useState(item.photoUrl)
+  const [resignedSrc, setResignedSrc] = useState(null)  // a freshly signed URL, after the first one failed
   const resigned = useRef(false)                      // one re-sign per photo before giving up
   const busy = useRef(false)
   const lastTap = useRef(0)
@@ -43,17 +47,19 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   }, [item.id, item.likedByMe, item.likeCount])
 
   useEffect(() => {
-    setPhotoSrc(item.photoUrl)
+    setResignedSrc(null)
     setImgFailed(false)
     resigned.current = false
   }, [item.photoUrl])
+  const photoSrc = resignedSrc || item.photoUrl
 
-  // The signed URL may have expired (long-open tab): sign that one path again and retry once, then show the placeholder.
+  // item.photoUrl is the 640px copy in a feed (the full photo on /post/:id, or where a post has no copy). When it fails
+  // (expired signed URL, copy missing) the FULL path is signed again and tried once, then the placeholder shows.
   async function onPhotoError() {
     if (resigned.current || !item.photoPath) { setImgFailed(true); return }
     resigned.current = true
     const url = await resignPostPhoto(item.photoPath)
-    if (url) setPhotoSrc(url)
+    if (url) setResignedSrc(url)
     else setImgFailed(true)
   }
 
@@ -63,6 +69,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   const isMine = item.isMine || (!!session && !!item.user.id && item.user.id === session.user.id)
   const restaurant = item.restaurant
   const hasPhoto = !!(item.hasPhoto || item.photoUrl)
+  const textCard = isResto && !hasPhoto && !!item.text   // words only: a designed card, not a thin strip
   const chips = hasPhoto && hasPhotoChips(item, isResto)       // restaurant / distance / availability sit on the photo
   const feedEvent = event => logFeedEvent({ type: 'post', id: item.id, event, pool: item.pool, position: item.position })
 
@@ -84,6 +91,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     }
     setLiked(data.liked)
     setLikeCount(data.likeCount)
+    patchFeedItem('post', item.id, { likedByMe: data.liked, likeCount: data.likeCount })   // the lists keep it for the next mount
     if (data.liked) feedEvent('like')
   }
 
@@ -123,6 +131,7 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
     setDeleting(false)
     if (error) { setDeleteError(error.key); return }
     setMenu(false)
+    forgetPost(item.id)                         // every list and tail that may hold it, and a session-long "deleted" memory
     onDeleted?.(item.id)
   }
 
@@ -134,7 +143,11 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
   )
 
   return (
-    <article className={`feed-post${full ? '' : ' stagger-item'} soc-post`} style={full ? { animation: 'none', opacity: 1 } : { animationDelay: `${Math.min(index, 8) * 60}ms` }}>
+    <article
+      className={`feed-post${full ? '' : ' stagger-item'}${priority ? ' soc-post-now' : ''} soc-post`}
+      style={full ? { animation: 'none', opacity: 1 } : (priority ? undefined : { animationDelay: `${Math.min(index, 8) * 60}ms` })}
+      data-dish-id={isResto && item.dish?.id ? item.dish.id : undefined}
+    >
       <header className="soc-post-head">
         {isResto ? (
           <RestaurantPostHead item={item} when={timeAgo(item.createdAt, i18n.language)} showSub={!chips} />
@@ -165,14 +178,23 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
       </header>
 
       {hasPhoto && (
-        <div className={`soc-photo${chips ? ' soc-photo-shaded' : ''}`} onClick={onPhotoTap}>
+        <div className={`soc-photo${chips ? ' soc-photo-shaded' : ''}${item.photoPending && !photoSrc ? ' soc-photo-pending' : ''}`} onClick={onPhotoTap}>
           {photoSrc && !imgFailed
-            ? <img src={photoSrc} alt={item.text || t('post.photoAlt', { name })} loading="lazy" decoding="async" draggable={false} onError={onPhotoError} />
-            : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}
+            ? (
+              <img
+                src={photoSrc} alt={t('post.photoAlt', { name })} decoding="async" draggable={false} onError={onPhotoError}
+                loading={priority ? 'eager' : 'lazy'} {...(priority ? { fetchpriority: 'high' } : {})}
+              />
+            )
+            : item.photoPending && !imgFailed
+              ? <div className="soc-photo-wait" role="img" aria-label={t('post.photoAlt', { name })} />
+              : <div className="soc-photo-missing" role="img" aria-label={t('post.photoAlt', { name })}><CameraIcon size={36} /></div>}
           {chips && <PhotoChips item={item} isResto={isResto} />}
           {burst && <span className="soc-burst" aria-hidden="true"><LikeIcon active size={84} /></span>}
         </div>
       )}
+
+      {textCard && <TextCard item={item} />}
 
       {isResto && item.dish && <DishStrip item={item} showPill={!chips} onOrder={() => feedEvent('order_tap')} />}
 
@@ -192,9 +214,10 @@ export default function PostCard({ item, index = 0, full = false, onDeleted, onC
         {likeCount > 0 && <span className="soc-act-likes">{t('post.likes', { count: likeCount })}</span>}
       </div>
 
-      {item.text && (
+      {item.text && !textCard && (
         <p className="soc-caption">
-          {authorTo ? <Link to={authorTo} className="soc-post-name">{name}</Link> : <span className="soc-post-name">{name}</span>} {item.text}
+          {/* not a link: the header above already links the author (a second, inline link would be a 18px tap target) */}
+          <span className="soc-post-name">{name}</span> {item.text}
         </p>
       )}
       {!full && item.commentCount > 0 && (

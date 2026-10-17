@@ -44,5 +44,11 @@
   "notFoundTitle": "Page not found",
   "notFoundBody": "This link may be mistyped or cut off, or the page has moved.",
   "browseRestaurants": "Browse restaurants",
-  "verifiedVisit": "Verified visit"
+  "verifiedVisit": "Verified visit",
+  "errorTitle": "Something went wrong",
+  "errorBody": "The page hit a problem it could not recover from. Reloading usually fixes it.",
+  "errorReload": "Reload",
+  "errorHome": "Back to Home",
+  "language": "Language",
+  "switchToLanguage": "Switch language to {{language}}"
 }

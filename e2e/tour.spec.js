@@ -15,6 +15,7 @@ const { test, expect } = require('@playwright/test')
 const { CONSUMER_URL, RESTO_URL, creds, tableCode } = require('./support/env')
 const { signInGuest } = require('./support/guest')
 const { rpc, resetTable, tinyPng } = require('./support/v2')
+const R = require('./support/restaurant')
 
 const OUT = path.join(__dirname, 'tour-out')
 const MOBILE = { width: 390, height: 844 }
@@ -68,11 +69,11 @@ async function claimTable(page) {
 
 /** Restaurant page -> first orderable dish -> cart sheet -> Place Order (v2-bills.spec.js). */
 async function orderOneDish(page) {
-  await page.getByRole('link', { name: 'Add More Items' }).click()
+  await R.menuLink(page).click()
   await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
   const add = page.getByRole('button', { name: /^Add to Order/ })
-  const tiles = page.locator('.menu-card')
-  await expect(tiles.first()).toBeVisible()
+  await R.showMenu(page)
+  const tiles = R.rowButtons(page)
   for (let i = 0, n = await tiles.count(); i < n && !(await add.isVisible()); i++) {   // skip sold-out dishes
     await tiles.nth(i).click()
     await add.waitFor({ timeout: 2_000 }).catch(() => page.keyboard.press('Escape'))
@@ -229,13 +230,15 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
 
       await soft('04-restaurant-bella-roma', async () => {
         await g.goto(url('/restaurant/bella-roma'))
-        await expect(g.locator('.menu-card').first()).toBeVisible()
+        await expect(R.tabBtn(g, 'Posts')).toHaveAttribute('aria-selected', 'true')
         await shot(g, '04-restaurant-bella-roma')
+        await R.gotoMenu(g, 'bella-roma')
+        await shot(g, '04a-restaurant-menu')
       })
 
       await soft('04b-floor-plan', async () => {   // restaurant page -> Floor plan button -> sheet, at 390 wide
         await g.goto(url('/restaurant/bella-roma'))
-        await expect(g.locator('.menu-card').first()).toBeVisible()
+        await expect(R.tabBtn(g, 'Posts')).toBeVisible()
         await g.getByRole('button', { name: 'Floor plan' }).click()
         const sheet = g.locator('.fl-sheet')
         await expect(sheet).toBeVisible()

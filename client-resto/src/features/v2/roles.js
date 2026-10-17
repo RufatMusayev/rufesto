@@ -2,7 +2,7 @@ import nav from './nav'
 
 // Role -> v2 routes (decision D-9): /bills admin, manager, cashier; /tips admin, manager, cashier;
 // /my-tips waiter, host, cashier, manager, admin;
-// /settings, /qr-sheet and /posts admin, manager. Derived from nav.js so the sidebar
+// /qr-sheet and /posts admin, manager; /settings every role (non-managers only get its Notifications tab). Derived from nav.js so the sidebar
 // and the guard cannot disagree. The integrator merges this into
 // lib/roles.js ROLE_ROUTES (see README.int.md).
 export const V2_ROLE_ROUTES = {}

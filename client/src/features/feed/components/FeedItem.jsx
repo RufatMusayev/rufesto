@@ -11,6 +11,8 @@ const toCampaign = p => ({
   id: p.id,
   title: p.title,
   description: p.description,
+  discount_percent: p.discountPercent,
+  discount_amount: p.discountAmount,
   image_url: p.imageUrl,
   restaurants: p.restaurant ? { name: p.restaurant.name, slug: p.restaurant.slug } : null,
   dishes: p.dish ? { id: p.dish.id, name: p.dish.name, photo: p.dish.photo, price: p.dish.price } : null,
@@ -27,9 +29,10 @@ function trackCampaign(id, event) {
  * One slot of a feed: a post card, a promo card or (Friends) a review card. Posts and promos are watched for
  * impressions (>= 50 % visible for 1 s) and for taps on the card; Like / comment / order_tap are logged by
  * the cards themselves. Reviews are not feed-event items (feed_events knows posts and promos only), so they
- * are shown untracked. `className` replaces the slot wrapper's class (Discover puts promos in a rail).
+ * are shown untracked. `className` replaces the slot wrapper's class (Discover puts promos in a rail). `priority`
+ * marks one of the first photos of a feed (eager load, high fetch priority, no rise-in animation).
  */
-export default function FeedItem({ item, index, events, onDeleted, className = 'soc-feed-slot' }) {
+export default function FeedItem({ item, index, events, onDeleted, priority = false, className = 'soc-feed-slot' }) {
   const ref = useRef(null)
   const lastOpen = useRef(0)
   const navigate = useNavigate()
@@ -74,7 +77,7 @@ export default function FeedItem({ item, index, events, onDeleted, className = '
           }}
         />
       ) : (
-        <PostCard item={item} index={index} onDeleted={onDeleted} />
+        <PostCard item={item} index={index} priority={priority} onDeleted={onDeleted} />
       )}
     </div>
   )

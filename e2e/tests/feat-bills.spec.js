@@ -3,6 +3,7 @@
 // desktop window). Every test is independent: guest lock, a FREE Bella Roma table (never T5 = QA_TABLE_CODE), seating / ordering /
 // serving over the API where that is not the thing under test, table reset in `finally`. App bugs stay failing tests (docs/qa/consumer-table.md).
 const F = require('../support/feat-table')
+const R = require('../support/restaurant')
 const { test, expect, url, rurl, money } = F
 
 test.skip(!F.haveAccounts, 'docs/REVIEW-ACCOUNTS.md must list review1-3 and the Bella Roma manager / waiter1 / kitchen accounts')
@@ -179,7 +180,8 @@ test.describe('bills: before paying', TAGS, () => {
       const { page } = await openBill(ui, 'g1', table)
       const share = (await myBill(g1)).modes.own
       const waiters = (await g1.rpc('list_table_waiters', { p_table_id: table.id })).body
-      await expect(page.getByText('Tips can be added with the card payment.')).toBeVisible()   // reception is preselected: no tip, no waiter
+      await radio(page, /Pay at reception/).click()   // the bill opens on Card (demo) when the venue has demo payments on, on reception otherwise
+      await expect(page.getByText('Tips can be added with the card payment.')).toBeVisible()   // reception: no tip, no waiter
       await radio(page, /Card \(demo\)/).click()
       const group = page.getByRole('radiogroup', { name: 'Add a tip' })
       await expect(page.getByRole('radiogroup', { name: 'Who gets the tip?' }), 'no waiter pick without a tip').toHaveCount(0)
@@ -396,6 +398,7 @@ test.describe('bills: paying', TAGS, () => {
       await expect(chip.locator('.tbl-card-state'), 'dashboard Tables page: ordering').toHaveText('Ordering', { timeout: 15_000 })
       const { page } = await openBill(ui, 'g1', table)
       const bill = await myBill(g1)
+      await radio(page, /Pay at reception/).click()   // the bill may open on Card (demo): choose reception explicitly
       await expect(radio(page, /Pay at reception/)).toHaveAttribute('aria-checked', 'true')
       await page.getByRole('button', { name: `Notify staff · ${money(bill.modes.own)}` }).click()
       await expect(page.getByRole('heading', { name: 'Staff notified' })).toBeVisible()
@@ -456,8 +459,8 @@ test.describe('bills: after paying', TAGS, () => {
         const [row] = await g1.rows(`reviews?user_id=eq.${g1.uid}&dish_id=eq.${dish.id}&select=id,rating,body,is_verified`)
         expect(row).toMatchObject({ rating: 4, body: text, is_verified: true })
 
-        await page.goto(url('/restaurant/bella-roma'))
-        await page.locator('.menu-card').filter({ hasText: dish.name }).first().click()
+        await R.gotoMenu(page, 'bella-roma')
+        await R.rowOpen(R.dishRow(page, dish.name).first()).click()
         const sheet = page.locator('.sheet')
         const body = sheet.getByText(text)
         await expect(body, 'the review is listed on the dish').toBeVisible()

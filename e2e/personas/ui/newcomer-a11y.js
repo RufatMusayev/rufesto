@@ -77,8 +77,8 @@ async function audit(page, name) {
     await page.getByRole('tab').nth(2).click(); await page.waitForTimeout(2500); await audit(page, `discover_${theme}`)
     await page.goto(L.BASE + '/restaurant/brew-and-books', { waitUntil: 'load' }); await page.waitForTimeout(2500); await audit(page, `restaurant_${theme}`)
     if (theme === 'dark') {
-      await page.evaluate(() => window.scrollTo(0, 500)); await page.waitForTimeout(500)
-      await page.locator('.ig-grid-tile').first().click({ force: true }); await page.waitForTimeout(1500); await audit(page, 'dish_sheet_dark')
+      // the dish sheet opens from the ?dish= deep link (the photo-grid tiles are gone since the restaurant page redesign)
+      await page.goto(L.BASE + '/restaurant/bella-roma?dish=80000001-0000-0000-0000-000000000020', { waitUntil: 'load' }); await page.waitForTimeout(3000); await audit(page, 'dish_sheet_dark')
     }
     await s.close()
   }

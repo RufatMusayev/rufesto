@@ -62,8 +62,7 @@
 .dsc-rc-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
 .dsc-rc-titlerow .pm-wrap { margin: -8px -10px -8px 0; }
 .dsc-rc-name { min-width: 0; font-size: 1.04rem; font-weight: 700; line-height: 1.25; color: var(--t1); overflow-wrap: anywhere; }
-.dsc-rc-name a { position: relative; display: inline-block; min-height: 24px; color: inherit; }
-.dsc-rc-name a::after { content: ''; position: absolute; inset: -10px 0; }   /* 44 px tall tap target around the 24 px name */
+.dsc-rc-name a { display: inline-block; min-width: var(--tap); padding: 12px 0; margin: -12px 0; color: inherit; }   /* a real 44 px tall box around the name; the margin gives the height back */
 .dsc-rc-name a:focus-visible, .dsc-dc-link:focus-visible, .dsc-menu-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .dsc-rc-list .dsc-rc-name { font-size: 1.18rem; }
 .dsc-rc-meta { font-size: 0.78rem; color: var(--t2); line-height: 1.4; }
@@ -75,8 +74,7 @@
 .dsc-follow { margin-left: auto; min-height: var(--tap); padding: 0 18px; }
 .dsc-like { width: auto; gap: 6px; padding: 0 10px 0 6px; border-radius: 22px; color: var(--t1); }
 .dsc-like-n { font-family: 'DM Mono', monospace; font-size: 0.8rem; color: var(--note); }
-.dsc-menu-link { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 6px; font-size: 0.8rem; font-weight: 600; color: var(--accent-h); }
-[data-theme="light"] .dsc-menu-link { color: var(--accent); }
+.dsc-menu-link { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 6px; font-size: 0.8rem; font-weight: 600; color: var(--accent-text); }
 
 /* dish card: one link */
 .dsc-dc-link { display: block; color: inherit; }

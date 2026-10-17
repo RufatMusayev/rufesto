@@ -7,6 +7,7 @@ import ReviewCard from '../../social/components/ReviewCard'
 import FeedSkeleton from './FeedSkeleton'
 import DaySeparator from './DaySeparator'
 import { dayOf } from '../lib/days'
+import { isDeleted, onPostDeleted } from '../deleted'
 
 const key = it => `${it.kind}-${it.id}`
 
@@ -29,10 +30,12 @@ export default function CaughtUp({ scope = 'all', userId, empty, shown, onDiscov
     const { data, error } = await getFeed({ scope })
     setTail(error
       ? { items: [], nextCursor: null, loading: false, error }
-      : { items: data.items, nextCursor: data.nextCursor, loading: false, error: null })
+      : { items: data.items.filter(i => !isDeleted(i)), nextCursor: data.nextCursor, loading: false, error: null })
   }, [userId, scope])
 
   useEffect(() => { load() }, [load])
+  // a post deleted anywhere (this tail, the ranked list, the other tab) leaves this copy at once
+  useEffect(() => onPostDeleted(id => setTail(s => ({ ...s, items: s.items.filter(x => !(x.kind === 'post' && x.id === id)) }))), [])
 
   async function loadMore() {
     if (!tail.nextCursor || more.loading) return
@@ -41,16 +44,12 @@ export default function CaughtUp({ scope = 'all', userId, empty, shown, onDiscov
     if (error) { setMore({ loading: false, error: true }); return }
     setTail(s => {
       const seen = new Set(s.items.map(key))
-      return { ...s, items: [...s.items, ...data.items.filter(i => !seen.has(key(i)))], nextCursor: data.nextCursor }
+      return { ...s, items: [...s.items, ...data.items.filter(i => !seen.has(key(i)) && !isDeleted(i))], nextCursor: data.nextCursor }
     })
     setMore({ loading: false, error: false })
   }
 
-  function removePost(id) {
-    setTail(s => ({ ...s, items: s.items.filter(x => !(x.kind === 'post' && x.id === id)) }))
-  }
-
-  const items = tail.items.filter(i => !shown.has(key(i)))
+  const items = tail.items.filter(i => !shown.has(key(i)) && !isDeleted(i))
   const nothing = empty && !tail.loading && items.length === 0
   const bodyKey = userId ? (friends ? 'feed.caughtUpFriendsBody' : 'home.caughtUpBody') : 'home.caughtUpGuestBody'
 
@@ -74,7 +73,7 @@ export default function CaughtUp({ scope = 'all', userId, empty, shown, onDiscov
           {byDay && (i === 0 || dayOf(items[i - 1]) !== dayOf(it)) && <DaySeparator day={dayOf(it)} />}
           {it.kind === 'review'
             ? <ReviewCard item={it} index={i} />
-            : <PostCard item={it} index={i} onDeleted={removePost} />}
+            : <PostCard item={it} index={i} />}
         </Fragment>
       ))}
 

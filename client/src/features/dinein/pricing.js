@@ -47,3 +47,37 @@ export function ratesFromOrders(orders) {
 
 /** The rates behind one server answer (place_order's { subtotal, tax_amount, service_charge }), or null. */
 export const ratesFromAnswer = answer => ratesFromOrders([answer])
+
+/**
+ * The lines of an order as the BILL prints them. bill_lines.line_total = net + VAT + service charge, the order's
+ * tax_amount / service_charge shared out by each line's part of the subtotal, every share rounded to a qepik and the
+ * rounding left over landing on the first line (sql/42_v2_bills.sql, bill lines of an order; items by created_at, id;
+ * cancelled items take no part). The table screen uses this so a dish costs the same there as on the bill.
+ * Returns Map(order item id -> { line, unit }); `unit` = line / quantity. Empty when the order has no subtotal
+ * (no breakdown to share out): the caller then falls back to the net prices.
+ */
+export function inclusiveLines(order) {
+  const out = new Map()
+  const subC = toCents(order?.subtotal)
+  if (subC <= 0) return out
+  const taxC = toCents(order.tax_amount)
+  const svcC = toCents(order.service_charge)
+  const key = i => `${i.created_at || ''}|${i.id}`
+  const rows = (order.order_items || [])
+    .filter(i => i.status !== 'cancelled')
+    .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0))
+    .map(item => {
+      const net = toCents(item.line_total ?? (Number(item.unit_price) || 0) * (Number(item.quantity) || 0))
+      return { item, net, tax: roundCents(taxC * net / subC), svc: roundCents(svcC * net / subC) }
+    })
+  if (rows.length) {
+    rows[0].tax += taxC - rows.reduce((s, r) => s + r.tax, 0)
+    rows[0].svc += svcC - rows.reduce((s, r) => s + r.svc, 0)
+  }
+  for (const r of rows) {
+    const qty = Math.max(1, Number(r.item.quantity) || 1)
+    const lineC = r.net + r.tax + r.svc
+    out.set(r.item.id, { line: fromCents(lineC), unit: fromCents(Math.round(lineC / qty)) })
+  }
+  return out
+}

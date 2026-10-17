@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Section from './Section'
 import RestaurantCard from './RestaurantCard'
@@ -6,7 +6,7 @@ import RestaurantCard from './RestaurantCard'
 const FIRST = 12            // cards rendered at once; "Show more" adds the same again (keeps the DOM small)
 
 /** Every active restaurant, same ranking as "Open now" without the open filter: the old list, as cards. */
-export default function AllRestaurantsList({ title, items }) {
+export default memo(function AllRestaurantsList({ title, items }) {
   const { t } = useTranslation('social')
   const [shown, setShown] = useState(FIRST)
   return (
@@ -23,4 +23,4 @@ export default function AllRestaurantsList({ title, items }) {
       )}
     </Section>
   )
-}
+})

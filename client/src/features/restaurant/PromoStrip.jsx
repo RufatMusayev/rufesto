@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { fetchPromos, trackPromoClick } from './api'
 
 /**
- * The restaurant's active promos as slim rows pinned above the post grid (ad_campaigns, readable by anyone while
- * active). A promo that points at a dish opens that dish's sheet; one without a dish is just a banner.
+ * The restaurant's live promos as slim rows pinned above the post grid (public_ad_campaigns(), the same source as
+ * Discover and the Home feed; the table itself is staff-only). A promo that points at a dish opens that dish's
+ * sheet; one without a dish is just a banner.
  */
 export default function PromoStrip({ restaurantId, onOpenDish }) {
   const { t } = useTranslation('restaurant')

@@ -20,5 +20,9 @@
   "decrease": "Remove one {{name}}",
   "increase": "Add one more {{name}}",
   "remove": "Remove {{name}} from the order",
-  "rateEstimate": "Estimate: the exact amount is confirmed when you place the order."
+  "rateEstimate": "Estimate: the exact amount is confirmed when you place the order.",
+  "addedToast": "Added {{name}}",
+  "addedCount_one": "{{count}} item in your order",
+  "addedCount_other": "{{count}} items in your order",
+  "viewOrder": "View"
 }

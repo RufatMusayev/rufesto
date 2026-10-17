@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../../../components/ui'
 import { useCart } from '../../../contexts/CartContext'
 import { formatPrice } from '../../../lib/helpers'
+import { forgetSettled, rememberSettled } from '../lastSettled'
 import usePayPlan from '../usePayPlan'
 import usePayActions from '../usePayActions'
 import PersonShares from '../components/PersonShares'
@@ -62,6 +63,17 @@ export default function BillView({ bill, tableId, tableEnded, reload, onPaid, on
     if (bill.status === 'paid') cart?.refreshTableSession?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bill.status])
+
+  // Remember the settled bill for this session, so /bill after a reload (no table any more) says "Paid" and links the
+  // receipt; a new live bill replaces that memo.
+  useEffect(() => {
+    if (bill.status === 'paid' && myPaid) {
+      rememberSettled({ billId: bill.id, restaurant: bill.restaurant.name, amount: myPayment?.amount ?? null })
+    } else if (active && !myPaid) {
+      forgetSettled()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill.id, bill.status, myPaid])
 
   async function leave() {
     setLeaving(true)

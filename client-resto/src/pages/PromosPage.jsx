@@ -9,10 +9,11 @@ import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import ActionBanner from '../components/ActionBanner'
 import useDialog from '../lib/useDialog'
-
-// Writes to ad_campaigns are manager-only (RLS); a non-manager's failed write is
-// reported as this instead of a raw policy error.
-const MANAGERS_ONLY = { permission: 'errManagersOnly' }
+import ChipScroller from '../components/ChipScroller'
+import PromoFormModal from '../components/PromoFormModal'
+import { discountBadge } from '../features/v2/promoDiscount'
+import { MANAGERS_ONLY, STATUS_LABEL_KEYS, TYPE_KEYS } from '../features/v2/promoMeta'
+import '../features/v2/styles.css'
 
 const FILTERS = ['all', 'draft', 'active', 'paused', 'completed', 'cancelled']
 
@@ -23,20 +24,6 @@ const STATUS_STYLE = {
   completed: { color: '#3b82f6',    bg: 'rgba(59,130,246,0.08)',    border: 'rgba(59,130,246,0.18)' },
   cancelled: { color: '#A32D2D',    bg: 'rgba(239,68,68,0.08)',     border: 'rgba(239,68,68,0.18)' },
 }
-
-const TYPES = ['feed_placement', 'discount', 'highlight', 'banner']
-const TYPE_KEYS = {
-  feed_placement: 'typeFeed', discount: 'typeDiscount',
-  highlight: 'typeHighlight', banner: 'typeBanner',
-}
-const STATUS_LABEL_KEYS = {
-  draft: 'promoStatusDraft', active: 'promoStatusActive', paused: 'promoStatusPaused',
-  completed: 'promoStatusCompleted', cancelled: 'promoStatusCancelled',
-}
-// The campaign form only ever creates/edits into these two statuses; Activate,
-// Pause and Cancel (below) are the only paths to active/completed/cancelled,
-// and are manager-only actions.
-const FORM_STATUSES = ['draft', 'paused']
 
 // The status a campaign really has right now. Nothing in the database moves an active campaign to completed when its
 // end date passes (guests just stop seeing it), so an active campaign past its end date reads Completed here: in the
@@ -49,12 +36,6 @@ function effectiveStatus(c, nowMs = Date.now()) {
 function fmtDate(iso, lang) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function toLocalInput(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 
 export default function PromosPage() {
@@ -163,7 +144,7 @@ export default function PromosPage() {
       {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
       {/* Status filter chips */}
-      <div className="no-scrollbar" style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
+      <ChipScroller role="group" aria-label={t('dashboard:promosTitle')}>
         {FILTERS.map(f => {
           const cnt = f === 'all' ? campaigns.length : (statusCounts[f] || 0)
           const sm = f !== 'all' ? STATUS_STYLE[f] : null
@@ -175,7 +156,7 @@ export default function PromosPage() {
             </button>
           )
         })}
-      </div>
+      </ChipScroller>
 
       {/* Campaign list */}
       {loading ? (
@@ -259,6 +240,12 @@ function CampaignCard({ campaign: c, status, canManage, acting, onEdit, onActiva
               fontSize: '0.6rem', fontWeight: 600, padding: '2px 7px', borderRadius: 100,
               background: 'var(--s3)', color: 'var(--t2)', border: '1px solid var(--border)',
             }}>{t(`dashboard:${TYPE_KEYS[c.type] || 'typeFeed'}`)}</span>
+            {c.type === 'discount' && discountBadge(c.description) && (
+              <span style={{
+                fontSize: '0.6rem', fontWeight: 700, padding: '2px 7px', borderRadius: 100,
+                background: 'rgba(196,154,44,0.15)', color: 'var(--gold)', border: '1px solid rgba(196,154,44,0.3)',
+              }}>{discountBadge(c.description)}</span>
+            )}
             <span style={{
               fontSize: '0.58rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4,
               background: s.bg, color: s.color, border: `1px solid ${s.border}`,
@@ -320,203 +307,6 @@ function CampaignCard({ campaign: c, status, canManage, acting, onEdit, onActiva
             </button>
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
-  const { t } = useTranslation('dashboard')
-  const isEdit = !!campaign
-  const uid = useId()
-  const fid = key => `${uid}-${key}`
-
-  const [form, setForm] = useState({
-    name: campaign?.name || '',
-    title: campaign?.title || '',
-    description: campaign?.description || '',
-    type: campaign?.type || 'feed_placement',
-    dish_id: campaign?.dish_id || '',
-    budget: campaign?.budget?.toString() || '',
-    daily_limit: campaign?.daily_limit?.toString() || '',
-    starts_at: toLocalInput(campaign?.starts_at),
-    ends_at: toLocalInput(campaign?.ends_at),
-    status: campaign?.status || 'draft',
-  })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  // The form can only put a campaign into draft or paused. If it's already
-  // active/completed/cancelled, that status came from Activate/Pause/Cancel
-  // (manager-only buttons on the card) and stays locked here.
-  const statusLocked = isEdit && !FORM_STATUSES.includes(campaign.status)
-  // While a campaign is active its budget cannot change (sql/52 budget_locked): pause it first.
-  const budgetLocked = isEdit && campaign.status === 'active'
-
-  const dialogRef = useDialog(() => { if (!saving) onClose() })
-
-  function update(key, val) {
-    setForm(f => ({ ...f, [key]: val }))
-  }
-
-  async function handleSave() {
-    if (!form.name.trim()) { setError(t('errNameRequired')); return }
-    if (!form.title.trim()) { setError(t('errTitleRequired')); return }
-    if (!budgetLocked && (!form.budget || isNaN(Number(form.budget)) || Number(form.budget) <= 0)) { setError(t('errBudgetPositive')); return }
-    if (form.daily_limit && (isNaN(Number(form.daily_limit)) || Number(form.daily_limit) <= 0)) { setError(t('errDailyLimitPositive')); return }
-    if (!form.starts_at || !form.ends_at) { setError(t('errDatesRequired')); return }
-    if (new Date(form.ends_at) <= new Date(form.starts_at)) { setError(t('errEndAfterStart')); return }
-    setSaving(true)
-    setError('')
-
-    // restaurant_id is intentionally left out of `row`: it must never be sent
-    // on an update (a campaign could otherwise be moved to another
-    // restaurant), and on insert it's added explicitly from the staff row.
-    const row = {
-      name: form.name.trim(),
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      type: form.type,
-      dish_id: form.dish_id || null,
-      daily_limit: form.daily_limit ? Number(form.daily_limit) : null,
-      starts_at: new Date(form.starts_at).toISOString(),
-      ends_at: new Date(form.ends_at).toISOString(),
-      status: form.status,
-    }
-    // Not sent while locked: the stored budget stays as it is whatever the input shows.
-    if (!budgetLocked) row.budget = Number(form.budget)
-
-    const err = isEdit
-      ? writeError(await supabase.from('ad_campaigns').update(row).eq('id', campaign.id).select('id'))
-      : (await supabase.from('ad_campaigns').insert({ ...row, restaurant_id: restaurantId })).error
-
-    if (err) {
-      setError(friendlyError(err, t, MANAGERS_ONLY))
-      setSaving(false)
-      return
-    }
-    onSaved()
-    onClose()
-  }
-
-  return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && !saving && onClose()}>
-      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={fid('title')}>
-        <div style={{ padding: '1.25rem 1.25rem 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 id={fid('title')} style={{ fontSize: '1.1rem', fontWeight: 800 }}>
-              {isEdit ? t('editCampaign') : t('newCampaign')}
-            </h2>
-            <button type="button" className="modal-close" onClick={onClose} aria-label={t('common:close')}>✕</button>
-          </div>
-        </div>
-
-        <div style={{ padding: '0 1.25rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Name */}
-          <div>
-            <label className="label" htmlFor={fid('name')}>{t('name')} *</label>
-            <input id={fid('name')} className="input" value={form.name} onChange={e => update('name', e.target.value)}
-              placeholder={t('namePlaceholder')} />
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="label" htmlFor={fid('title-field')}>{t('title')} *</label>
-            <input id={fid('title-field')} className="input" value={form.title} onChange={e => update('title', e.target.value)}
-              placeholder={t('titlePlaceholder')} />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="label" htmlFor={fid('description')}>{t('description')}</label>
-            <textarea id={fid('description')} className="input" rows={2} value={form.description}
-              onChange={e => update('description', e.target.value)}
-              placeholder={t('descPromoPlaceholder')} style={{ resize: 'vertical' }} />
-          </div>
-
-          {/* Type */}
-          <div role="group" aria-labelledby={fid('type')}>
-            <span id={fid('type')} className="label">{t('type')} *</span>
-            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-              {TYPES.map(tp => (
-                <button type="button" key={tp} className={`chip${form.type === tp ? ' active' : ''}`}
-                  aria-pressed={form.type === tp}
-                  onClick={() => update('type', tp)}
-                  style={{ fontSize: '0.72rem', padding: '0.3rem 0.65rem' }}>
-                  {t(`dashboard:${TYPE_KEYS[tp]}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dish */}
-          <div>
-            <label className="label" htmlFor={fid('dish')}>{t('linkedDish')}</label>
-            <select id={fid('dish')} className="input" value={form.dish_id}
-              onChange={e => update('dish_id', e.target.value)} style={{ cursor: 'pointer' }}>
-              <option value="">{t('none')}</option>
-              {dishes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </div>
-
-          {/* Budget + daily limit */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <div>
-              <label className="label" htmlFor={fid('budget')}>{t('budgetLabel')} *</label>
-              <input id={fid('budget')} className="input" type="number" step="0.01" min="0" value={form.budget}
-                disabled={budgetLocked} aria-describedby={budgetLocked ? 'promo-budget-hint' : undefined}
-                onChange={e => update('budget', e.target.value)} placeholder="0.00" />
-              {budgetLocked && <p id="promo-budget-hint" className="field-hint">{t('budgetLockedHint')}</p>}
-            </div>
-            <div>
-              <label className="label" htmlFor={fid('daily')}>{t('dailyLimit')}</label>
-              <input id={fid('daily')} className="input" type="number" step="0.01" min="0" value={form.daily_limit}
-                onChange={e => update('daily_limit', e.target.value)} placeholder="–" />
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <div>
-              <label className="label" htmlFor={fid('starts')}>{t('starts')} *</label>
-              <input id={fid('starts')} className="input" type="datetime-local" value={form.starts_at}
-                onChange={e => update('starts_at', e.target.value)} />
-            </div>
-            <div>
-              <label className="label" htmlFor={fid('ends')}>{t('ends')} *</label>
-              <input id={fid('ends')} className="input" type="datetime-local" value={form.ends_at}
-                onChange={e => update('ends_at', e.target.value)} />
-            </div>
-          </div>
-
-          {/* Status: only draft/paused here. Activate, Pause and Cancel are
-              explicit manager-only buttons on the campaign card. */}
-          <div>
-            <label className="label" htmlFor={fid('status')}>{t('status')}</label>
-            {statusLocked ? (
-              <div id={fid('status')} className="input" style={{ display: 'flex', alignItems: 'center', color: 'var(--t3)', cursor: 'default' }}>
-                {t(`dashboard:${STATUS_LABEL_KEYS[form.status]}`)}
-              </div>
-            ) : (
-              <select id={fid('status')} className="input" value={form.status}
-                onChange={e => update('status', e.target.value)} style={{ cursor: 'pointer' }}>
-                {FORM_STATUSES.map(k => (
-                  <option key={k} value={k}>{t(`dashboard:${STATUS_LABEL_KEYS[k]}`)}</option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {error && <p role="alert" style={{ color: 'var(--red)', fontSize: '0.78rem' }}>{error}</p>}
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
-            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <><span className="spinner" /> {t('saving')}</> : isEdit ? t('saveChanges') : t('createCampaign')}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )

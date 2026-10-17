@@ -1,19 +1,28 @@
 import { useTranslation } from 'react-i18next'
 import { formatPrice } from '@shared/helpers'
 import { localeTag } from '../../../lib/time'
+import BillMenu from './BillMenu'
 import { isTodayBill } from './BillStats'
 import Money from './Money'
 import ShareRow from './ShareRow'
 import StatusPill, { BILL_TONE } from './StatusPill'
 
 // One bill: table, status, total, collected-vs-total bar, a row per person and
-// the whole-bill actions. Staff settle reception / cash shares from here;
-// managers and admins (`canVoid`) can also cancel an unpaid bill.
+// the whole-bill action. Staff settle reception / cash shares from here. Managers and admins (`canVoid`) can also
+// cancel an unpaid bill, from the "..." menu in the header (a destructive action stays away from the settle buttons;
+// it asks for a confirmation).
+//
+// Settling has ONE obvious action: a bill with a single share left to pay is settled by that share's "Mark paid";
+// "Mark whole bill paid" only appears when it does something the rows cannot (two or more shares, a share a guest is
+// paying by card right now, or a bill without shares).
 export default function BillCard({ bill, busyShares, canVoid = false, onMarkShare, onMarkBill, onVoidBill }) {
   const { t, i18n } = useTranslation(['v2', 'common'])
   const canCloseBill = bill.status !== 'paid' && bill.status !== 'void'
   const collected = Math.min(bill.collected, bill.total)
   const older = !isTodayBill(bill)
+  const unpaid = bill.shares.filter(s => !s.paid)
+  const soleShareRow = unpaid.length === 1 && unpaid[0].canMarkPaid
+  const showWhole = canCloseBill && !soleShareRow
 
   return (
     <article className={`v2-bill v2-bill--${bill.status}`}>
@@ -31,6 +40,12 @@ export default function BillCard({ bill, busyShares, canVoid = false, onMarkShar
           <div className="v2-bill-head-right">
             <StatusPill tone={BILL_TONE[bill.status] || 'gray'}>{t(`billStatus_${bill.status}`, { defaultValue: bill.status })}</StatusPill>
             <Money value={bill.total} strong />
+            {canVoid && canCloseBill && (
+              <BillMenu
+                label={t('billMore')}
+                items={[{ key: 'void', label: t('voidBill'), danger: true, onSelect: () => onVoidBill(bill) }]}
+              />
+            )}
           </div>
         </header>
 
@@ -59,13 +74,8 @@ export default function BillCard({ bill, busyShares, canVoid = false, onMarkShar
           </div>
         ))}
 
-        {canCloseBill && (
+        {showWhole && (
           <footer className="v2-bill-foot">
-            {canVoid && (
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => onVoidBill(bill)}>
-                {t('voidBill')}
-              </button>
-            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => onMarkBill(bill)}>
               {t('markWholePaid')}
             </button>

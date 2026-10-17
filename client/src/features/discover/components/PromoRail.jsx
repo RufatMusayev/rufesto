@@ -1,8 +1,9 @@
+import { memo } from 'react'
 import Section, { Rail } from './Section'
 import FeedItem from '../../feed/components/FeedItem'
 
 /** Active promos: the existing PromoCard, with the same impression and click tracking as on Home. */
-export default function PromoRail({ title, items, events }) {
+export default memo(function PromoRail({ title, items, events }) {
   return (
     <Section title={title} empty={items.length === 0}>
       <Rail label={title}>
@@ -14,4 +15,4 @@ export default function PromoRail({ title, items, events }) {
       </Rail>
     </Section>
   )
-}
+})

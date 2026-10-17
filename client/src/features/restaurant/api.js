@@ -21,7 +21,10 @@ export const isMissing = err => !!err && (
 
 // ---- restaurant header -------------------------------------------------------------------------------------
 
-/** The active restaurant of `slug` with its opening hours; data null = no such restaurant. */
+/** An answer that means "there is no such (active) restaurant", as opposed to a failed read. */
+const isNoSuchRestaurant = err => !!err && (err.code === 'PGRST116' || /restaurant_not_found/.test(err.message || ''))
+
+/** The active restaurant of `slug` with its opening hours; data null (and no error) = no such restaurant. */
 export function fetchRestaurant(slug) {
   return guard(async () => {
     const { data, error } = await supabase
@@ -30,6 +33,7 @@ export function fetchRestaurant(slug) {
       .eq('slug', slug)
       .eq('status', 'active')
       .maybeSingle()
+    if (isNoSuchRestaurant(error)) return { data: null, error: null }
     return error ? { data: null, error: toError(error) } : { data: data || null, error: null }
   })
 }
@@ -155,7 +159,7 @@ export function subscribeDishes(restaurantId, cb) {
  * One page of the restaurant's posts, newest first, keyset on created_at.
  * scope 'venue'  -> restaurant_posts(p_restaurant_id, p_cursor, p_limit)        (exists, sql/58)
  * scope 'guests' -> restaurant_guest_posts(p_restaurant_id, p_cursor, p_limit)  (CONTRACT 19.1, sql/62)
- * Both answer { items: [post item 17.2], next_cursor }. Photos are storage paths, signed here per page.
+ * Both answer { items: [post item 17.2], next_cursor }. Photos are storage paths, signed here per page (the 640px copy, sql/65).
  * A missing RPC comes back as error.key 'social:errors.unavailable' (the Guests chip then shows its empty state).
  */
 export function fetchRestaurantPosts({ restaurantId, scope, cursor = null, limit = POSTS_PAGE_SIZE }) {
@@ -163,21 +167,40 @@ export function fetchRestaurantPosts({ restaurantId, scope, cursor = null, limit
     const name = scope === 'guests' ? 'restaurant_guest_posts' : 'restaurant_posts'
     const { data, error } = await supabase.rpc(name, { p_restaurant_id: restaurantId, p_cursor: cursor, p_limit: limit })
     if (error) return { data: null, error: toError(error) }
-    const items = await withSignedPhotos((data?.items || []).map(mapFeedItem))
+    const items = await withSignedPhotos((data?.items || []).map(mapFeedItem), { small: true })      // grid tiles: the 640px copies
     return { data: { items, nextCursor: data?.next_cursor || null }, error: null }
   })
 }
 
-/** Active promos of this restaurant (RLS: status active and inside their dates); [] when none or unreadable. */
+const PROMOS_SHOWN = 2
+const PROMO_TTL_MS = 30 * 1000
+let promoCache = null                      // { rows, at }: the RPC answers for every restaurant, so one read serves them all
+
+/** A campaign that is running right now (the RPC already says so; this guards a cached answer and clock drift). */
+export function isLivePromo(c, now = Date.now()) {
+  if (!c || c.status !== 'active') return false
+  const starts = c.starts_at ? Date.parse(c.starts_at) : null
+  const ends = c.ends_at ? Date.parse(c.ends_at) : null
+  return !(starts != null && starts > now) && !(ends != null && ends < now)
+}
+
+/**
+ * Live promos of this restaurant, newest first (at most two). The campaigns table is staff-only (sql/52): guests and
+ * anon read them through public_ad_campaigns() (anon + authenticated), which already limits the answer to active
+ * campaigns inside their run window of active restaurants; this keeps the ones of THIS restaurant that are still live.
+ * [] when there are none or the call fails.
+ */
 export async function fetchPromos(restaurantId) {
   try {
-    const { data, error } = await supabase
-      .from('ad_campaigns')
-      .select('id, title, description, image_url, dish_id')
-      .eq('restaurant_id', restaurantId)
-      .eq('status', 'active')
-      .limit(2)
-    return error ? [] : (data || [])
+    let rows = promoCache && Date.now() - promoCache.at < PROMO_TTL_MS ? promoCache.rows : null
+    if (!rows) {
+      const { data, error } = await supabase.rpc('public_ad_campaigns')
+      if (error) return []
+      rows = Array.isArray(data) ? data : []
+      promoCache = { rows, at: Date.now() }
+    }
+    const now = Date.now()
+    return rows.filter(c => c.restaurant_id === restaurantId && isLivePromo(c, now)).slice(0, PROMOS_SHOWN)
   } catch { return [] }
 }
 

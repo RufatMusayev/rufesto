@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Html5Qrcode } from 'html5-qrcode'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,6 +7,7 @@ import { useCart } from '../contexts/CartContext'
 import { sanitizeTableCode } from '../lib/pendingClaim'
 import useEscapeClose from './ui/useEscapeClose'
 import { claimErrorMessage } from '../features/dinein/mounts'
+import { stopScanner } from './QRSheetScanner'
 
 // claim_table() accepts EITHER a typed access code or a scanned QR token (p_code) and
 // does the seating server-side — the client just passes whatever the guest gave us.
@@ -13,9 +15,15 @@ import { claimErrorMessage } from '../features/dinein/mounts'
 // Optional `onCode(code)`: the caller does the claiming itself (e.g. a booking host seating the booking at the
 // scanned table via claim_table_from_booking). The sheet then only reads the code and calls it; it resolves
 // { error: 'translated text' } (shown, scanner restarts) or { data: { restaurant_name, table_number, session_status } }
-// (shown on the success screen, then onClose).
+// (shown on the success screen, then onClose; that caller also decides where to go next).
+//
+// Without `onCode` the sheet claims the table itself and, after the success screen, closes and opens /table.
+// The camera is stopped in exactly one place, the cleanup of the scanning effect below (through stopScanner,
+// which is idempotent and never throws): a decoded code, a mode switch, the success screen and closing/unmounting
+// all end that effect. Stopping it anywhere else, twice, blanked the whole app (QA persona-leyla #1).
 export default function QRSheet({ onClose, onCode }) {
   const { t } = useTranslation(['booking', 'table', 'common'])
+  const navigate = useNavigate()
   const { session } = useAuth()
   const { claimTable } = useCart()
   const [token,    setToken]    = useState('')
@@ -25,49 +33,72 @@ export default function QRSheet({ onClose, onCode }) {
   const [done,     setDone]     = useState(false)
 
   const [scanning, setScanning]     = useState(true)
+  const [scanRun, setScanRun]       = useState(0)     // bumped to start a fresh camera run (see resumeScan)
   const [camError, setCamError]     = useState(false)
   const [manualMode, setManualMode] = useState(false)
-  const scannerRef = useRef(null)
   const closeTimerRef = useRef(null)
+  const stopRef = useRef(null)     // the stop of the previous camera run (a promise), awaited by the next run
+  const aliveRef = useRef(true)
   const onCodeRef = useRef(onCode)
   onCodeRef.current = onCode
+  const resultRef = useRef(null)   // always the latest handleQRResult: the camera callback outlives the render that made it
   useEscapeClose(onClose)
 
   useEffect(() => {
-    return () => clearTimeout(closeTimerRef.current)
+    aliveRef.current = true
+    return () => { aliveRef.current = false; clearTimeout(closeTimerRef.current) }
   }, [])
 
+  // One camera run per (scanning, manualMode, done, scanRun). Its cleanup is the only place that stops the camera.
   useEffect(() => {
-    if (!scanning || manualMode || done) return
+    if (!scanning || manualMode || done) return undefined
 
-    const scanner = new Html5Qrcode('qr-reader')
-    scannerRef.current = scanner
-    let started = false
+    let scanner
+    try {
+      scanner = new Html5Qrcode('qr-reader')
+    } catch {
+      // the viewfinder element is not there: fall back to the typed code instead of throwing out of the effect
+      setCamError(true)
+      setScanning(false)
+      return undefined
+    }
+    let live = true        // false once this run was torn down
+    let decoded = false    // the library keeps calling onSuccess until the camera is closed: take the first frame only
 
     const config = { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 }
-    const onSuccess = (decodedText) => {
-      setScanning(false)
-      // Only stop a scanner that actually finished starting — stopping one still
-      // mid-start throws and the h5-qrcode error is swallowed either way.
-      if (started) scanner.stop().catch(() => {})
-      handleQRResult(decodedText)
+    const onSuccess = decodedText => {
+      if (!live || decoded) return
+      // not one of our codes: say so and let the same camera run keep looking (no restart per frame)
+      if (!resultRef.current(decodedText)) return
+      decoded = true
+      setScanning(false)   // ends this run; the cleanup below stops the camera, once
     }
+    const start = facingMode => scanner.start({ facingMode }, config, onSuccess, () => {})
 
-    scanner.start({ facingMode: 'environment' }, config, onSuccess, () => {})
-      .then(() => { started = true })
+    // A new run waits for the previous camera to be released (its teardown edits the same #qr-reader element).
+    Promise.resolve(stopRef.current)
+      .then(() => (live ? start('environment') : undefined))
+      .catch(() => (live ? start('user') : undefined))
+      // torn down while the camera was still opening: nothing could be stopped then, release it now
+      .then(() => { if (!live) stopRef.current = stopScanner(scanner) })
       .catch(() => {
-        scanner.start({ facingMode: 'user' }, config, onSuccess, () => {})
-          .then(() => { started = true })
-          .catch(() => {
-            setCamError(true)
-            setScanning(false)
-          })
+        if (!live) return
+        setCamError(true)
+        setScanning(false)
       })
 
     return () => {
-      if (started) scanner.stop().catch(() => {})
+      live = false
+      stopRef.current = stopScanner(scanner)
     }
-  }, [scanning, manualMode, done])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanning, manualMode, done, scanRun])
+
+  // Back to scanning after a refused claim. The bump makes a new camera run even if `scanning` is already true.
+  function resumeScan() {
+    setScanning(true)
+    setScanRun(n => n + 1)
+  }
 
   // New QR codes encode a deep link  https://<host>/t/<table_code>; older printed ones are the
   // bare table token (a UUID, possibly inside some other text). Both end up in claim_table().
@@ -81,16 +112,18 @@ export default function QRSheet({ onClose, onCode }) {
     return uuid ? uuid[0] : null
   }
 
+  // Returns true when the text is one of our codes (the claim has started), false when it is not (the error is shown).
   function handleQRResult(text) {
     const code = extractTableCode(text)
-    if (code) {
-      setToken(code)
-      claim(code)
-    } else {
+    if (!code) {
       setError(t('booking:errInvalidQR'))
-      setScanning(true)
+      return false
     }
+    setToken(code)
+    claim(code)
+    return true
   }
+  resultRef.current = handleQRResult
 
   async function claim(code) {
     if (!session) {
@@ -102,32 +135,36 @@ export default function QRSheet({ onClose, onCode }) {
 
     if (onCodeRef.current) {
       const res = await onCodeRef.current(code)
+      if (!aliveRef.current) return        // the guest closed the sheet meanwhile: say nothing, move nobody
       setLoading(false)
       if (res?.error) {
         setError(res.error)
-        if (!manualMode) setScanning(true)
+        if (!manualMode) resumeScan()
         return
       }
       setResult(res?.data ?? null)
       setDone(true)
+      // this caller seats the guest itself and decides where to go once the sheet closes
       closeTimerRef.current = setTimeout(onClose, 1400)
       return
     }
 
     const { data, error: claimErr } = await claimTable(code)
+    if (!aliveRef.current) return
     setLoading(false)
 
     if (claimErr) {
       setError(claimErrorMessage(claimErr, t))
-      if (!manualMode) setScanning(true)
+      if (!manualMode) resumeScan()
       return
     }
 
     setResult(data)
     setDone(true)
-    // A pending guest (not yet approved by the host) heads straight to /table, which
-    // renders the PendingJoin waiting screen based on CartContext's sessionStatus.
-    closeTimerRef.current = setTimeout(onClose, 1400)
+    // Success screen for a moment, then close the sheet (the camera is long released by then) and open the table.
+    // A pending guest (not yet approved by the host) lands on /table too, which renders the PendingJoin waiting
+    // screen based on CartContext's sessionStatus.
+    closeTimerRef.current = setTimeout(() => { onClose(); navigate('/table') }, 1400)
   }
 
   async function handleLookup(e) {

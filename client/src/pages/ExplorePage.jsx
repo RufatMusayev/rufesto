@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
-import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
+import { cuisineEmoji, dishBackground, formatPrice } from '../lib/helpers'
+import { dishEmoji } from '../lib/dishEmoji'
+import { useDebounced } from '../features/social/hooks'
+import { SEARCH_LIMIT, SEARCH_MIN, dishMatches, searchRemote } from './exploreSearch'
 import './ExplorePage.css'
 import DishDetailSheet from '../components/DishDetailSheet'
 import LoadError from '../components/LoadError'
 
 export default function ExplorePage() {
-  const { t } = useTranslation(['menu', 'common'])
+  const { t } = useTranslation(['menu', 'common', 'nav'])
 
   const FILTERS = [
     { id: 'all',         label: t('menu:exploreFilterAll')       },
@@ -26,6 +29,32 @@ export default function ExplorePage() {
   const [loadError, setLoadError] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [dishDetail, setDishDetail] = useState(null)
+
+  // Search: the typed text is sent to the server RPC search() once it has rested for 250 ms. `remote` holds the last
+  // answer ({ q, dishes, restaurants }); it stays on screen until the next one arrives (no flash of skeletons per
+  // keystroke). Without the RPC (`fallback`) the dishes already loaded are filtered here instead.
+  const query = useDebounced(search.trim(), 250)
+  const [remote, setRemote] = useState(null)
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(false)
+  const [fallback, setFallback] = useState(false)
+  const [searchAttempt, setSearchAttempt] = useState(0)
+
+  useEffect(() => {
+    setSearchError(false)
+    if (query.length < SEARCH_MIN) { setRemote(null); setSearching(false); return undefined }
+    if (fallback) return undefined
+    let cancelled = false
+    setSearching(true)
+    searchRemote(query, SEARCH_LIMIT).then(res => {
+      if (cancelled) return
+      setSearching(false)
+      if (res.missing) { setFallback(true); return }
+      if (res.error) { setSearchError(true); return }
+      setRemote({ q: query, dishes: res.dishes, restaurants: res.restaurants })
+    })
+    return () => { cancelled = true }
+  }, [query, fallback, searchAttempt])
 
   useEffect(() => {
     let cancelled = false
@@ -77,9 +106,15 @@ export default function ExplorePage() {
     setAttempt(a => a + 1)
   }
 
-  const filtered = dishes.filter(d => {
-    if (search && !d.name.toLowerCase().includes(search.toLowerCase()) &&
-        !(d.restaurants?.name || '').toLowerCase().includes(search.toLowerCase())) return false
+  const wanted = search.trim()                                         // what the box says right now
+  const useServer = wanted.length >= SEARCH_MIN && !fallback          // results come from search(), maybe still on the way
+  const showResults = !loading && !loadError && !(useServer && (searchError || !remote))
+  const pendingSearch = useServer && !remote && !searchError          // asked or about to ask, nothing to show yet
+  const baseDishes = useServer ? (remote?.dishes || []) : dishes
+  const restaurants = useServer ? (remote?.restaurants || []) : []
+
+  const filtered = baseDishes.filter(d => {
+    if (wanted && !useServer && !dishMatches(d, wanted)) return false
     if (filter === 'vegan' && !d.is_vegan) return false
     if (filter === 'vegetarian' && !d.is_vegetarian) return false
     if (filter === 'gluten_free' && !d.is_gluten_free) return false
@@ -90,6 +125,7 @@ export default function ExplorePage() {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <h1 className="sr-only">{t('nav:explore')}</h1>
       {/* Sticky search bar */}
       <div style={{
         padding: '12px 16px',
@@ -131,7 +167,7 @@ export default function ExplorePage() {
       </div>
 
       {/* Loading skeletons */}
-      {loading && (
+      {(loading || pendingSearch) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '12px 16px' }}>
           {[1,2,3,4,5,6].map(i => (
             <div key={i} style={{ background: 'var(--s2)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
@@ -147,9 +183,10 @@ export default function ExplorePage() {
       )}
 
       {!loading && loadError && <LoadError onRetry={retry} />}
+      {!loading && !loadError && useServer && searchError && <LoadError onRetry={() => setSearchAttempt(a => a + 1)} />}
 
       {/* Empty state */}
-      {!loading && !loadError && filtered.length === 0 && (
+      {showResults && filtered.length === 0 && restaurants.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--t3)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔍</div>
           <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('menu:nothingFound')}</div>
@@ -157,8 +194,36 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {/* Restaurants that match the search (from search(); the dish grid follows) */}
+      {showResults && restaurants.length > 0 && (
+        <section className="ex-rests" aria-labelledby="ex-rests-title">
+          <h2 id="ex-rests-title" className="ex-section-title">{t('menu:exploreRestaurants')}</h2>
+          <ul className="ex-rest-list">
+            {restaurants.map(r => (
+              <li key={r.id || r.slug}>
+                <Link to={`/restaurant/${r.slug}`} className="ex-rest-row">
+                  {r.logo
+                    ? <img className="ex-rest-logo" src={r.logo} alt="" loading="lazy" decoding="async" />
+                    : <span className="ex-rest-logo ex-rest-logo--emoji" aria-hidden="true">{cuisineEmoji(r.cuisine_type)}</span>}
+                  <span className="ex-rest-main">
+                    <span className="ex-rest-name">{r.name}</span>
+                    <span className="ex-rest-meta">
+                      {[r.cuisine_type, r.rating != null && Number(r.rating) > 0 ? `★${Number(r.rating).toFixed(1)}` : null].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  {typeof r.open_now === 'boolean'
+                    ? <span className={`ex-rest-state${r.open_now ? ' is-open' : ''}`}>{r.open_now ? t('common:open') : t('common:closed')}</span>
+                    : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {filtered.length > 0 && <h2 className="ex-section-title">{t('menu:exploreDishes')}</h2>}
+        </section>
+      )}
+
       {/* Dish grid */}
-      {!loading && !loadError && filtered.length > 0 && (
+      {showResults && filtered.length > 0 && (
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
           gap: 10, padding: '12px 16px',
@@ -195,7 +260,7 @@ export default function ExplorePage() {
                   />
                 ) : (
                   <span style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}>
-                    {categoryEmoji(dish.category)}
+                    {dishEmoji(dish)}
                   </span>
                 )}
                 {!dish.available && (

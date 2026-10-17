@@ -30,7 +30,7 @@
   },
   "posts": {
     "filter": "Kimin paylaşımları",
-    "fromVenue": "Restorandan",
+    "fromVenue": "{{name}} paylaşımları",
     "guests": "Qonaqlar",
     "emptyTitle": "Hələ paylaşım yoxdur",
     "emptyBody": "Bu restoran hələ heç nə paylaşmayıb.",
@@ -62,5 +62,36 @@
     "noMatch": "Filtrlərə uyğun heç nə tapılmadı",
     "clearFilters": "Axtarışı və filtrləri təmizlə",
     "liveNote": "Mövcudluq canlı yenilənir"
+  },
+  "notFound": {
+    "title": "Restoran tapılmadı",
+    "body": "Keçid səhv yazılmış və ya köhnəlmiş ola bilər, ya da restoran artıq Rufesto-da yoxdur."
+  },
+  "dish": {
+    "like": "Bəyən",
+    "liked": "Bəyənildi",
+    "likeAria": "Bu yeməyi bəyən",
+    "unlikeAria": "Bəyənilib. Bəyənməni götürmək üçün toxunun",
+    "review": "Rəy",
+    "reviewAria": "Rəy yaz",
+    "save": "Saxla",
+    "saved": "Saxlanıldı",
+    "saveAria": "Siyahınıza saxlayın",
+    "unsaveAria": "Saxlanılıb. Siyahınızdan çıxarmaq üçün toxunun",
+    "savedToast": "Siyahınıza saxlanıldı",
+    "unsavedToast": "Siyahınızdan çıxarıldı",
+    "replies_one": "{{count}} cavab",
+    "replies_other": "{{count}} cavab",
+    "reply": "Cavab yaz",
+    "hideReplies": "Cavabları gizlət",
+    "replyPlaceholder": "Cavab yazın…",
+    "replySend": "Göndər",
+    "replyFailed": "Cavab göndərilmədi. Yenidən cəhd edin.",
+    "repliesFailed": "Cavablar yüklənmədi.",
+    "retry": "Yenidən cəhd et",
+    "scanToOrder": "Sifariş üçün masanın QR kodunu skan edin",
+    "orderHint": "Sifariş vermək üçün masanızdakı QR kodu skan edin. Hələ gəlməmisiniz? Masa rezerv edin.",
+    "seatedAt": "Siz <b>{{venue}}</b> restoranında oturmusunuz. Sifarişi həmin menyudan verin.",
+    "seatedElsewhere": "Siz başqa restoranda oturmusunuz. Sifarişi həmin menyudan verin."
   }
 }

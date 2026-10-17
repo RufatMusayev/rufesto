@@ -150,5 +150,9 @@
     "request_failed": "İşçilərə bildirmək alınmadı. Yenidən cəhd edin.",
     "review_failed": "Rəy göndərilmədi. Yenidən cəhd edin.",
     "review_exists": "Bu yeməyə artıq rəy yazmısınız."
-  }
+  },
+  "paidCheckTitle": "Ödənildi ✓",
+  "youPaid": "Ödədiniz",
+  "paidAtBody": "{{restaurant}} üzrə hesabınız ödənilib.",
+  "paidAtBodyPlain": "Hesabınız ödənilib."
 }

@@ -10,6 +10,8 @@ import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import ActionBanner from '../components/ActionBanner'
+import ChipScroller from '../components/ChipScroller'
+import '../features/v2/styles.css'
 
 export default function MenuPage() {
   const { restaurantId, isManager } = useAuth()
@@ -107,7 +109,9 @@ export default function MenuPage() {
         <div>
           <h1 className="page-title">{t('dashboard:menuTitle')}</h1>
           <span style={{ fontSize:'0.72rem', color:'var(--t3)', marginTop:2, display:'block' }}>
-            {t('dashboard:menuSummary', { avail: availCount, total: filtered.length, all: dishes.length })}
+            {loading
+              ? <span className="skeleton menu-skel-sub" aria-hidden="true" />
+              : t('dashboard:menuSummary', { avail: availCount, total: filtered.length, all: dishes.length })}
           </span>
         </div>
         {isManager && (
@@ -130,22 +134,30 @@ export default function MenuPage() {
 
       {actionError && <ActionBanner message={actionError} onClose={() => setActionError('')} />}
 
-      {/* Section chips */}
-      <div className="no-scrollbar" style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1.25rem' }}>
-        <button className={`chip${!active ? ' active' : ''}`}
-          onClick={() => setActive(null)}>{t('dashboard:menuAll', { count: dishes.length })}</button>
-        {sections.map(s => {
-          const cnt = dishes.filter(d => d.menu_section_id === s.id).length
-          return (
-            <button key={s.id} className={`chip${active === s.id ? ' active' : ''}`}
-              onClick={() => setActive(s.id)}>{s.name} ({cnt})</button>
-          )
-        })}
-      </div>
+      {/* Section chips (a skeleton until the counts are known: "All (0)" would be a lie) */}
+      {loading ? (
+        <div className="menu-skel-chips" aria-hidden="true">
+          {[1, 2, 3].map(i => <span key={i} className="skeleton menu-skel-chip" />)}
+        </div>
+      ) : (
+        <ChipScroller role="group" aria-label={t('dashboard:menuTitle')}>
+          <button type="button" className={`chip${!active ? ' active' : ''}`}
+            onClick={() => setActive(null)}>{t('dashboard:menuAll', { count: dishes.length })}</button>
+          {sections.map(s => {
+            const cnt = dishes.filter(d => d.menu_section_id === s.id).length
+            return (
+              <button type="button" key={s.id} className={`chip${active === s.id ? ' active' : ''}`}
+                onClick={() => setActive(s.id)}>{s.name} ({cnt})</button>
+            )
+          })}
+        </ChipScroller>
+      )}
 
       {/* Dish list */}
       {loading ? (
-        <div style={{ color: 'var(--t3)' }}>{t('common:loading')}</div>
+        <div className="menu-skel-list" aria-hidden="true">
+          {[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton menu-skel-row" />)}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">🍽️</div>

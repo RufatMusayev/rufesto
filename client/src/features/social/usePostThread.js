@@ -4,6 +4,7 @@ import {
 } from './api'
 import { useOnVisible } from './hooks'
 import { logFeedEvent } from '../feed/events'
+import { patchFeedItem } from '../feed/feeds'
 
 const byTime = (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
 const merge = (...lists) => {
@@ -44,6 +45,14 @@ export function usePostThread({ id, userId, seed, authLoading, me }) {
     })
     return () => { alive = false }
   }, [id, userId, authLoading, attempt, seed])
+
+  // the feed lists keep the post's comment count as it is on this page (loaded, added, removed, live), so the card
+  // shows it when Home or Friends mounts again instead of the old number until a reload (persona-aysel m1)
+  const postId = post?.id
+  const commentCount = post?.commentCount
+  useEffect(() => {
+    if (postId && typeof commentCount === 'number') patchFeedItem('post', postId, { commentCount })
+  }, [postId, commentCount])
 
   // ---- comments (post_comments is readable signed-out too; only writing needs an account)
   const loadComments = useCallback(async () => {

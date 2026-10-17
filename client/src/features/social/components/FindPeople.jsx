@@ -11,9 +11,26 @@ import UserSearchInput from './UserSearchInput'
 // search_users returns [] below 3 characters (sql/47c), so the UI asks for 3 instead of showing a false "No one found".
 const MIN_CHARS = 3
 
+/** Second line of a result: mutual friends, else district, else "Joined <month>" (whatever search_users sent; may be none). */
+function useSubtitle() {
+  const { t } = useTranslation('social')
+  return u => {
+    if (u.mutual > 0) return t('find.mutual', { count: u.mutual })
+    if (u.district) return u.district
+    const at = u.joinedAt ? new Date(u.joinedAt) : null
+    if (at && !Number.isNaN(at.getTime())) {
+      const months = t('feed.months', { returnObjects: true })
+      const month = Array.isArray(months) ? months[at.getMonth()] : null
+      if (month) return t('find.joined', { when: month + ' ' + at.getFullYear() })
+    }
+    return null
+  }
+}
+
 /** "Find" tab: debounced user search (300ms, 3+ characters) with an Add / Pending / Friends control per result. */
 export default function FindPeople({ guard, onError, onRelationChange }) {
   const { t } = useTranslation('social')
+  const subtitle = useSubtitle()
   const [q, setQ] = useState('')
   const debounced = useDebounced(q.trim(), 300)
   const [state, setState] = useState({ results: null, loading: false, error: null })
@@ -61,6 +78,7 @@ export default function FindPeople({ guard, onError, onRelationChange }) {
           <FriendRow
             key={u.id}
             user={u}
+            subtitle={subtitle(u)}
             right={(
               <FriendButton
                 userId={u.id} name={u.name} status={u.status}

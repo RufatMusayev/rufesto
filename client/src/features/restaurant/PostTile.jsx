@@ -6,8 +6,9 @@ import { CameraIcon } from '../social/components/Icons'
 
 /**
  * One square of the Posts grid. A photo post shows the (signed) photo; a caption-only post is a text tile in the
- * restaurant's accent colour (colours come from the grid's --rst-tile-bg / --rst-tile-ink). A photo that cannot be
- * shown is re-signed once, then falls back to the camera placeholder. Tap opens the post detail route.
+ * restaurant's accent colour (colours come from the grid's --rst-tile-bg / --rst-tile-ink). item.photoUrl is the 640px
+ * copy (the full photo where a post has no copy). A photo that cannot be shown is re-signed once as the FULL photo,
+ * then falls back to the camera placeholder. Tap opens the post detail route.
  */
 export default function PostTile({ item, onOpen }) {
   const { t } = useTranslation('restaurant')

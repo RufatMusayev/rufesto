@@ -5,7 +5,7 @@
 import { supabase } from '../../lib/supabase'
 import { rsrc } from '../../lib/publicSource'
 import { toError } from './errors'
-import { POST_PHOTO_BUCKET, withSignedPhotos } from './lib/postPhotos'
+import { POST_PHOTO_BUCKET, smallPhotoPath, withSignedPhotos } from './lib/postPhotos'
 import {
   mapFriend, mapRequest, mapSearchRow, mapFeedItem, mapComment, mapProfile,
 } from './mappers'
@@ -13,7 +13,8 @@ import {
 // CONTRACT: PRIVATE bucket 'post-photos' (sql/43 + sql/48: 5 MB, jpeg/png/webp, authenticated insert
 // only into the caller's own <uid>/ folder). posts.photo_url holds the object PATH (`<uid>/<file>`);
 // feed / get_post / get_public_profile return it as-is and the client signs it per page of results
-// (lib/postPhotos.js, createSignedUrls, 1 h, cached in memory). If the bucket is missing on the
+// (lib/postPhotos.js, createSignedUrls, 1 h, cached in memory). Next to every photo there is a 640px copy,
+// `<path>_w640.jpg` (sql/65), that feeds and grids show; only the main path is stored. If the bucket is missing on the
 // server, the new-post screen drops to caption-only with a "Photo upload coming soon" note
 // (see uploadPostPhoto + NewPostPage).
 export const PHOTO_UPLOAD_ENABLED = true
@@ -22,6 +23,7 @@ const postPhotoPath = uid => `${uid}/${Date.now()}.jpg`
 // CONTRACT: create_post(p_photo_url, p_caption, p_restaurant_id DEFAULT NULL, ...): the tag is optional.
 export const POST_REQUIRES_RESTAURANT = false
 export const FEED_PAGE_SIZE = 15
+export const REPLIES_LIMIT = 50         // replies of one review read at once (oldest first)
 
 async function call(fn) {
   try {
@@ -109,6 +111,14 @@ export async function countIncomingRequests(userId) {
   return res.error ? { data: null, error: res.error } : { data: res.count || 0, error: null }
 }
 
+export async function countFriends(userId) {
+  // CONTRACT: table friendships (requester_id / addressee_id, status 'accepted'), select allowed to both parties
+  const res = await call(() => supabase
+    .from('friendships').select('id', { count: 'exact', head: true })
+    .eq('status', 'accepted').or(`requester_id.eq.${userId},addressee_id.eq.${userId}`))
+  return res.error ? { data: null, error: res.error } : { data: res.count || 0, error: null }
+}
+
 /** Live changes of friendships touching this user (incoming requests, accepted outgoing). */
 export function subscribeFriendships(userId, onChange) {
   // CONTRACT: realtime on friendships filtered addressee_id / requester_id
@@ -128,7 +138,7 @@ export async function getPublicProfile(userId) {
   const { data, error } = await rpc('get_public_profile', { p_user_id: userId })
   if (error) return error.code === 'user_not_found' ? { data: null, error: null } : { data: null, error }
   const profile = mapProfile(first(data))
-  if (profile) profile.posts = await withSignedPhotos(profile.posts)
+  if (profile) profile.posts = await withSignedPhotos(profile.posts, { small: true })     // grid tiles
   return { data: profile, error: null }
 }
 
@@ -139,14 +149,8 @@ export async function getFeed({ scope = 'all', cursor = null, limit = FEED_PAGE_
   // (authenticated only; 'friends' = mine + my friends' posts and reviews)
   const { data, error } = await rpc('feed', { p_scope: scope, p_cursor: cursor, p_limit: limit })
   if (error) return { data: null, error }
-  const items = await withSignedPhotos((data?.items || []).map(mapFeedItem))
+  const items = await withSignedPhotos((data?.items || []).map(mapFeedItem), { small: true })
   return { data: { items, nextCursor: data?.next_cursor || null }, error: null }
-}
-
-/** Posts INSERT stream for the "New posts" pill. onInsert({ userId }). */
-export function subscribePosts(onInsert) {
-  // CONTRACT: realtime INSERT on posts (RLS decides what each client sees)
-  return listen('posts', [{ table: 'posts', event: 'INSERT' }], p => onInsert({ userId: p?.new?.user_id || null }))
 }
 
 /* ------------------------------------------------------------------- posts */
@@ -191,16 +195,25 @@ export async function setReviewLike(reviewId, userId, like) {
     : supabase.from('likes').delete().eq('user_id', userId).eq('target_type', 'review').eq('target_id', reviewId)))
 }
 
-/** Uploads to `<uid>/<file>` in the private bucket and resolves { data: path } (pass it to createPost). */
-export async function uploadPostPhoto(userId, blob) {
+/**
+ * Uploads to `<uid>/<file>` in the private bucket and resolves { data: path } (pass it to createPost). `smallBlob` (the 640px
+ * copy from prepareImage) goes next to it as `<uid>/<file>_w640.jpg`, in the same round trip; the small copy is best effort:
+ * if it fails the post is still published and the feeds show the full photo.
+ */
+export async function uploadPostPhoto(userId, blob, smallBlob = null) {
   if (!PHOTO_UPLOAD_ENABLED) return { data: null, error: toError({ message: 'photo_disabled' }) }
   const path = postPhotoPath(userId)
+  const smallPath = smallBlob ? smallPhotoPath(path) : null
+  const put = (to, body) => supabase.storage.from(POST_PHOTO_BUCKET).upload(to, body, { contentType: 'image/jpeg', upsert: false })
   try {
-    const { error } = await supabase.storage
-      .from(POST_PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false })
-    if (error) {
+    const [main, small] = await Promise.all([
+      put(path, blob),
+      smallPath ? put(smallPath, smallBlob).catch(err => ({ error: err })) : null,
+    ])
+    if (main.error) {
+      if (smallPath && small && !small.error) supabase.storage.from(POST_PHOTO_BUCKET).remove([smallPath]).catch(() => {})   // nothing to point at it
       // bucket not created on this database yet: the screen falls back to caption-only
-      const missing = /bucket not found/i.test(error.message || '') || String(error.statusCode) === '404'
+      const missing = /bucket not found/i.test(main.error.message || '') || String(main.error.statusCode) === '404'
       return { data: null, error: toError({ message: missing ? 'photo_disabled' : 'upload_failed' }) }
     }
   } catch {
@@ -215,6 +228,41 @@ export async function searchRestaurants(query) {
     .from(rsrc()).select('id, name, slug, cuisine_type, logo')
     .eq('status', 'active').ilike('name', `%${q}%`).order('name').limit(8))
   return error ? { data: null, error } : { data: data || [], error: null }
+}
+
+/* ------------------------------------------------------------ review replies */
+
+const REPLY_COLS = 'id, user_id, body, created_at, users(name, profile_photo)'
+const mapReply = (r, userId) => ({
+  id: r.id,
+  user: { id: r.user_id, name: r.users?.name || null, photo: r.users?.profile_photo || null },
+  body: r.body || '',
+  createdAt: r.created_at,
+  mine: !!userId && r.user_id === userId,
+})
+
+export async function listReviewReplies(reviewId, userId = null) {
+  // CONTRACT: table review_comments (sql/24; readable by everyone while not flagged), oldest first, embeds the author
+  const { data, error } = await call(() => supabase
+    .from('review_comments').select(REPLY_COLS)
+    .eq('review_id', reviewId).eq('is_flagged', false)
+    .order('created_at', { ascending: true }).limit(REPLIES_LIMIT))
+  if (error) return { data: null, error }
+  return { data: (data || []).map(r => mapReply(r, userId)), error: null }
+}
+
+export async function addReviewReply(reviewId, userId, body) {
+  // CONTRACT: insert into review_comments (review_id, user_id, body) as the signed-in user (sql/52d: body <= 500 chars)
+  const { data, error } = await call(() => supabase
+    .from('review_comments').insert({ review_id: reviewId, user_id: userId, body })
+    .select(REPLY_COLS).single())
+  if (error) return { data: null, error }
+  return { data: mapReply(data, userId), error: null }
+}
+
+export async function deleteReviewReply(replyId) {
+  // CONTRACT: delete from review_comments where id = ... (own rows only, by RLS)
+  return call(() => supabase.from('review_comments').delete().eq('id', replyId))
 }
 
 /* ---------------------------------------------------------------- comments */

@@ -10,8 +10,8 @@ const localeTag = lang => (lang === 'az' ? 'az-AZ' : 'en-GB')
 function formatWhen(iso, lang) {
   const d = iso ? new Date(iso) : null
   if (!d || Number.isNaN(d.getTime())) return ''
-  // The restaurant is in Baku: show its wall clock whatever the browser timezone is.
-  return d.toLocaleString(localeTag(lang), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Baku' })
+  // The restaurant is in Baku: show its wall clock (24-hour) whatever the browser timezone or locale is.
+  return d.toLocaleString(localeTag(lang), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Baku', hourCycle: 'h23' })
 }
 
 const Row = ({ label, value, strong }) => (

@@ -14,6 +14,10 @@ Thumbs.db
 .claude/
 .mcp.json
 
-# Supabase CLI temp folder, QA credentials for the e2e suite
-supabase/
+# Supabase CLI temp folder (.temp, config.toml, ...) stays ignored; the Edge Functions are source code and are tracked
+supabase/*
+!supabase/functions/
+# QA credentials for the e2e suite
 e2e/.env
+# Web push secrets written by scripts/push-keys.mjs (normally outside the repo)
+push*.env

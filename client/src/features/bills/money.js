@@ -6,10 +6,9 @@ export const fromCents = c => (Number(c) || 0) / 100
 export const TIP_PERCENTS = [0, 5, 10, 15]
 export const TIP_MAX = 999.99
 
-/** Tip for a share at `pct` percent, rounded to the nearest 0.10. */
+/** Tip for a share at `pct` percent, to the qepik: the chip says what is charged (create_payment_intent rounds p_tip to 2 decimals, nothing coarser). */
 export function tipForShare(share, pct) {
-  const cents = toCents(share)
-  return fromCents(Math.round((cents * pct) / 1000) * 10)
+  return fromCents(Math.round((toCents(share) * pct) / 100))
 }
 
 /** Parse the custom tip field. '' is 0; returns null when it is not a valid amount in 0..999.99. */

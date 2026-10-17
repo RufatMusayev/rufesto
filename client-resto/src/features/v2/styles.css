@@ -5,6 +5,8 @@
 @import './qr.css';
 @import './posts.css';
 @import './menuDesign.css';
+@import './ops.css';
+@import './notifications.css';
 
 .v2-sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -193,13 +195,13 @@
 .v2-bill-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 0.75rem; align-items: start; }
 .v2-bill {
   --v2-status: var(--t3); background: var(--s2); border: 1px solid var(--border);
-  border-radius: 14px; overflow: hidden;
+  border-radius: 14px; /* no overflow: hidden, the "..." menu (BillMenu) hangs below the header */
 }
 .v2-bill--requested { --v2-status: var(--warning); }
 .v2-bill--paying { --v2-status: var(--blue); }
 .v2-bill--paid { --v2-status: var(--green); }
 .v2-bill--void { --v2-status: var(--red); }
-.v2-bill-bar { height: 2px; background: var(--v2-status); opacity: 0.6; }
+.v2-bill-bar { height: 2px; background: var(--v2-status); opacity: 0.6; border-radius: 14px 14px 0 0; }
 .v2-bill-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.65rem; }
 .v2-bill-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
 .v2-bill-table { font-weight: 700; font-size: 0.95rem; }
@@ -268,7 +270,7 @@
 }
 .v2-day.is-invalid { border-color: var(--red); background: rgba(239, 68, 68, 0.06); }
 .v2-day.is-closed .v2-day-name { color: var(--t3); }
-.v2-day-name { font-size: 0.86rem; font-weight: 600; text-transform: capitalize; }
+.v2-day-name { font-size: 0.86rem; font-weight: 600; }
 .v2-day-switch { display: flex; align-items: center; gap: 0.5rem; }
 .v2-day-state { font-size: 0.76rem; color: var(--t2); }
 .v2-day-times { display: flex; align-items: center; gap: 0.5rem; }
@@ -360,7 +362,7 @@
 
 /* ── Tips: by-day strip (plain divs; bar height = one of the 5% step classes) ── */
 .v2-strip-card { margin-bottom: 1.25rem; }
-.v2-strip { list-style: none; display: flex; align-items: stretch; gap: 4px; height: 128px; overflow-x: auto; }
+.v2-strip { list-style: none; display: flex; align-items: stretch; gap: 4px; height: 148px; overflow-x: auto; }
 .v2-strip-col { flex: 1 1 0; min-width: 18px; max-width: 64px; display: flex; flex-direction: column; gap: 6px; }
 .v2-strip-bar { flex: 1; display: flex; align-items: flex-end; background: var(--s3); border-radius: 6px; overflow: hidden; }
 .v2-strip-fill { display: block; width: 100%; height: 0; background: var(--gold); border-radius: 6px 6px 0 0; }
@@ -457,7 +459,22 @@ a.v2-mytips:focus-visible { outline: 2px solid var(--accent); outline-offset: 2p
   .v2-segment { min-height: var(--tap); min-width: var(--tap); }
   .v2-icon-btn { width: var(--tap); height: var(--tap); }
   .v2-check { min-height: var(--tap); }
-  .v2-check input { width: 20px; height: 20px; }
+  /* The checkbox itself is the 44px target (not a 20px box inside a 44px label): the native box is hidden and the
+     visible one is drawn inside it; the negative margin keeps the row as tall as before. */
+  .v2-check input {
+    -webkit-appearance: none; appearance: none; position: relative; flex-shrink: 0;
+    width: var(--tap); height: var(--tap); margin: -12px; background: transparent; cursor: pointer;
+  }
+  .v2-check input::before {
+    content: ''; position: absolute; inset: 12px; border: 2px solid var(--border-strong); border-radius: 5px;
+    background: var(--s2); transition: background 0.15s, border-color 0.15s;
+  }
+  .v2-check input:checked::before { background: var(--accent); border-color: var(--accent); }
+  .v2-check input:checked::after {
+    content: ''; position: absolute; left: 18px; top: 13px; width: 7px; height: 13px;
+    border: solid #F5F0E8; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+  }
+  .v2-check input:focus-visible { outline-offset: -4px; }
   .v2-switch-row, .v2-day-switch { min-height: var(--tap); }
   .v2-banner-close {
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;

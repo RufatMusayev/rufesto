@@ -2,9 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../contexts/AuthContext'
-import { closeBill, fetchBills, markSharePaid, subscribeBills, voidBill } from '../api'
+import { closeBill, markSharePaid, subscribeBills, voidBill } from '../api'
+import { fetchBillsRange, fetchUnbilledTables, subscribeOrdersResync } from '../historyApi'
+import { bakuDateString } from '../dates'
+import { BILL_PRESETS, isTodayRange } from '../historyRange'
 import { v2Error } from '../errors'
 import useLiveList from '../hooks/useLiveList'
+import useDayRange from '../hooks/useDayRange'
+import ChipScroller from '../../../components/ChipScroller'
+import DayRangeChips from '../components/DayRangeChips'
+import UnbilledTables from '../components/UnbilledTables'
 import BillCard from '../components/BillCard'
 import BillStats, { isActiveBill } from '../components/BillStats'
 import ConfirmModal from '../components/ConfirmModal'
@@ -47,9 +54,29 @@ function withBillVoid(bill) {
 export default function BillsPage() {
   const { restaurantId, staffRow } = useAuth()
   const { t } = useTranslation(['v2', 'dashboard', 'common'])
-  const load = useCallback(() => fetchBills(restaurantId), [restaurantId])
-  const subscribe = useCallback(resync => subscribeBills(restaurantId, resync), [restaurantId])
-  const { data, setData, error, loading, retry, reload } = useLiveList(load, subscribe, restaurantId)
+  const rangeState = useDayRange('today')
+  const { range } = rangeState
+  const viewingToday = isTodayRange(range)
+  // Served tables that have no bill yet (only meaningful for today): kept next to the bills, refreshed with them.
+  const [unbilled, setUnbilled] = useState([])
+  const load = useCallback(async () => {
+    const res = await fetchBillsRange(restaurantId, range, bakuDateString())
+    if (res.data && isTodayRange(range)) {
+      const billed = res.data.filter(isActiveBill).map(b => b.tableId).filter(Boolean)
+      const open = await fetchUnbilledTables(restaurantId, billed)
+      setUnbilled(open.data || [])
+    } else if (res.data) {
+      setUnbilled([])
+    }
+    return res
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, rangeState.key])
+  const subscribe = useCallback(resync => {
+    const stopBills = subscribeBills(restaurantId, resync)
+    const stopOrders = subscribeOrdersResync(restaurantId, resync)
+    return () => { stopBills(); stopOrders() }
+  }, [restaurantId])
+  const { data, setData, error, loading, retry, reload } = useLiveList(load, subscribe, restaurantId ? `${restaurantId}|${rangeState.key}` : null)
 
   // /bills?table=<id> (the "Settle on Bills" link on a served order) narrows the list to that table's bills.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -67,6 +94,8 @@ export default function BillsPage() {
 
   // A paid or older bill of that table must show too, so a table link starts on "all".
   useEffect(() => { if (tableParam) setFilter('all') }, [tableParam])
+  // A past day is mostly paid bills: look at all of them first; today goes back to what still needs handling.
+  useEffect(() => { setFilter(viewingToday ? (tableParam ? 'all' : 'active') : 'all') }, [viewingToday]) // eslint-disable-line react-hooks/exhaustive-deps
   const clearTable = useCallback(() => {
     setFilter('active')
     setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('table'); return next }, { replace: true })
@@ -138,6 +167,8 @@ export default function BillsPage() {
 
       <ErrorBanner message={actionError} onDismiss={() => setActionError('')} />
 
+      <DayRangeChips state={rangeState} presets={BILL_PRESETS} label={t('histBillsRange')} />
+
       {loading ? (
         <div aria-hidden="true">
           <div className="v2-stats">
@@ -149,7 +180,9 @@ export default function BillsPage() {
         <LoadError message={v2Error(error, t)} onRetry={retry} />
       ) : (
         <>
-          <BillStats bills={bills} />
+          <BillStats bills={bills} range={range} isToday={viewingToday} />
+
+          {viewingToday && !tableParam && <UnbilledTables tables={unbilled} />}
 
           {tableParam && (
             <div className="v2-table-filter">
@@ -162,16 +195,16 @@ export default function BillsPage() {
             </div>
           )}
 
-          <div className="v2-chips no-scrollbar" role="group" aria-label={t('billsTitle')}>
+          <ChipScroller role="group" aria-label={t('billsTitle')}>
             {FILTERS.map(f => (
               <button key={f} type="button" className={`chip${filter === f ? ' active' : ''}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>
                 {t(`filter_${f}`, { count: counts[f] })}
               </button>
             ))}
-          </div>
+          </ChipScroller>
 
           {visible.length === 0 ? (
-            <EmptyBlock icon="🧾" title={bills.length === 0 ? t('noBillsToday') : t('noBillsFilter')} />
+            <EmptyBlock icon="🧾" title={bills.length === 0 ? t(viewingToday ? 'noBillsToday' : 'noBillsRange') : t('noBillsFilter')} />
           ) : (
             <div className="v2-bill-list">
               {visible.map(b => (

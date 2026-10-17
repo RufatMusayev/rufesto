@@ -91,5 +91,10 @@
   "sendAnother": "Send another",
   "errSelectRating": "Please select a rating.",
   "errWriteMessage": "Please write a message.",
-  "errSendFailed": "Could not send feedback. Try again."
+  "errSendFailed": "Could not send feedback. Try again.",
+  "tabShortPosts": "Posts",
+  "tabShortBookings": "Bookings",
+  "tabShortReviews": "Reviews",
+  "tabShortSaved": "Saved",
+  "tabShortVisits": "Visits"
 }

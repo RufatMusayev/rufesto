@@ -1,6 +1,10 @@
 /* Bills & payments (WP3). Prefix bl-. Tokens only: no hard-coded theme colours (print rules aside). */
 
 .bl-page { max-width: 470px; margin: 0 auto; padding-bottom: 80px; }
+/* With the sticky pay bar (about 100px, floating above the bottom nav) the last section must be able to scroll clear of it:
+   the payment method options sit right above the bar and were half hidden under it at the end of the page. */
+.bl-page:has(.bl-paybar) { padding-bottom: calc(var(--bottom-h) + 150px); }
+@media (min-width: 769px) { .bl-page:has(.bl-paybar) { padding-bottom: 130px; } }
 .bl-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .bl-mono { font-family: 'DM Mono', 'Courier New', monospace; font-variant-numeric: tabular-nums; }
 .bl-label { font-size: 0.68rem; font-weight: 700; color: var(--note); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
@@ -137,8 +141,11 @@
 .bl-review-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; font-weight: 700; }
 .bl-review-verified { display: flex; }
 .bl-review-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.bl-review-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.bl-review-dish { font-size: 0.86rem; font-weight: 600; min-width: 0; }
+/* every row has the same shape: [thumb] name, and the five stars on a line of their own under the name */
+.bl-review-row { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.bl-review-row .dish-thumb { grid-row: 1 / span 2; align-self: start; margin-top: 2px; }
+.bl-review-dish { font-size: 0.86rem; font-weight: 600; min-width: 0; overflow-wrap: anywhere; align-self: end; }
+.bl-review-row .bl-stars { grid-column: 2; margin-left: -10px; }
 .bl-stars { display: flex; gap: 2px; }
 .bl-star { width: var(--tap); height: var(--tap); background: none; border: none; cursor: pointer; font-size: 1.5rem; line-height: 1; color: var(--border-strong); transition: color 100ms var(--ease-out), transform 100ms var(--ease-out); }
 .bl-star:active { transform: scale(0.9); }

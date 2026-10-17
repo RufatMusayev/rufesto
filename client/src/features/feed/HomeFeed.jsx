@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { homeFeed } from './feeds'
 import { useStore } from './store'
-import { NEW_COUNT_CAP } from './api'
+import { NEW_COUNT_CAP, getHomeFeedNewCount } from './api'
 import { useViewerLocation } from './useViewerLocation'
 import { useFeedEvents } from './useFeedEvents'
 import { useNewPostCount } from './useNewPostCount'
 import { useNearEnd, nearEndIndex, nearEndSupported } from './useNearEnd'
+import { useEagerPhotos } from './useEagerPhotos'
 import FeedItem from './components/FeedItem'
 import LocationPill from './components/LocationPill'
 import CaughtUp from './components/CaughtUp'
@@ -24,8 +25,9 @@ const keyOf = it => `${it.kind}-${it.id}`
  * feeds.js (homeFeed), not here: it is requested on route load (prefetch.js), kept while the tab is hidden or
  * unmounted, and the next page loads in the background when the viewer is 3 cards from the end. An empty
  * page ends the list with "You're all caught up" and, for a signed-in guest, a chronological tail.
- * `active` is false while another Home tab is shown (the new-posts poll pauses). `onDiscover` switches to the
- * Discover tab.
+ * `active` is false while another Home tab is shown (the new-posts poll pauses); becoming active again asks
+ * the store to make sure its list is fresh (a no-op, or a quiet refetch after a follow / friend change).
+ * `onDiscover` switches to the Discover tab.
  */
 export default function HomeFeed({ active = true, onDiscover }) {
   const { t } = useTranslation('social')
@@ -42,13 +44,14 @@ export default function HomeFeed({ active = true, onDiscover }) {
   useEffect(() => {
     if (authLoading || geo.pending) return
     homeFeed.ensure({ userId, lat, lng })
-  }, [authLoading, geo.pending, userId, lat, lng])
+  }, [authLoading, geo.pending, userId, lat, lng, active])
 
   const since = useRef(null)
   since.current = s.loadedIso
   const getSince = useCallback(() => since.current, [])
   const ready = s.status === 'ready'
-  const [newCount, clearNew] = useNewPostCount({ active, ready, since: getSince, lat, lng })
+  const loadNewCount = useCallback(() => getHomeFeedNewCount({ since: getSince(), lat, lng }), [getSince, lat, lng])
+  const [newCount, clearNew] = useNewPostCount({ kind: 'home', active, ready, load: loadNewCount })
   useEffect(() => { clearNew() }, [s.loadedAt, clearNew])
 
   const loadMore = useCallback(() => homeFeed.loadMore(), [])
@@ -61,6 +64,7 @@ export default function HomeFeed({ active = true, onDiscover }) {
   }
 
   const shown = useMemo(() => new Set(s.items.map(keyOf)), [s.items])
+  const eager = useEagerPhotos(s.items, active)
   const busy = s.status === 'idle' || s.status === 'loading'
 
   return (
@@ -79,7 +83,7 @@ export default function HomeFeed({ active = true, onDiscover }) {
           {i === marker && <span ref={markerRef} className="soc-marker" aria-hidden="true" />}
           <FeedItem
             item={it} events={events} onDeleted={homeFeed.remove}
-            index={Math.max(0, i - s.pageStart)}
+            index={Math.max(0, i - s.pageStart)} priority={eager.has(keyOf(it))}
           />
         </Fragment>
       ))}

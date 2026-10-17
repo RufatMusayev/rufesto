@@ -12,6 +12,7 @@ const { test, expect } = require('../support/fixtures')
 const { CONSUMER_URL, RESTO_URL, creds, tableCode } = require('../support/env')
 const { signInGuest, bakuDate } = require('../support/guest')
 const { openAs, rpc, rest, resetTable } = require('../support/v2')
+const R = require('../support/restaurant')
 
 const url = path => CONSUMER_URL + path
 const rurl = path => RESTO_URL + path
@@ -29,11 +30,11 @@ async function claimTable(page) {
 
 /** Restaurant page -> first orderable dish -> cart sheet -> Place Order (same as v2-bills). */
 async function orderOneDish(page) {
-  await page.getByRole('link', { name: 'Add More Items' }).click()
+  await R.menuLink(page).click()
   await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
   const add = page.getByRole('button', { name: /^Add to Order/ })
-  const tiles = page.locator('.menu-card')
-  await expect(tiles.first()).toBeVisible()
+  await R.showMenu(page)
+  const tiles = R.rowButtons(page)
   for (let i = 0, n = await tiles.count(); i < n && !(await add.isVisible()); i++) {   // skip sold-out dishes
     await tiles.nth(i).click()
     await add.waitFor({ timeout: 2_000 }).catch(() => page.keyboard.press('Escape'))

@@ -432,7 +432,8 @@ a { text-decoration: none; color: inherit; }
 .dash-mobile-more:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .dash-mobile-nav-item svg { width: 20px; height: 20px; }
 
-.dash-grid { display: grid; grid-template-columns: 1fr 280px; gap: 1.25rem; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1.25rem; }
+.dash-grid > * { min-width: 0; }
 
 @media (max-width: 1024px) and (min-width: 769px) {
   .dash-sidebar { width: 60px; }
@@ -442,9 +443,12 @@ a { text-decoration: none; color: inherit; }
   .dash-nav-item.active::before { display: none; }
   .dash-sidebar-foot .dash-nav-label { display: none; }
   .dash-sidebar-foot .dash-nav-item { justify-content: center; }
+  /* EN / AZ stack in the narrow rail instead of running off its right edge (it was clipped to "EN" and half an "A") */
+  .dash-sidebar-foot .lang-switcher { flex-direction: column; align-items: stretch; gap: 2px; width: 100%; }
+  .dash-sidebar-foot .lang-btn { width: 100%; padding: 6px 0; text-align: center; }
   .dash-content { margin-left: 60px; }
 }
-@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 768px) {
   /* Stack: the sticky mobile header sits above the page, not beside it (the layout is a row on desktop). */
   .dash-layout { flex-direction: column; }

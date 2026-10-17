@@ -63,7 +63,10 @@ async function run(key, args, silent) {
     return
   }
   resetImpressions('discover')
-  put(key, { status: 'ready', data, error: null, refreshing: false, loadedAt: Date.now() })
+  // a quiet refresh that brings the same answer keeps the object on screen: nothing under it re-renders
+  const was = discoverStore.get().entries[key]?.data
+  const same = silent && was && JSON.stringify(was) === JSON.stringify(data)
+  put(key, { status: 'ready', data: same ? was : data, error: null, refreshing: false, loadedAt: Date.now() })
   if (!args.cuisine || !discoverStore.get().chips.length) discoverStore.set({ chips: data.cuisines })
   loadEngagement(data.allRestaurants.map(r => r.id), args.userId)
 }
@@ -89,6 +92,32 @@ export function ensureDiscover(args, { maxAge = STALE_MS } = {}) {
   const silent = e?.status === 'ready'
   if (silent && (Date.now() - e.loadedAt <= maxAge || e.refreshing)) return Promise.resolve()
   return start(key, args, silent)
+}
+
+/** Changes fields of a top review that is in an answer (a like or reply made on its card), so it shows after a remount. */
+export function patchDiscoverReview(id, partial) {
+  discoverStore.update(s => {
+    let hit = false
+    const entries = {}
+    for (const [k, e] of Object.entries(s.entries)) {
+      const list = e.data?.topReviews
+      const at = list ? list.findIndex(r => r.id === id) : -1
+      if (at < 0 || Object.keys(partial).every(f => list[at][f] === partial[f])) { entries[k] = e; continue }
+      hit = true
+      const topReviews = list.map((r, i) => (i === at ? { ...r, ...partial } : r))
+      entries[k] = { ...e, data: { ...e.data, topReviews } }
+    }
+    return hit ? { ...s, entries } : s
+  })
+}
+
+/** The viewer's follows or friends changed: every answer refreshes quietly on its next visit (the old one stays until then). */
+export function invalidateDiscover() {
+  discoverStore.update(s => {
+    const entries = {}
+    for (const [k, e] of Object.entries(s.entries)) entries[k] = e.status === 'ready' ? { ...e, loadedAt: 0 } : e
+    return { ...s, entries }
+  })
 }
 
 /** Reload the answer for these args now (the retry button). */

@@ -7,7 +7,8 @@ import { V2_ROLE_ROUTES } from '../features/v2/roles'
 // v2 pages (features/v2: /bills, /tips, /my-tips, /settings, /qr-sheet) are added per role from
 // the feature's own map (decision D-9): bills and tips for admin, manager and cashier, my-tips for
 // every floor role (waiter, host, cashier, manager, admin);
-// settings and the QR sheet for admin and manager. Kitchen gets none.
+// the QR sheet for admin and manager; settings for every role (a role without manager rights only gets its
+// Notifications tab). Kitchen gets Settings and nothing else from v2.
 const v2 = role => V2_ROLE_ROUTES[role] || []
 
 export const ALL_PAGES = ['/', '/orders', '/kds', '/tables', '/menu', '/promos', '/bookings', '/waiter', ...v2('admin')]

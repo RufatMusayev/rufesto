@@ -5,6 +5,8 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { canAccess } from '../../lib/roles'
 import LanguageSwitcher from '../LanguageSwitcher'
 import v2Nav from '../../features/v2/nav'
+import { NotificationsProvider } from '../../features/v2/NotificationsProvider'
+import NotificationBell from '../../features/v2/components/NotificationBell'
 import MobileNav from './MobileNav'
 import { ExitIcon, MoonIcon, SunIcon } from './navIcons'
 
@@ -32,6 +34,7 @@ export default function DashboardLayout() {
   const NAV = ALL_NAV.filter(n => canAccess(staffRow?.role, n.to))
 
   return (
+    <NotificationsProvider>
     <div className="dash-layout">
       <aside className="dash-sidebar">
         <div className="dash-sidebar-head">
@@ -58,6 +61,7 @@ export default function DashboardLayout() {
               </span>
             </div>
           </div>
+          <NotificationBell variant="side" />
         </div>
 
         <nav className="dash-nav">
@@ -88,8 +92,11 @@ export default function DashboardLayout() {
           <div className="dash-resto-badge" style={{ width: 28, height: 28, fontSize: '0.72rem' }}>{initial}</div>
           <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{staffRow?.restaurants?.name}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.7rem', color: 'var(--green)' }}>
-          <span className="dash-live-dot" /> {t('live')}
+        <div className="notif-head-right">
+          <div className="notif-head-live">
+            <span className="dash-live-dot" /> {t('live')}
+          </div>
+          <NotificationBell variant="head" />
         </div>
       </div>
 
@@ -99,6 +106,7 @@ export default function DashboardLayout() {
         <Outlet />
       </main>
     </div>
+    </NotificationsProvider>
   )
 }
 

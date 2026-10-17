@@ -8,7 +8,10 @@ import { patchDish } from './mappers'
 const cache = new Map()                    // slug -> { menu, at }
 const TTL_MS = 60 * 1000
 
-/** status: 'loading' | 'ready' | 'error'; menu is the view-model of mappers.js (null until ready). */
+/**
+ * status: 'loading' | 'ready' | 'error'; menu is the view-model of mappers.js (null until ready). On 'error',
+ * `error.code` is 'restaurant_not_found' when restaurant_menu says the slug is unknown or inactive.
+ */
 export function useMenu(slug, restaurantId) {
   const [state, setState] = useState(() => {
     const hit = cache.get(slug)
@@ -25,7 +28,7 @@ export function useMenu(slug, restaurantId) {
     let alive = true
     fetchMenu(slug, restaurantId).then(({ data, error }) => {
       if (!alive) return
-      if (error) { setState(s => (s.menu ? s : { status: 'error', menu: null })); return }
+      if (error) { setState(s => (s.menu ? s : { status: 'error', menu: null, error })); return }
       cache.set(slug, { menu: data, at: Date.now() })
       setState({ status: 'ready', menu: data })
     })

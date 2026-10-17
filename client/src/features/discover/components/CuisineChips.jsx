@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
-
-const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
+import { cuisineLabel } from '../cuisine'
 
 /** "All" + the cuisines of active restaurants. Picking one asks the server with p_cuisine (cached per cuisine). */
 export default function CuisineChips({ chips, value, onChange }) {
@@ -22,7 +21,7 @@ export default function CuisineChips({ chips, value, onChange }) {
             key={c.key} type="button" className={`chip dsc-chip${on ? ' active' : ''}`} aria-pressed={on}
             onClick={() => onChange(c.key)}
           >
-            {cap(c.key)}
+            {cuisineLabel(t, c.key)}
           </button>
         )
       })}

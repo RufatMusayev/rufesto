@@ -23,6 +23,8 @@ test.describe('guest', { tag: ['@guest', '@consumer'] }, () => {
   })
 
   test('opens a restaurant; the booking wizard offers time slots (nothing is submitted)', async ({ page }) => {
+    // Home opens on the ranked Home tab; the restaurant list ("View menu →") is the Discover tab: remember it before the page loads
+    await page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
     await page.goto(url('/'))
     await page.getByRole('link', { name: /view menu/i }).first().click()
     await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)

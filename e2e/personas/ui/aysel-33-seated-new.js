@@ -1,0 +1,43 @@
+// Re-check of the seated ordering UI on the build deployed at 12:32 (commit 271c4b5: posts first, designed menu second).
+const L = require('./aysel-lib')
+const step = async (n, fn) => { try { L.log('\n=== ' + n); await fn() } catch (e) { L.log('STEP FAILED', n, String(e.message).split('\n')[0]) } }
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  await step('join T2', async () => {
+    await A.page.goto(L.CONSUMER + '/t/FINCAN-CHH7CC'); await A.page.waitForTimeout(2500)
+    await A.page.getByRole('button', { name: 'Join', exact: true }).click(); await A.page.waitForTimeout(2500)
+    L.log('URL', A.page.url().replace(L.CONSUMER, ''))
+  })
+  await step('menu when seated', async () => {
+    await A.page.getByRole('link', { name: /Add More Items|Browse/i }).click().catch(() => A.page.goto(L.CONSUMER + '/restaurant/fincan-coffee'))
+    await A.page.waitForTimeout(3000)
+    L.log('url', A.page.url().replace(L.CONSUMER, ''), '| tabs', await A.page.evaluate(() => [...document.querySelectorAll('[role=tab]')].map(t => t.innerText.trim() + ':' + t.getAttribute('aria-selected'))))
+    await L.shot(A.page, '33-seated-menu-top')
+    const adds = A.page.locator('.mn-add')
+    L.log('add buttons', await adds.count(), 'first box', JSON.stringify(await adds.first().boundingBox()))
+    const row = A.page.locator('.mn-row').filter({ hasText: 'Flat White' }).first()
+    await row.scrollIntoViewIfNeeded(); await A.page.waitForTimeout(500)
+    await L.shot(A.page, '33-seated-menu-row')
+    await row.locator('.mn-add').click(); await A.page.waitForTimeout(900)
+    L.log('after + on Flat White: sheet open?', await A.page.locator('.sheet').count(), '| fab:', JSON.stringify(await A.page.evaluate(() => document.querySelector('.cart-fab')?.innerText)), '| toast:', await A.page.evaluate(() => [...document.querySelectorAll('[role=status],.toast')].map(e => e.innerText).join('/')))
+    await L.shot(A.page, '33-after-add')
+    const row2 = A.page.locator('.mn-row').filter({ hasText: 'Butter Croissant' }).first()
+    await row2.scrollIntoViewIfNeeded(); await row2.locator('.mn-add').click({ timeout: 5000 }).catch(e => L.log('second add blocked:', String(e.message).split('\n')[0]))
+    await A.page.waitForTimeout(700)
+    L.log('fab after second add:', JSON.stringify(await A.page.evaluate(() => document.querySelector('.cart-fab')?.innerText)), 'sheet', await A.page.locator('.sheet').count())
+    await L.shot(A.page, '33-after-add-2')
+  })
+  await step('reload keeps cart?', async () => {
+    await A.page.reload(); await A.page.waitForTimeout(3000)
+    L.log('fab after reload:', JSON.stringify(await A.page.evaluate(() => document.querySelector('.cart-fab')?.innerText)))
+  })
+  await step('leave the table without ordering (End Session)', async () => {
+    await A.page.goto(L.CONSUMER + '/table'); await A.page.waitForTimeout(2500)
+    await A.page.getByRole('button', { name: 'End Session' }).click(); await A.page.waitForTimeout(1500)
+    L.log('after End Session:', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 200))
+    await L.shot(A.page, '33-end-session')
+  })
+  L.log('errors', A.errors.filter(e => !/ERR_ABORTED/.test(e)))
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

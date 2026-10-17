@@ -12,6 +12,7 @@ const fs = require('fs')
 const path = require('path')
 const { test: base, expect, settle } = require('../support/fixtures')
 const F = require('../support/feat-dash')
+const R = require('../support/restaurant')
 // Tests that seat the shared guests (review4-6) request `guestLock`: a cross-process mutex (see support/feat-dash.js).
 // It is a fixture so that waiting for the lock has its own timeout and does not eat the test's.
 const test = base.extend({
@@ -573,11 +574,11 @@ async function consumerOrder(guest, code) {
   await expect(guest.getByRole('heading', { name: 'Join this table?' })).toBeVisible()
   await guest.getByRole('button', { name: 'Join', exact: true }).click()
   await expect(guest).toHaveURL(`${CONSUMER}/table`)
-  await guest.getByRole('link', { name: 'Add More Items' }).click()
+  await R.menuLink(guest).click()
   await expect(guest).toHaveURL(/\/restaurant\/[\w-]+$/)
   const add = guest.getByRole('button', { name: /^Add to Order/ })
-  const tiles = guest.locator('.menu-card')
-  await expect(tiles.first()).toBeVisible()
+  await R.showMenu(guest)
+  const tiles = R.rowButtons(guest)
   for (let i = 0, n = await tiles.count(); i < n && !(await add.isVisible()); i++) {   // skip sold-out dishes
     await tiles.nth(i).click()
     await add.waitFor({ timeout: 2_000 }).catch(() => guest.keyboard.press('Escape'))

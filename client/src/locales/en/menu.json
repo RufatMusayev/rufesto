@@ -28,5 +28,7 @@
   "exploreFilterGlutenFree": "Gluten-free",
   "exploreFilterSpicy": "Spicy",
   "nothingFound": "Nothing found",
-  "tryDifferentSearch": "Try a different search or filter"
+  "tryDifferentSearch": "Try a different search or filter",
+  "exploreRestaurants": "Restaurants",
+  "exploreDishes": "Dishes"
 }

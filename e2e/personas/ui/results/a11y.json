@@ -4,22 +4,22 @@
     "lang": "en",
     "targets": 121,
     "smallGroups": [
+      "1x a.soc-post-name|Mehriban Rzayeva|124x24",
+      "1x a.soc-chip|Burger Qala|112x32",
       "2x a.soc-post-name|Aysel Məmmədova|130x24",
       "2x a.soc-chip|Brew & Books|124x32",
       "2x a.soc-post-name|Trattoria Bella Roma|139x24",
-      "1x a.soc-post-name|Mehriban Rzayeva|124x24",
-      "1x a.soc-chip|Burger Qala|112x32",
       "1x a.soc-chip|Fincan Coffee|125x32",
       "1x a.soc-post-name|Kamilla Rəsulova|114x24",
       "1x a.soc-post-name|Ceyhun Məmmədli|129x24",
       "1x a.soc-chip|Meze Istanbul|125x32",
       "1x a.soc-post-name|Fincan Coffee|95x24",
-      "1x a.soc-post-name|Dönər Bakı Express|132x24",
+      "2x a.soc-post-name|Meze Istanbul|95x24",
       "1x a.soc-post-name|Səbinə İbrahimova|127x24",
       "1x a.soc-chip|Trattoria Bella Roma|161x32",
-      "1x a.soc-post-name|Səda Ocağı|78x24",
-      "2x a.soc-post-name|Meze Istanbul|95x24",
+      "1x a.soc-post-name|Dönər Bakı Express|132x24",
       "1x a.soc-post-name|Sakura House|94x24",
+      "1x a.soc-post-name|Səda Ocağı|78x24",
       "1x a.soc-post-name|Burger Qala|80x24",
       "1x a.soc-post-name|Tiflis Dvor|68x24"
     ],
@@ -37,7 +37,7 @@
         "px": 14,
         "color": "rgb(139, 45, 66)",
         "bg": "rgb(48,37,32)",
-        "sample": "A",
+        "sample": "M",
         "el": "span"
       },
       {
@@ -64,8 +64,8 @@
         "px": 12.16,
         "color": "rgb(107, 94, 86)",
         "bg": "rgb(36,28,24)",
-        "sample": "1",
-        "el": "span.soc-act-count"
+        "sample": "1 like",
+        "el": "span.soc-act-likes"
       },
       {
         "ratio": 2.68,
@@ -233,46 +233,19 @@
   "audit_restaurant_dark": {
     "theme": "dark",
     "lang": "en",
-    "targets": 22,
-    "smallGroups": [],
+    "targets": 18,
+    "smallGroups": [
+      "1x button.rst-seg-btn|From Brew & Books|148x38",
+      "1x button.rst-seg-btn|Guests|74x38"
+    ],
     "noName": [
-      "button 44x44 @y70",
-      "button.tap-h 206x44 @y736",
-      "button.tap-h 206x44 @y736",
       "a 88x44 @y786"
     ],
-    "imgs": 24,
+    "imgs": 4,
     "noAltAttr": [],
-    "emptyAlt": 0,
+    "emptyAlt": 3,
     "bgOnly": 1,
     "lowContrast": [
-      {
-        "ratio": 1.18,
-        "need": 3,
-        "px": 24,
-        "color": "rgb(0, 0, 0)",
-        "bg": "rgb(35,20,20)",
-        "sample": "🍽️",
-        "el": "div"
-      },
-      {
-        "ratio": 1.25,
-        "need": 3,
-        "px": 24,
-        "color": "rgb(0, 0, 0)",
-        "bg": "rgb(36,28,24)",
-        "sample": "🍴",
-        "el": "div"
-      },
-      {
-        "ratio": 1.79,
-        "need": 4.5,
-        "px": 9.92,
-        "color": "rgb(74, 62, 53)",
-        "bg": "rgb(26,18,16)",
-        "sample": "dishes",
-        "el": "span"
-      },
       {
         "ratio": 1.9,
         "need": 4.5,
@@ -280,97 +253,7 @@
         "color": "rgba(245, 240, 232, 0.22)",
         "bg": "rgb(26,18,16)",
         "sample": "·",
-        "el": "span"
-      },
-      {
-        "ratio": 2.19,
-        "need": 4.5,
-        "px": 9.92,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "3",
-        "el": "span"
-      },
-      {
-        "ratio": 2.24,
-        "need": 4.5,
-        "px": 13.12,
-        "color": "rgb(139, 45, 66)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Follow",
-        "el": "button.tap-h"
-      },
-      {
-        "ratio": 2.24,
-        "need": 4.5,
-        "px": 10.08,
-        "color": "rgb(139, 45, 66)",
-        "bg": "rgb(26,18,16)",
-        "sample": "All",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 12.8,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Cafe Restaurant",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 11.2,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "· until 22:00",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 12.16,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Şərifzadə küç. 14, Bakı",
-        "el": "div"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 10.08,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Brunch",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 12.48,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "🌱",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 11.52,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Vegan",
-        "el": "button.tap-h"
-      },
-      {
-        "ratio": 3.75,
-        "need": 4.5,
-        "px": 11.84,
-        "color": "rgb(77, 124, 63)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Open",
-        "el": "span"
+        "el": "span.rst-dot"
       }
     ],
     "h1s": 1,
@@ -379,48 +262,49 @@
   "audit_dish_sheet_dark": {
     "theme": "dark",
     "lang": "en",
-    "targets": 26,
-    "smallGroups": [],
-    "noName": [
-      "button 44x44 @y70",
-      "button.tap-h 206x44 @y736",
-      "button.tap-h 206x44 @y736",
-      "button.icon-btn 44x44 @y1161",
-      "button.icon-btn 44x44 @y1161",
-      "button.icon-btn 44x44 @y1161",
-      "a 88x44 @y1286"
+    "targets": 57,
+    "smallGroups": [
+      "1x button.mn-chip|Starters|78x34",
+      "1x button.mn-chip|Soups|56x34",
+      "1x button.mn-chip|Pasta|56x34",
+      "1x button.mn-chip|Risotto|72x34",
+      "1x button.mn-chip|Mains|58x34",
+      "1x button.mn-chip|Pizza|53x34",
+      "1x button.mn-chip|Desserts|79x34",
+      "1x button.mn-chip|Beverages|87x34",
+      "1x button.mn-chip|Wines & Spirits|130x34",
+      "1x input|Search the menu|304x42",
+      "1x button.mn-diet|Vegan 8|71x32",
+      "1x button.mn-diet|Vegetarian 17|103x32"
     ],
-    "imgs": 25,
+    "noName": [
+      "button.icon-btn 44x44 @y661",
+      "button.icon-btn 44x44 @y661",
+      "button.icon-btn 44x44 @y661",
+      "a 88x44 @y786"
+    ],
+    "imgs": 3,
     "noAltAttr": [],
-    "emptyAlt": 0,
+    "emptyAlt": 1,
     "bgOnly": 1,
     "lowContrast": [
-      {
-        "ratio": 1.18,
-        "need": 3,
-        "px": 24,
-        "color": "rgb(0, 0, 0)",
-        "bg": "rgb(35,20,20)",
-        "sample": "🍽️",
-        "el": "div"
-      },
-      {
-        "ratio": 1.25,
-        "need": 3,
-        "px": 24,
-        "color": "rgb(0, 0, 0)",
-        "bg": "rgb(36,28,24)",
-        "sample": "🍴",
-        "el": "div"
-      },
       {
         "ratio": 1.79,
         "need": 4.5,
         "px": 10.88,
         "color": "rgb(74, 62, 53)",
         "bg": "rgb(26,18,16)",
-        "sample": "Brunch",
+        "sample": "Beverages",
         "el": "div"
+      },
+      {
+        "ratio": 1.79,
+        "need": 4.5,
+        "px": 10.24,
+        "color": "rgb(74, 62, 53)",
+        "bg": "rgb(26,18,16)",
+        "sample": "14h ago",
+        "el": "span"
       },
       {
         "ratio": 1.9,
@@ -429,34 +313,7 @@
         "color": "rgba(245, 240, 232, 0.22)",
         "bg": "rgb(26,18,16)",
         "sample": "·",
-        "el": "span"
-      },
-      {
-        "ratio": 2.19,
-        "need": 4.5,
-        "px": 9.92,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "3",
-        "el": "span"
-      },
-      {
-        "ratio": 2.24,
-        "need": 4.5,
-        "px": 13.12,
-        "color": "rgb(139, 45, 66)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Follow",
-        "el": "button.tap-h"
-      },
-      {
-        "ratio": 2.24,
-        "need": 4.5,
-        "px": 10.08,
-        "color": "rgb(139, 45, 66)",
-        "bg": "rgb(26,18,16)",
-        "sample": "All",
-        "el": "span"
+        "el": "span.rst-dot"
       },
       {
         "ratio": 2.24,
@@ -464,8 +321,8 @@
         "px": 12.48,
         "color": "rgb(139, 45, 66)",
         "bg": "rgb(26,18,16)",
-        "sample": "#vegetarian",
-        "el": "p"
+        "sample": "View menu →",
+        "el": "a.dds-menu-link"
       },
       {
         "ratio": 2.68,
@@ -479,47 +336,20 @@
       {
         "ratio": 2.95,
         "need": 4.5,
-        "px": 12.16,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Şərifzadə küç. 14, Bakı",
-        "el": "div"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 10.08,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Brunch",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 12.48,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "🌱",
-        "el": "span"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
-        "px": 11.52,
-        "color": "rgb(107, 94, 86)",
-        "bg": "rgb(26,18,16)",
-        "sample": "Vegan",
-        "el": "button.tap-h"
-      },
-      {
-        "ratio": 2.95,
-        "need": 4.5,
         "px": 11.2,
         "color": "rgb(107, 94, 86)",
         "bg": "rgb(26,18,16)",
-        "sample": "420 kcal",
+        "sample": "5 kcal",
         "el": "span"
+      },
+      {
+        "ratio": 2.95,
+        "need": 4.5,
+        "px": 12.16,
+        "color": "rgb(107, 94, 86)",
+        "bg": "rgb(26,18,16)",
+        "sample": "View all 4 reviews",
+        "el": "button.tap-text"
       }
     ],
     "h1s": 1,
@@ -530,22 +360,22 @@
     "lang": "en",
     "targets": 121,
     "smallGroups": [
+      "1x a.soc-post-name|Mehriban Rzayeva|124x24",
+      "1x a.soc-chip|Burger Qala|112x32",
       "2x a.soc-post-name|Aysel Məmmədova|130x24",
       "2x a.soc-chip|Brew & Books|124x32",
       "2x a.soc-post-name|Trattoria Bella Roma|139x24",
-      "1x a.soc-post-name|Mehriban Rzayeva|124x24",
-      "1x a.soc-chip|Burger Qala|112x32",
       "1x a.soc-chip|Fincan Coffee|125x32",
       "1x a.soc-post-name|Kamilla Rəsulova|114x24",
       "1x a.soc-post-name|Ceyhun Məmmədli|129x24",
       "1x a.soc-chip|Meze Istanbul|125x32",
       "1x a.soc-post-name|Fincan Coffee|95x24",
-      "1x a.soc-post-name|Dönər Bakı Express|132x24",
+      "2x a.soc-post-name|Meze Istanbul|95x24",
       "1x a.soc-post-name|Səbinə İbrahimova|127x24",
       "1x a.soc-chip|Trattoria Bella Roma|161x32",
-      "1x a.soc-post-name|Səda Ocağı|78x24",
-      "2x a.soc-post-name|Meze Istanbul|95x24",
+      "1x a.soc-post-name|Dönər Bakı Express|132x24",
       "1x a.soc-post-name|Sakura House|94x24",
+      "1x a.soc-post-name|Səda Ocağı|78x24",
       "1x a.soc-post-name|Burger Qala|80x24",
       "1x a.soc-post-name|Tiflis Dvor|68x24"
     ],
@@ -590,8 +420,8 @@
         "px": 12.16,
         "color": "rgb(168, 152, 144)",
         "bg": "rgb(237,229,216)",
-        "sample": "1",
-        "el": "span.soc-act-count"
+        "sample": "1 like",
+        "el": "span.soc-act-likes"
       },
       {
         "ratio": 2.22,
@@ -740,7 +570,7 @@
         "px": 13.12,
         "color": "rgb(212, 170, 60)",
         "bg": "rgb(106,98,91)",
-        "sample": "₼3.50",
+        "sample": "₼8.00",
         "el": "span.dsc-price"
       }
     ],
@@ -750,17 +580,17 @@
   "audit_restaurant_light": {
     "theme": "light",
     "lang": "en",
-    "targets": 22,
-    "smallGroups": [],
+    "targets": 18,
+    "smallGroups": [
+      "1x button.rst-seg-btn|From Brew & Books|148x38",
+      "1x button.rst-seg-btn|Guests|74x38"
+    ],
     "noName": [
-      "button 44x44 @y70",
-      "button.tap-h 206x44 @y736",
-      "button.tap-h 206x44 @y736",
       "a 88x44 @y786"
     ],
-    "imgs": 24,
+    "imgs": 4,
     "noAltAttr": [],
-    "emptyAlt": 0,
+    "emptyAlt": 3,
     "bgOnly": 1,
     "lowContrast": [
       {
@@ -770,88 +600,7 @@
         "color": "rgba(26, 18, 16, 0.22)",
         "bg": "rgb(245,240,232)",
         "sample": "·",
-        "el": "span"
-      },
-      {
-        "ratio": 1.63,
-        "need": 4.5,
-        "px": 9.92,
-        "color": "rgb(200, 189, 176)",
-        "bg": "rgb(245,240,232)",
-        "sample": "dishes",
-        "el": "span"
-      },
-      {
-        "ratio": 1.9,
-        "need": 4.5,
-        "px": 9.92,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "3",
-        "el": "span"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 12.8,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "Cafe Restaurant",
-        "el": "span"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 11.2,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "· until 22:00",
-        "el": "span"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 12.16,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "Şərifzadə küç. 14, Bakı",
-        "el": "div"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 10.08,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "Brunch",
-        "el": "span"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 12.48,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "🌱",
-        "el": "span"
-      },
-      {
-        "ratio": 2.45,
-        "need": 4.5,
-        "px": 11.52,
-        "color": "rgb(168, 152, 144)",
-        "bg": "rgb(245,240,232)",
-        "sample": "Vegan",
-        "el": "button.tap-h"
-      },
-      {
-        "ratio": 4.33,
-        "need": 4.5,
-        "px": 11.84,
-        "color": "rgb(77, 124, 63)",
-        "bg": "rgb(245,240,232)",
-        "sample": "Open",
-        "el": "span"
+        "el": "span.rst-dot"
       }
     ],
     "h1s": 1,
@@ -961,14 +710,14 @@
     "button[tab]|Friends|tabindex=null|outline=solid 2px|y=73",
     "button[tab]|Discover|tabindex=null|outline=solid 2px|y=73",
     "button|Use my location for ne|tabindex=null|outline=solid 2px|y=134",
-    "a|Aysel Məmmədova|tabindex=null|outline=auto 1px|y=191",
-    "a|Aysel Məmmədova|tabindex=null|outline=solid 2px|y=201",
-    "a|Brew & Books|tabindex=null|outline=solid 2px|y=670",
+    "a|Mehriban Rzayeva|tabindex=null|outline=auto 1px|y=191",
+    "a|Mehriban Rzayeva|tabindex=null|outline=solid 2px|y=201",
+    "a|Burger Qala|tabindex=null|outline=solid 2px|y=670",
     "button|Like|tabindex=null|outline=solid 2px|y=716",
     "a|Comments|tabindex=null|outline=solid 2px|y=716",
     "button|Share|tabindex=null|outline=solid 2px|y=716",
-    "a|Aysel Məmmədova|tabindex=null|outline=solid 2px|y=765",
-    "a|View 1 comment|tabindex=null|outline=solid 2px|y=813"
+    "a|Mehriban Rzayeva|tabindex=null|outline=solid 2px|y=765",
+    "a|Aysel Məmmədova|tabindex=null|outline=auto 1px|y=845"
   ],
   "tablist": [
     {

@@ -1,0 +1,17 @@
+const L = require('./aysel-lib')
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  // "Order this" path
+  await A.page.goto(L.CONSUMER + '/restaurant/bella-roma?dish=80000001-0000-0000-0000-000000000008'); await A.page.waitForTimeout(3500)
+  L.log('url', A.page.url().replace(L.CONSUMER, ''), '| tabs', await A.page.evaluate(() => [...document.querySelectorAll('[role=tab]')].map(t => t.innerText.trim() + ':' + t.getAttribute('aria-selected'))), '| sheet', await A.page.locator('.sheet').count())
+  await L.shot(A.page, '34-sheet-top')
+  L.log('header meta line:', await A.page.evaluate(() => document.querySelector('h1')?.parentElement?.innerText.replace(/\n+/g, ' | ').slice(0, 160)))
+  L.log('sheet buttons:', JSON.stringify(await A.page.evaluate(() => [...document.querySelectorAll('.sheet button, .sheet a')].map(b => ({ name: (b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 30), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height) })))))
+  await A.page.evaluate(() => { const s = document.querySelector('.sheet'); if (s) s.scrollTop = 99999 }); await A.page.waitForTimeout(500)
+  await L.shot(A.page, '34-sheet-bottom')
+  L.log('sheet text tail:', (await A.page.evaluate(() => document.querySelector('.sheet')?.innerText || '')).replace(/\n+/g, ' | ').slice(-380))
+  const nm = await A.page.evaluate(() => { const i = document.querySelector('.sheet img'); return i ? i.naturalWidth + 'x' + i.naturalHeight + ' shown ' + Math.round(i.getBoundingClientRect().width) + 'x' + Math.round(i.getBoundingClientRect().height) : 'no img' })
+  L.log('sheet photo', nm)
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

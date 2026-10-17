@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LoadError from '../../../components/LoadError'
 import { cuisineEmoji } from '../../../lib/helpers'
+import { cuisineLabel } from '../../discover/cuisine'
 import { searchRestaurants } from '../api'
 import { useDebounced } from '../hooks'
 import UserSearchInput from './UserSearchInput'
@@ -53,7 +54,7 @@ export default function RestaurantPicker({ value, onChange, disabled = false }) 
               <button type="button" role="option" aria-selected="false" className="soc-result" onClick={() => { onChange(r); setQ('') }}>
                 <span aria-hidden="true">{cuisineEmoji(r.cuisine_type)}</span>
                 <span className="soc-result-name">{r.name}</span>
-                {r.cuisine_type && <span className="soc-result-sub">{r.cuisine_type}</span>}
+                {r.cuisine_type && <span className="soc-result-sub">{cuisineLabel(t, r.cuisine_type)}</span>}
               </button>
             </li>
           ))}

@@ -4,7 +4,7 @@ const { signInGuest } = require('./guest')
 /** The project's device settings (viewport, UA, isMobile, touch), so a second context looks like the first one. */
 const contextOptions = use => ({
   storageState: use.storageState, viewport: use.viewport, locale: use.locale, userAgent: use.userAgent,
-  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch,
+  deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch, colorScheme: use.colorScheme,
 })
 
 /**

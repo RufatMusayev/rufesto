@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import useEscapeClose from './ui/useEscapeClose'
@@ -150,7 +151,7 @@ export default function AuthModal({ onClose, onSuccess }) {
   }
 
   const STEP_TITLES = {
-    email: t('auth:welcomeBack'),
+    email: t('auth:welcome'),
     otp: t('auth:checkInbox'),
     profile: t('auth:oneLastStep'),
     password: t('auth:passwordSignIn'),
@@ -162,7 +163,9 @@ export default function AuthModal({ onClose, onSuccess }) {
     password: t('auth:passwordSubtitle'),
   }
 
-  return (
+  // Rendered into <body>: a card with a rise-in animation is its own stacking context, which would keep this sheet
+  // below the floating "+" button (z-index 70) no matter how high its own z-index is.
+  return createPortal(
     <div
       className="overlay center"
       onClick={e => e.target === e.currentTarget && onClose?.()}
@@ -255,7 +258,7 @@ export default function AuthModal({ onClose, onSuccess }) {
             {/* Divider */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem',
-              margin: '0 0 1.25rem', color: 'var(--t4)', fontSize: '0.75rem',
+              margin: '0 0 1.25rem', color: 'var(--t3)', fontSize: '0.75rem',
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               {t('common:or')}
@@ -287,7 +290,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                 onClick={() => { setStep('password'); setError('') }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: '0.74rem', color: 'var(--t4)', fontFamily: 'inherit',
+                  fontSize: '0.74rem', color: 'var(--t3)', fontFamily: 'inherit',
                   marginTop: '1rem', width: '100%', padding: 0,
                 }}
               >
@@ -373,7 +376,7 @@ export default function AuthModal({ onClose, onSuccess }) {
                   background: 'none', border: 'none',
                   cursor: resendCooldown > 0 ? 'default' : 'pointer',
                   fontSize: '0.78rem',
-                  color: resendCooldown > 0 ? 'var(--t4)' : 'var(--accent)',
+                  color: resendCooldown > 0 ? 'var(--t3)' : 'var(--accent-text)',
                   fontFamily: 'inherit',
                   opacity: resendCooldown > 0 ? 0.6 : 1,
                   padding: 0,
@@ -424,7 +427,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               onChange={e => setName(e.target.value)}
               style={{ marginBottom: '0.75rem' }}
             />
-            <label className="label">{t('auth:phone')} <span style={{ color: 'var(--t4)', fontWeight: 400 }}>{t('auth:optional')}</span></label>
+            <label className="label">{t('auth:phone')} <span style={{ color: 'var(--t3)', fontWeight: 400 }}>{t('auth:optional')}</span></label>
             <input
               className="input"
               type="tel"
@@ -442,10 +445,11 @@ export default function AuthModal({ onClose, onSuccess }) {
           </form>
         )}
 
-        <p style={{ fontSize: '0.7rem', color: 'var(--t4)', textAlign: 'center', marginTop: '1.25rem' }}>
+        <p style={{ fontSize: '0.7rem', color: 'var(--t3)', textAlign: 'center', marginTop: '1.25rem' }}>
           {t('auth:termsNotice')}
         </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

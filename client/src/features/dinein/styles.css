@@ -110,3 +110,10 @@
 @media (prefers-reduced-motion: reduce) {
   .dn-step.is-current .dn-step-dot { animation: none !important; }
 }
+
+/* ---- table screen header: the venue line stays on one line ------------------------------------------------ */
+.dn-table-id { flex: 1; min-width: 0; }
+.dn-table-sub {
+  margin-top: 2px; font-family: 'DM Mono', monospace; font-size: 0.82rem; color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

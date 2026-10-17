@@ -150,7 +150,7 @@ function mapShare(s, billActive) {
   }
 }
 
-function mapBill(b) {
+export function mapBill(b) {
   const active = b.status === 'open' || b.status === 'requested' || b.status === 'paying'
   return {
     id: b.bill_id,

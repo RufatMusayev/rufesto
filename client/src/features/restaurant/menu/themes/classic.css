@@ -54,7 +54,7 @@
 
 /* navigator: serif small caps with an accent underline, no pills */
 .mn-wrap[data-menu="classic"] .mn-chip {
-  height: 34px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  height: 44px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
   font-family: var(--mn-font-display); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.08em; font-variant-caps: small-caps;
 }
 .mn-wrap[data-menu="classic"] .mn-chip[aria-current="true"] { background: none; border-bottom-color: var(--mn-accent); }

@@ -4,19 +4,36 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { ratesFromAnswer } from '../features/dinein/pricing'
 import { rememberRates } from '../features/dinein/useOrderRates'
+import CartAddedToast, { bumpCartFab } from '../components/CartAddedToast'
 
 const CartContext = createContext(null)
+
+const ADDED_TOAST_MS = 2600
+
+const EMPTY_SESSION = { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, seatNo: null, info: null }
 
 function loadSession() {
   try {
     const raw = sessionStorage.getItem('rufesto_table_session')
-    return raw ? JSON.parse(raw) : { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, seatNo: null }
-  } catch { return { tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, seatNo: null } }
+    return raw ? JSON.parse(raw) : EMPTY_SESSION
+  } catch { return EMPTY_SESSION }
 }
 
-function saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo) {
-  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo }))
+function saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo, info) {
+  sessionStorage.setItem('rufesto_table_session', JSON.stringify({ tableId, restaurantId, activeBookingId, sessionStatus, isHost, seatNo, info }))
 }
+
+// { name, slug, number } of the held table (restaurant name / slug, table number), or null when unknown. It only
+// words notes such as "You're seated at <venue>"; the server stays the source of truth for the table itself.
+function normInfo(v) {
+  if (!v || typeof v !== 'object') return null
+  const name = v.name ? String(v.name) : null
+  const slug = v.slug ? String(v.slug) : null
+  const number = v.number != null && v.number !== '' ? String(v.number) : null
+  return name || slug || number ? { name, slug, number } : null
+}
+
+const infoFromAnswer = data => normInfo({ name: data?.restaurant_name, slug: data?.restaurant_slug, number: data?.table_number })
 
 // The chair (table_sessions.seat_no) as a positive integer, or null (no chair / unknown).
 function normSeat(v) {
@@ -71,11 +88,15 @@ function cartReducer(state, action) {
         seatNo: action.seatNo !== undefined
           ? action.seatNo
           : (action.tableId === state.tableId ? state.seatNo : null),
+        // { name, slug, number } of the table; undefined = the caller doesn't know: keep it for the same table.
+        info: action.info !== undefined
+          ? action.info
+          : (action.tableId === state.tableId ? state.info : null),
       }
     case 'SET_STARTED_AT':
       return { ...state, startedAt: action.startedAt }
     case 'CLEAR_TABLE':
-      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, startedAt: null, seatNo: null, items: [] }
+      return { ...state, tableId: null, restaurantId: null, activeBookingId: null, sessionStatus: null, isHost: false, startedAt: null, seatNo: null, info: null, items: [] }
     default:
       return state
   }
@@ -100,12 +121,16 @@ export function CartProvider({ children }) {
     sessionStatus: savedSession.sessionStatus ?? null,
     isHost: savedSession.isHost ?? false,
     seatNo: normSeat(savedSession.seatNo),
+    info: normInfo(savedSession.info),
     // Not persisted: my_table_session() is the source of truth and re-supplies it on load.
     startedAt: null,
   })
   const stateRef = useRef(state)
   stateRef.current = state
   const [open, setOpen]       = useState(false)
+  const [added, setAdded]     = useState(null)        // { key, name, count, qty } of the dish just added (toast)
+  const addedTimer = useRef(null)
+  useEffect(() => () => clearTimeout(addedTimer.current), [])
   const [placing, setPlacing] = useState(false)
   const [cartError, setCartError] = useState('')
   const { session, loading: authLoading } = useAuth()
@@ -123,7 +148,10 @@ export function CartProvider({ children }) {
   const total    = state.items.reduce((s, i) => s + (Number(i.dish.price) || 0) * i.qty, 0)
   const itemCount = state.items.reduce((s, i) => s + i.qty, 0)
 
-  function addDish(dish) {
+  // Adds one of `dish`. The order sheet is NOT opened (a second dish must stay one tap away on the menu): a small
+  // toast says what was added and how many are in the order, and the cart button bumps. `{ open: true }` opens the
+  // sheet anyway. While the sheet is already open (its own "+") nothing is announced.
+  function addDish(dish, { open: openSheet = false } = {}) {
     // A guest still waiting on host approval has no write access to orders (RLS
     // rejects the insert) — block it client-side too so the UI stays honest.
     if (state.sessionStatus === 'pending') {
@@ -142,7 +170,12 @@ export function CartProvider({ children }) {
     }
     setCartError('')
     dispatch({ type: 'ADD', dish })
-    setOpen(true)
+    if (openSheet) { setOpen(true); return }
+    if (open) return
+    clearTimeout(addedTimer.current)
+    setAdded({ key: Date.now(), name: dish.name, count: itemCount + 1, qty: (state.items.find(i => i.dish.id === dish.id)?.qty || 0) + 1 })
+    addedTimer.current = setTimeout(() => setAdded(null), ADDED_TOAST_MS)
+    bumpCartFab()
   }
 
   function clearCartError() {
@@ -151,14 +184,18 @@ export function CartProvider({ children }) {
 
   // Sets the local session only. Table state itself is now owned server-side by the
   // claim_table() RPC (see claimTable below) — consumers no longer UPDATE `tables` directly.
-  // `seatNo` (optional, last): the guest's chair; left out = keep the one known for the same table.
-  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt, seatNo) {
+  // `seatNo` (optional): the guest's chair; left out = keep the one known for the same table.
+  // `info` (optional, last): { name, slug, number } of the restaurant / table; left out = keep it for the same table.
+  function setTable(tableId, restaurantId, activeBookingId = null, sessionStatus = null, isHost = false, startedAt, seatNo, info) {
     epochRef.current += 1
     const seat = seatNo !== undefined
       ? normSeat(seatNo)
       : (tableId === stateRef.current.tableId ? stateRef.current.seatNo : null)
-    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt, seatNo: seat })
-    saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seat)
+    const known = info !== undefined
+      ? normInfo(info)
+      : (tableId === stateRef.current.tableId ? stateRef.current.info : null)
+    dispatch({ type: 'SET_TABLE', tableId, restaurantId, activeBookingId, sessionStatus, isHost, startedAt, seatNo: seat, info: known })
+    saveSession(tableId, restaurantId, activeBookingId, sessionStatus, isHost, seat, known)
   }
 
   // Claims a table by scanned QR token or typed access code via the claim_table RPC,
@@ -167,7 +204,7 @@ export function CartProvider({ children }) {
   async function claimTable(code) {
     const { data, error } = await supabase.rpc('claim_table', { p_code: code })
     if (error) return { error }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at, data.seat_no ?? null)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at, data.seat_no ?? null, infoFromAnswer(data))
     return { data }
   }
 
@@ -193,7 +230,7 @@ export function CartProvider({ children }) {
       }
       return { data: null }
     }
-    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null, data.seat_no ?? null)
+    setTable(data.table_id, data.restaurant_id, data.booking_id, data.session_status, data.is_host, data.started_at ?? null, data.seat_no ?? null, infoFromAnswer(data) ?? undefined)
     return { data }
   }
 
@@ -253,6 +290,7 @@ export function CartProvider({ children }) {
     if (!row?.order_id) return { error: t('errPlaceFailed') }
 
     dispatch({ type: 'CLEAR' })
+    import('../features/notifications/prompt').then(m => m.maybeAskForPush('order')).catch(() => {})   // once per device, never blocks
     // The server's own amounts (recalculate_order_total): the confirmation shows exactly these, and the rates behind
     // them make the next cart an exact preview instead of an estimate.
     const money = v => (v == null ? null : Number(v))
@@ -294,6 +332,8 @@ export function CartProvider({ children }) {
       items: state.items, total, itemCount,
       tableId: state.tableId, restaurantId: state.restaurantId, activeBookingId: state.activeBookingId,
       sessionStatus: state.sessionStatus, isHost: state.isHost, startedAt: state.startedAt, seatNo: state.seatNo,
+      // the held table's restaurant name / slug and table number (null until the server answered with them)
+      restaurantName: state.info?.name ?? null, restaurantSlug: state.info?.slug ?? null, tableNumber: state.info?.number ?? null,
       // A table in hand (cache or server) is enough to render; otherwise wait for the first server read.
       tableReady: synced || !!state.tableId,
       open, setOpen,
@@ -312,6 +352,9 @@ export function CartProvider({ children }) {
       clear: () => dispatch({ type: 'CLEAR' }),
     }}>
       {children}
+      {state.tableId && added && !open ? (
+        <CartAddedToast added={added} onView={() => { setAdded(null); setOpen(true) }} />
+      ) : null}
     </CartContext.Provider>
   )
 }

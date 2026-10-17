@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addClosure, fetchHours, removeClosure, saveHours } from '../api'
-import { WEEK_ORDER, weekdayName } from '../dates'
+import { WEEK_ORDER } from '../dates'
 import { v2Error } from '../errors'
-import { localeTag } from '../../../lib/time'
 import useLiveList from '../hooks/useLiveList'
 import ClosuresList from './ClosuresList'
 import DayRow from './DayRow'
@@ -24,7 +23,7 @@ function rangeInvalid(d) {
 // Settings -> Opening hours: seven weekday rows (Monday first; DB day 0 is
 // Sunday), one Save for the week, and special closures that save immediately.
 export default function HoursEditor({ restaurantId, onSaved }) {
-  const { t, i18n } = useTranslation(['v2', 'dashboard'])
+  const { t } = useTranslation(['v2', 'dashboard'])
   const load = useCallback(() => fetchHours(restaurantId), [restaurantId])
   const { data, error, loading, retry } = useLiveList(load, null, restaurantId)
 
@@ -43,7 +42,6 @@ export default function HoursEditor({ restaurantId, onSaved }) {
 
   const dirty = useMemo(() => !!days && JSON.stringify(days) !== JSON.stringify(baseline), [days, baseline])
   const anyInvalid = !!days && days.some(rangeInvalid)
-  const tag = localeTag(i18n.language)
 
   function patchDay(dow, patch) {
     setDays(list => list.map(d => (d.dow === dow ? { ...d, ...patch } : d)))
@@ -107,7 +105,7 @@ export default function HoursEditor({ restaurantId, onSaved }) {
               <DayRow
                 key={dow}
                 day={day}
-                name={weekdayName(dow, tag)}
+                name={t(`weekday_${dow}`)}
                 invalid={rangeInvalid(day)}
                 showCopy={firstOpen === day}
                 onChange={patch => patchDay(dow, patch)}

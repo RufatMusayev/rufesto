@@ -1,21 +1,30 @@
-import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
-import CartSheet from '../CartSheet'
 import CartFab from './CartFab'
+import RouteFallback from './RouteFallback'
+import ErrorBoundary from '../ErrorBoundary'
+import LanguageSwitcher from '../LanguageSwitcher'
 import { useTheme } from '../../contexts/ThemeContext'
-import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { useCart } from '../../contexts/CartContext'
+import NotificationsHost from '../../features/notifications/NotificationsHost'
+import { useNotificationBadge } from '../../features/notifications/badge'
+
+// The cart drawer exists only at a table: its chunk is fetched when a table session starts, and mounted while open.
+const loadCartSheet = () => import('../CartSheet')
+const CartSheet = lazy(loadCartSheet)
 
 export default function AppLayout() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
-  const [unreadCount, setUnreadCount] = useState(0)
   const { theme, toggle } = useTheme()
-  const { session } = useAuth()
+  const { tableId, open: cartOpen } = useCart()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { t } = useTranslation(['nav', 'common'])
+
+  useEffect(() => { if (tableId) loadCartSheet() }, [tableId])
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 768)
@@ -23,37 +32,9 @@ export default function AppLayout() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  // Single source of truth for the unread-notifications badge — passed down to Sidebar
-  // on desktop so it doesn't also subscribe (that used to open two realtime channels and
-  // fire the count query twice on every change).
-  useEffect(() => {
-    if (!session) { setUnreadCount(0); return }
-    const userId = session.user.id
-
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('read', false)
-      .then(({ count }) => setUnreadCount(count || 0))
-
-    const channel = supabase
-      .channel('notif-badge')
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        supabase
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('read', false)
-          .then(({ count }) => setUnreadCount(count || 0))
-      })
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session?.user?.id])
+  // Single source of truth for the bell badge (rows not yet seen, live over one realtime channel): passed down to the
+  // Sidebar on desktop so it doesn't subscribe too. features/notifications/badge.js owns the number and the channel.
+  const unreadCount = useNotificationBadge()
 
   const headerBg = theme === 'dark'
     ? 'rgba(26,18,16,0.88)'
@@ -110,6 +91,8 @@ export default function AppLayout() {
                 )}
               </button>
 
+              <LanguageSwitcher className="lang-switcher-bar" />
+
               <button
                 onClick={toggle}
                 aria-label={t('nav:toggleTheme')}
@@ -133,11 +116,17 @@ export default function AppLayout() {
             </div>
           </header>
         )}
-        <Outlet />
+        {/* a page that crashes shows the friendly screen but keeps the nav; leaving it clears the error */}
+        <ErrorBoundary resetKey={pathname}>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </div>
       {isMobile && <BottomNav />}
       <CartFab />
-      <CartSheet />
+      <NotificationsHost />
+      {cartOpen && <Suspense fallback={null}><CartSheet /></Suspense>}
     </div>
   )
 }

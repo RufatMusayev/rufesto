@@ -68,15 +68,15 @@
 }
 .pf-seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; border: 1px solid var(--border); background: var(--s2); }
 .pf-tab {
-  flex: 0 0 var(--tap); min-width: 0; height: var(--tap); display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 0; border: none; border-radius: 9px; background: transparent; color: var(--t2);
-  font-family: inherit; font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+  flex: 1 1 0; min-width: 0; min-height: 52px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 6px 2px; border: none; border-radius: 9px; background: transparent; color: var(--t2);
+  font-family: inherit; font-size: 0.64rem; font-weight: 600; line-height: 1.1; white-space: nowrap;
   transition: background-color var(--t-ui), color var(--t-ui), transform var(--t-fast);
 }
 .pf-tab:active { transform: scale(0.97); }
-.pf-tab.active { flex: 1 1 auto; padding: 0 10px; background: var(--t1); color: var(--bg); }
-.pf-tab-label { display: none; overflow: hidden; text-overflow: ellipsis; }
-.pf-tab.active .pf-tab-label { display: inline; }
+.pf-tab.active { background: var(--t1); color: var(--bg); }
+/* all five tabs show icon + a short word, stacked (five side-by-side labels do not fit at 360px, so the word is short) */
+.pf-tab-label { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .pf-tab svg { flex-shrink: 0; }
 
 /* ----------------------------------------------------------------- panels */

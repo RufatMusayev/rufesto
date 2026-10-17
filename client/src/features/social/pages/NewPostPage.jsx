@@ -45,7 +45,7 @@ export default function NewPostPage() {
       if (uploaded.current.blob === photo.blob) {
         photoPath = uploaded.current.path
       } else {
-        const up = await uploadPostPhoto(session.user.id, photo.blob)
+        const up = await uploadPostPhoto(session.user.id, photo.blob, photo.small)
         if (up.error) {
           // no photo bucket on this server: continue as a caption-only post
           if (up.error.code === 'photo_disabled') { setPhotoOff(true); setPhoto(null) }

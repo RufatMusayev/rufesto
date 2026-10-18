@@ -1,0 +1,197 @@
+{
+  "for_you_as_found": {
+    "mix": {
+      "nearby": 0,
+      "popular": 3,
+      "discover": 4,
+      "following": 6
+    },
+    "promos": 1,
+    "items": [
+      "1:following:Burger Qala",
+      "2:following:Burger Qala",
+      "3:discover:Fincan Coffee",
+      "4:review:Fincan Coffee",
+      "5:discover:Brew & Books",
+      "6:following:Dönər Bakı Express",
+      "7:promo:Dönər Bakı Express",
+      "8:discover:Trattoria Bella Roma",
+      "9:discover:Brew & Books",
+      "10:discover:Trattoria Bella Roma",
+      "11:review:Meze Istanbul",
+      "12:following:Burger Qala",
+      "13:discover:Fincan Coffee",
+      "14:following:Burger Qala"
+    ]
+  },
+  "popular_reviews_not_own_or_friend": [
+    "Popular review · Top reviewer A Aysel Məmmədova · 2h ★★★★★ F",
+    "Popular review · Top reviewer C Ceyhun Məmmədli · 1d ★★★★☆ A",
+    "Popular review · Top reviewer A Aysel Məmmədova · 15h ★★★★★ "
+  ],
+  "unfollow_doner-baki-express_ms": 408,
+  "unfollow_burger-qala_ms": 299,
+  "unfollow_shirvan-metbexi_ms": 413,
+  "home_refetched_after_unfollows": 1,
+  "cold_start": {
+    "mix": {
+      "nearby": 0,
+      "popular": 3,
+      "discover": 10,
+      "following": 0
+    },
+    "promos": 2,
+    "items": [
+      "1:discover:Sakura House",
+      "2:discover:Sakura House",
+      "3:discover:Fincan Coffee",
+      "4:review:Fincan Coffee",
+      "5:discover:Burger Qala",
+      "6:discover:Burger Qala",
+      "7:promo:Trattoria Bella Roma",
+      "8:discover:Brew & Books",
+      "9:discover:Trattoria Bella Roma",
+      "10:discover:Brew & Books",
+      "11:review:Meze Istanbul",
+      "12:discover:Fincan Coffee",
+      "13:discover:Burger Qala",
+      "14:discover:Trattoria Bella Roma"
+    ]
+  },
+  "follow_shirvan-metbexi_ms": 417,
+  "follow_burger-qala_ms": 394,
+  "home_refetched_after_two_follows": 1,
+  "after_two_follows": {
+    "mix": {
+      "nearby": 0,
+      "popular": 3,
+      "discover": 4,
+      "following": 6
+    },
+    "promos": 0,
+    "items": [
+      "1:following:Burger Qala",
+      "2:following:Burger Qala",
+      "3:discover:Sakura House",
+      "4:review:Fincan Coffee",
+      "5:discover:Sakura House",
+      "6:discover:Fincan Coffee",
+      "7:discover:Brew & Books",
+      "8:discover:Trattoria Bella Roma",
+      "9:discover:Brew & Books",
+      "10:discover:Trattoria Bella Roma",
+      "11:review:Meze Istanbul",
+      "12:following:Burger Qala",
+      "13:discover:Fincan Coffee",
+      "14:following:Burger Qala"
+    ]
+  },
+  "follow_doner-baki-express_ms": 299,
+  "restored_mix": {
+    "nearby": 0,
+    "popular": 3,
+    "discover": 4,
+    "following": 6
+  },
+  "find_url": "/friends?tab=find",
+  "find_rows": [
+    "A",
+    "Aysel Məmmədova",
+    "Joined April 2026",
+    "Pending",
+    "Aysel Quliyeva",
+    "Joined May 2026",
+    "Add",
+    "Aysel R.",
+    "Joined October 2026"
+  ],
+  "find_row_height": [
+    192
+  ],
+  "profile_tabs": [
+    "Posts",
+    "Reviews",
+    "Saved",
+    "Visits"
+  ],
+  "friends_stat_opens": "/friends",
+  "visits_tab": [
+    "Fərid Məlikov",
+    "F",
+    "0",
+    "Posts",
+    "1",
+    "Friends",
+    "2",
+    "Visits",
+    "261",
+    "Credits",
+    "Edit profile",
+    "Reviews",
+    "Saved",
+    "Dönər Bakı Express",
+    "16 Oct 2026",
+    "₼12.39",
+    "13 Oct 2026",
+    "₼11.80"
+  ],
+  "saved_tab": [
+    "🥤",
+    "Espresso",
+    "Trattoria Bella Roma",
+    "₼3.50",
+    "🍽️",
+    "Avocado Toast with Fried Egg",
+    "Brew & Books",
+    "₼11.00"
+  ],
+  "settings_rows": [
+    "Language",
+    "EN",
+    "AZ",
+    "Dark mode",
+    "Notifications",
+    "Send feedback",
+    "Sign out"
+  ],
+  "edit_profile": [
+    "Avocado Toast with Fried Egg",
+    "Brew & Books",
+    "₼11.00",
+    "Name",
+    "Phone",
+    "Country code and number, for example +994501234567. Spaces and dashes are removed when you save.",
+    "Email",
+    "ferid.melikov@demo.rufesto.com",
+    "Only you can see your email.",
+    "Delete account",
+    "Cancel",
+    "Save"
+  ],
+  "inbox_header_height": null,
+  "inbox_rows": [
+    "64px|M Mehriban Rzayeva is now your friend. 2h",
+    "64px|Your bill at Dönər Bakı Express is paid (₼12.39). Receipt RF-20261017-",
+    "64px|Your bill at Dönər Bakı Express is paid (₼12.39). Receipt RF-20261017-",
+    "54px|"
+  ],
+  "inbox_has_chips_or_markall": false,
+  "notif_settings": [
+    "Notification settings",
+    "Push notifications",
+    "On this phone, even when Rufesto is closed.",
+    "Blocked in your browser. Allow notifications for this site in the browser settings, then come back.",
+    "Social",
+    "Likes, comments, replies and friend requests",
+    "Dine-in",
+    "Your food is ready, table and bill updates",
+    "Bookings",
+    "Confirmations, reminders and invites",
+    "Places",
+    "New posts from restaurants you follow",
+    "Quiet hours",
+    "No push between these times."
+  ],
+  "console": [],
+  "bad": []
+}

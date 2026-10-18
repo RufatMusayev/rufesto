@@ -42,8 +42,8 @@ const EMPTY = { restaurants: [], dishes: [], browse: false }
 
 /**
  * -> { mode, places, dishes, fresh, loading, skeleton, error, retry }
- * places / dishes are the rows to show right now (the server's answer when `fresh`, otherwise local matches or the
- * previous answer); `loading` is true while the server's answer for what is typed is still on the way.
+ * places / dishes are the rows to show right now: the server's answer for what is typed (or the cached one), otherwise the
+ * local matches; never rows of an earlier query. `loading` is true while the server's answer is still on the way.
  */
 export function useSearch({ q, filters, coords, discover }) {
   const typed = q.trim()
@@ -96,19 +96,22 @@ export function useSearch({ q, filters, coords, discover }) {
     [state.data, discover, filters, coords],
   )
 
+  // A new query never shows the previous query's rows (QA round 3, A2): while the server answers, the rows are the local
+  // matches (cached cards) and a slim progress bar runs. An answer for anything but what is typed now is ignored, so a
+  // slow request that lands late cannot overwrite a newer one (each request is also aborted when its query changes).
   const answered = !!wantSig && state.sig === wantSig
-  const fresh = kindNow === 'local' || answered
+  const cached = wantSig && !answered ? cacheGet(wantSig) : null           // a query typed back costs no request, and no flash
+  const fresh = kindNow === 'local' || answered || !!cached
   const error = answered ? state.error : null
-  const remote = state.data ? (browseLocal || state.data) : null
+  const remote = answered ? (state.data ? (browseLocal || state.data) : null) : cached
   const hasLocal = local.restaurants.length > 0 || local.dishes.length > 0
 
   let rows = EMPTY
   if (kindNow === 'local') rows = local
-  else if (answered && remote) rows = remote
+  else if (remote) rows = remote
   else if (hasLocal) rows = local
-  else if (remote) rows = remote            // the previous answer stays until the next one lands (no flash)
 
-  const loading = !!wantSig && !answered
+  const loading = !!wantSig && !answered && !cached
   const empty = fresh && !error && rows.restaurants.length === 0 && rows.dishes.length === 0
   return {
     mode: kindNow,

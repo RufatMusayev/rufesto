@@ -11,17 +11,20 @@ const TIME_DEBOUNCE_MS = 500
  *  save: 'idle' | 'saved' | 'error'
  * change(patch) updates the screen at once and sends the patch; a failed save puts the old values back.
  * Quiet hours always travel as a pair (both times, or both null), the rule the RPC enforces.
+ * `enabled` is false while nobody is signed in: nothing is requested then (a signed-out call would be a 401).
  */
-export default function usePrefs() {
+export default function usePrefs(enabled = true) {
   const [prefs, setLocal] = useState(PREF_DEFAULTS)
-  const [load, setLoad] = useState('loading')
+  const [load, setLoad] = useState(enabled ? 'loading' : 'idle')
   const [save, setSave] = useState('idle')
   const flash = useRef(null)
   const debounce = useRef(null)
   const last = useRef(PREF_DEFAULTS)           // what the server is known to hold
 
   useEffect(() => {
+    if (!enabled) return undefined
     let alive = true
+    setLoad('loading')
     getPrefs().then(({ data, error }) => {
       if (!alive) return
       if (error) { setLoad(error.missing ? 'missing' : 'error'); return }
@@ -30,7 +33,7 @@ export default function usePrefs() {
       setLoad('ready')
     })
     return () => { alive = false; clearTimeout(flash.current); clearTimeout(debounce.current) }
-  }, [])
+  }, [enabled])
 
   const send = useCallback(async patch => {
     clearTimeout(flash.current)

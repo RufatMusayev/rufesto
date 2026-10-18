@@ -1,0 +1,131 @@
+{
+  "for_you": {
+    "mix": {
+      "nearby": 0,
+      "popular": 3,
+      "discover": 4,
+      "following": 6
+    },
+    "items": [
+      "1:following:Fincan Coffee",
+      "2:following:Fincan Coffee",
+      "3:discover:Sakura House",
+      "4:review:Brew & Books",
+      "5:discover:Sakura House",
+      "6:following:Brew & Books",
+      "7:discover:Trattoria Bella Roma",
+      "8:discover:Trattoria Bella Roma",
+      "9:discover:Meze Istanbul",
+      "10:discover:Meze Istanbul"
+    ]
+  },
+  "friends_tab": "Add friends to see more here. Find friends TODAY M Mehriban Rzayeva · 2h ago Burger Qala 1 like Mehriban Rzayeva Round two, post three: burger again, friends only need to know. M Mehriban Rzayeva · 2h ago Burger Qala Mehriban Rzayeva Round ",
+  "composer_url": "/post/new",
+  "composer_controls": [
+    "button|Cancel|72x44",
+    "button|Post|54x44",
+    "button|Add a photo|378x473",
+    "textarea|What did you eat?|380x114",
+    "input|Restaurant|380x44"
+  ],
+  "photo_preview_ms": 110,
+  "post_to_home_ms": 2451,
+  "landing_tab": [
+    "Friends"
+  ],
+  "landing_first_cards": [
+    "M Mehriban Rzayeva · just now Brew & Books Mehriban Rzayeva Round thre",
+    "M Mehriban Rzayeva · 2h ago Burger Qala 1 like Mehriban Rzayeva Round ",
+    "M Mehriban Rzayeva · 2h ago Burger Qala Mehriban Rzayeva Round two: ba"
+  ],
+  "zaur_row_after_add": "M Mehriban Rzayeva Joined July 2026 Pending",
+  "elcin_row_after_add": "M Mehriban Rzayeva Joined July 2026 Pending",
+  "M_bell_with_two_requests": "3",
+  "inbox_text": [
+    "Notifications",
+    "New",
+    "E",
+    "Elçin Vəliyev sent you a friend request. now",
+    "Confirm",
+    "Delete",
+    "Z",
+    "Zaur Hüseynov sent you a friend request. now",
+    "A",
+    "Aysel Məmmədova liked your post. 1m",
+    "This week",
+    "F",
+    "Fərid Məlikov is now your friend. 2h",
+    "R",
+    "Rufat and Aysel liked your post. 12h"
+  ],
+  "inbox_sections": [
+    "New",
+    "This week"
+  ],
+  "inbox_request_controls": [
+    "Confirm|82x32",
+    "Delete|73x32",
+    "Confirm|82x32",
+    "Delete|73x32"
+  ],
+  "after_confirm_zaur": [
+    "Notifications",
+    "New",
+    "E",
+    "Elçin Vəliyev sent you a friend request. now",
+    "Confirm",
+    "Delete",
+    "Z",
+    "Zaur Hüseynov is now your friend. now",
+    "A",
+    "Aysel Məmmədova liked your post. 1m",
+    "This week",
+    "F",
+    "Fərid Məlikov is now your friend. 2h",
+    "R",
+    "Rufat and Aysel liked your post. 12h"
+  ],
+  "confirm_ms": 1558,
+  "after_delete_elcin": [
+    "Notifications",
+    "New",
+    "Z",
+    "Zaur Hüseynov is now your friend. now",
+    "A",
+    "Aysel Məmmədova liked your post. 1m",
+    "This week",
+    "F",
+    "Fərid Məlikov is now your friend. 2h",
+    "R",
+    "Rufat and Aysel liked your post. 12h"
+  ],
+  "zaur_inbox": [
+    "Notifications",
+    "New",
+    "M",
+    "Mehriban Rzayeva is now your friend. now",
+    "This week",
+    "Your bill at Meze Istanbul is paid (₼248.35). Receipt RF-20261017-000241. 1d",
+    "You've been let in — you can start ordering! 1d",
+    "Your group is seated at table T6. 1d",
+    "Your booking at Meze Istanbul (Sat 17 Oct, 18:00) is confirmed. 1d",
+    "N",
+    "Nərmin Cəfərova invited you to Meze Istanbul, Sat 17 Oct, 18:00. 1d",
+    "Your bill at Şirvan Mətbəxi is paid (₼138.89). Receipt RF-20261017-000235. 2d"
+  ],
+  "elcin_inbox_mentions_mehriban": false,
+  "inbox_after_reload": [
+    "Notifications",
+    "This week",
+    "Z",
+    "Zaur Hüseynov is now your friend. now",
+    "A",
+    "Aysel Məmmədova liked your post. 2m",
+    "F",
+    "Fərid Məlikov is now your friend. 2h",
+    "R",
+    "Rufat and Aysel liked your post. 12h"
+  ],
+  "console": [],
+  "bad": []
+}

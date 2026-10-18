@@ -75,7 +75,7 @@ export async function fetchTipTotal(restaurantId, { from, to }) {
 export async function fetchRangeOrders(restaurantId, range, limit = 1000) {
   const { fromISO, toISO } = rangeInstants(range)
   return run(() => supabase.from('orders')
-    .select('id, status, total_amount, placed_at, tables(table_number), order_items(quantity, dishes(name, category))')
+    .select('id, status, total_amount, placed_at, tables(table_number), order_items(quantity, dishes(name, category, photo))')
     .eq('restaurant_id', restaurantId)
     .gte('placed_at', fromISO)
     .lt('placed_at', toISO)

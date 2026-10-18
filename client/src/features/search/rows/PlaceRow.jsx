@@ -27,7 +27,7 @@ export default memo(function PlaceRow({ r, q = '', onOpen }) {
   ].filter(Boolean).join(' · ')
   const body = (
     <>
-      <span className="sr-thumb sr-thumb-place"><CoverImage sources={restaurantSources(r)} name={r.name} /></span>
+      <span className="sr-thumb sr-thumb-place"><CoverImage sources={restaurantSources(r)} name={r.name} size={48} /></span>
       <span className="sr-main">
         <span className="sr-name"><Hl text={r.name} q={q} /></span>
         {meta && <span className="sr-meta">{meta}</span>}

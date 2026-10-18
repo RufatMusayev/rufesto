@@ -8,6 +8,7 @@ import { useViewerLocation } from '../feed/useViewerLocation'
 import { discoverStore, discoverKey, ensureDiscover, reloadDiscover, currentViewer } from '../discover/discoverStore'
 import DishSheetHost from '../../components/dish/DishSheetHost'
 import { useDishLink } from '../../components/dish/dishLink'
+import { prefetchDishSheet } from '../../components/dish/prefetch'
 import SearchField from './SearchField'
 import ActiveFilters from './ActiveFilters'
 import ZeroState, { popularChips } from './ZeroState'
@@ -75,6 +76,8 @@ export default function SearchPage() {
   const inputRef = useRef(null)
   const typed = text.trim()
   const filterCount = activeCount(filters)
+
+  useEffect(() => { prefetchDishSheet() }, [])
 
   // ---- URL <-> state -----------------------------------------------------------------------------------------
   const paramsRef = useRef(params)

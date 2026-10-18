@@ -11,6 +11,7 @@ import { useCart } from '../../contexts/CartContext'
 import NotificationsHost from '../../features/notifications/NotificationsHost'
 import { useNotificationBadge } from '../../features/notifications/badge'
 import { useSheetGhostSkip } from '../../lib/useSheetHistory'
+import { preloadAuthModal } from '../AuthModal'
 import './layout.css'
 
 // The cart drawer exists only at a table: its chunk is fetched when a table session starts, and mounted while open.
@@ -28,6 +29,12 @@ export default function AppLayout() {
   useSheetGhostSkip()
 
   useEffect(() => { if (tableId) loadCartSheet() }, [tableId])
+
+  // the sign-in sheet is a chunk of its own: fetched in idle time so that opening it is instant
+  useEffect(() => {
+    const id = typeof requestIdleCallback === 'function' ? requestIdleCallback(preloadAuthModal, { timeout: 4000 }) : setTimeout(preloadAuthModal, 2500)
+    return () => { if (typeof cancelIdleCallback === 'function' && typeof id === 'number') cancelIdleCallback(id) }
+  }, [])
 
   // Single source of truth for the bell badge (rows not yet seen, live over one realtime channel): passed down to the
   // Sidebar and the Home bar so they don't subscribe too. features/notifications/badge.js owns the number and the channel.

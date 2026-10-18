@@ -1,0 +1,35 @@
+'use strict'
+// Round 3: Rauf reviews a dish from his settled bill (compact review form), Leyla's bell (panel open) must show "New review".
+const C = require('./common')
+const P = require('./panel3')
+
+;(async () => {
+  const browser = await C.launch()
+  const sink = []
+  const [L, R] = await Promise.all([C.open(browser, 'leyla', { who: 'Leyla', sink }), C.open(browser, 'rauf', { who: 'Rauf', geo: true, sink })])
+  const lp = L.page, rp = R.page
+  const [bill] = await L.api.rows(`bills?restaurant_id=eq.${C.BELLA}&status=eq.settled&order=created_at.desc&limit=1&select=id,tables(table_number)`)
+  console.log('latest settled bill at', bill.tables?.table_number)
+  await lp.goto(C.RESTO + '/'); await lp.getByText('Overview', { exact: false }).first().waitFor({ timeout: 20_000 })
+  await rp.goto(C.CONSUMER + '/bill/' + bill.id); await rp.getByText('How was your meal?').waitFor({ timeout: 20_000 })
+  console.log('review block:', (await C.text(rp, '#bl-review-title, .bl-review')).split('\n').join(' | ').slice(0, 200))
+  const stars = rp.getByRole('radio', { name: /5 of 5/ }).first()
+  const dish = await stars.getAttribute('aria-label')
+  await stars.click()
+  await rp.locator('.bl-review textarea, textarea').first().fill('Quick service and a proper cup. Thanks Orxan.')
+  await C.shot(rp, 'r3-70-rauf-review-form', { full: false })
+  await P.openPanel(lp)
+  const pre = await P.countRows(lp, /New review/)
+  let t0 = Date.now()
+  await rp.getByRole('button', { name: /Send review/ }).click()
+  await rp.getByText(/Thanks for your review/).waitFor({ timeout: 15_000 })
+  C.timing('R3 Send review -> thanks on Rauf', Date.now() - t0)
+  await P.until('R3 review (panel open) -> "New review" row in Leyla panel', t0, async () => (await P.countRows(lp, /New review/)) > pre)
+  console.log('rated:', dish, '| Leyla review rows:', JSON.stringify(P.fmt((await P.rowsMatching(lp, /New review/)).slice(0, 2))))
+  await C.shot(lp, 'r3-71-leyla-panel-review', { full: false })
+  await lp.locator('.notif-panel li.notif-row', { hasText: /New review/ }).first().locator('.notif-item').click(); await lp.waitForTimeout(1500)
+  console.log('Leyla taps New review ->', lp.url())
+  await C.shot(rp, 'r3-72-rauf-review-sent', { full: false })
+  console.log('problems:', JSON.stringify(sink.map(s => s.who + ' ' + s.kind + ' ' + s.text).filter(s => !/ERR_ABORTED|vibrate/.test(s)), null, 1))
+  await browser.close()
+})().catch(e => { console.error('FAIL', e.message); process.exit(1) })

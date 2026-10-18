@@ -172,11 +172,13 @@ const V2 = {
     const to = fresh && ctx.hasTable ? '/table' : (p.bill_id ? `/receipt/${enc(p.bill_id)}` : restTo(p))
     return { key: dishes ? 'order_ready_dishes' : 'order_ready', vars: { venue: venueOf(p), dishes }, to }
   },
+  // a full sentence from payload restaurant_name / starts_at / party_size; whatever is missing drops its clause
   booking_reminder: ({ p }) => {
     const guests = Number(p.party_size || p.guests)
+    const time = p.starts_at ? formatBakuTime(p.starts_at) : ''
     return {
-      key: guests > 0 ? 'booking_reminder' : 'booking_reminder_plain',
-      vars: { venue: venueOf(p), time: p.starts_at ? formatBakuTime(p.starts_at) : '', count: guests > 0 ? guests : 1 },
+      key: !time ? 'booking_reminder_soon' : (guests > 0 ? 'booking_reminder' : 'booking_reminder_plain'),
+      vars: { venue: venueOf(p), time, guests: guests > 0 ? guests : 1 },
       to: bookingTo(p),
     }
   },

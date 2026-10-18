@@ -12,7 +12,9 @@
   grid-column: 1 / -1; height: 16px; margin: 0; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--t3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.rv-av { display: block; width: 32px; height: 32px; margin-top: 0; color: inherit; text-decoration: none; }
+.rv-av { position: relative; display: block; width: 32px; height: 32px; margin-top: 0; color: inherit; text-decoration: none; }
+/* every tap target is 44 px: the look stays compact, the hit area grows around it */
+a.rv-av::after { content: ''; position: absolute; inset: -6px; }
 .rv-av--dish {
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   border-radius: 50%; background: var(--s3); font-size: 16px; line-height: 1;
@@ -36,10 +38,18 @@
 .rv-where {
   display: flex; align-items: baseline; min-height: 18px; font-size: 13px; line-height: 18px; color: var(--t3); text-decoration: none;
 }
+/* the venue line is 18 px of text with a 44 px hit area: 13 px above and below, over the (non-interactive) name line and body; with no body
+   under it the area grows upward only, so it never covers the like / reply buttons */
+a.rv-where { position: relative; z-index: 1; }
+a.rv-where::after { content: ''; position: absolute; inset: -13px 0; }
+a.rv-where:has(+ .rv-actions)::after { inset: -26px 0 0; }
 .rv-where > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-where-sold { flex: none; margin-left: 6px; font-weight: 600; color: var(--accent-text); }
 .rv-where-dish { flex: 0 100 auto; }
 .rv-where-sep { flex: 0 0 auto; white-space: pre; }
 .rv-where-place { flex: 0 1 auto; max-width: 60%; }
+.rv-name--link { position: relative; }
+.rv-name--link::after { content: ''; position: absolute; inset: -10px -8px -14px; }
 a.rv-where:focus-visible, .rv-name:focus-visible, .rv-av:focus-visible, .rv-seeall:focus-visible, .rv-write:focus-visible,
 .rv-act:focus-visible, .rv-more:focus-visible, .rv-photo:focus-visible, .rv-sort:focus-visible, .rv-more-btn:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px;
@@ -53,20 +63,19 @@ a.rv-where:focus-visible, .rv-name:focus-visible, .rv-av:focus-visible, .rv-seea
 }
 .rv-body.is-open { display: block; -webkit-line-clamp: unset; }
 .rv-more {
-  position: absolute; right: 0; bottom: 0; min-height: 20px; padding: 0 0 0 28px; border: 0;
+  position: absolute; z-index: 2; right: 0; bottom: 0; min-height: 20px; padding: 0 0 0 28px; border: 0;
   background: linear-gradient(90deg, transparent, var(--rv-bg) 46%);
   font: inherit; font-size: 14px; line-height: 20px; color: var(--t3); cursor: pointer;
 }
 .rv-more::after { content: ''; position: absolute; inset: -12px -8px; }
 
-.rv-actions { display: flex; align-items: center; gap: 4px; height: 24px; }
+.rv-actions { display: flex; align-items: center; height: 24px; }
+/* 24 px of row, a real 44 x 44 button: the negative margins give the extra 10 px back to the neighbours */
 .rv-act {
-  position: relative; display: inline-flex; align-items: center; gap: 4px; height: 24px; min-width: 32px; padding: 0 2px;
+  position: relative; display: inline-flex; align-items: center; gap: 4px; height: 44px; min-width: 44px; margin: -10px 0; padding: 0 8px 0 0;
   border: 0; background: none; color: var(--t3); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-/* 24 px to look at, 44 x 44 to hit */
-.rv-act::after { content: ''; position: absolute; inset: -10px -6px; }
 .rv-act:active .rv-ico { transform: scale(0.9); }
 .rv-ico { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transform-origin: center; transform-box: fill-box; transition: transform var(--dur-1) var(--ease-out); }
 .rv-like.is-on { color: var(--accent-text); }
@@ -100,7 +109,8 @@ a.rv-where:focus-visible, .rv-name:focus-visible, .rv-av:focus-visible, .rv-seea
 .rv-replies-empty { padding: 20px 0 12px; text-align: center; font-size: 14px; color: var(--t3); }
 .rv-reply { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; }
 .rv-reply.is-pending { opacity: 0.6; }
-.rv-reply-av { flex: none; display: block; width: 28px; height: 28px; }
+.rv-reply-av { position: relative; flex: none; display: block; width: 28px; height: 28px; }
+a.rv-reply-av::after { content: ''; position: absolute; inset: -8px; }
 .rv-reply-main { flex: 1; min-width: 0; }
 .rv-reply-head { display: flex; align-items: baseline; gap: 6px; min-height: 18px; }
 .rv-reply-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--t1); }
@@ -114,14 +124,14 @@ a.rv-where:focus-visible, .rv-name:focus-visible, .rv-av:focus-visible, .rv-seea
 .rv-composer-err { margin: 0 0 6px; font-size: 12px; color: var(--red); }
 .rv-composer-row { display: flex; align-items: center; gap: 8px; }
 .rv-composer-input {
-  flex: 1; min-width: 0; height: 40px; padding: 0 16px; border: 1px solid var(--border); border-radius: 20px;
+  flex: 1; min-width: 0; height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 22px;
   background: var(--s2); color: var(--t1); font: inherit; font-size: 16px;    /* 16 px: iOS does not zoom into the field */
 }
 .rv-composer-input::placeholder { color: var(--t3); }
 .rv-composer-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
 .rv-composer-send {
-  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; min-width: 44px; padding: 0 14px;
-  border: 0; border-radius: 20px; background: var(--accent); color: #F5F0E8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; min-width: 44px; padding: 0 14px;
+  border: 0; border-radius: 22px; background: var(--accent); color: #F5F0E8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .rv-composer-send:disabled { opacity: 0.4; cursor: not-allowed; }
 .rv-composer-send .rv-ico { stroke: #F5F0E8; }
@@ -144,7 +154,7 @@ a.rv-where:focus-visible, .rv-name:focus-visible, .rv-av:focus-visible, .rv-seea
   position: sticky; top: 0; z-index: 3; display: flex; gap: 8px; padding: 4px 16px 8px; background: var(--s1);
 }
 .rv-sort {
-  min-height: 36px; padding: 0 16px; border: 1px solid var(--border); border-radius: 18px; background: transparent;
+  min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 22px; background: transparent;
   color: var(--t2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .rv-sort.is-on { background: var(--t1); border-color: var(--t1); color: var(--bg); }

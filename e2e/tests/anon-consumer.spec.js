@@ -4,42 +4,38 @@ const { CONSUMER_URL } = require('../support/env')
 const R = require('../support/restaurant')
 
 const url = path => CONSUMER_URL + path
-const viewMenuLinks = page => page.getByRole('link', { name: /view menu/i })
-const dishPrices = page => page.getByText(/^₼\s*\d/)
-// Home opens on the ranked Home tab; the restaurant list ("View menu →" cards) is on the Discover tab: set the remembered tab before the page loads
-const discoverTab = page => page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
+// The restaurant list is the "All places" section of the Search tab (/explore zero state): one 64 px row per restaurant, linking to its page
+// (the Discover tab and its "View menu" cards are gone, UX round 2026-10-18).
+const placeRows = page => page.locator('.sr-zero a.sr-row')
 
 test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
-  test('home loads on the ranked Home tab with no console errors', async ({ page, watch }) => {
+  test('home loads on the ranked For you tab with no console errors', async ({ page, watch }) => {
     await page.goto(url('/'))
-    await expect(page.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: 'For you', exact: true })).toHaveAttribute('aria-selected', 'true')
     await expect(page.locator('.soc-feed-slot').first().or(page.getByRole('heading', { name: "You're all caught up" }))).toBeVisible()
     await settle(page)
     expect(watch.consoleErrors, 'console errors on /').toEqual([])
   })
 
-  test('the Discover tab loads with no console errors and lists restaurant cards', async ({ page, watch }) => {
-    await discoverTab(page)
-    await page.goto(url('/'))
-    await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 })).toBeVisible()
-    await expect(viewMenuLinks(page).first()).toBeVisible()
+  test('the Search tab (zero state) loads with no console errors and lists restaurant rows', async ({ page, watch }) => {
+    await page.goto(url('/explore'))
+    await expect(page.getByRole('heading', { name: 'All places', level: 2 })).toBeVisible()
+    await expect(placeRows(page).first()).toBeVisible()
     await settle(page)
-    expect(watch.consoleErrors, 'console errors on Discover').toEqual([])
+    expect(watch.consoleErrors, 'console errors on Search').toEqual([])
   })
 
-  test('home lists at least one restaurant card', async ({ page }) => {
-    await discoverTab(page)
-    await page.goto(url('/'))
-    await expect(viewMenuLinks(page).first()).toBeVisible()
-    const hrefs = await viewMenuLinks(page).evaluateAll(as => as.map(a => a.getAttribute('href')))
+  test('Search lists at least one restaurant, each linking to its page', async ({ page }) => {
+    await page.goto(url('/explore'))
+    await expect(placeRows(page).first()).toBeVisible()
+    const hrefs = await placeRows(page).evaluateAll(as => as.map(a => a.getAttribute('href')))
     expect(hrefs.length).toBeGreaterThanOrEqual(1)
     for (const href of hrefs) expect(href).toMatch(/^\/restaurant\/[\w-]+$/)
   })
 
   test('opening a restaurant shows a menu with at least one dish', async ({ page }) => {
-    await discoverTab(page)
-    await page.goto(url('/'))
-    const first = viewMenuLinks(page).first()
+    await page.goto(url('/explore'))
+    const first = placeRows(page).first()
     await expect(first).toBeVisible()
     const href = await first.getAttribute('href')
     await first.click()

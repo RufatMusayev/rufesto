@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCart } from '../../contexts/CartContext'
 import AuthModal from '../AuthModal'
+import { warmSearch } from '../../features/search/warm'
 
 // the scanner (html5-qrcode is ~100 kB) is fetched when the guest first taps the QR button
 const QRSheet = lazy(() => import('../QRSheet'))
@@ -23,10 +24,6 @@ export default function BottomNav() {
     setSheet('qr')
   }
 
-  function handleProfilePress(e) {
-    if (!session) { e.preventDefault(); setSheet('auth') }
-  }
-
   return (
     <>
       <nav className="bottom-nav" aria-label={t('home')}>
@@ -34,7 +31,7 @@ export default function BottomNav() {
           {a => <HomeIcon filled={a} />}
         </NavItem>
 
-        <NavItem to="/explore" label={t('explore')}>
+        <NavItem to="/explore" label={t('search')} onWarm={warmSearch}>
           {a => <SearchIcon filled={a} />}
         </NavItem>
 
@@ -69,7 +66,7 @@ export default function BottomNav() {
           {a => <MapIcon filled={a} />}
         </NavItem>
 
-        <NavLink to="/profile" aria-label={t('profile')} onClick={handleProfilePress} end={false}>
+        <NavLink to="/profile" aria-label={t('profile')} end={false}>
           {({ isActive }) => <ProfileIcon filled={isActive && !!session} />}
         </NavLink>
       </nav>
@@ -80,9 +77,12 @@ export default function BottomNav() {
   )
 }
 
-function NavItem({ to, label, children }) {
+function NavItem({ to, label, onWarm, children }) {
   return (
-    <NavLink to={to} end={to === '/'} aria-label={label}>
+    <NavLink
+      to={to} end={to === '/'} aria-label={label}
+      onPointerDown={onWarm} onTouchStart={onWarm} onMouseEnter={onWarm}
+    >
       {({ isActive }) => children(isActive)}
     </NavLink>
   )

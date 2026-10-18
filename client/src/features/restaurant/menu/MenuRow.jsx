@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatPrice } from '../../../lib/helpers'
 import { dishText } from '../mappers'
+import { thumb } from '../../discover/thumb'
 
 /**
  * One dish line of the printed menu: name ..... price, the description under it, then small text tags
@@ -57,7 +58,7 @@ function MenuRow({ dish, lang, photos, seated, onOpen, onAdd }) {
             </span>
           )}
         </span>
-        {showThumb && <img className="mn-thumb" src={dish.photo} alt="" loading="lazy" decoding="async" />}
+        {showThumb && <img className="mn-thumb" src={thumb(dish.photo, 56)} alt="" loading="lazy" decoding="async" />}
       </button>
       {seated && !sold && (
         <button type="button" className="mn-add" onClick={() => onAdd(dish)} aria-label={t('menu.addToOrder', { name })}>

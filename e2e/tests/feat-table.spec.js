@@ -5,6 +5,7 @@
 // thing under test, and resets the table in `finally`. App bugs stay failing tests (documented in docs/qa/consumer-table.md).
 const F = require('../support/feat-table')
 const R = require('../support/restaurant')
+const U = require('../support/ux')
 const { test, expect, url, rurl } = F
 
 test.skip(!F.haveAccounts, 'docs/REVIEW-ACCOUNTS.md must list review1-3 and the Bella Roma manager / waiter1 / kitchen accounts')
@@ -144,9 +145,9 @@ test.describe('table: seat codes', TAGS, () => {
     await page.goto(url('/'))
     await page.getByRole('button', { name: 'Scan QR' }).click()
     await page.getByRole('button', { name: 'Enter code manually' }).click()
-    await page.getByPlaceholder('Paste table token (UUID)').fill(typed)
+    await page.getByPlaceholder('Table code, e.g. FINCAN-4821').fill(typed)
     await page.getByRole('button', { name: 'Find Table' }).click()
-    const sheet = await page.locator('.sheet form p').innerText()
+    const sheet = await U.sheet(page).locator('form p').innerText()
     return { 'QR link page': link, '/table code form': form, 'QR sheet': sheet }
   }
 
@@ -194,11 +195,11 @@ test.describe('table: party', TAGS, () => {
         await guest.page.getByRole('button', { name: 'Scan QR' }).click()
         await expect(guest.page.getByRole('heading', { name: 'Scan Table QR' })).toBeVisible()
         await guest.page.getByRole('button', { name: 'Enter code manually' }).click()
-        await guest.page.getByPlaceholder('Paste table token (UUID)').fill(typed)
+        await guest.page.getByPlaceholder('Table code, e.g. FINCAN-4821').fill(typed)
         await guest.page.getByRole('button', { name: 'Find Table' }).click()
         await expect(guest.page.getByRole('heading', { name: 'Request Sent' })).toBeVisible()
         await expect(guest.page.getByText("We'll seat you as soon as the host approves your request.")).toBeVisible()
-        await expect(guest.page.locator('.overlay'), 'the sheet closes by itself').toHaveCount(0, { timeout: 5_000 })
+        await U.noSheet(guest.page, 'the sheet closes by itself', 5_000)
         await guest.page.goto(url('/table'))   // sessionStorage kept the table: the waiting screen
         await expect(guest.page.getByRole('heading', { name: /^Waiting for Aysel to let you in/ })).toBeVisible()
         await expect(guest.page.getByRole('button', { name: 'Cancel' })).toBeVisible()
@@ -370,7 +371,7 @@ test.describe('table: cart, order and kitchen', TAGS, () => {
       await add.locator('.mn-add').click()
       await expect(toast).toContainText(`Added ${name}`)
       await expect(toast).toContainText(/1 item in your order/)
-      await expect(page.locator('.overlay'), 'the order sheet stays closed after "+"').toHaveCount(0)
+      await U.noSheet(page, 'the order sheet stays closed after "+"')
       await expect(page.getByRole('button', { name: 'Open cart' }), 'the cart badge counts it').toContainText('1')
       await add.locator('.mn-add').click()
       await expect(toast).toContainText(/2 items in your order/)

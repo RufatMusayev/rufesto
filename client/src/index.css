@@ -25,6 +25,8 @@
   --green:    #3B6D11;
   --green-light: #C0DD97;
   --red:      #A32D2D;
+  /* red as TEXT on the dark surfaces: --red itself is only 2.1-2.6:1 there (the light theme keeps it, 4.9:1 and up) */
+  --red-text: #EF8A8A;
   --blue:     #3b82f6;
   --warning:  #BA7517;
   --primary-light: #E8C4D0;
@@ -76,6 +78,7 @@
 }
 
 [data-theme="light"] {
+  --red-text: #A32D2D;
   --bar-bg:   rgba(245, 240, 232, 0.92);
   --scrim:    rgba(26, 18, 16, 0.42);
   --bg:       #F5F0E8;
@@ -147,6 +150,10 @@ img { max-width: 100%; display: block; }
 .btn:active { transform: scale(0.97); transition: transform 120ms cubic-bezier(0.23,1,0.32,1); }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* a disabled button reads as a flat, quiet one and keeps >= 4.5:1 text (--t3 on --s3), instead of fading its own colours */
+.btn:disabled, .btn-primary:disabled, .btn-follow:disabled, .btn-ghost:disabled, .btn-danger:disabled {
+  opacity: 1; background: var(--s3); color: var(--t3); filter: none; box-shadow: inset 0 0 0 1px var(--border); /* an inset ring, not a border: no 2px jump when a button turns disabled */
+}
 
 .btn-primary { background: var(--accent); color: #F5F0E8; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-h); }
@@ -163,7 +170,7 @@ img { max-width: 100%; display: block; }
 .btn-ghost:hover:not(:disabled) { background: var(--s4); }
 
 .btn-danger {
-  background: rgba(239,68,68,0.08); color: var(--red);
+  background: rgba(239,68,68,0.08); color: var(--red-text);
   border: 1px solid rgba(239,68,68,0.2);
 }
 .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.15); }
@@ -328,7 +335,7 @@ img { max-width: 100%; display: block; }
 
 /* Availability badges — earthy tones */
 .avail-badge.on  { background: var(--sage-bg); color: var(--sage); }
-.avail-badge.off { background: rgba(163,45,45,0.10); color: var(--red); }
+.avail-badge.off { background: rgba(163,45,45,0.10); color: var(--red-text); }
 
 @keyframes perfettoBurst {
   0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
@@ -382,7 +389,7 @@ body.modal-open { overflow: hidden; }
 }
 .pill.amber { background: var(--pill-amber-bg); color: var(--pill-amber-fg); border-color: var(--pill-amber-bd); }
 .pill.green { background: var(--pill-green-bg); color: var(--pill-green-fg); border-color: var(--pill-green-bd); }
-.pill.red   { background: rgba(239,68,68,0.08);  color: var(--red);     border-color: rgba(239,68,68,0.15); }
+.pill.red   { background: rgba(239,68,68,0.08);  color: var(--red-text); border-color: rgba(239,68,68,0.15); }
 .pill.blue  { background: rgba(59,130,246,0.08); color: var(--blue);    border-color: rgba(59,130,246,0.15); }
 .pill.gray  { background: var(--s3);             color: var(--pill-gray-fg); border-color: var(--border); }
 
@@ -640,7 +647,7 @@ body:has(.overlay, .bs-root) .cart-fab { visibility: hidden; }
    The element must already be positioned. */
 .hit-ext::after { content: ''; position: absolute; inset: -12px; }
 
-@media (max-width: 768px), (pointer: coarse) {
+@media (max-width: 1023.98px), (pointer: coarse) {
   .btn, .chip, .slot-btn, input.input, select.input { min-height: var(--tap); }
 }
 
@@ -664,7 +671,7 @@ body:has(.overlay, .bs-root) .cart-fab { visibility: hidden; }
 .app-crash-body { max-width: 340px; font-size: 0.9rem; line-height: 1.55; color: var(--t2); }
 .app-crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
 .route-fallback { min-height: 50vh; display: flex; align-items: center; justify-content: center; }
-@media (max-width: 768px), (pointer: coarse) {
+@media (max-width: 1023.98px), (pointer: coarse) {
   .lang-btn { min-width: var(--tap); min-height: var(--tap); }
 }
 
@@ -677,7 +684,7 @@ body:has(.overlay, .bs-root) .cart-fab { visibility: hidden; }
 .cart-empty-icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.5; }
 .cart-empty-title { font-size: 0.88rem; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
 .cart-empty-hint { font-size: 0.78rem; }
-.cart-error { color: var(--red); font-size: 0.78rem; margin-bottom: 10px; }
+.cart-error { color: var(--red-text); font-size: 0.78rem; margin-bottom: 10px; }
 .cart-place { width: 100%; font-size: 0.92rem; }
 .cart-placed { text-align: center; padding-top: 0.5rem; }
 .cart-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
@@ -699,6 +706,6 @@ body:has(.overlay, .bs-root) .cart-fab { visibility: hidden; }
 }
 .cart-qty-add { color: #F5F0E8; }
 .cart-qty-add::before { border: none; background: var(--accent); }
-.cart-qty-del { color: var(--red); font-size: 0.78rem; margin-left: 8px; }
+.cart-qty-del { color: var(--red-text); font-size: 0.78rem; margin-left: 8px; }
 .cart-qty-del::before { border-color: rgba(239,68,68,0.15); background: rgba(239,68,68,0.08); }
 .cart-qty-btn:active::before { filter: brightness(0.9); }

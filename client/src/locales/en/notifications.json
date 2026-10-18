@@ -93,11 +93,11 @@
   "friendDelete": "Delete",
   "friend_now": "<b>{{who}}</b> is now your friend.",
   "review_reply_dish": "<b>{{who}}</b> replied to your review of {{dish}}.",
-  "booking_reminder_one": "<b>{{venue}}</b> at {{time}} · {{count}} guest",
-  "booking_reminder_other": "<b>{{venue}}</b> at {{time}} · {{count}} guests",
-  "booking_reminder_plain": "<b>{{venue}}</b> at {{time}}",
+  "booking_reminder_plain": "Your table at <b>{{venue}}</b> is at {{time}}",
   "place_post_one": "<b>{{venue}}</b> shared a new post.",
   "place_post_other": "<b>{{venue}}</b> shared {{count}} new posts.",
   "promotion_new": "<b>{{venue}}</b>: {{title}}",
-  "bill_paid": "A table paid its bill."
+  "bill_paid": "A table paid its bill.",
+  "booking_reminder": "Your table at <b>{{venue}}</b> is at {{time}} — party of {{guests}}",
+  "booking_reminder_soon": "Your table at <b>{{venue}}</b> is coming up"
 }

@@ -6,8 +6,9 @@ import { fetchDish } from './dishApi'
 
 /**
  * Shows the dish sheet for ?dish=<id> of the current URL. `resolve(id)` hands over a dish the page already has (the
- * restaurant page's menu); otherwise the opener's card is shown at once (a seed) and the full row is read by id.
- * The sheet stays mounted while it animates out and is dropped after (BottomSheet calls onClosed).
+ * restaurant page's menu); otherwise the opener's card is shown at once (a seed: name, photo, price, venue) and the full
+ * row is read by id and fills in the rest. The read starts the moment the host mounts, so it runs in parallel with the
+ * page behind it. The sheet stays mounted while it animates out and is dropped after (BottomSheet calls onClosed).
  */
 export default function DishSheetHost({ resolve }) {
   const { i18n } = useTranslation()
@@ -15,18 +16,24 @@ export default function DishSheetHost({ resolve }) {
   const { dishId, close } = useDishLink()
   const known = useMemo(() => (dishId ? resolve?.(dishId) || null : null), [dishId, resolve])
   const [fetched, setFetched] = useState(null)
+  const [gaveUp, setGaveUp] = useState(null)         // the id whose read failed: the seed is all there is
   const [kept, setKept] = useState(null)
   const live = useRef({})
 
   useEffect(() => {
     if (!dishId || known) return undefined
     let alive = true
-    fetchDish(dishId, lang).then(d => { if (alive && d) setFetched(d) })
+    fetchDish(dishId, lang).then(d => {
+      if (!alive) return
+      if (d) setFetched(d)
+      else setGaveUp(dishId)
+    })
     return () => { alive = false }
   }, [dishId, known, lang])
 
   const full = known || (fetched?.id === dishId ? fetched : null)
-  const dish = dishId ? full || takeSeed(dishId) : null
+  const seed = dishId && !full ? takeSeed(dishId) : null
+  const dish = useMemo(() => full || (seed && gaveUp === dishId ? { ...seed, seed: false } : seed), [full, seed, gaveUp, dishId])
   live.current = { dishId }
 
   // keep the last dish through the exit animation; a newer dish replaces it

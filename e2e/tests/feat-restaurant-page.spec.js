@@ -8,6 +8,7 @@ const { test, expect, settle } = require('../support/fixtures')
 const F = require('../support/feat-bookings')
 const R = require('../support/restaurant')
 const { walker } = require('../support/mobile')
+const U = require('../support/ux')
 
 const { url, anonApi } = F
 // the display font the section titles of each theme use (client/src/features/restaurant/menu/themes/*.css); which venue has which theme is
@@ -92,13 +93,43 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     test.skip(!dish, 'Bella Roma has no available dish right now')
     await page.goto(url(`/restaurant/bella-roma?dish=${dish.id}`))
     await expect(R.tabBtn(page, 'Menu')).toHaveAttribute('aria-selected', 'true')
-    await expect(page.locator('.overlay .sheet').last()).toContainText(dish.name)
+    await expect(U.sheet(page).locator('.dds-name'), 'the shared link opens that dish\'s sheet (UX round: .dds-* markup)').toHaveText(dish.name)
     await page.keyboard.press('Escape')
-    await expect(page.locator('.overlay')).toHaveCount(0)
+    await U.noSheet(page)
+    expect(page.url(), 'closing popped ?dish= from the URL').not.toContain('dish=')
     await page.goto(url('/restaurant/bella-roma?dish=00000000-0000-4000-8000-000000000000'))
     await expect(R.tabBtn(page, 'Menu')).toHaveAttribute('aria-selected', 'true')
     await expect(R.rows(page).first()).toBeVisible()
-    await expect(page.locator('.overlay')).toHaveCount(0)
+    await U.noSheet(page)
+  })
+
+  test('the header is trimmed (UX plan 1.6): cuisine alone, followers + reviews (+ free seats while open) and no dishes stat, no like button, one Reserve link, "Tables" with a word', async ({ page }) => {
+    const api = await anonApi(page)
+    const rest = (await api.get('restaurants?slug=eq.bella-roma&select=id,cuisine_type,name'))[0]
+    await page.goto(url('/restaurant/bella-roma'))
+    await expect(page.locator('h1.rst-name')).toHaveText(rest.name)
+    await expect(page.locator('.rst-cuisine'), 'the cuisine label alone ("Italian"), not "Italian Restaurant"').toHaveText(rest.cuisine_type)
+    const labels = await page.locator('.rst-stat-l').allInnerTexts()
+    expect(labels, 'stats: followers and reviews, free seats only while open, never dishes').toEqual(expect.arrayContaining(['followers', 'reviews']))
+    expect(labels).not.toContain('dishes')
+    await expect(page.locator('.rst-stat--tap'), 'the reviews stat is the one that taps (it opens the reviews sheet)').toHaveCount(1)
+    await expect(page.locator('.rst-stat--tap')).toContainText('reviews')
+    await expect(page.getByRole('button', { name: /^(Like|Remove your like)/ }), 'no restaurant like on the page (Follow stays)').toHaveCount(0)
+    await expect(page.locator('.rst-follow')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Reserve a table' })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'Floor plan' }), 'the floor plan button has a word next to its icon').toContainText('Tables')
+  })
+
+  test('the Reviews stat opens the restaurant reviews sheet: a large sheet with Top | Newest, rows that name the dish', async ({ page }) => {
+    await page.goto(url('/restaurant/bella-roma'))
+    await page.locator('.rst-stat--tap').click()
+    const panel = U.sheet(page)
+    await expect(panel.getByRole('heading', { name: /^Reviews of / })).toBeVisible()
+    await expect(panel.locator('article.rv').first()).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Top', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(panel.locator('.rv-where-dish').first()).toBeVisible()
+    await page.keyboard.press('Escape')
+    await U.noSheet(page)
   })
 
   test('menu themes: each venue prints its own theme (classic / bistro / modern / cafe) with its title, note, photos and fonts', async ({ page, watch }) => {
@@ -170,8 +201,9 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     expect(await row.locator('.mn-name').evaluate(el => getComputedStyle(el).textDecorationLine), 'the name is struck through').toContain('line-through')
     await expect(row.locator('.mn-add'), 'no inline "+" on a sold-out dish').toHaveCount(0)
     await R.rowOpen(row).click()
-    await expect(page.locator('.overlay .sheet').last()).toContainText(gone.name)
-    await expect(page.locator('.overlay .sheet').last()).toContainText(/sold out/i)
+    await expect(U.sheet(page).locator('.dds-name')).toHaveText(gone.name)
+    await expect(U.sheet(page).locator('.dds-soldtag'), 'a Sold out tag on the photo').toHaveText(/sold out/i)
+    await expect(U.sheet(page).locator('.dds-soldnote'), 'the footer says so instead of offering the dish').toHaveText('Sold out today')
     await expect(page.getByRole('button', { name: /^Add to Order/ })).toHaveCount(0)
   })
 

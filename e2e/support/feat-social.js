@@ -270,9 +270,9 @@ async function asUser(page, who) {
 const isPhone = page => (page.viewportSize()?.width ?? 1280) <= 768
 
 /**
- * Home -> Friends tab: the feed of me and my friends, newest first (feed('friends')). Home has three tabs now (Home | Friends |
- * Discover) and opens on the ranked Home tab, so the remembered tab is set to Friends before the page loads (the ranked tab and its
- * restaurant cards are then never mounted, which keeps them out of counts and strict locators) and the helper checks that Friends
+ * Home -> Friends tab: the feed of me and my friends, newest first (feed('friends')). Home has two tabs (For you | Friends; Discover moved into
+ * the Search tab, UX round 2026-10-18) and opens on the ranked For you tab, so the remembered tab is set to Friends before the page loads (the
+ * ranked tab and its cards are then never mounted, which keeps them out of counts and strict locators) and the helper checks that Friends
  * is the selected tab. The old All / Friends chips are gone.
  */
 async function openFeed(page) {
@@ -288,7 +288,7 @@ const feedPost = (page, text) => page.locator('.soc-feed:visible article.soc-pos
 /** Give a realtime channel time to be SUBSCRIBED after a page load before the other side triggers an event. */
 const channelsReady = async (page, ms = 1500) => { await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(ms) }
 
-/** Bell badge number of the page's navigation (mobile header bell or the desktop sidebar item); 0 when none. */
+/** Bell badge number of the page's navigation (the phone's Home top bar bell, which exists on Home only, or the desktop rail item); 0 when none. */
 async function bellCount(page) {
   const bell = isPhone(page) ? page.getByRole('button', { name: 'Notifications' }) : page.locator('aside a[href="/notifications"]')
   const text = (await bell.first().innerText().catch(() => '')).trim()

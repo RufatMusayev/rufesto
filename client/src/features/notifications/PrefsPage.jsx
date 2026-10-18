@@ -138,11 +138,13 @@ export default function PrefsPage() {
   const { t } = useTranslation('notifications')
   const navigate = useNavigate()
   const location = useLocation()
-  const { prefs, load, save, change, reload } = usePrefs()
+  const { prefs, load, save, change, reload } = usePrefs(!!session)
 
   const back = () => (location.key !== 'default' ? navigate(-1) : navigate('/notifications'))
 
-  if (!loading && !session) return <SignedOut title={t('prefsTitle')} />
+  // nothing below runs signed out: no prefs read, no push state, no saved-subscription lookup
+  if (loading) return <div className="ntf-page" aria-busy="true" />
+  if (!session) return <SignedOut title={t('prefsTitle')} />
 
   const locked = load !== 'ready'
   return (

@@ -19,6 +19,7 @@ export default function DishActions({ eng, onSave, onShare }) {
         onClick={eng.toggleLike}
       >
         <LikeIcon active={eng.liked} size={20} />
+        <span>{eng.liked ? t('restaurant:dish.liked') : t('restaurant:dish.like')}</span>
         {eng.count > 0 && <span className="dds-pill-n">{eng.count}</span>}
       </button>
       <button

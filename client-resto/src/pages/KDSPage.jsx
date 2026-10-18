@@ -7,6 +7,7 @@ import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import ActionBanner from '../components/ActionBanner'
+import DishThumb from '../components/DishThumb'
 
 // A ticket whose order is already closed is not the kitchen's any more. The database completes or cancels those
 // tickets itself (sql/53); until it has, or where that is not deployed, the board hides them as well.
@@ -56,7 +57,7 @@ export default function KDSPage() {
   async function loadTickets() {
     const { data } = await supabase
       .from('kds_tickets')
-      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, category), orders(id, status, tables(table_number)))`)
+      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, category, photo), orders(id, status, tables(table_number)))`)
       .eq('restaurant_id', restaurantId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('priority', { ascending: false })
@@ -197,6 +198,7 @@ function KDSTicket({ ticket, now, onAdvance, col, busy }) {
           <>
             <div className="kds-item-row">
               <span className="kds-qty">{item.quantity}×</span>
+              <DishThumb size="sm" photo={item.dishes?.photo} category={item.dishes?.category} />
               <span className="kds-dish-name">{item.dishes?.name || t('unknownDish')}</span>
             </div>
             {item.special_request && (

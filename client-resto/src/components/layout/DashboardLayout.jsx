@@ -14,7 +14,8 @@ export default function DashboardLayout() {
   const { staffRow, staffRows, hasMultipleRestaurants, setActiveStaffId, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const { t } = useTranslation('dashboard')
-  const initial = staffRow?.restaurants?.name?.[0] || 'R'
+  const restoName = staffRow?.restaurants?.name || ''
+  const initial = restoName[0] || 'R'
 
   const ALL_NAV = [
     { to: '/',         label: t('navOverview'), end: true, icon: OverviewIcon },
@@ -38,12 +39,13 @@ export default function DashboardLayout() {
     <div className="dash-layout">
       <aside className="dash-sidebar">
         <div className="dash-sidebar-head">
-          <div className="dash-resto-badge">{initial}</div>
+          <div className="dash-resto-badge" title={restoName || undefined}>{initial}</div>
           <div className="dash-resto-info" style={{ flex: 1, minWidth: 0 }}>
             {hasMultipleRestaurants ? (
               <select
                 className="input"
                 value={staffRow?.id || ''}
+                title={restoName || undefined}
                 onChange={e => setActiveStaffId(e.target.value)}
                 style={{ fontSize: '0.74rem', fontWeight: 700, padding: '2px 4px', width: '100%', cursor: 'pointer' }}
               >
@@ -52,7 +54,7 @@ export default function DashboardLayout() {
                 ))}
               </select>
             ) : (
-              <div className="dash-resto-name">{staffRow?.restaurants?.name || t('restaurantFallback')}</div>
+              <div className="dash-resto-name" title={restoName || undefined}>{restoName || t('restaurantFallback')}</div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
               <span className="dash-live-dot" style={{ width: 5, height: 5 }} />
@@ -88,9 +90,9 @@ export default function DashboardLayout() {
       </aside>
 
       <div className="dash-mobile-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className="dash-resto-badge" style={{ width: 28, height: 28, fontSize: '0.72rem' }}>{initial}</div>
-          <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{staffRow?.restaurants?.name}</span>
+        <div className="dash-mobile-id">
+          <div className="dash-resto-badge dash-resto-badge--sm">{initial}</div>
+          <span className="dash-mobile-name" title={restoName || undefined}>{restoName}</span>
         </div>
         <div className="notif-head-right">
           <div className="notif-head-live">

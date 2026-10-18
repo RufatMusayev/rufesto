@@ -67,7 +67,8 @@ export default function Results({
           <button type="button" className="btn btn-ghost" onClick={retry}>{t('retry')}</button>
         </div>
       ) : (
-        <div className={`sr-list${loading && !skeleton ? ' is-stale' : ''}`} aria-busy={loading}>
+        <div className="sr-list" aria-busy={loading}>
+          {loading && <div className="sr-progress" aria-hidden="true" />}
           {skeleton && <RowSkeleton n={6} />}
 
           {showPlaces && placeRows.length > 0 && (

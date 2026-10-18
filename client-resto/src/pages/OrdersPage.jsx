@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice, timeAgo, categoryEmoji } from '@shared/helpers'
+import { formatPrice, timeAgo } from '@shared/helpers'
+import DishThumb from '../components/DishThumb'
 import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
 import { bakuDayLabel, bakuTimeLabel } from '../lib/time'
 import { debounce } from '../lib/debounce'
@@ -86,7 +87,7 @@ export default function OrdersPage() {
     const { fromISO, toISO } = rangeInstants(rangeRef.current)
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price))')
+      .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price, photo))')
       .eq('restaurant_id', restaurantId)
       .gte('placed_at', fromISO)
       .lt('placed_at', toISO)
@@ -282,9 +283,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestNam
               display:'flex', alignItems:'center', gap:8,
               padding:'0.4rem 0', borderBottom:'1px solid var(--border)',
             }}>
-              <span style={{ fontSize:'0.95rem', width:28, textAlign:'center', flexShrink:0 }}>
-                {categoryEmoji(item.dishes?.category)}
-              </span>
+              <DishThumb size="sm" photo={item.dishes?.photo} category={item.dishes?.category} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:'0.8rem', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {item.dishes?.name || 'Dish'}

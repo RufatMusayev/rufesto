@@ -24,7 +24,7 @@
 
 .au-field { margin-bottom: 0.75rem; }
 .au-block { width: 100%; margin-top: 0.5rem; }
-.au-error { color: var(--red); font-size: 0.76rem; margin: 2px 0 10px; }
+.au-error { color: var(--red-text); font-size: 0.76rem; margin: 2px 0 10px; }
 .au-link {
   display: block; width: 100%; margin-top: 1rem; padding: 0; background: none; border: none; cursor: pointer;
   font-family: inherit; font-size: 0.78rem; color: var(--t3); text-align: center;
@@ -37,6 +37,6 @@
 .au-resend:disabled { color: var(--t3); cursor: default; opacity: 0.6; }
 .au-change { color: var(--t3); }
 .au-bar { color: var(--border); line-height: 1.5; }
-.au-req { color: var(--red); }
+.au-req { color: var(--red-text); }
 .au-opt { color: var(--t3); font-weight: 400; }
 .au-terms { font-size: 0.7rem; color: var(--t3); text-align: center; margin-top: 1.25rem; }

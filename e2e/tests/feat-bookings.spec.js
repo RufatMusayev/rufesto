@@ -46,7 +46,7 @@ async function tableCodeOf(page, mgr, bookingId) {
 async function scanByCode(p, code) {
   await expect(p.getByRole('heading', { name: 'Scan Table QR' })).toBeVisible()
   await p.getByRole('button', { name: 'Enter code manually' }).click()
-  await p.getByPlaceholder('Paste table token (UUID)').fill(code)
+  await p.getByPlaceholder('Table code, e.g. FINCAN-4821').fill(code)
   await p.getByRole('button', { name: 'Find Table' }).click()
 }
 
@@ -324,7 +324,7 @@ test.describe('wizard', { tag: TAGS }, () => {
   // Booking times are the restaurant's (Asia/Baku) clock whatever the guest's browser says: UTC+14 is on the next calendar day.
   test.describe('browser in another time zone', () => {
     test.use({ timezoneId: 'Pacific/Kiritimati' })
-    test('day chips, slot times, the booking and the profile list keep the restaurant\'s clock', async ({ page }) => {
+    test('day chips, slot times, the booking and the profile Visits list keep the restaurant\'s clock', async ({ page }) => {
       expect(await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)).toBe('Pacific/Kiritimati')
       const answer = page.waitForResponse(r => /get_available_slots/.test(r.url()))
       await page.goto(url('/book/bella-roma'))
@@ -342,8 +342,8 @@ test.describe('wizard', { tag: TAGS }, () => {
       await expect(page.locator('.bk-hero-when')).toContainText(picked.time)
       const dash = await F.dashboardView(page, mgr, id)
       expect(hhmm(Date.parse(dash.booking.reserved_from)), 'reserved_from on the Baku clock').toBe(picked.time)
-      await page.goto(url('/profile?tab=bookings'))
-      await expect(page.locator(`a.bk-row[href="/bookings/${id}"]`)).toContainText(picked.time)
+      await page.goto(url('/profile?tab=visits'))   // upcoming bookings are on top of Visits (the Bookings tab is gone)
+      await expect(page.locator(`a.pf-card[href="/bookings/${id}"]`)).toContainText(picked.time)
     })
   })
 })
@@ -509,7 +509,7 @@ test.describe('invites', { tag: TAGS }, () => {
     await obs.close()
   })
 
-  test('a cancelled booking: preview says cancelled, members see it, Past lists it, members are notified', async ({ page, browser }, testInfo) => {
+  test('a cancelled booking: preview says cancelled, members see it, Profile no longer lists it, members are notified', async ({ page, browser }, testInfo) => {
     const b = await make(page, host, { party: 3 })
     expect((await call(page, member, 'join_group_booking', { p_code: b.code, p_consent: true })).ok).toBe(true)
     expect((await call(page, host, 'cancel_booking', { p_booking_id: b.id })).ok).toBe(true)
@@ -525,13 +525,10 @@ test.describe('invites', { tag: TAGS }, () => {
     await expect(m.page.getByRole('button', { name: /Leave booking|Cancel booking|We're here/ })).toHaveCount(0)
     await expect(m.page.locator('a[href^="tel:"]')).toHaveCount(0)
 
-    await m.page.goto(url('/profile?tab=bookings'))
-    await expect(m.page.getByText('Nothing coming up')).toBeVisible()
-    await m.page.getByRole('button', { name: 'Past', exact: true }).click()
-    const row = m.page.locator(`a.bk-row[href="/bookings/${b.id}"]`)
-    await expect(row).toHaveCount(1)
-    await expect(row).toContainText('Cancelled')
-    await expect(row).toContainText('Guest')
+    // Profile lists only what is coming up (on top of Visits): a cancelled booking is not listed there any more (no Past list since the UX round)
+    await m.page.goto(url('/profile?tab=visits'))
+    await expect(m.page.getByRole('tab', { name: 'Visits' })).toHaveAttribute('aria-selected', 'true')
+    await expect(m.page.locator(`a.pf-card[href="/bookings/${b.id}"]`), 'a cancelled booking is not in the upcoming list').toHaveCount(0)
 
     await m.page.goto(url('/notifications'))
     await expect(m.page.getByText(/Your booking at Trattoria Bella Roma \(.*\) was cancelled\./).first()).toBeVisible()
@@ -924,46 +921,46 @@ test.describe('booking screen, phones and seating', { tag: TAGS }, () => {
     } finally { await F.releaseAll(page, guest) }
   })
 
-  test('Profile > Bookings: Upcoming and Past, newest rules, host and guest pills, empty states', async ({ page, browser }, testInfo) => {
+  test('Profile > Visits: upcoming bookings on top (soonest first, status pill), a cancelled one leaves, a member sees theirs, empty state', async ({ page, browser }, testInfo) => {
     const b1 = await make(page, host, { party: 2, from: 6 })
     const b2 = await make(page, host, { party: 3, from: 9 })
     expect(b1.slot.date < b2.slot.date || b1.slot.startsAt < b2.slot.startsAt).toBe(true)
     expect((await join(page, b2)).ok).toBe(true)
     await F.signIn(page, A.detailHost())
     await page.goto(url('/profile'))
-    await page.getByRole('tab', { name: 'Bookings' }).click()
-    await expect(page).toHaveURL(/tab=bookings/)
-    const rows = page.locator('a.bk-row')
-    await expect(page.getByRole('button', { name: 'Upcoming', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(rows.nth(0), 'soonest first').toHaveAttribute('href', `/bookings/${b1.id}`)
-    await expect(rows.nth(1)).toHaveAttribute('href', `/bookings/${b2.id}`)
-    await expect(rows.nth(0)).toContainText('Trattoria Bella Roma')
-    await expect(rows.nth(0)).toContainText('Party of 2')
-    await expect(rows.nth(0)).toContainText(b1.slot.time)
-    await expect(rows.nth(0)).toContainText('Pending')
-    await expect(rows.nth(1)).toContainText('Host')
-    await page.getByRole('button', { name: 'Past', exact: true }).click()
-    await expect(page.locator(`a.bk-row[href="/bookings/${b1.id}"]`)).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: 'Bookings' }), 'Bookings is not a tab any more').toHaveCount(0)
+    await page.getByRole('tab', { name: 'Visits' }).click()
+    await expect(page).toHaveURL(/tab=visits/)
+    const rows = page.locator('.pf-list a.pf-card[href^="/bookings/"]')
+    await expect(page.getByRole('heading', { name: 'Upcoming', exact: true })).toBeVisible()
+    // review4 may still hold a seated booking from the seating tests above (it cannot be cancelled and runs about 80 minutes) that sorts first: look at the two of this test
+    const row1 = page.locator(`a.pf-card[href="/bookings/${b1.id}"]`)
+    await expect(row1).toBeVisible()
+    const hrefs = await rows.evaluateAll(as => as.map(a => a.getAttribute('href')))
+    expect(hrefs.indexOf(`/bookings/${b1.id}`), 'the booking of day 6 is listed').toBeGreaterThanOrEqual(0)
+    expect(hrefs.indexOf(`/bookings/${b1.id}`), 'soonest first').toBeLessThan(hrefs.indexOf(`/bookings/${b2.id}`))
+    await expect(row1).toContainText('Trattoria Bella Roma')
+    await expect(row1).toContainText('Party of 2')
+    await expect(row1).toContainText(b1.slot.time)
+    await expect(row1).toContainText('Pending')
 
     expect((await call(page, host, 'cancel_booking', { p_booking_id: b1.id })).ok).toBe(true)
-    await expect(page.locator(`a.bk-row[href="/bookings/${b1.id}"]`), 'a cancelled booking moves to Past (live)').toBeVisible({ timeout: 25_000 })
-    await expect(page.locator(`a.bk-row[href="/bookings/${b1.id}"]`)).toContainText('Cancelled')
-    await page.getByRole('button', { name: 'Upcoming', exact: true }).click()
-    await expect(page.locator(`a.bk-row[href="/bookings/${b1.id}"]`)).toHaveCount(0)
-    await page.locator(`a.bk-row[href="/bookings/${b2.id}"]`).click()
+    await page.reload()
+    await expect(page.locator(`a.pf-card[href="/bookings/${b1.id}"]`), 'a cancelled booking leaves the upcoming list').toHaveCount(0, { timeout: 25_000 })
+    await page.locator(`a.pf-card[href="/bookings/${b2.id}"]`).click()
     await expect(page).toHaveURL(url(`/bookings/${b2.id}`))
 
     const m = await F.openAs(browser, testInfo, A.detailMember())
-    await m.page.goto(url('/profile?tab=bookings'))
-    await expect(m.page.locator(`a.bk-row[href="/bookings/${b2.id}"]`)).toContainText('Guest')
+    await m.page.goto(url('/profile?tab=visits'))
+    await expect(m.page.locator(`a.pf-card[href="/bookings/${b2.id}"]`), 'a member sees the booking they joined').toContainText('Party of 3')
     await m.close()
 
     test.skip(!!F.missing('emptyGuest'), 'kitchen.sakura not found for the empty state')
     const e = await F.openAs(browser, testInfo, A.emptyGuest())
     if ((await F.myBookings(page, e)).length === 0) {
-      await e.page.goto(url('/profile?tab=bookings'))
-      await expect(e.page.getByText('No bookings yet')).toBeVisible()
-      await e.page.getByRole('link', { name: 'Reserve a table' }).click()
+      await e.page.goto(url('/profile?tab=visits'))
+      await expect(e.page.getByText('No visits yet')).toBeVisible()
+      await e.page.getByRole('link', { name: 'Explore restaurants' }).click()
       await expect(e.page).toHaveURL(url('/explore'))
     }
     await e.close()

@@ -10,6 +10,7 @@ const path = require('path')
 const base = require('./fixtures')
 const { CONSUMER_URL, RESTO_URL, creds, supabaseOverride, tableCode: QA_TABLE_CODE } = require('./env')
 const R = require('./restaurant')
+const U = require('./ux')
 
 const BELLA = '10000000-0000-0000-0000-000000000001'
 const DOC = path.join(__dirname, '..', '..', 'docs', 'REVIEW-ACCOUNTS.md')
@@ -182,7 +183,12 @@ async function resetTable({ mgr, waiter, kitchen, guests, tableId }) {
   ])
   await Promise.all([
     ...(requests || []).map(r => attempt(() => waiter.rpc('resolve_service_request', { p_id: r.id }))),
-    ...(bills || []).map(b => attempt(() => mgr.rpc('void_bill', { p_bill_id: b.id, p_reason: 'e2e reset' }))),
+    ...(bills || []).map(b => attempt(async () => {
+      const v = await mgr.rpc('void_bill', { p_bill_id: b.id, p_reason: 'e2e reset' })
+      if (v.ok || !/bill_has_payments/.test(v.error)) return
+      // a half-paid bill cannot be voided (bill_has_payments): staff settle what is left, the way the dashboard's "Mark paid" does, so the table is clean for the next test
+      for (const sh of await mgr.rows('bill_shares?bill_id=eq.' + b.id + '&status=neq.paid&select=id')) await mgr.rpc('staff_settle_share', { p_bill_share_id: sh.id, p_method: 'cash' })
+    })),
   ])
   // Unpaid orders are cancelled. An open order goes away with its kitchen tickets (cancel_order_draft); for the others the
   // tickets would stay on the kitchen board forever (cancelling an order does not touch them), so they are finished first.
@@ -364,10 +370,19 @@ const { expect } = base
 const url = p => CONSUMER_URL + p
 const rurl = p => RESTO_URL + p
 
-/** Opens the QR deep link and taps Join (the explicit action). */
+/**
+ * Opens the QR deep link and taps Join (the explicit action). The claim page asks `table_preview` first: a code or seat the server does not know
+ * (invalid_code / invalid_seat / table_unavailable) is refused on the card at once ("Couldn't join this table"), without a Join tap, so the helper
+ * waits for that answer and only taps Join on the "Join this table?" card.
+ */
 async function claimByLink(page, code) {
+  const previewed = page.waitForResponse(r => /\/rpc\/table_preview/.test(r.url()), { timeout: 10_000 }).catch(() => null)
   await page.goto(url(`/t/${code}`))
-  await expect(page.getByRole('heading', { name: 'Join this table?' })).toBeVisible()
+  await previewed
+  const confirm = page.getByRole('heading', { name: 'Join this table?' })
+  const refused = page.locator('.claim-card').getByRole('heading', { name: "Couldn't join this table" })
+  await expect(confirm.or(refused)).toBeVisible()
+  if (await refused.isVisible()) return
   await page.getByRole('button', { name: 'Join', exact: true }).click()
 }
 /** claimByLink and wait for the table screen. */
@@ -382,11 +397,18 @@ async function openMenu(page) {
   await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
   await R.showMenu(page)   // a seated guest lands on the Menu tab; the helper also covers the Posts tab
 }
-const cartSheet = page => page.locator('.overlay').last().locator('.sheet')
-/** Dish sheet of `name` -> "Add to Order" (the cart sheet opens by itself). */
+/** The panel of the top open sheet (the cart is a BottomSheet since the UX round; an exiting sheet is not counted). */
+const cartSheet = page => U.sheet(page)
+/**
+ * Dish sheet of `name` -> "Add to Order": since the UX round the dish sheet CLOSES on add and the cart toast ("Added <name>") confirms it; the cart
+ * sheet no longer opens by itself, so the helper opens it with the cart button and waits for "Your Order".
+ */
 async function addToCart(page, name) {
   await R.rowOpen(R.dishRow(page, name).first()).click()
   await page.getByRole('button', { name: /^Add to Order/ }).click()
+  await U.noSheet(page, 'the dish sheet closes after "Add to order"')
+  await expect(page.locator('.cart-toast'), 'the cart toast confirms it').toContainText(/^Added /)
+  await page.getByRole('button', { name: 'Open cart' }).click()
   await expect(cartSheet(page).getByRole('heading', { name: 'Your Order' })).toBeVisible()
 }
 

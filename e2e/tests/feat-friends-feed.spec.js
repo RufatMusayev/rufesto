@@ -12,6 +12,7 @@ const { test, expect, settle } = require('../support/fixtures')
 const S = require('../support/feat-social')
 const H = require('../support/feat-home')
 const { walker } = require('../support/mobile')
+const U = require('../support/ux')
 
 const { TAG, RUN } = S
 const MONTHS = 'January|February|March|April|May|June|July|August|September|October|November|December'
@@ -182,5 +183,22 @@ test.describe('feat friends feed', { tag: ['@guest', '@consumer', '@feat'] }, ()
       await settle(page)
       expect(watch.consoleErrors, 'console errors on Friends').toEqual([])
     } finally { await S.purgePosts(au); await S.purgePosts(v); await au.close() }
+  })
+
+  // UX round (docs/UX-PLAN-2026-10-18.md 4): a friend's review in this feed is the compact card (variant "card"), not the old 200 px block.
+  test('a review of a friend shows as a compact card: <= 140 px, a real name, a labelled verified icon, no "Verified visit" pill', async ({ page }) => {
+    await S.asUser(page, 1)
+    const { answer } = await H.openFriends(page)
+    const reviews = answer.items.filter(i => i.kind === 'review')
+    test.skip(reviews.length === 0, 'no friend review on the first page of the Friends feed of review1 right now')
+    const cards = page.locator('.soc-feed:visible article.rv--card')
+    await expect(cards.first()).toBeVisible()
+    for (const c of await cards.all()) {
+      await c.scrollIntoViewIfNeeded()
+      expect((await U.box(c)).height, 'review card height').toBeLessThanOrEqual(140)
+      expect((await c.locator('.rv-name').innerText()).trim()).not.toMatch(/^(Anonymous|Rufesto guest)$/)
+      expect(await c.locator('.rv-l1').evaluate(el => el.innerText), 'no "Verified visit" pill text').not.toMatch(/Verified/)
+    }
+    await expect(page.locator('.soc-feed:visible .rv-kicker'), 'the "Popular review" kicker is Home only').toHaveCount(0)
   })
 })

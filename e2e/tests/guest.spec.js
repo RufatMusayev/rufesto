@@ -23,10 +23,9 @@ test.describe('guest', { tag: ['@guest', '@consumer'] }, () => {
   })
 
   test('opens a restaurant; the booking wizard offers time slots (nothing is submitted)', async ({ page }) => {
-    // Home opens on the ranked Home tab; the restaurant list ("View menu →") is the Discover tab: remember it before the page loads
-    await page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
-    await page.goto(url('/'))
-    await page.getByRole('link', { name: /view menu/i }).first().click()
+    // The restaurant list is the "All places" section of the Search tab (the Discover tab is gone)
+    await page.goto(url('/explore'))
+    await page.locator('.sr-zero a.sr-row').first().click()
     await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
     // The merged Reserve flow: one "Reserve a table" LINK to the /book/:slug wizard; its step 1 holds date, party size and slots.
     const reserve = page.getByRole('link', { name: /^reserve a table$/i })
@@ -62,7 +61,7 @@ test.describe('guest', { tag: ['@guest', '@consumer'] }, () => {
       await page.getByRole('button', { name: 'Scan QR' }).click()
       await expect(page.getByRole('heading', { name: 'Scan Table QR' })).toBeVisible()
       await page.getByRole('button', { name: 'Enter code manually' }).click()
-      await expect(page.getByPlaceholder('Paste table token (UUID)')).toBeVisible()
+      await expect(page.getByPlaceholder('Table code, e.g. FINCAN-4821')).toBeVisible()
       await page.getByRole('button', { name: 'Cancel' }).click()
       await expect(page.getByRole('heading', { name: 'Scan Table QR' })).toHaveCount(0)
     })

@@ -1,0 +1,399 @@
+{
+  "bundle": "index-CpKaHyhz.js",
+  "top_controls": [
+    "button|New post|44x44",
+    "button|Notifications|44x44",
+    "tab|For you|174x44",
+    "tab|Friends|174x44",
+    "button|Use my location for nearby|44x44",
+    "a|Aysel Məmmədov|130x44"
+  ],
+  "language_or_theme_in_top_bar": false,
+  "fab_present": 0,
+  "tabs": [
+    "For you|sel=true|ctrl=home-panel-home|tabindex=0",
+    "Friends|sel=false|ctrl=home-panel-friends|tabindex=-1"
+  ],
+  "location_button": {
+    "label": "Use my location for nearby",
+    "pressed": "false",
+    "size": "44x44"
+  },
+  "page_items": 20,
+  "promo_positions": [
+    7,
+    15
+  ],
+  "popular_review_positions": [
+    "4(kicker=true,138px)",
+    "11(kicker=true,118px)",
+    "18(kicker=true,138px)"
+  ],
+  "review_row_heights": [
+    138,
+    118,
+    138
+  ],
+  "textcards": [
+    "17:488px",
+    "20:488px"
+  ],
+  "available_now_pills": 0,
+  "sold_out_marks": 0,
+  "verified_markers": [
+    "pill-text",
+    "-",
+    "-",
+    "icon",
+    "pill-text",
+    "-"
+  ],
+  "small_targets_home": [
+    "1x a.rv-av|Aysel Məmmədova|32x32",
+    "1x a.rv-name|Aysel Məmmədova|127x20",
+    "1x a.rv-where|Flat White · Fin|294x18",
+    "1x button.rv-act|Like|32x24",
+    "1x button.rv-act|1 reply|32x24"
+  ],
+  "first_images": [
+    "eager|fp=high|640px|alt=Photo by Aysel Məmmədo",
+    "eager|fp=high|530px|alt=Photo by Mehriban Rzay",
+    "lazy|fp=null|530px|alt=Photo by Mehriban Rzay",
+    "lazy|fp=null|426px|alt=Photo by Aysel Məmmədo"
+  ],
+  "signin_sheet": {
+    "welcome": 1,
+    "google": 1
+  },
+  "signin_sheet_closed_by_escape": true,
+  "popular_review_text": "Popular review · Top reviewer A Aysel Məmmədova · 2h ★★★★★ Flat White · Fincan Coffee Silky and strong, exactly how a flat white should be. 2 1",
+  "popular_review_controls": [
+    "Aysel Məmmədova|32x32",
+    "Aysel Məmmədov|127x20",
+    "Flat White · F|294x18",
+    "Like|32x24",
+    "1 reply|32x24"
+  ],
+  "plus_signed_out": {
+    "url": "/",
+    "signin_sheet": 1
+  },
+  "friends_signedout": [
+    "🍽️",
+    "Sign in to see your friends' posts",
+    "Posts from you and your friends show up here, newest first.",
+    "Sign in"
+  ],
+  "location_denied_feedback": [
+    "Location is off for this site. Allow it in your browser settings to see places near you."
+  ],
+  "filters_sheet": [
+    "Filters",
+    "Reset",
+    "Open now",
+    "CUISINE",
+    "Any",
+    "PRICE",
+    "₼",
+    "₼₼",
+    "₼₼₼",
+    "DISTANCE",
+    "1 km",
+    "3 km",
+    "10 km",
+    "Turn on your location to filter by distance. Use my location",
+    "DIET (DISHES)",
+    "Vegan",
+    "Vegetarian",
+    "Gluten-free",
+    "Spicy",
+    "Show results"
+  ],
+  "filters_sheet_controls": [
+    "Reset||44x44",
+    "|false|48x28",
+    "Any|true|54x44",
+    "Any|true|91x40",
+    "₼|false|91x40",
+    "₼₼|false|91x40",
+    "₼₼₼|false|91x40",
+    "Any|true|91x40",
+    "1 km|false|91x40",
+    "3 km|false|91x40",
+    "10 km|false|91x40",
+    "Use my location||100x18",
+    "Vegan|false|68x44",
+    "Vegetarian|false|96x44",
+    "Gluten-free|false|102x44",
+    "Spicy|false|64x44",
+    "Show results||380x48"
+  ],
+  "language_reachability": {
+    "tap_profile_tab": {
+      "url": "/",
+      "signin_sheet": 1,
+      "language_row": 0
+    },
+    "tap_bell": {
+      "url": "/notifications",
+      "text": [
+        "Notifications",
+        "Sign in to see your booking updates and order notifications.",
+        "Sign in"
+      ],
+      "language_words": false
+    },
+    "filters_sheet_language": false,
+    "direct_profile_url_settings": [
+      "Share feedback",
+      "Language",
+      "EN",
+      "AZ",
+      "Dark mode",
+      "Send feedback"
+    ]
+  },
+  "search_zero_headings": [
+    "Search",
+    "Popular",
+    "Cuisines",
+    "Trending dishes",
+    "Top reviews",
+    "All places"
+  ],
+  "search_zero_row_sizes": [
+    64,
+    64,
+    64
+  ],
+  "search_small_targets": [
+    "1x button|Cappuccino|104x36",
+    "1x button|Penne alla Norma|135x36",
+    "1x button|French Fries|105x36",
+    "1x button|Tarkhuna|86x36",
+    "1x button|Ayran|66x36",
+    "1x button|Cinnamon Roll|116x36",
+    "1x button|Azerbaijani|98x36",
+    "1x button|Cafe|59x36",
+    "1x a|Aysel Məmmədova|32x32",
+    "1x a|Aysel Məmmədova|127x20",
+    "1x a|Berry Smoothie ·|328x18",
+    "3x button|Like|32x24",
+    "1x button|3 replies|32x24",
+    "1x a|Səbinə İbrahimov|32x32",
+    "1x a|Səbinə İbrahimov|125x20",
+    "1x a|Tiramisù · Tratt|328x18"
+  ],
+  "search_doner": {
+    "headings": [
+      "Search",
+      "PLACES",
+      "DISHES"
+    ],
+    "rows": [
+      "Search",
+      "Cancel",
+      "All",
+      "Places",
+      "Dishes",
+      "PLACES",
+      "Dönər Bakı Express",
+      "Fast Food · ★4.7 · ₼",
+      "Closed",
+      "DISHES",
+      "Döner in Bread",
+      "₼6.00",
+      "Beef Döner Wrap",
+      "₼7.00",
+      "Chicken Döner Wrap",
+      "₼5.50",
+      "Dönər Bakı Express · ★5.0 (1)",
+      "İskender Kebab",
+      "₼12.00",
+      "İskender Kebap",
+      "₼26.00",
+      "Meze Istanbul"
+    ]
+  },
+  "search_pasta_headings": [
+    "Search",
+    "DISHES"
+  ],
+  "search_empty": [
+    "Search",
+    "Cancel",
+    "All",
+    "Places",
+    "Dishes",
+    "No results for “zzzzq”",
+    "Check the spelling or try a dish or cuisine.",
+    "Popular",
+    "Cappuccino",
+    "Penne alla Norma",
+    "French Fries",
+    "Tarkhuna"
+  ],
+  "search_two_letters": [
+    "Search",
+    "Cancel",
+    "All",
+    "Places",
+    "Dishes",
+    "DISHES",
+    "See all ›",
+    "Ayran"
+  ],
+  "recent_searches_after_queries": [
+    "Popular",
+    "Cuisines",
+    "Trending dishes",
+    "Top reviews",
+    "All places"
+  ],
+  "ERROR_filter": "TimeoutError: locator.click: Timeout 30000ms exceeded.",
+  "sheet_open_ms": 65,
+  "sheet_url": "/explore?dish=80000001-0000-0000-0000-000000000021",
+  "sheet_controls": [
+    "Close|36x36",
+    "Trattoria Bella Ro|125x40",
+    "Like this dish|48x36",
+    "Save to your list|84x36",
+    "Share this dish|90x36",
+    "Write ›|53x44",
+    "Könül Həsənova|32x32",
+    "Könül Həsənova|106x20",
+    "Like|32x24",
+    "1 reply|32x24",
+    "Aysel R.|32x32",
+    "Aysel R.|51x20",
+    "Like|32x24",
+    "Reply|32x24",
+    "Ingredients & alle|412x44",
+    "Scan QR to order|282x48",
+    "Reserve|88x48"
+  ],
+  "sheet_text": [
+    "Cappuccino",
+    "₼4.50",
+    "Trattoria Bella Roma",
+    "★4.0 (2)",
+    "Beverage",
+    "Espresso with steamed milk and foam",
+    "80 kcal · 4 min · Vegetarian",
+    "Save",
+    "Share",
+    "Reviews",
+    "★4.0 · 2",
+    "Write",
+    "›",
+    "K",
+    "Könül Həsənova",
+    "· 6d",
+    "★★★★☆",
+    "Cappuccino xoşuma gəldi, bir az da ədviyyat olsaydı daha yaxşı olardı.",
+    "1",
+    "A",
+    "Aysel R.",
+    "· 2h",
+    "e2e review 1792263707736",
+    "Ingredients & allergens",
+    "Scan QR to order",
+    "Reserve"
+  ],
+  "sheet_photo_ratio": "388x243 (1.60)",
+  "sheet_like_button_name": [
+    "Close",
+    "Like this dish",
+    "Save to your list",
+    "Share this dish",
+    "Write ›",
+    "Like"
+  ],
+  "sheet_reviewer_names": "no \"Anonymous\"",
+  "lock_styles": {
+    "html": "hidden",
+    "body": "visible",
+    "bodyPosition": "static"
+  },
+  "background_scroll_while_open": {
+    "before": 0,
+    "afterWheelOnScrim": 0,
+    "afterTouchOnScrim": 0
+  },
+  "sheet_inner_scroller": {
+    "scrollable": true,
+    "sh": 718,
+    "ch": 674
+  },
+  "back_closes_sheet": {
+    "closed": true,
+    "ms": 326,
+    "url": "/explore",
+    "stayedOnSearch": true,
+    "scrollYKept": 0
+  },
+  "swipe_down_on_handle_closes": {
+    "closed": true,
+    "ms": 843,
+    "url": "/explore"
+  },
+  "short_drag_springs_back": true,
+  "swipe_down_from_content_closes": true,
+  "escape_closes": true,
+  "close_button_closes": true,
+  "dish_like_signedout_prompt": 0,
+  "dish_like_writes": [],
+  "restaurant_top": [
+    "6",
+    "followers",
+    "26",
+    "reviews",
+    "Trattoria Bella Roma",
+    "Italian",
+    "·",
+    "Closed",
+    "· opens 12:00",
+    "Authentic Roman trattoria bringing the soul of Italy to Baku. Family recipes, fresh pasta, and wood-fired pizza.",
+    "Nizami St 42",
+    "Reserve a table",
+    "Tables",
+    "Follow",
+    "Posts",
+    "Menu",
+    "PROMO",
+    "Pasta night −15 %",
+    "Dessert on us",
+    "From Trattoria Bella Roma",
+    "Guests",
+    "Live acoustic guitar this Saturday from 20:00. Tables fill up early."
+  ],
+  "restaurant_controls": [
+    "Back|44x44",
+    "26 reviews|45x49",
+    "Reserve a table|133x44",
+    "Floor plan|96x44",
+    "Follow|135x44",
+    "Posts|206x47",
+    "Menu|206x47",
+    "PROMO Pasta night |323x44",
+    "From Trattoria Bel|188x38",
+    "Guests|74x38",
+    "Tonight's special: wood-fired Pizza Margherita, straight out of the oven. Fresh |136x136",
+    "Today's pick from our kitchen: Spaghetti Aglio e Olio. Come hungry.|136x136",
+    "Live acoustic guitar this Saturday from 20:00. Tables fill up early.|136x136",
+    "Today's pick from our kitchen: Pappardelle Bolognese. Come hungry.|136x136",
+    "Home|88x44",
+    "Explore|88x44",
+    "Scan QR|54x54",
+    "Map|88x44"
+  ],
+  "bad_slug": [
+    "🍽️",
+    "Restaurant not found",
+    "This link may be mistyped or out of date, or the restaurant is no longer on Rufesto.",
+    "Browse restaurants"
+  ],
+  "console": [],
+  "pageErrors": [],
+  "bad": []
+}

@@ -32,6 +32,7 @@ const EMPTY = { items: [], nextCursor: null, unread: 0 }
 const BELL_POLL_MS = 60000
 const EVENT_DEBOUNCE_MS = 400
 const REQUEST_LOOKUP_MAX = 60
+const REQUEST_POLL_MS = 20000 // fallback while the panel is open, in case a realtime event is missed
 
 const firstName = name => String(name || '').trim().split(/\s+/)[0] || ''
 
@@ -156,7 +157,7 @@ export function NotificationsProvider({ children }) {
   // Navigating (an item tap, the browser Back button) closes the panel.
   useEffect(() => { setOpen(false) }, [pathname])
 
-  const restaurantKey = (staffRows || []).map(s => s.restaurant_id).filter(Boolean).sort().join(',')
+  const restaurantKey = [...new Set((staffRows || []).map(s => s.restaurant_id).filter(Boolean))].sort().join(',')
   const loadTables = useCallback(async () => {
     if (!restaurantKey || tablesFor.current === restaurantKey) return
     tablesFor.current = restaurantKey
@@ -201,6 +202,29 @@ export function NotificationsProvider({ children }) {
   useEffect(() => {
     if (open && available && requestKey) loadRequests(requestKey.split(','))
   }, [open, available, requestKey, reqTick, loadRequests])
+
+  // A colleague taps "On my way" (or a call is resolved) while the panel is open: only the service request changes,
+  // no notification is written, so the panel listens to service_requests too. One channel per restaurant of the
+  // login (never cross-tenant), only while the panel is open; the rows' statuses are re-read, nothing else.
+  const requestKeyRef = useRef('')
+  requestKeyRef.current = requestKey
+  useEffect(() => {
+    if (!open || !available || !restaurantKey) return undefined
+    const resync = debounce(() => {
+      const ids = requestKeyRef.current
+      if (ids) loadRequests(ids.split(','))
+    }, EVENT_DEBOUNCE_MS)
+    const stops = restaurantKey.split(',').map(rid => {
+      const channel = supabase
+        .channel(`staff-requests:${rid}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests', filter: `restaurant_id=eq.${rid}` }, resync)
+      return subscribeResync(channel, resync, { pollMs: REQUEST_POLL_MS, onVisible: true })
+    })
+    return () => {
+      resync.cancel()
+      stops.forEach(stop => stop())
+    }
+  }, [open, available, restaurantKey, loadRequests])
 
   // My first name for the "✓ name" a tap on "On my way" leaves on the row (own users row; read once per sign-in).
   useEffect(() => {

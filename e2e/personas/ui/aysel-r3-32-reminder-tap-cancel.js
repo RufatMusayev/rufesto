@@ -1,0 +1,26 @@
+const L = require('./aysel-r3-lib')
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+;(async () => {
+  const b = await L.launch()
+  const api = await L.api('Aysel Məmmədova')
+  const Z = await L.phone(b, 'Aysel Məmmədova', { lang: 'az' })
+  await Z.page.goto(L.CONSUMER + '/notifications'); await Z.page.waitForSelector('li.ntf-li'); await sleep(1500)
+  L.log('AZ top rows:', await Z.page.evaluate(() => [...document.querySelectorAll('li.ntf-li')].slice(0, 2).map(li => li.innerText.replace(/\n+/g, ' | '))))
+  await Z.ctx.close()
+  const A = await L.phone(b, 'Aysel Məmmədova'); const page = A.page
+  await page.goto(L.CONSUMER + '/notifications'); await page.waitForSelector('li.ntf-li'); await sleep(1500)
+  await page.locator('li.ntf-li').first().click(); await sleep(2500)
+  L.log('tap on the reminder lands on', page.url().replace(L.CONSUMER, ''))
+  L.log('page:', (await page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 200))
+  await L.shot(page, '32-reminder-tap')
+  const bk = (await api.rpc('list_my_bookings')).find(x => ['pending', 'confirmed'].includes(x.status))
+  L.log('live booking:', bk && bk.booking_id + ' ' + bk.status)
+  if (bk) {
+    await page.goto(L.CONSUMER + '/bookings/' + bk.booking_id); await sleep(2500)
+    await page.getByRole('button', { name: /^Cancel booking/i }).first().click(); await sleep(900)
+    await page.locator('.bs-panel').getByRole('button', { name: /Cancel booking/i }).click(); await sleep(2200)
+    const after = (await api.rpc('list_my_bookings')).find(x => x.booking_id === bk.booking_id)
+    L.log('final status:', after && after.status)
+  }
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

@@ -3,12 +3,13 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { HOME_TABS, readHomeTab, rememberHomeTab, isLegacyDiscover } from '../homeTab'
 import HomeFeed from '../../feed/HomeFeed'
-import { useDishAvailabilityPoll } from '../../feed/dishAvailability'
+import { useDishAvailabilityPoll, refreshDishAvailability } from '../../feed/dishAvailability'
 import { useViewerLocation } from '../../feed/useViewerLocation'
 import { LocationButton } from '../../feed/components/LocationPill'
 import { FeedSkeletons } from '../../feed/components/FeedSkeleton'
 import { homeFeed, friendsFeed } from '../../feed/feeds'
 import { PullToRefresh } from '../../../components/ui'
+import { prefetchDishSheet } from '../../../components/dish/prefetch'
 
 // Home is in the main bundle (it is the first thing most guests see); Friends is a separate chunk that is fetched
 // in idle time right after Home mounts, so the first tab switch does not wait for it.
@@ -44,6 +45,12 @@ function Tabs() {
   const [seen, setSeen] = useState(() => new Set([tab]))
   const buttons = useRef({})
   useDishAvailabilityPoll()
+  useEffect(() => { prefetchDishSheet() }, [])
+  // the cards of a tab that was cached (or just switched to) may be minutes old: read their dishes once they are painted
+  useEffect(() => {
+    const id = setTimeout(refreshDishAvailability, 1200)
+    return () => clearTimeout(id)
+  }, [tab])
 
   useEffect(() => {
     const id = idle(() => { loadFriends() })

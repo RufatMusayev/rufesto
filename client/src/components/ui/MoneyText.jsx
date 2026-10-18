@@ -4,7 +4,7 @@ const TONES = {
   accent: 'var(--accent)',
   gold: 'var(--gold)',
   muted: 'var(--t3)',
-  red: 'var(--red)',
+  red: 'var(--red-text)',
 }
 
 // An AZN amount in DM Mono with tabular figures.

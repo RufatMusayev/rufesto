@@ -36,6 +36,8 @@ async function open(opts = {}) {
   const device = devices['Pixel 7']
   const ctx = await browser.newContext({
     ...device,
+    // opts.viewport = {width,height}: a desktop / tablet-sized browser window instead of the Pixel 7 phone
+    ...(opts.viewport ? { viewport: opts.viewport, isMobile: !!opts.touch, hasTouch: !!opts.touch, deviceScaleFactor: 1, userAgent: opts.touch ? device.userAgent : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36' } : {}),
     locale: opts.locale || 'en-US',
     timezoneId: 'Asia/Baku',
     geolocation: opts.geo || undefined,

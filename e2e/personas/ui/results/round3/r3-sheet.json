@@ -1,0 +1,88 @@
+{
+  "page_scrollable": {
+    "scrollingElement": "HTML",
+    "scrollHeight": 1910,
+    "inner": 839
+  },
+  "scroll_positions": {
+    "scrolledBehindBeforeOpen": 700,
+    "afterScrollIntoView": 29,
+    "whenOpen": 29,
+    "wheelOnScrim": 29,
+    "touchOnScrim": 29,
+    "wheelPastSheetEnd": 29,
+    "touchPastSheetEnd": 29
+  },
+  "lock_verdict": "locked: page did not move",
+  "scroll_restored_after_close": {
+    "scrollY": 29,
+    "htmlOverflow": "visible"
+  },
+  "like_signed_out": {
+    "signin_sheet": 1,
+    "heart_filled": false
+  },
+  "save_signed_out": {
+    "signin_sheet": 1
+  },
+  "writes": [],
+  "filters_primary_label": "Show results",
+  "filtered_state": {
+    "text": [
+      "Search",
+      "Italian",
+      "All",
+      "Places",
+      "Dishes",
+      "PLACES",
+      "Trattoria Bella Roma",
+      "Italian · ★4.4 · ₼₼",
+      "Closed",
+      "DISHES",
+      "See all ›",
+      "Cappuccino",
+      "₼4.50",
+      "Trattoria Bella Roma · ★4.0 (2)",
+      "Penne alla Norma",
+      "₼13.50",
+      "Trattoria Bella Roma · ★5.0 (1)",
+      "Bruschetta al Pomodoro",
+      "₼7.00",
+      "Trattoria Bella Roma · ★4.0 (3)",
+      "Espresso",
+      "₼3.50",
+      "Trattoria Bella Roma · ★4.5 (4)",
+      "Tiramisù",
+      "₼8.00",
+      "Trattoria Bella Roma · ★5.0 (3)"
+    ],
+    "headings": [
+      "Search",
+      "PLACES",
+      "DISHES"
+    ]
+  },
+  "filter_badge_or_chip": [
+    "Filters, 1 on|44x44",
+    "Remove filter Italian|80x36",
+    "All|42x44",
+    "Places|69x44",
+    "Dishes|70x44"
+  ],
+  "open_now_filter": [
+    "Search",
+    "Open now",
+    "All",
+    "Places",
+    "Dishes",
+    "Nothing matches these filters",
+    "Try removing a filter.",
+    "Popular",
+    "Cappuccino",
+    "Penne alla Norma",
+    "French Fries",
+    "Tarkhuna",
+    "Ayran",
+    "Cinnamon Roll"
+  ]
+}

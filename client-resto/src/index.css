@@ -353,8 +353,9 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 0 2px 8px rgba(139,45,66,0.35);
 }
 .dash-resto-name {
-  font-size: 0.82rem; font-weight: 700; color: var(--t1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;
+  font-size: 0.82rem; font-weight: 700; color: var(--t1); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; /* two lines, then an ellipsis; the full name is the title */
 }
 .dash-resto-role { font-size: 0.65rem; color: var(--t3); text-transform: capitalize; margin-top: 1px; }
 
@@ -386,8 +387,12 @@ a { text-decoration: none; color: inherit; }
 .dash-mobile-head {
   display: none; position: sticky; top: 0; z-index: 50;
   background: var(--bg); border-bottom: 1px solid var(--border);
-  padding: 0 1rem; height: 50px; align-items: center; justify-content: space-between;
+  padding: 0 1rem; height: 50px; align-items: center; justify-content: space-between; gap: 0.5rem;
 }
+/* the venue name gives way (ellipsis, full name in the title) so it never runs under the live dot and the bell */
+.dash-mobile-id { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.dash-resto-badge--sm { width: 28px; height: 28px; font-size: 0.72rem; }
+.dash-mobile-name { min-width: 0; font-weight: 700; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-mobile-nav-wrap {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
   /* the scrolling nav and the pinned "More" button sit side by side */

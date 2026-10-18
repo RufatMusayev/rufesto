@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCart } from '../../contexts/CartContext'
+import { warmSearch } from '../../features/search/warm'
 
 // The rail (>= 1024 px): Home, Search, Map, Notifications, Table, Profile (docs/UX-PLAN-2026-10-18.md D10). Language and
 // theme are in Profile > Settings; Friends is on Profile. unreadCount is owned by AppLayout (single subscription).
@@ -13,7 +14,7 @@ export default function Sidebar({ unreadCount = 0 }) {
       <div className="rail-logo">R</div>
       <nav className="rail-items" aria-label={t('home')}>
         <SideItem to="/" label={t('home')} Icon={HomeIcon} />
-        <SideItem to="/explore" label={t('explore')} Icon={SearchIcon} />
+        <SideItem to="/explore" label={t('search')} Icon={SearchIcon} onWarm={warmSearch} />
         <SideItem to="/map" label={t('map')} Icon={MapIcon} />
         <SideItem to="/notifications" label={t('notifications')} Icon={BellIcon} badge={unreadCount} />
         <SideItem to="/table" label={tableId ? t('yourTable') : t('enterTableCode')} Icon={QrIcon} dot={!!tableId} />
@@ -23,9 +24,12 @@ export default function Sidebar({ unreadCount = 0 }) {
   )
 }
 
-function SideItem({ to, label, Icon, badge = 0, dot = false }) {
+function SideItem({ to, label, Icon, onWarm, badge = 0, dot = false }) {
   return (
-    <NavLink to={to} end={to === '/'} title={label} aria-label={label} className={({ isActive }) => `rail-item pressable${isActive ? ' active' : ''}`}>
+    <NavLink
+      to={to} end={to === '/'} title={label} aria-label={label}
+      onPointerDown={onWarm} onTouchStart={onWarm} onMouseEnter={onWarm} className={({ isActive }) => `rail-item pressable${isActive ? ' active' : ''}`}
+    >
       {({ isActive }) => (
         <>
           <Icon filled={isActive} />

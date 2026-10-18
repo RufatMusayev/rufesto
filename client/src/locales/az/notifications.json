@@ -93,11 +93,11 @@
   "friendDelete": "Sil",
   "friend_now": "<b>{{who}}</b> ilə artıq dostsunuz.",
   "review_reply_dish": "<b>{{who}}</b> {{dish}} rəyinizə cavab yazdı.",
-  "booking_reminder_one": "<b>{{venue}}</b>, saat {{time}} · {{count}} nəfər",
-  "booking_reminder_other": "<b>{{venue}}</b>, saat {{time}} · {{count}} nəfər",
-  "booking_reminder_plain": "<b>{{venue}}</b>, saat {{time}}",
+  "booking_reminder_plain": "<b>{{venue}}</b> məkanında masanız saat {{time}} üçündür",
   "place_post_one": "<b>{{venue}}</b> yeni paylaşım etdi.",
   "place_post_other": "<b>{{venue}}</b> {{count}} yeni paylaşım etdi.",
   "promotion_new": "<b>{{venue}}</b>: {{title}}",
-  "bill_paid": "Bir masa hesabını ödədi."
+  "bill_paid": "Bir masa hesabını ödədi.",
+  "booking_reminder": "<b>{{venue}}</b> məkanında masanız saat {{time}} üçündür — {{guests}} nəfər",
+  "booking_reminder_soon": "<b>{{venue}}</b> məkanında masanız tezliklə"
 }

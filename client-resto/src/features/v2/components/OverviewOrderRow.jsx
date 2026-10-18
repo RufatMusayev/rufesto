@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { categoryEmoji, formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '@shared/helpers'
+import DishThumb from '../../../components/DishThumb'
 import { orderStatusLabelKey, orderStatusStyle } from '../../../lib/orderStatus'
 
 // One line of "Recent orders". The text column is the only part that can shrink (ellipsis); the price and the
@@ -13,7 +14,7 @@ export default function OverviewOrderRow({ order }) {
 
   return (
     <div className="ov-order">
-      <div className="ov-order-icon" aria-hidden="true">{items[0] ? categoryEmoji(items[0].dishes?.category) : '📋'}</div>
+      <DishThumb photo={items[0]?.dishes?.photo} category={items[0]?.dishes?.category} />
       <div className="ov-order-main">
         <div className="ov-order-items">{names || t('dashboard:order')}{more}</div>
         <div className="ov-order-meta">

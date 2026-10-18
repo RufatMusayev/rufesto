@@ -182,9 +182,9 @@ export default function MapPage() {
     visible.forEach(r => {
       const icon = L.divIcon({
         className: '',
-        html: `<div class="map-pin map-pin--${cuisineKey(r)}">🍽</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: `<div class="map-pin-hit"><div class="map-pin map-pin--${cuisineKey(r)}">🍽</div></div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       })
 
       markers[r.id] = L.marker([r.latitude, r.longitude], { icon })

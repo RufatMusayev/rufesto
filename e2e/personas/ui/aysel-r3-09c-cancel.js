@@ -1,0 +1,20 @@
+// Cancel the test booking through its page (UI) and look at what the cancel sheet and the result say.
+const L = require('./aysel-r3-lib')
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+;(async () => {
+  const b = await L.launch()
+  const A = await L.phone(b, 'Aysel Məmmədova')
+  const api = await L.api('Aysel Məmmədova')
+  const bk = (await api.rpc('list_my_bookings')).find(x => ['pending', 'confirmed'].includes(x.status))
+  L.log('live booking:', bk && bk.booking_id + ' ' + bk.status)
+  if (!bk) { await b.close(); return }
+  await A.page.goto(L.CONSUMER + '/bookings/' + bk.booking_id); await sleep(2500)
+  await A.page.getByRole('button', { name: /^Cancel booking/i }).first().click(); await sleep(900)
+  await L.shot(A.page, '09c-cancel-sheet')
+  const txt = await A.page.evaluate(() => (document.querySelector('.bs-panel')?.innerText || ''))
+  L.log('cancel sheet:', txt.replace(/\n+/g, ' | ').slice(0, 160))
+  await A.page.locator('.bs-panel').getByRole('button', { name: /Cancel booking/i }).click(); await sleep(2200)
+  const after = (await api.rpc('list_my_bookings')).find(x => x.booking_id === bk.booking_id)
+  L.log('final status:', after && after.status)
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

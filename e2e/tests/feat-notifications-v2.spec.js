@@ -1,6 +1,7 @@
 // Notifications v2 (docs/V2-CONTRACT.md 21; consumer client/src/features/notifications, dashboard client-resto NotificationPanel / NotificationBell):
-// grouped inbox items, the bell badge (unseen) vs the unread dot (read), Mark all read, notification settings, the staff bell of a waiter after a
-// waiter call, and that a guest never sees staff rows. Clients cannot UPDATE notifications any more: reads go through my_notifications /
+// grouped inbox items (rows li.ntf-li under New / This week / Earlier), the bell badge (unseen) vs read (opening the inbox clears the badge, leaving it marks
+// everything read; there is no Mark all read and no unread dot any more), notification settings, the staff bell of a waiter after a waiter call (a
+// "Needs you" section, the inline "On my way" action, no full-width sound row) and that a guest never sees staff rows. Clients cannot UPDATE notifications any more: reads go through my_notifications /
 // notifications_badge, writes through mark_notifications / set_notification_prefs (RPCs).
 // Accounts (docs/REVIEW-ACCOUNTS.md, signed in over the auth API): review1 = recipient of the likes, review2 + review3 = the likers (friends of
 // review1, Murad R. and Leyla R.), review5 + review6 = settings test (the setting is restored in finally), review4 = the guest who calls the
@@ -10,6 +11,7 @@
 const { test, expect, settle } = require('../support/fixtures')
 const S = require('../support/feat-social')
 const F = require('../support/feat-dash')
+const U = require('../support/ux')
 
 const { url, TAG, RUN } = S
 const SLA = 8000
@@ -46,15 +48,15 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
       expect(itemsOf(await inbox(v)).filter(i => i.group_key === likeKey(id)), 'one item for the post, not one per like').toHaveLength(1)
 
       await page.goto(url('/notifications'))
-      const text = page.locator('.ntf-item .ntf-text').filter({ hasText: /^(Murad and Leyla|Leyla and Murad) liked your post\.$/ })
-      await expect(text, 'one inbox line names both').toHaveCount(1)
-      await expect(text.locator('xpath=ancestor::button[1]')).toHaveClass(/unread/)
+      const text = page.locator('section[aria-labelledby="ntf-sec-new"] li.ntf-li .ntf-text').filter({ hasText: /(Murad and Leyla|Leyla and Murad) liked your post\./ })
+      await expect(text, 'one inbox line under New names both').toHaveCount(1)
+      await expect(text.locator('strong'), 'the names are the bold part').toHaveText(/^(Murad and Leyla|Leyla and Murad)$/)
 
       await like(c, id)
       await expect.poll(async () => (await groupOf(v, id))?.count, { message: 'a third like joins the same item' }).toBe(3)
       expect(itemsOf(await inbox(v)).filter(i => i.group_key === likeKey(id))).toHaveLength(1)
       await page.reload()
-      await expect(page.locator('.ntf-item .ntf-text').filter({ hasText: /liked your post\./ }).filter({ hasText: /Leyla|Murad/ }).first()).toBeVisible()
+      await expect(page.locator('li.ntf-li .ntf-text').filter({ hasText: /liked your post\./ }).filter({ hasText: /Leyla|Murad/ }).first()).toBeVisible()
       await settle(page)
     } finally {
       await S.purgePosts(v)
@@ -63,7 +65,7 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
     }
   })
 
-  test('the bell counts what is unseen, opening the inbox clears the badge but keeps the items unread, Mark all read clears them for good', async ({ page, browser }, testInfo) => {
+  test('the bell counts what is unseen, opening the inbox clears the badge but keeps the items unread while it is open, leaving it marks them read (there is no Mark all read)', async ({ page, browser }, testInfo) => {
     test.setTimeout(100_000)
     const v = await S.asUser(page, 1)
     const a = await S.openUser(browser, testInfo, 2)
@@ -78,25 +80,27 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
       await expect.poll(async () => (await badge(v)).guest_unseen, { message: 'the like is unseen' }).toBeGreaterThanOrEqual(1)
       await expect.poll(() => S.bellCount(page), { timeout: SLA, message: 'the bell goes up by itself' }).toBeGreaterThanOrEqual(1)
 
-      await page.goto(url('/notifications'))
-      const unread = page.locator('.ntf-item.unread')
-      await expect(unread.first(), 'the like is an unread item').toBeVisible()
-      await expect(page.locator('.ntf-count'), 'the header counts unread items').toBeVisible()
+      // the bell opens the inbox (a button in the Home bar on a phone, the rail item on a desktop)
+      await (S.isPhone(page) ? page.getByRole('button', { name: 'Notifications' }) : page.locator('aside a[href="/notifications"]')).first().click()
+      await expect(page).toHaveURL(url('/notifications'))
+      const fresh = page.locator('section[aria-labelledby="ntf-sec-new"] li.ntf-li').filter({ hasText: 'liked your post.' })
+      await expect(fresh.first(), 'the like is under New').toBeVisible()
+      await expect(page.locator('.ntf-count'), 'no count in the header').toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Mark all read' }), 'no Mark all read').toHaveCount(0)
       await expect.poll(async () => (await badge(v)).guest_unseen, { message: 'opening the inbox marks the rows seen' }).toBe(0)
-      expect((await inbox(v)).data.unread, 'but they are not read').toBeGreaterThanOrEqual(1)
-      await page.goto(url('/'))
+      expect((await inbox(v)).data.unread, 'but they are not read while the page is open').toBeGreaterThanOrEqual(1)
+      await expect(fresh.first(), 'New is a snapshot: the row stays under New').toBeVisible()
+      // leaving inside the app marks everything read
+      await page.getByRole('navigation').getByRole('link', { name: 'Home', exact: true }).click()
+      await expect(page).toHaveURL(url('/'))
+      await expect.poll(async () => (await inbox(v)).data.unread, { message: 'server unread after leaving the inbox' }).toBe(0)
       await expect.poll(() => S.bellCount(page), { message: 'bell after leaving the inbox' }).toBe(0)
       await page.goto(url('/notifications'))
-      await expect(unread.first(), 'still unread after the badge was cleared').toBeVisible()
-
-      await page.getByRole('button', { name: 'Mark all read' }).click()
-      await expect(unread, 'no unread item left').toHaveCount(0)
-      await expect(page.locator('.ntf-count')).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
-      await expect.poll(async () => (await inbox(v)).data.unread, { message: 'server unread' }).toBe(0)
+      await expect(page.locator('li.ntf-li').first()).toBeVisible()
+      await expect(page.locator('section[aria-labelledby="ntf-sec-new"]'), 'nothing is New on the next visit').toHaveCount(0)
       await page.reload()
-      await expect(page.locator('.ntf-item').first()).toBeVisible()
-      await expect(page.locator('.ntf-item.unread'), 'still read after a reload').toHaveCount(0)
+      await expect(page.locator('li.ntf-li').first()).toBeVisible()
+      expect((await inbox(v)).data.unread, 'still read after a reload').toBe(0)
     } finally {
       await S.purgePosts(v)
       await readAll(v)
@@ -153,7 +157,7 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
     }
   })
 
-  test('a waiter call lights the waiter\'s staff bell (badge, panel row, Mark all read, tap opens /waiter); a guest never sees staff rows', async ({ browser }, testInfo) => {
+  test('a waiter call lights the waiter\'s staff bell (badge, "Needs you" row, "On my way" acknowledges it, tap opens /waiter); a guest never sees staff rows', async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'dashboard bell: desktop project (the phone header is covered by the next test)')
     test.setTimeout(180_000)
     await F.acquireGuestLock()   // review4-6 are shared guests: nobody else may seat them meanwhile
@@ -183,14 +187,24 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
       await bell.click()
       const panel = p.getByRole('dialog')
       await expect(panel.getByRole('heading', { name: 'Notifications' })).toBeVisible()
-      const row = panel.locator('.notif-item').filter({ hasText: 'Waiter called' }).first()
+      // header: title, a speaker toggle (no full-width sound row), the close button; "Mark all read" only from three unread
+      await expect(panel.getByRole('button', { name: 'Sound for waiter calls and bills' })).toHaveAttribute('aria-pressed', /true|false/)
+      await expect(panel.locator('.notif-chime, .notif-sound-row'), 'no full-width sound row above the list').toHaveCount(0)
+      const row = panel.locator('li.notif-row').filter({ hasText: 'Waiter called' }).first()
       await expect(row, 'the waiter call is a row').toBeVisible()
-      await expect(row).toHaveClass(/is-unread/)
+      await expect(row.locator('.notif-item')).toHaveClass(/is-unread/)
       await expect(row).toContainText('T2')
-      await panel.getByRole('button', { name: 'Mark all read' }).click()
-      await expect(panel.locator('.notif-item.is-unread'), 'no unread row left').toHaveCount(0)
-      await expect.poll(async () => (await waiter.api.rpc('my_notifications', { p_audience: 'staff', p_limit: 50 })).body.unread, { message: 'server unread (staff)' }).toBe(0)
-      await row.click()
+      await expect(panel.getByRole('region', { name: 'Needs you' }), 'an unread call of the last 2 h sits under "Needs you"').toContainText('Waiter called')
+      const unreadNow = await panel.locator('.notif-item.is-unread').count()
+      if (unreadNow < 3) await expect(panel.getByRole('button', { name: 'Mark all read' }), 'Mark all read only shows from three unread').toHaveCount(0)
+      // the inline action: "On my way" acknowledges the call, the row says who and leaves "Needs you"
+      const ack = row.getByRole('button', { name: 'On my way' })
+      await expect(ack).toBeVisible()
+      await ack.click()
+      await expect.poll(async () => (await mgr.api.rows(`service_requests?table_id=eq.${table.id}&select=status&order=created_at.desc&limit=1`))[0]?.status, { message: 'service_requests.status after On my way' }).toBe('acknowledged')
+      await expect(row.getByText(/✓/), 'the row shows the acknowledgement').toBeVisible()
+      await expect(panel.getByRole('region', { name: 'Needs you' }).getByText('Waiter called'), 'an acknowledged call leaves "Needs you"').toHaveCount(0)
+      await row.locator('.notif-item').click()
       await expect(p).toHaveURL(F.RESTO_URL + '/waiter')
       await expect(panel, 'the panel closes after a tap').toHaveCount(0)
 

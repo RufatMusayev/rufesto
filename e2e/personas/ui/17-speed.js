@@ -53,13 +53,5 @@ async function run(label, n, mk) {
   }
   await run('consumer Home (first post card)', 3, visitor('/', p => p.locator('article').first().waitFor({ timeout: 30_000 })))
   await run('consumer restaurant page (header + Reserve button)', 3, visitor('/restaurant/bella-roma', p => p.getByRole('button', { name: /Reserve a table/ }).or(p.getByText('Reserve a table')).first().waitFor({ timeout: 30_000 })))
-  await run('consumer Discover tab (via Home, tab click -> Trending dishes)', 3, async browser => {
-    const V = await C.open(browser, 'anon', { geo: true })
-    await V.page.goto(C.CONSUMER + '/', { waitUntil: 'domcontentloaded' })
-    await V.page.locator('article').first().waitFor({ timeout: 30_000 })
-    const t0 = Date.now()
-    await V.page.getByRole('tab', { name: /Discover/i }).first().click()
-    await V.page.getByText('Trending dishes').first().waitFor({ timeout: 30_000 })
-    return { ready: Date.now() - t0, ...(await perf(V.page)) }
-  })
+  await run('consumer Search page (/explore) cold, until Filters + Popular', 3, visitor('/explore', p => p.getByRole('button', { name: /Filters/ }).first().waitFor({ timeout: 30_000 })))
 })().catch(e => { console.error('FAIL', e.message); process.exit(1) })

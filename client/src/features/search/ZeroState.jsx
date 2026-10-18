@@ -12,6 +12,12 @@ import PlaceRow from './rows/PlaceRow'
 import DishRow from './rows/DishRow'
 import { fold } from './fold'
 
+/** Nearest first (places without a distance last, server order kept among equals). Only when the location is on. */
+export const byDistance = places => places
+  .map((p, i) => [p, i])
+  .sort(([a, i], [b, j]) => (a.km ?? Infinity) - (b.km ?? Infinity) || i - j)
+  .map(([p]) => p)
+
 const FIRST_PLACES = 12            // rows rendered at once; "Show more" adds the same again (keeps the DOM small)
 const TRENDING_SHOWN = 5
 const REVIEWS_SHOWN = 3
@@ -88,6 +94,10 @@ export default function ZeroState({
   const { t: ts } = useTranslation('social')
   const [shown, setShown] = useState(FIRST_PLACES)
   const popular = useMemo(() => popularChips(data, chips, ts), [data, chips, ts])
+  const allPlaces = useMemo(() => {
+    const list = data?.allRestaurants || []
+    return geo.status === 'on' && list.some(p => p.km != null) ? byDistance(list) : list
+  }, [data, geo.status])
 
   let body
   if (status === 'error') {
@@ -136,9 +146,9 @@ export default function ZeroState({
         <Section title={t('topReviews')} empty={data.topReviews.length === 0} className="sr-reviews">
           {data.topReviews.slice(0, REVIEWS_SHOWN).map(r => <CompactReview key={r.id} item={r} variant="row" where="full" />)}
         </Section>
-        <Section title={t('allPlaces')} empty={data.allRestaurants.length === 0}>
-          {data.allRestaurants.slice(0, shown).map(r => <PlaceRow key={r.id} r={r} onOpen={onOpenPlace} />)}
-          {data.allRestaurants.length > shown && (
+        <Section title={t('allPlaces')} empty={allPlaces.length === 0}>
+          {allPlaces.slice(0, shown).map(r => <PlaceRow key={r.id} r={r} onOpen={onOpenPlace} />)}
+          {allPlaces.length > shown && (
             <div className="sr-more">
               <button type="button" className="btn btn-ghost" onClick={() => setShown(n => n + FIRST_PLACES)}>{t('showMore')}</button>
             </div>

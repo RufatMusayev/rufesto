@@ -79,7 +79,14 @@ async function pageUntil(page, want, { maxRounds = 40, items = slots } = {}) {
     expect(await loadMore(page).count(), 'no "Load more" button while the ranked list pages by itself').toBe(0)
     const before = await items(page).count()
     await scrollDown(page)
-    await expect.poll(async () => (await caughtUp(page).count()) > 0 || (await items(page).count()) > before, { message: 'the next page after scrolling to the end' }).toBe(true)
+    const grew = async () => (await caughtUp(page).count()) > 0 || (await items(page).count()) > before
+    // The next page loads when the marker 3 cards from the end passes through the screen. A page that arrives while the thumb is already at the
+    // bottom has its marker above the screen: scroll back up one and a half screens and down again (what a guest does), once, before failing.
+    if (!(await expect.poll(grew, { timeout: 4_000 }).toBe(true).then(() => true, () => false))) {
+      await page.evaluate(() => scrollBy({ top: -innerHeight * 1.5, behavior: 'instant' }))
+      await scrollDown(page)
+    }
+    await expect.poll(grew, { message: 'the next page after scrolling to the end' }).toBe(true)
   }
   throw new Error(`still not caught up after ${maxRounds} scroll rounds`)
 }

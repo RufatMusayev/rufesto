@@ -48,8 +48,7 @@ export default function ProfilePage() {
   if (!session) {
     return (
       <div className="pf-page">
-        <SignedOutCard onSignIn={() => setShowAuth(true)} onFeedback={() => setSheet('feedback')} onSettings={() => setSheet('settings')} />
-        <SettingsSheet open={sheet === 'settings'} onClose={closeSheet} onFeedback={() => setSheet('feedback')} />
+        <SignedOutCard onSignIn={() => setShowAuth(true)} onFeedback={() => setSheet('feedback')} />
         <FeedbackSheet open={sheet === 'feedback'} onClose={closeSheet} />
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>

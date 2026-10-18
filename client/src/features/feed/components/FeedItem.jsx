@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import PostCard from '../../social/components/PostCard'
 import CompactReview from '../../reviews/CompactReview'
 import PromoCard from '../../../components/PromoCard'
+import { seedDish } from '../../../components/dish/dishLink'
 import { logFeedEvent } from '../events'
 
 /** home_feed promo -> the campaign shape PromoCard reads (same card and click tracking as before). */
@@ -73,7 +74,7 @@ export default function FeedItem({ item, index, events, onDeleted, priority = fa
         <CompactReview
           item={item} variant="card" kicker={popular}
           onOpen={popular && item.restaurant?.slug && item.dish?.id
-            ? r => navigate(`/restaurant/${r.restaurant.slug}?dish=${r.dish.id}`)
+            ? r => { seedDish(r.dish, r.restaurant); navigate(`/restaurant/${r.restaurant.slug}?dish=${r.dish.id}`) }
             : undefined}
         />
       ) : isPromo ? (
@@ -81,7 +82,9 @@ export default function FeedItem({ item, index, events, onDeleted, priority = fa
           campaign={toCampaign(item)}
           index={Math.max(0, index)}
           onDishClick={dish => {
-            if (item.restaurant?.slug) navigate(`/restaurant/${item.restaurant.slug}?dish=${dish.id}&src=promo:${item.id}`)
+            if (!item.restaurant?.slug) return
+            seedDish(dish, item.restaurant)
+            navigate(`/restaurant/${item.restaurant.slug}?dish=${dish.id}&src=promo:${item.id}`)
           }}
         />
       ) : (

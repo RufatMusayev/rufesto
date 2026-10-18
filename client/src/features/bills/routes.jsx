@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react'
 import { Route } from 'react-router-dom'
-import './i18n'
 import './styles.css'
 import PageFallback from './components/PageFallback'
 

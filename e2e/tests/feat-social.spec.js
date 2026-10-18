@@ -5,6 +5,7 @@
 // Run one project at a time. It runs in both the `chromium` and the `mobile` project (CONSUMER_SPECS in playwright.config.js; see docs/qa/consumer-social.md).
 const { test, expect } = require('../support/fixtures')
 const S = require('../support/feat-social')
+const U = require('../support/ux')
 const H = require('../support/feat-home')
 const { url, TAG, RUN } = S
 
@@ -14,8 +15,8 @@ const FRIEND = 'Murad R.'    // review2 (friend of review1)
 const row = (p, name) => p.locator('.soc-row').filter({ hasText: name })
 const tab = (p, name) => p.getByRole('tab', { name, exact: true })
 const reqTab = p => p.getByRole('tab', { name: /^Requests/ })
-const sheet = p => p.locator('.sheet')
-const authModal = p => p.locator('.overlay.center')
+const sheet = p => U.sheet(p)            // the panel of the top open BottomSheet (UX round: was .sheet)
+const authModal = p => U.authSheet(p)   // the sign-in sheet (was .overlay.center)
 const SLA = 5000   // acceptance criterion: another signed-in browser sees it within 3 s; measured 0.3 to 2.4 s (annotations), the assertion allows 5 s so a loaded preview does not make it flaky
 const CONSUMER_ORIGIN = new URL(S.CONSUMER_URL).origin
 
@@ -28,6 +29,7 @@ async function pair(page, browser, testInfo) {
 }
 const link = async (a, b) => (await a.api.get(`friendships?or=(and(requester_id.eq.${a.api.id},addressee_id.eq.${b.api.id}),and(requester_id.eq.${b.api.id},addressee_id.eq.${a.api.id}))&select=id,status,requester_id`)).data
 
+const newPostsPill = p => p.getByRole('button', { name: /^(\d+|50\+) new posts?$/ })   // "1 new post", "3 new posts", "50+ new posts"
 test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
   test.skip(!S.have(1, 2, 5, 6), 'review1/2/5/6 not found: keep docs/REVIEW-ACCOUNTS.md or set QA_REVIEW<n>_EMAIL / _PASSWORD')
   test.describe.configure({ mode: 'default' })   // one worker per file, a failing test does not skip the next ones
@@ -552,18 +554,18 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
     try {
       await S.openFeed(page)
       await expect(page.locator('.soc-feed')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'New posts' })).toHaveCount(0)
+      await expect(newPostsPill(page)).toHaveCount(0)
       await S.channelsReady(page)
       await S.newPost(au, cap)
       // friends_new_count is polled every 60 s while the tab is shown (no realtime any more); a browser tab that becomes visible asks at once,
       // which is what a user coming back to the tab does, so the spec fires that instead of waiting a minute
       await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
-      const ms = await S.timed(() => expect(page.getByRole('button', { name: 'New posts' })).toBeVisible({ timeout: SLA }))
+      const ms = await S.timed(() => expect(newPostsPill(page)).toBeVisible({ timeout: SLA }))
       testInfo.annotations.push({ type: 'realtime', description: `"New posts" pill after ${ms} ms` })
       await expect(S.post(page, cap), 'the list is not reordered under the thumb').toHaveCount(0)
-      await page.getByRole('button', { name: 'New posts' }).click()
+      await newPostsPill(page).click()
       await expect(S.post(page, cap)).toBeVisible()
-      await expect(page.getByRole('button', { name: 'New posts' })).toHaveCount(0)
+      await expect(newPostsPill(page)).toHaveCount(0)
     } finally { await S.purgePosts(au); await au.close() }
   })
 
@@ -600,17 +602,17 @@ test.describe('feat social', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await p.getByRole('tab', { name: 'Friends', exact: true }).click()
       await expect(p.getByText("Sign in to see your friends' posts")).toBeVisible()
       await expect(p.getByRole('tab', { name: 'All', exact: true }), 'no All / Friends filter signed out').toHaveCount(0)
-      await p.getByRole('tab', { name: 'Home', exact: true }).click()
+      await p.getByRole('tab', { name: 'For you', exact: true }).click()
       const card = await H.findCard(p, cap + ' tagged')
       await card.getByRole('button', { name: 'Like', exact: true }).click()
       await expect(authModal(p)).toBeVisible()
       await p.keyboard.press('Escape')
       await expect(authModal(p)).toHaveCount(0)
-      await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))   // the New post button slides away while the page is scrolled down
-      await p.locator('.soc-fab:not(.soc-fab-away)').waitFor()
-      await p.getByRole('button', { name: 'New post' }).click()
+      await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+      await p.locator('header.app-bar').getByRole('button', { name: 'New post' }).click()   // the "+" is in the Home top bar now (the floating button is gone)
       await expect(authModal(p)).toBeVisible()
       await p.keyboard.press('Escape')
+      await expect(authModal(p), 'the sheet is gone (closing it pops its history entry: a goto during that would be aborted)').toHaveCount(0)
       // a public post page is readable; like and comment ask for an account, nothing runs silently
       await p.goto(url(`/post/${id}`))
       await expect(p.getByText(cap)).toBeVisible()

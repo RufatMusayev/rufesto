@@ -20,7 +20,7 @@ export default memo(function DishRow({ d, q = '', onOpen }) {
   ].filter(Boolean).join(' · ')
   return (
     <button type="button" className="sr-row sr-row-btn" data-dish-id={d.id} onClick={() => onOpen?.(d)}>
-      <span className={`sr-thumb${available ? '' : ' is-sold'}`}><CoverImage sources={[{ url: d.photo }]} name={d.name} /></span>
+      <span className={`sr-thumb${available ? '' : ' is-sold'}`}><CoverImage sources={[{ url: d.photo }]} name={d.name} size={48} /></span>
       <span className="sr-main">
         <span className="sr-line">
           <span className="sr-name"><Hl text={d.name} q={q} /></span>

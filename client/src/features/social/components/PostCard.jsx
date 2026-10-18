@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Avatar, Img, Pill } from '../../../components/ui'
+import { Avatar, Img } from '../../../components/ui'
+import { VerifiedGlyph } from '../../reviews/Icons'
 import { cleanDisplayName, timeAgo } from '../../../lib/helpers'
 import { tap } from '../../../lib/haptics'
 import { togglePostLike, deletePost } from '../api'
@@ -171,8 +172,8 @@ export default function PostCard({ item, index = 0, full = false, priority = fal
             <div className="soc-post-who">
               <div className="soc-post-line">
                 <Link to={authorTo} className="soc-post-name">{name}</Link>
+                {item.verified && <VerifiedGlyph label={t('review.verified')} />}
                 <span className="soc-post-time">· {timeAgo(item.createdAt, i18n.language)}</span>
-                {item.verified && <Pill tone="green" icon="✓">{t('review.verified')}</Pill>}
               </div>
               {restaurant?.name && !chips && (
                 restaurant.slug

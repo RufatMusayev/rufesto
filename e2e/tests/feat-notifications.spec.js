@@ -1,4 +1,5 @@
-// Feature walk: NOTIFICATIONS (bell badge, list text, deep link, mark read) for every v2 type that a second account can trigger:
+// Feature walk: NOTIFICATIONS (bell badge, list text, deep link, mark read; the inbox is the Instagram-style activity list since the UX round: li.ntf-li rows
+// under New / This week / Earlier, bold names, short times, no chips, no Mark all read; the layout itself is in tests/ux-notifications.spec.js) for every v2 type that a second account can trigger:
 // friend_request, friend_accepted, post_like, post_comment, booking_invite, booking_member_joined, booking_confirmed / booking_cancelled /
 // booking_no_show (the restaurant manager changes the status), bill_settled (existing rows of review1, read only).
 // Not triggerable from a test: booking_seated (needs the host to claim the table inside the 30 min window before the booking).
@@ -11,10 +12,11 @@
 const { test, expect } = require('../support/fixtures')
 const S = require('../support/feat-social')
 const { url, TAG, RUN } = S
+const U = require('../support/ux')
 
 const RECIPIENT = 'manager.seda', ACTOR = 'waiter2.seda', MANAGER = 'manager.sakura', PLACE = 'sakura-house', PLACE_NAME = 'Sakura House'
 const SLA = 5000   // acceptance criterion: 3 s; measured 0.3 to 1 s (annotations), 5 s here so a loaded preview does not make it flaky
-const item = (p, text) => p.locator('.stagger-item').filter({ hasText: text }).first()   // newest first: the row this test just caused
+const item = (p, text) => p.locator('li.ntf-li').filter({ hasText: text }).first()   // newest first: the row this test just caused
 const nameOf = async u => (await u.api.get(`users?id=eq.${u.api.id}&select=name`)).data[0].name
 const calm = async (...users) => { for (const u of users) await S.markRead(u, await S.unreadIds(u)) }
 const lastOf = async (u, type) => (await u.api.get(`notifications?user_id=eq.${u.api.id}&type=eq.${type}&select=id,type,read,payload&order=sent_at.desc&limit=1`)).data[0]
@@ -22,6 +24,8 @@ const WHEN = /[^,]+, \d{2}:\d{2}/   // "<date>, <HH:MM>" from formatBakuDate + f
 
 /** Click the bell the way the layout offers it (phone header button / desktop sidebar item). */
 async function openBell(page) {
+  // phone: the bell is in the Home top bar only (every other page has its own header), so go Home first when elsewhere; desktop: the rail item
+  if (S.isPhone(page) && new URL(page.url()).pathname !== '/') await page.getByRole('navigation').getByRole('link', { name: 'Home', exact: true }).click()
   const bell = S.isPhone(page) ? page.getByRole('button', { name: 'Notifications' }) : page.locator('aside a[href="/notifications"]')
   await bell.first().click()
   await expect(page).toHaveURL(url('/notifications'))
@@ -97,7 +101,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
     } finally { await done(me, other) }
   })
 
-  test('friend_accepted: the sender gets "<name> accepted your friend request." and the row opens that profile', async ({ page, browser }, testInfo) => {
+  test('friend_accepted: the sender gets "<name> is now your friend." and the row opens that profile', async ({ page, browser }, testInfo) => {
     const { me, other, otherName } = await pair(page, browser, testInfo)
     try {
       const sent = await me.api.rpc('send_friend_request', { p_user_id: other.api.id })
@@ -106,7 +110,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       const before = await S.bellCount(page)
       await other.api.rpc('respond_friend_request', { p_id: sent.data.id, p_accept: true })
       await bellRises(page, testInfo, 'accepted request', before)
-      await openRow(page, me, 'friend_accepted', `${otherName} accepted your friend request.`, url(`/u/${other.api.id}`))
+      await openRow(page, me, 'friend_accepted', `${otherName} is now your friend.`, url(`/u/${other.api.id}`))
       await expect(page.getByRole('heading', { name: otherName })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Friends ✓' })).toBeVisible()
     } finally { await done(me, other) }
@@ -134,7 +138,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await other.api.rpc('add_post_comment', { p_post_id: id, p_body: comment })
       await expect.poll(() => S.bellCount(page), { timeout: SLA }).toBeGreaterThan(beforeC)
       const snippet = comment.slice(0, 80)
-      await openRow(page, me, 'post_comment', `${otherName} commented: “${snippet}”`, url(`/post/${id}`))
+      await openRow(page, me, 'post_comment', `${otherName} commented: ${snippet.slice(0, 60)}`, url(`/post/${id}`))   // the first characters of the comment, after the bold name
       await expect(page.getByText(comment)).toBeVisible()
     } finally { await done(me, other) }
   })
@@ -256,7 +260,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
   })
 
   // ---------------------------------------------------------------------------------- list behaviour
-  test('list: header count equals the unread items, "Mark all read" clears them, header count and bell', async ({ page, browser }, testInfo) => {
+  test('list: opening the inbox marks the rows seen (bell 0) while they stay under New, leaving marks everything read; there is no "Mark all read" and no count', async ({ page, browser }, testInfo) => {
     test.setTimeout(80_000)
     const { me, other, otherName } = await pair(page, browser, testInfo)
     try {
@@ -268,15 +272,20 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await expect(item(page, `${otherName} liked your post.`)).toBeVisible()
       const unread = await unreadItems(me)   // the like and the request are two items (two types), each counted once
       expect(unread, 'unread items').toBeGreaterThanOrEqual(2)
-      await expect(page.locator('.ntf-count'), 'the header counts unread items').toHaveText(String(unread > 99 ? '99+' : unread))
-      await page.getByRole('button', { name: 'Mark all read' }).click()
-      await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
-      await expect(page.locator('.ntf-count')).toHaveCount(0)
-      await expect.poll(() => unreadItems(me), 'DB: nothing unread in the guest inbox').toBe(0)
-      await expect.poll(() => badgeMatchesDb(page, me), 'the bell badge goes away with the unread rows').toBe(true)
-      await page.reload()
+      await expect(page.locator('section[aria-labelledby="ntf-sec-new"] li.ntf-li').filter({ hasText: `${otherName} liked your post.` }), 'a fresh item is under New').toHaveCount(1)
+      await expect(page.getByRole('button', { name: 'Mark all read' }), 'no Mark all read').toHaveCount(0)
+      await expect(page.locator('.ntf-count'), 'no count in the header').toHaveCount(0)
+      await expect.poll(() => badgeMatchesDb(page, me), 'opening the list clears the bell (seen)').toBe(true)
+      await expect.poll(async () => (await me.api.rpc('notifications_badge')).data.guest_unseen, 'DB: nothing unseen after opening').toBe(0)
+      expect(await unreadItems(me), 'but the items are still unread while the page is open').toBeGreaterThanOrEqual(2)
+      // leave inside the app (a full page load would cut the page off before it marks anything): everything is read
+      await page.getByRole('navigation').getByRole('link', { name: 'Home', exact: true }).click()
+      await expect(page).toHaveURL(url('/'))
+      await expect.poll(() => unreadItems(me), 'DB: nothing unread in the guest inbox after leaving').toBe(0)
+      await expect.poll(() => badgeMatchesDb(page, me), 'the bell stays at 0').toBe(true)
+      await page.goto(url('/notifications'))
       await expect(item(page, `${otherName} liked your post.`)).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Mark all read' }), 'read state survives a reload').toHaveCount(0)
+      await expect(page.locator('section[aria-labelledby="ntf-sec-new"]'), 'nothing is New on the next visit').toHaveCount(0)
     } finally { await done(me, other) }
   })
 
@@ -311,11 +320,12 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
     for (const text of await item(page, /./).allInnerTexts()) expect(text).not.toMatch(/[{}]|_id\b|\b[a-z]+_[a-z_]+\b/)
   })
 
-  test('list: empty state "You\'re all caught up" (list answered empty), no header badge', async ({ page }) => {
+  test('list: empty state "No activity yet" with a Find friends link (list answered empty), no Mark all read', async ({ page }) => {
     await S.asUser(page, RECIPIENT)
     await page.route('**/rest/v1/rpc/my_notifications', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], next_cursor: null, unread: 0 }) }))
     await page.goto(url('/notifications'))
-    await expect(page.getByText("You're all caught up")).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'No activity yet' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Find friends' })).toHaveAttribute('href', '/friends?tab=find')
     await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
   })
 
@@ -325,7 +335,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await anon.page.goto(url('/notifications'))
       await expect(anon.page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
       await anon.page.getByRole('button', { name: 'Sign in' }).click()
-      await expect(anon.page.locator('.overlay.center')).toBeVisible()
+      await expect(U.authSheet(anon.page)).toBeVisible()
       expect(await S.bellCount(anon.page), 'no badge signed out').toBe(0)
     } finally { await anon.close() }
   })

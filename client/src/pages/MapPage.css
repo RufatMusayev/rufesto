@@ -56,7 +56,10 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   font-size: 0.8rem; line-height: 1.4; font-family: 'DM Sans', system-ui;
 }
-.map-notice--error { color: var(--red); border-color: rgba(163, 45, 45, 0.3); }
+.map-notice--error { color: var(--red-text); border-color: rgba(163, 45, 45, 0.3); }
+/* Leaflet's attribution line: readable (it was 3.6:1) */
+.map-page .leaflet-control-attribution { background: var(--bg); color: var(--t2); opacity: 0.92; }
+.map-page .leaflet-control-attribution a { color: var(--accent-text); }
 /* The guest's own position (Leaflet circleMarker; CSS beats its presentation attributes) */
 .map-page .map-me { fill: var(--accent); fill-opacity: 0.9; stroke: #F5F0E8; stroke-width: 3; }
 
@@ -109,6 +112,8 @@
 .map-pin--azerbaijani,  .map-dot--azerbaijani  { --pin: #27ae60; }
 .map-pin--japanese,     .map-dot--japanese     { --pin: #3498db; }
 .map-dot { width: 36px; height: 36px; }
+/* Leaflet's marker box is 44 px (a finger), the pin itself stays 36 px in the middle */
+.map-pin-hit { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .map-pin {
   width: 36px; height: 36px;
   border: 3px solid #F5F0E8;

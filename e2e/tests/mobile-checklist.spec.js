@@ -10,12 +10,16 @@
 // Failing screens save a PNG next to the test result (e2e/test-results/<test>/...png); small tap targets are
 // outlined in red. The only writes: the table test seats review1 at a free Bella Roma table, orders, pays with
 // the demo card and leaves; the QA manager resets that table in `finally` (QA_TABLE_CODE's table is never touched).
+// UX round 2026-10-18 (docs/UX-PLAN-2026-10-18.md): Home is For you | Friends with the "+" and the bell in a top bar that only Home has; Discover lives in Search
+// (/explore: zero state, typed results, Filters sheet); every sheet is a BottomSheet (.bs-root); language and theme are in Profile > Settings; the QR manual field asks
+// for a table code; Profile has four tabs. New controls are held to the same 40 px tap rule.
 const { test, expect, settle } = require('../support/fixtures')
 const { CONSUMER_URL, creds, tableCode } = require('../support/env')
 const { signInGuest } = require('../support/guest')
 const { openAs, resetTable, rest } = require('../support/v2')
 const { walker, bottomNav, leafletStacking } = require('../support/mobile')
 const R = require('../support/restaurant')
+const U = require('../support/ux')
 
 const url = path => CONSUMER_URL + path
 const RESTAURANT = '/restaurant/bella-roma'
@@ -24,14 +28,11 @@ test.use({ viewport: { width: 390, height: 844 } })
 
 const signIn = page => signInGuest(page, creds.review1)
 const heading = (page, name) => page.getByRole('heading', { name })
-const sheetClose = page => {
-  const layer = page.locator('.overlay').last()
-  return layer.getByRole('button', { name: /close/i }).or(layer.locator('.icon-btn')).first()   // the dish / floor sheets have an unnamed icon button
-}
+const sheetClose = page => U.sheet(page).getByRole('button', { name: /^(close|bağla)$/i }).first()   // every BottomSheet has a labelled X (the dish sheet's sits on the photo); "Bağla" in Azerbaijani
 
 async function closeSheet(page, w, label) {
   await w.tap(sheetClose(page), `${label}: close button`)
-  await expect(page.locator('.overlay')).toHaveCount(0)
+  await U.noSheet(page)
 }
 
 async function openRestaurant(page) {
@@ -44,12 +45,13 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
   test.skip(!creds.review1, 'review1 not found: set QA_REVIEW1_EMAIL / QA_REVIEW1_PASSWORD or keep docs/REVIEW-ACCOUNTS.md')
   test.beforeEach(async ({ isMobile }) => { expect(isMobile, 'this spec belongs to the mobile project').toBe(true) })
 
-  test('Home: Home, Friends and Discover tabs scroll without horizontal overflow', async ({ page, watch }, testInfo) => {
+  test('Home: the top bar ("+" and the bell), the For you and Friends tabs scroll without horizontal overflow', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     await page.goto(url('/'))
     const tab = name => page.getByRole('tab', { name, exact: true })
-    await expect(tab('Home'), 'Home opens on the ranked Home tab').toHaveAttribute('aria-selected', 'true')
+    await expect(tab('For you'), 'Home opens on the ranked For you tab').toHaveAttribute('aria-selected', 'true')
+    await expect(tab('Discover'), 'Discover is not a Home tab any more').toHaveCount(0)
     await expect(page.locator('.soc-feed-slot').first().or(page.getByRole('heading', { name: "You're all caught up" }))).toBeVisible()
     await settle(page, 4_000)
     await w.check('home ranked')
@@ -61,68 +63,75 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     await w.check('home friends')
     await w.scrollThrough('home friends')
 
-    // the "New post" button floats above the bottom nav, never under it (it is on Home and Friends, not on Discover)
-    const fab = page.getByRole('button', { name: 'New post' })
-    await expect(fab).toBeVisible()
-    const clash = await fab.evaluate(el => {
-      const nav = [...document.querySelectorAll('nav')].find(n => n.querySelector('a[href="/map"]'))
-      return nav ? el.getBoundingClientRect().bottom - nav.getBoundingClientRect().top : -1
-    })
-    expect.soft(clash, 'New post button overlaps the bottom nav by this many px').toBeLessThanOrEqual(0)
-    expect.soft(await fab.evaluate(el => el.getBoundingClientRect().height), 'New post button height').toBeGreaterThanOrEqual(40)
-
-    await w.tap(tab('Discover'), 'Home tab Discover')
-    await expect(tab('Discover')).toHaveAttribute('aria-selected', 'true')
-    const cards = page.getByRole('link', { name: /view menu/i })
-    await expect(cards.first()).toBeVisible()
-    await settle(page, 4_000)
-    await w.check('home discover')
-    await w.scrollThrough('home discover')
-    await w.tap(cards.first(), 'Discover "View menu" link')
-    await expect(page).toHaveURL(/\/restaurant\/[\w-]+$/)
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await w.check('restaurant opened from Home')
+    // the top bar (Home only): wordmark, "+" and the bell sit in the screen and are fingertip-sized; no floating "+" over the feed any more
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+    const bar = page.locator('header.app-bar')
+    await expect(bar).toBeVisible()
+    for (const name of ['New post', 'Notifications']) {
+      const b = bar.getByRole('button', { name })
+      await expect(b).toBeVisible()
+      expect.soft(await b.evaluate(el => el.getBoundingClientRect().height), `${name} button height`).toBeGreaterThanOrEqual(40)
+      expect.soft(await b.evaluate(el => el.getBoundingClientRect().right), `${name} button inside the screen`).toBeLessThanOrEqual(390)
+    }
+    expect(await page.getByRole('button', { name: 'New post' }).count(), 'the one "+" is in the bar').toBe(1)
+    // the pin (location) is at the right end of the tab row
+    const pin = page.getByRole('button', { name: /location/i }).first()
+    if (await pin.count()) expect.soft(await pin.evaluate(el => el.getBoundingClientRect().height), 'location pin height').toBeGreaterThanOrEqual(40)
+    await w.check('home top bar')
   })
 
-  test('Explore: search, filters and the sideways filter row', async ({ page, watch }, testInfo) => {
+  test('Search: the zero state, typing, the Filters sheet and a dish sheet', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     const nav = bottomNav(page)
     await page.goto(url('/'))
     await w.tap(nav.explore, 'Explore nav')
     await expect(page).toHaveURL(url('/explore'))
-    const dishes = page.locator('.stagger-item')   // dish cards are plain divs: no role to query
+    const field = page.getByRole('searchbox', { name: 'Search dishes, places and people' })
+    await expect(page.locator('.sr-zero h2.dsc-h').first()).toBeVisible({ timeout: 25_000 })
+    await expect(page.locator('.sr-zero a.sr-row').first()).toBeVisible()
+    await w.check('search zero state')
+    await w.scrollThrough('search zero state')
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+
+    // the popular chips and the cuisine chips scroll / wrap inside their own rows
+    const cuisines = page.getByRole('group', { name: 'Cuisines' })
+    if (await cuisines.count()) {
+      const dims = await cuisines.evaluate(el => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }))
+      expect.soft(dims.scrollWidth, 'the cuisine chips fit or scroll sideways inside their own row').toBeGreaterThanOrEqual(dims.clientWidth)
+    }
+
+    await w.tap(field, 'Search field')
+    await field.fill('zzzzqq')
+    await expect(page.getByText('No results for “zzzzqq”')).toBeVisible()
+    await w.check('search, empty result')
+    await field.fill('pizza')
+    const dishes = page.locator('.sr-results .sr-row-btn')
     await expect(dishes.first()).toBeVisible()
-    const total = await dishes.count()
-    await w.check('explore')
+    await w.check('search, "pizza"')
+    await w.scrollThrough('search, "pizza"')
 
-    const spicy = page.getByRole('button', { name: 'Spicy', exact: true })
-    const row = spicy.locator('xpath=..')
-    const dims = await row.evaluate(el => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }))
-    expect(dims.scrollWidth, 'the filter pills should scroll sideways inside their own row at 390px').toBeGreaterThan(dims.clientWidth)
-    await w.tap(spicy, 'Explore filter Spicy')
-    await expect.poll(() => row.evaluate(el => el.scrollLeft), 'pill row scrolled to reveal Spicy').toBeGreaterThan(0)
-    await expect.poll(() => dishes.count(), 'Spicy shows no more dishes than All').toBeLessThanOrEqual(total)
-    await w.check('explore, Spicy filter')
+    // Filters: the button replaces Cancel once the field is blurred; the sheet is a BottomSheet with a sticky "Show results"
+    await page.getByRole('button', { name: 'Cancel' }).tap()
+    await w.tap(page.getByRole('button', { name: /^Filters/ }), 'Filters button')
+    const filters = page.locator('.bs-root:has(.sr-fs)[data-state="open"] .bs-panel')
+    await expect(filters).toBeVisible()
+    await page.waitForTimeout(450)   // sheet slide-in
+    await w.check('filters sheet')
+    await w.tap(filters.getByRole('button', { name: 'Vegan', exact: true }), 'Filters diet chip Vegan')
+    await w.tap(filters.getByRole('button', { name: 'Show results' }), 'Show results button')
+    await U.noSheet(page)
+    await expect(page.locator('.sr-active .sr-achip')).toContainText('Vegan')
+    await w.check('search, Vegan filter')
+    await w.tap(page.getByRole('button', { name: 'Remove filter Vegan' }), 'Active filter chip x')
 
-    await w.tap(page.getByRole('button', { name: 'All', exact: true }), 'Explore filter All')
-    await expect(dishes).toHaveCount(total)
-
-    const search = page.getByPlaceholder('Dishes, restaurants…')
-    await w.tap(search, 'Explore search field')
-    await search.fill('zzzzqq')
-    await expect(page.getByText('Nothing found')).toBeVisible()
-    await w.check('explore, empty search')
-    await search.fill('pizza')
+    await field.fill('pizza')
     await expect(dishes.first()).toBeVisible()
-    expect(await dishes.count()).toBeLessThan(total)
-    await w.check('explore, search "pizza"')
-    await w.scrollThrough('explore, search "pizza"')
-
-    await w.tap(dishes.first(), 'Explore dish card')
-    await expect(page.locator('.sheet')).toBeVisible()
-    await w.check('explore dish sheet')
-    await closeSheet(page, w, 'explore dish sheet')
+    await w.tap(dishes.first(), 'Search dish row')
+    await expect(U.sheet(page).locator('.dds-name')).toBeVisible()
+    await page.waitForTimeout(450)
+    await w.check('search dish sheet')
+    await closeSheet(page, w, 'search dish sheet')
   })
 
   test('Map: the map renders, a restaurant chip opens its popup, the popup opens the restaurant', async ({ page, watch }, testInfo) => {
@@ -153,7 +162,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
   // stacking context and painted over the app shell (sheets, modals, bottom nav) - see the next test; (2) leaving the
   // map right after tapping a restaurant chip (animated pan) throws "Cannot read properties of undefined (reading
   // '_leaflet_pos')" from Leaflet's _move, which this test reports as a console error on the next screen.
-  test('Map: leaving the map for Home / Explore / Profile / Notifications leaves no map behind', async ({ page, watch }, testInfo) => {
+  test('Map: leaving the map for Home / Explore / Profile leaves no map behind', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     const nav = bottomNav(page)
@@ -161,7 +170,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
       ['Home', () => w.tap(nav.home, 'Home nav'), '/'],
       ['Explore', () => w.tap(nav.explore, 'Explore nav'), '/explore'],
       ['Profile', () => w.tap(nav.profile, 'Profile nav'), '/profile'],
-      ['Notifications', () => w.tap(page.getByRole('button', { name: 'Notifications' }), 'Notifications bell'), '/notifications'],
+      // (the bell is only in the Home top bar since the UX round: Notifications is reached from Home, see "Notifications: the bell opens the page")
     ]
     const leaflet = page.locator('[class*="leaflet-"]:visible')
     for (const [name, go, path] of targets) {
@@ -206,7 +215,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     const box = await chip.boundingBox()
     const top = await page.evaluate(({ x, y }) => {
       const el = document.elementFromPoint(x, y)
-      return el ? { inLayer: !!el.closest('.overlay, .sheet, [role="dialog"]'), what: el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0] } : null
+      return el ? { inLayer: !!el.closest('.bs-root, .overlay, .sheet, [role="dialog"]'), what: el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0] } : null
     }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
     await w.shot('map under the QR sheet')
     expect.soft(top, 'what is on top of a map chip while the QR sheet is open').toMatchObject({ inLayer: true })
@@ -237,9 +246,13 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     await w.check('restaurant, last section')
 
     await w.tap(R.rowButtons(page).first(), 'Menu dish row')
-    await expect(page.locator('.sheet')).toBeVisible()
-    await expect(page.locator('.sheet').getByText(/₼\s*\d/).first()).toBeVisible()
+    await expect(U.sheet(page).locator('.dds-name')).toBeVisible()
+    await expect(U.sheet(page).locator('.dds-price')).toHaveText(/₼\s*\d/)
+    await page.waitForTimeout(450)   // sheet slide-in
     await w.check('dish sheet')
+    for (const sel of ['.dds-pill', '.bs-foot .btn']) {   // Like / Save / Share and the footer buttons are fingertip-sized
+      for (const el of await U.sheet(page).locator(sel).all()) expect.soft(await el.evaluate(e => e.getBoundingClientRect().height), `dish sheet ${sel} height`).toBeGreaterThanOrEqual(36)
+    }
     await closeSheet(page, w, 'dish sheet')
     await w.check('restaurant after the dish sheet')
   })
@@ -284,7 +297,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
       await w.tap(indoor, 'Floor plan zone chip Indoor')
       await expect.poll(() => tables.count(), 'Indoor shows fewer tables than All').toBeLessThan(all)
       await w.check('floor plan, Indoor zone')
-      await w.tap(page.locator('.overlay').last().getByRole('button', { name: 'All', exact: true }), 'Floor plan zone chip All')
+      await w.tap(U.sheet(page).getByRole('button', { name: 'All', exact: true }), 'Floor plan zone chip All')
       await expect(tables).toHaveCount(all)
     }
     await closeSheet(page, w, 'floor plan')
@@ -307,8 +320,8 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     await page.goto(url('/profile'))
-    const entry = page.locator('a[href="/friends"]').first()
-    await w.tap(entry, 'Profile "Friends" entry')
+    const entry = page.locator('button.pf-stat').filter({ hasText: 'Friends' })   // the Friends stat is the entry (the Friends button is gone)
+    await w.tap(entry, 'Profile "Friends" stat')
     await expect(page).toHaveURL(/\/friends/)
     await expect(heading(page, 'Friends').first()).toBeVisible()
     const tab = name => page.getByRole('tab', { name })
@@ -442,7 +455,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     const names = hasRoleTabs
       ? await roleTabs.evaluateAll(els => els.map(e => e.getAttribute('aria-label') || e.textContent.trim()))
       : ['Profile', 'Reviews', 'Orders', 'Bookings', 'Saved']
-    expect(names.length, 'profile tabs').toBeGreaterThanOrEqual(4)
+    expect(names.length, 'profile tabs: Posts, Reviews, Saved, Visits (Bookings moved into Visits)').toBe(4)
     for (const name of names) {
       const tab = hasRoleTabs ? page.getByRole('tab', { name, exact: true }) : page.getByRole('button', { name, exact: true })
       await w.tap(tab, `Profile tab ${name}`)
@@ -452,57 +465,68 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     }
   })
 
-  test('Language: EN / AZ can be switched on a phone and the page stays', async ({ page, watch }, testInfo) => {
+  test('Language: EN / AZ are in Profile > Settings and can be switched on a phone, the page stays', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     const nav = bottomNav(page)
     await page.goto(url('/profile'))
     await expect(heading(page, 'Aysel R.')).toBeVisible()
-    const az = page.locator('button[lang="az"]:visible').first()
-    const en = page.locator('button[lang="en"]:visible').first()
-    if (!(await az.isVisible())) {   // newer builds keep it in the Settings sheet
-      const settings = page.getByRole('button', { name: /^settings$/i })
-      if (await settings.count()) await w.tap(settings, 'Profile settings button')
-    }
-    await expect(az, 'the EN/AZ switch must be reachable on a phone (only the desktop sidebar renders it on builds without the Settings sheet)').toBeVisible({ timeout: 3_000 })
-
+    await expect(page.locator('.lang-switcher:visible'), 'no EN | AZ outside Settings').toHaveCount(0)
     const before = page.url()
+    await w.tap(page.getByRole('button', { name: 'Settings', exact: true }), 'Profile settings button')
+    const sheet = U.sheet(page)
+    await expect(sheet.getByRole('heading', { name: 'Settings' })).toBeVisible()
+    await page.waitForTimeout(450)
+    await w.check('settings sheet')
+    const az = sheet.locator('button[lang="az"]')
+    await expect(az, 'EN / AZ must be reachable on a phone (Settings is their only home)').toBeVisible()
     await w.tap(az, 'AZ button')
-    await expect(nav.home, 'bottom nav is still in English').toHaveCount(0)
+    await expect(sheet.getByRole('heading', { name: 'Ayarlar' })).toBeVisible()
+    await closeSheet(page, w, 'settings sheet')
+    await expect(nav.home, 'bottom nav is no longer in English').toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Ana Səhifə', exact: true })).toBeVisible()
     expect(page.url(), 'the page must not change when the language does').toBe(before)
     expect(await page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('az')
     await w.check('profile in Azerbaijani')
 
-    await w.tap(en, 'EN button')
+    await w.tap(page.getByRole('button', { name: 'Ayarlar', exact: true }), 'Settings button (AZ)')
+    await w.tap(U.sheet(page).locator('button[lang="en"]'), 'EN button')
+    await expect(U.sheet(page).getByRole('heading', { name: 'Settings' })).toBeVisible()
+    await closeSheet(page, w, 'settings sheet')
     await expect(nav.home).toBeVisible()
     expect(page.url()).toBe(before)
     expect(await page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('en')
     await w.check('profile back in English')
   })
 
-  test('Theme: the dark / light toggle flips the theme and survives a reload', async ({ page, watch }, testInfo) => {
+  test('Theme: the Dark mode switch in Settings flips the theme and survives a reload', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
-    await page.goto(url('/'))
+    await page.goto(url('/profile'))
+    await expect(heading(page, 'Aysel R.')).toBeVisible()
     const html = page.locator('html')
-    const toggle = page.getByRole('button', { name: 'Toggle theme' })
     const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor)
     const start = await html.getAttribute('data-theme')
     const other = start === 'light' ? 'dark' : 'light'
     const startBg = await background()
+    await expect(page.getByRole('button', { name: /toggle theme/i }), 'no theme toggle outside Settings').toHaveCount(0)
 
-    await w.tap(toggle, 'Toggle theme button')
+    await w.tap(page.getByRole('button', { name: 'Settings', exact: true }), 'Profile settings button')
+    const toggle = U.sheet(page).getByRole('switch', { name: 'Dark mode' })
+    await w.tap(toggle, 'Dark mode switch')
     await expect(html).toHaveAttribute('data-theme', other)
+    await expect(toggle).toHaveAttribute('aria-checked', other === 'dark' ? 'true' : 'false')
+    await closeSheet(page, w, 'settings sheet')
     await expect.poll(background, 'page background changes with the theme').not.toBe(startBg)
-    await w.check(`home, ${other} theme`)
-    await w.scrollThrough(`home, ${other} theme`)
+    await w.check(`profile, ${other} theme`)
+    await w.scrollThrough(`profile, ${other} theme`)
 
     await page.reload()
     await expect(html).toHaveAttribute('data-theme', other)
-    await w.check(`home, ${other} theme after reload`)
+    await w.check(`profile, ${other} theme after reload`)
 
-    await w.tap(toggle, 'Toggle theme button')
+    await w.tap(page.getByRole('button', { name: 'Settings', exact: true }), 'Profile settings button')
+    await w.tap(U.sheet(page).getByRole('switch', { name: 'Dark mode' }), 'Dark mode switch')
     await expect(html).toHaveAttribute('data-theme', start)
   })
 

@@ -55,9 +55,11 @@
 }
 .ntf-actions.is-fading { opacity: 0; max-height: 0; padding-bottom: 0; pointer-events: none; }
 .ntf-btn {
-  display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 16px; border: 0; border-radius: 8px;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 16px; border: 0; border-radius: 8px;
   font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
+/* 32 px to look at, 44 px to hit (the 8 px gap between the two is split between them) */
+.ntf-btn::after { content: ''; position: absolute; inset: -6px -4px; }
 .ntf-btn-yes { background: var(--accent); color: #F5F0E8; }
 .ntf-btn-no { background: var(--s3); color: var(--t1); }
 .ntf-btn:active:not(:disabled) { transform: scale(0.97); }

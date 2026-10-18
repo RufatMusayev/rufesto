@@ -1,13 +1,15 @@
-// Consumer discovery features, one test per feature, desktop and the `mobile` project: the Discover tab (the sections of one `discover`
-// call: cuisine chips, open now, trending dishes, new places, promos, top reviews, all restaurants; follow / like), Explore (search, filters, dish sheet), Map (markers, chips,
-// popup, geolocation), Restaurant page (hero, stats, hours, Follow, menu chips, dietary filters, dish sheet, floor
+// Consumer discovery features, one test per feature, desktop and the `mobile` project: the Search tab's zero state (the former Discover tab: the sections of
+// one `discover` call: Popular, Cuisines, Open now, Trending dishes, Top reviews, All places), Search (typing, diet filters, dish sheet), Map (markers,
+// chips, popup, geolocation, the "Open now" chip), Restaurant page (hero, stats, hours, Follow, menu chips, dietary filters, dish sheet, floor
 // plan), Azerbaijani copy and the signed-out gates. Expected values are read from the preview database (public REST)
-// and compared with what the page shows. Findings: docs/qa/consumer-bookings.md.
-// Writes (all undone in `finally`): a follow of a rail restaurant, a like of a listed restaurant and a follow of Sakura House by the QA
-// guest (kitchen.sakura). The preview also holds a simulated demo world, so no test asserts a total and no demo data is changed.
+// and compared with what the page shows. Findings: docs/qa/consumer-bookings.md. UX round 2026-10-18: Discover moved into /explore (Home has two tabs),
+// the restaurant like and the stat "dishes" are gone, sheets are BottomSheets (support/ux.js).
+// Writes (all undone in `finally`): a follow of Sakura House by the QA guest (kitchen.sakura). The preview also holds a simulated demo world, so no
+// test asserts a total and no demo data is changed.
 const { test, expect, settle } = require('../support/fixtures')
 const { CONSUMER_URL } = require('../support/env')
 const F = require('../support/feat-bookings')
+const U = require('../support/ux')
 const { openAs } = F
 const R = require('../support/restaurant')
 
@@ -18,18 +20,15 @@ const money = n => `₼${Number(n).toFixed(2)}`
 const heading1 = p => p.getByRole('heading', { level: 1 })
 
 /**
- * Home has three tabs (Home | Friends | Discover) and opens on the ranked Home tab. The remembered tab is set to Discover before the page
- * loads (so the Home tab is never mounted and its cards stay out of these locators), the first `discover` answer is awaited and the
- * helper checks Discover is the selected tab and a section is on screen. Resolves { data } = the parsed answer (docs/V2-CONTRACT.md 18.2).
+ * Search (/explore) with nothing typed is the Discover content. The first `discover` answer is awaited and the helper checks a section is on
+ * screen. Resolves { data } = the parsed answer (docs/V2-CONTRACT.md 18.2).
  */
 async function openDiscover(page) {
-  await page.addInitScript(() => { try { localStorage.setItem('rufesto_home_tab', 'discover') } catch { /* storage blocked */ } })
   const answer = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/discover(\?|$)/.test(r.url()), { timeout: 30_000 })
   answer.catch(() => {})
-  await page.goto(url('/'))
-  await expect(page.getByRole('tab', { name: /^(Discover|Kəşf et)$/ })).toHaveAttribute('aria-selected', 'true')
+  await page.goto(url('/explore'))
   const data = await (await answer).json()
-  await expect(page.locator('.dsc h2.dsc-h').first()).toBeVisible()
+  await expect(page.locator('.sr-zero h2.dsc-h').first()).toBeVisible()
   return { data }
 }
 
@@ -42,221 +41,146 @@ function openNow(hours) {
 }
 const todayRow = hours => hours.find(h => h.day_of_week === ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(bakuClock().weekday))
 
-const sheet = p => p.locator('.overlay .sheet').last()
+const sheet = p => U.sheet(p)
 const noErrors = watch => expect(watch.consoleErrors, 'console errors').toEqual([])
 
-/* ================================================================ DISCOVER */
-// The Discover tab (client/src/features/discover, V2-CONTRACT 18.2 / 18.3): ONE `discover` call renders chips + Open now (near you) +
-// Trending dishes + New places + Promos + Top reviews + All restaurants, each hidden when empty. The preview holds a simulated demo
+/* ================================================================ SEARCH ZERO STATE */
+// The Search tab with nothing typed (client/src/features/search/ZeroState.jsx, V2-CONTRACT 18.2 / 18.3 / 23): ONE `discover` call renders Popular chips +
+// Cuisines + Open now (near you; "New places" is merged into it as a tag) + Trending dishes (5 rows) + Top reviews (3 compact rows) + All places (12, then
+// Show more), each hidden when empty. Promos and the restaurant like / Follow buttons are gone from here. The preview holds a simulated demo
 // world (10 venues, @demo.rufesto.com people) that changes while it runs, so nothing here asserts a total: the page is compared with the
-// `discover` answer it received, and nothing of the demo data is changed (only follows / likes the QA guest makes are written and undone).
+// `discover` answer it received, and nothing of the demo data is changed.
 
 const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
-const followersText = n => new RegExp(`(?<!\\d)${n} follower${n === 1 ? '' : 's'}(?![a-z])`)   // the whole number ("5 followers" must not match "15 followers"); the rating "(5)" sits right before it in the text
-const section = (p, title) => p.locator('section.dsc-sec').filter({ has: p.getByRole('heading', { name: title, exact: true, level: 2 }) })
-const heads = p => p.locator('.dsc h2.dsc-h').evaluateAll(els => els.map(e => e.textContent.trim()))
-const chipsOf = p => p.getByRole('group', { name: 'Cuisine' }).getByRole('button')
-const isDiscoverReq = q => q.method() === 'POST' && /\/rest\/v1\/rpc\/discover(\?|$)/.test(q.url())
-const isDiscover = r => isDiscoverReq(r.request())
-const discoverBody = r => { try { return JSON.parse(r.postData() || '{}') || {} } catch { return {} } }
+const section = (p, title) => p.locator('.sr-zero section.dsc-sec').filter({ has: p.getByRole('heading', { name: title, exact: true, level: 2 }) })
+const heads = p => p.locator('.sr-zero h2.dsc-h').evaluateAll(els => els.map(e => e.textContent.trim()))
+const chipsOf = p => p.getByRole('group', { name: 'Cuisines' }).getByRole('button')
+/** The restaurants of the "Open now" rail: the open ones, then the new places that are open (merged, UX plan 3.2). */
+const openRail = data => {
+  const ids = new Set(data.open_now.map(r => r.id))
+  return [...data.open_now, ...data.new_places.filter(r => r.open_now && !ids.has(r.id))]
+}
 
-test.describe('discover tab', { tag: ['@anon', '@consumer', '@feat'] }, () => {
+test.describe('search zero state', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   test.describe.configure({ mode: 'default' })
 
-  test('signed out: the sections are the ones the answer fills, in contract order, with its names, status pills and follower counts', async ({ page, watch }) => {
+  test('signed out: the sections are the ones the answer fills, in order, with its names, status and Show more', async ({ page, watch }) => {
     const { data } = await openDiscover(page)
     const near = data.location?.radius_km != null
+    const rail = openRail(data)
+    const popular = data.trending_dishes.length + Math.min(2, data.cuisines.length) > 0
     const expected = [
-      [data.open_now, near ? 'Open now near you' : 'Open now'], [data.trending_dishes, 'Trending dishes'], [data.new_places, 'New places'],
-      [data.promos, 'Promos'], [data.top_reviews, 'Top reviews'], [data.all_restaurants, 'All restaurants'],
-    ].filter(([rows]) => rows.length).map(([, h]) => h)
-    expect(expected, 'the preview has restaurants to discover').toContain('All restaurants')
+      [popular, 'Popular'], [data.cuisines.length, 'Cuisines'], [rail.length, near ? 'Open now near you' : 'Open now'],
+      [data.trending_dishes.length, 'Trending dishes'], [data.top_reviews.length, 'Top reviews'], [data.all_restaurants.length, 'All places'],
+    ].filter(([n]) => n).map(([, h]) => h)
+    expect(expected, 'the preview has restaurants to discover').toContain('All places')
     expect(await heads(page), 'section headings, in order, only the non-empty ones').toEqual(expected)
 
-    await expect(chipsOf(page), 'chips: All + the cuisines of the answer').toHaveText(['All', ...data.cuisines.map(c => cap(c.key))])
-    await expect(chipsOf(page).first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(chipsOf(page), 'cuisine chips: the cuisines of the answer, no "All" chip').toHaveText(data.cuisines.map(c => cap(c.key)))
+    for (const c of await chipsOf(page).all()) await expect(c).toHaveAttribute('aria-pressed', 'false')
+    const popularChips = await page.locator('.sr-zero .sr-pop-chip').allInnerTexts()
+    expect(popularChips.length, 'popular chips: up to 6 dishes + 2 cuisines').toBeLessThanOrEqual(8)
+    if (data.trending_dishes.length) expect(popularChips[0].trim(), 'the first popular chip is the first trending dish').toBe(data.trending_dishes[0].name)
     const names = rows => rows.map(r => r.name)
-    if (data.open_now.length) await expect(section(page, near ? 'Open now near you' : 'Open now').locator('.dsc-rc-name')).toHaveText(names(data.open_now))
-    if (data.new_places.length) await expect(section(page, 'New places').locator('.dsc-rc-name')).toHaveText(names(data.new_places))
-    if (data.trending_dishes.length) await expect(section(page, 'Trending dishes').locator('.dsc-dc-name')).toHaveText(names(data.trending_dishes))
-    if (data.top_reviews.length) await expect(section(page, 'Top reviews').locator('article.soc-review')).toHaveCount(data.top_reviews.length)
+    if (rail.length) await expect(section(page, near ? 'Open now near you' : 'Open now').locator('.dsc-pc-name')).toHaveText(names(rail))
+    if (data.trending_dishes.length) {
+      const dishes = data.trending_dishes.slice(0, 5)
+      const trending = section(page, 'Trending dishes')
+      await expect(trending.locator('.sr-row-btn .sr-name')).toHaveText(names(dishes))
+      for (const [i, d] of dishes.entries()) {
+        const row = trending.locator('.sr-row-btn').nth(i)
+        await expect(row.locator('.sr-price'), `${d.name}: price`).toHaveText(money(d.price))
+        await expect(row.locator('.sr-meta'), `${d.name}: restaurant`).toContainText(d.restaurant.name)
+        await expect(row.locator('.sr-sold'), `${d.name}: Sold out`).toHaveCount(d.available ? 0 : 1)
+      }
+    }
+    if (data.top_reviews.length) await expect(section(page, 'Top reviews').locator('article.rv')).toHaveCount(Math.min(3, data.top_reviews.length))
 
-    await test.step('All restaurants: the first 12 cards, status pill and followers match the answer; Show more adds the rest', async () => {
-      const all = section(page, 'All restaurants')
-      const cards = all.locator('article.dsc-rc')
-      await expect(all.locator('.dsc-rc-name')).toHaveText(names(data.all_restaurants.slice(0, 12)))
+    await test.step('All places: the first 12 rows, name, link and status match the answer; Show more adds the rest', async () => {
+      const all = section(page, 'All places')
+      const rows = all.locator('a.sr-row')
+      await expect(all.locator('a.sr-row .sr-name')).toHaveText(names(data.all_restaurants.slice(0, 12)))
       for (const [i, r] of data.all_restaurants.slice(0, 3).entries()) {
-        const pill = r.open_now ? (r.closes_at ? `Open · closes ${r.closes_at}` : 'Open now') : 'Closed'
-        await expect(cards.nth(i).locator('.dsc-pill').first(), `${r.name}: status pill`).toHaveText(pill)
-        await expect(cards.nth(i).locator('.dsc-rc-stats'), `${r.name}: followers`).toContainText(followersText(r.follower_count))
-        await expect(cards.nth(i).getByRole('link', { name: /view menu/i })).toHaveAttribute('href', `/restaurant/${r.slug}`)
+        await expect(rows.nth(i), `${r.name}: link`).toHaveAttribute('href', `/restaurant/${r.slug}`)
+        const meta = rows.nth(i).locator('.sr-meta')
+        if (r.open_now && r.closes_at) await expect(meta, `${r.name}: open until`).toContainText(`Open until ${r.closes_at}`)
+        else if (!r.open_now && r.opens_at) await expect(meta, `${r.name}: closed, opens`).toContainText(`Closed · opens ${r.opens_at}`)
+        else if (!r.open_now) await expect(rows.nth(i).locator('.sr-end'), `${r.name}: Closed on the right`).toHaveText('Closed')
       }
       if (data.all_restaurants.length > 12) {
         await all.getByRole('button', { name: 'Show more' }).click()
-        await expect(all.locator('.dsc-rc-name')).toHaveText(names(data.all_restaurants.slice(0, 24)))
+        await expect(all.locator('a.sr-row .sr-name')).toHaveText(names(data.all_restaurants.slice(0, 24)))
       } else {
         await expect(all.getByRole('button', { name: 'Show more' })).toHaveCount(0)
       }
     })
-    await expect(page.getByText('Nothing to discover yet')).toHaveCount(0)
+    await expect(page.locator('.sr-state'), 'no error state').toHaveCount(0)
     await settle(page)
     noErrors(watch)
   })
 
-  test('cuisine chips: a pick asks the server with p_cuisine and filters the lists; All and a repeated pick make no new request', async ({ page }) => {
+  test('cuisine chips: a pick turns on the Cuisine filter (URL, chip under the field) and lists that cuisine\'s places; the chip\'s x brings the zero state back', async ({ page }) => {
     const { data } = await openDiscover(page)
     test.skip(data.cuisines.length === 0, 'no cuisines in the answer')
     const pick = data.cuisines.find(c => c.count < data.all_restaurants.length) || data.cuisines[0]
-    const requests = []
-    page.on('request', q => { if (isDiscoverReq(q)) requests.push(discoverBody(q)) })
-    const chip = chipsOf(page).filter({ hasText: new RegExp(`^${cap(pick.key)}$`) })
-    const asked = page.waitForResponse(r => isDiscover(r) && discoverBody(r.request()).p_cuisine === pick.key)
-    await chip.click()
-    const filtered = await (await asked).json()
-    await expect(chip).toHaveAttribute('aria-pressed', 'true')
-    await expect(chipsOf(page).first()).toHaveAttribute('aria-pressed', 'false')
-    for (const k of ['open_now', 'all_restaurants']) {
-      for (const r of filtered[k]) expect(r.cuisine_type.toLowerCase(), `${k}: ${r.name}`).toBe(pick.key.toLowerCase())
-    }
-    expect(filtered.all_restaurants.length, 'chip count = restaurants of that cuisine').toBe(pick.count)
-    await expect(section(page, 'All restaurants').locator('.dsc-rc-name')).toHaveText(filtered.all_restaurants.slice(0, 12).map(r => r.name))
-    for (const meta of await section(page, 'All restaurants').locator('.dsc-rc-meta:first-of-type').allInnerTexts()) {
-      expect(meta.toLowerCase().startsWith(pick.key.toLowerCase()), `card meta "${meta}" starts with the cuisine`).toBe(true)
-    }
-    await expect(chipsOf(page), 'the chip row stays the unfiltered one').toHaveText(['All', ...data.cuisines.map(c => cap(c.key))])
-
-    const before = requests.length
-    await chipsOf(page).first().click()   // All: cached
-    await expect(chipsOf(page).first()).toHaveAttribute('aria-pressed', 'true')
-    await expect(section(page, 'All restaurants').locator('.dsc-rc-name')).toHaveText(data.all_restaurants.slice(0, 12).map(r => r.name))
-    await chip.click()                     // the same pick again: cached
-    await expect(chip).toHaveAttribute('aria-pressed', 'true')
-    await page.waitForTimeout(800)
-    expect(requests.length, 'discover requests after All and a repeated pick').toBe(before)
+    const asked = page.waitForResponse(r => r.request().method() === 'POST' && /\/rest\/v1\/rpc\/search(\?|$)/.test(r.url()) && (r.request().postDataJSON()?.p_cuisine || '').toLowerCase() === pick.key.toLowerCase())
+    await chipsOf(page).filter({ hasText: new RegExp(`^${cap(pick.key)}$`) }).click()
+    const answer = await (await asked).json()
+    await expect.poll(() => (new URL(page.url()).searchParams.get('cuisine') || '').toLowerCase(), { message: 'the filter is in the URL' }).toBe(pick.key.toLowerCase())
+    await expect(page.locator('.sr-active .sr-achip')).toContainText(cap(pick.key))
+    await page.getByRole('tab', { name: 'Places', exact: true }).click()
+    const rows = page.locator('.sr-results a.sr-row')
+    await expect(rows).toHaveCount(Math.min(40, answer.restaurants.length))
+    expect(answer.restaurants.length, 'chip count = restaurants of that cuisine').toBe(pick.count)
+    for (const meta of await rows.locator('.sr-meta').allInnerTexts()) expect(meta.toLowerCase().startsWith(pick.key.toLowerCase()), `row meta "${meta}" starts with the cuisine`).toBe(true)
+    await page.getByRole('button', { name: `Remove filter ${cap(pick.key)}` }).click()
+    await expect(page.locator('.sr-active .sr-achip')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'All places', level: 2 })).toBeVisible()
+    expect(new URL(page.url()).searchParams.get('cuisine')).toBeNull()
   })
 
   test('signed out: top review authors show real names (not "Anonymous") and link to their profile', async ({ page }) => {
     const { data } = await openDiscover(page)
     test.skip(data.top_reviews.length === 0, 'no verified review in the last 14 days on this database')
-    const cards = section(page, 'Top reviews').locator('article.soc-review')
-    for (const [i, r] of data.top_reviews.slice(0, 6).entries()) {
+    const cards = section(page, 'Top reviews').locator('article.rv')
+    for (const [i, r] of data.top_reviews.slice(0, 3).entries()) {
       expect(r.user?.name, `review ${r.id}: reviewer name in the answer`).toBeTruthy()
       expect(r.user.name).not.toMatch(/^anonymous$/i)
-      const name = cards.nth(i).locator('.soc-post-name')
-      await expect(name).not.toHaveText(/anonymous/i)
+      const name = cards.nth(i).locator('a.rv-name')
+      await expect(name).not.toHaveText(/anonymous|Rufesto guest/i)
       await expect(name).toContainText(r.user.name.split(' ')[0])
       await expect(name).toHaveAttribute('href', `/u/${r.user.id}`)
     }
   })
 
-  test('signed out: a trending dish card opens its restaurant with the dish sheet; a restaurant card opens the restaurant page', async ({ page }) => {
+  test('signed out: a trending dish row opens the dish sheet over Search; a place row opens the restaurant page', async ({ page }) => {
     const { data } = await openDiscover(page)
     if (data.trending_dishes.length) {
       const d = data.trending_dishes[0]
-      const card = section(page, 'Trending dishes').locator('article.dsc-dc').first()
-      await expect(card.getByRole('link')).toHaveAttribute('href', `/restaurant/${d.restaurant.slug}?dish=${d.id}`)
-      await expect(card.locator('.dsc-pill')).toHaveText(d.available ? 'Available' : 'Sold out')
-      await card.getByRole('link').click()
-      await expect(page).toHaveURL(new RegExp(`/restaurant/${d.restaurant.slug}\\?dish=${d.id}`))
+      await section(page, 'Trending dishes').locator(`.sr-row-btn[data-dish-id="${d.id}"]`).click()
+      await expect(page).toHaveURL(new RegExp(`/explore\\?.*dish=${d.id}`))
       await expect(sheet(page)).toContainText(d.name)
+      await expect(sheet(page).locator('.dds-venue-link'), 'the venue links to its menu').toHaveAttribute('href', `/restaurant/${d.restaurant.slug}?tab=menu`)
       await page.keyboard.press('Escape')
-      await expect(page.locator('.overlay')).toHaveCount(0)
-      await page.goBack()
-      await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 }), 'back on Discover, answer kept').toBeVisible()
+      await U.noSheet(page)
+      await expect(page).toHaveURL(url('/explore'))
+      await expect(page.getByRole('heading', { name: 'All places', level: 2 }), 'still on Search, answer kept').toBeVisible()
     }
     const first = data.all_restaurants[0]
-    await section(page, 'All restaurants').locator('article.dsc-rc').first().getByRole('link', { name: /view menu/i }).click()
+    await section(page, 'All places').locator('a.sr-row').first().click()
     await expect(page).toHaveURL(url(`/restaurant/${first.slug}`))
     await expect(heading1(page)).toHaveText(first.name)
   })
 
-  test('signed out: rails offer no Follow; Follow, like and the options menu of an "All restaurants" card ask to sign in or open a menu', async ({ page }) => {
-    const { data } = await openDiscover(page)
-    await expect(page.locator('.dsc-rail').getByRole('button', { name: /^(Follow|Unfollow) / }), 'no Follow on a rail card for a signed-out guest').toHaveCount(0)
-    const r = data.all_restaurants[0]
-    const card = section(page, 'All restaurants').locator('article.dsc-rc').first()
-    await card.getByRole('button', { name: `Follow ${r.name}`, exact: true }).click()
-    await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByRole('button', { name: /continue with email/i })).toHaveCount(0)
-    await card.getByRole('button', { name: `Like ${r.name}`, exact: true }).click()
-    await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()
-    await page.keyboard.press('Escape')
-    await card.getByRole('button', { name: 'Post options' }).click()
-    await expect(page.getByRole('menu')).toBeVisible()
-    await expect(page.getByRole('menuitem', { name: /copy link/i })).toBeVisible()
-  })
-
-  test('promos: every promo of the answer is a Sponsored card in the rail and its impression is tracked (no tap, so no click is counted)', async ({ page }) => {
-    const tracked = []
-    page.on('request', r => { if (/rpc\/track_campaign/.test(r.url())) { try { tracked.push(r.postDataJSON()) } catch { /* not JSON */ } } })
-    const { data } = await openDiscover(page)
-    test.skip(data.promos.length === 0, 'no active promo in the discover answer')
-    const rail = section(page, 'Promos')
-    await expect(rail.getByText('Sponsored', { exact: true })).toHaveCount(data.promos.length)
-    await rail.scrollIntoViewIfNeeded()
-    await expect.poll(() => tracked.some(t => t.p_event === 'impression' && data.promos.some(p => p.id === t.p_campaign_id)), { message: 'an impression of a shown promo (50 % visible for 1 s)', timeout: 15_000 }).toBe(true)
-  })
-
-  test('signed in: Follow on a rail card writes user_follows, every card of that restaurant agrees, and it is undone', async ({ page, browser }, testInfo) => {
-    test.skip(F.missing('emptyGuest'), 'kitchen.sakura not found in docs/REVIEW-ACCOUNTS.md')
-    const g = await openAs(browser, testInfo, F.accounts.emptyGuest())
-    const uid = g.session.user.id
-    const rows = async id => (await F.req(page, g, 'GET', `user_follows?user_id=eq.${uid}&restaurant_id=eq.${id}&select=id`)).rows
-    let target = null
-    try {
-      const { data } = await openDiscover(g.page)
-      // Bella Roma is Rufat's own venue, the rest are demo venues: only a follow of the QA guest is written, and removed again
-      const pool = [...data.open_now, ...data.new_places].filter(r => !r.is_followed && r.slug !== 'bella-roma')
-      test.skip(pool.length === 0, 'every rail restaurant is followed already (or the rails are empty)')
-      target = pool.find(r => r.slug === 'sakura-house') || pool[0]
-      expect(await rows(target.id), 'the guest does not follow it yet').toHaveLength(0)
-      const p = g.page
-      const rail = () => p.locator('.dsc-rail article.dsc-rc').filter({ has: p.getByRole('heading', { name: target.name, exact: true }) }).first()
-      await rail().getByRole('button', { name: `Follow ${target.name}`, exact: true }).click()
-      await expect(rail().getByRole('button', { name: `Unfollow ${target.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
-      await expect(rail().locator('.dsc-rc-stats')).toContainText(followersText(target.follower_count + 1))
-      await expect.poll(async () => (await rows(target.id)).length, { message: 'the follow row is saved' }).toBe(1)
-      const listCard = p.locator('.dsc-sec-all article.dsc-rc').filter({ has: p.getByRole('heading', { name: target.name, exact: true }) })
-      if (await listCard.count()) await expect(listCard.getByRole('button', { name: `Unfollow ${target.name}`, exact: true }), 'the "All restaurants" card agrees').toBeVisible()
-
-      await p.reload()
-      await expect(p.locator('.dsc h2.dsc-h').first()).toBeVisible()
-      await expect(rail().getByRole('button', { name: `Unfollow ${target.name}`, exact: true }), 'the follow survives a reload').toBeVisible()
-      await rail().getByRole('button', { name: `Unfollow ${target.name}`, exact: true }).click()
-      await expect(rail().getByRole('button', { name: `Follow ${target.name}`, exact: true })).toBeVisible()
-      await expect(rail().locator('.dsc-rc-stats')).toContainText(followersText(target.follower_count))
-      await expect.poll(async () => (await rows(target.id)).length, { message: 'the follow row is removed' }).toBe(0)
-    } finally {
-      if (target) for (const r of await rows(target.id)) await F.req(page, g, 'DELETE', `user_follows?id=eq.${r.id}`)
-      await g.close()
-    }
-  })
-
-  test('signed in: like on an "All restaurants" card writes a restaurant like, survives a reload and is undone', async ({ page, browser }, testInfo) => {
-    test.skip(F.missing('emptyGuest'), 'kitchen.sakura not found in docs/REVIEW-ACCOUNTS.md')
-    const g = await openAs(browser, testInfo, F.accounts.emptyGuest())
-    const uid = g.session.user.id
-    const likes = async id => (await F.req(page, g, 'GET', `likes?user_id=eq.${uid}&target_type=eq.restaurant&target_id=eq.${id}&select=id`)).rows
-    let target = null
-    try {
-      const { data } = await openDiscover(g.page)
-      target = data.all_restaurants.slice(0, 12).find(r => r.slug !== 'bella-roma')
-      test.skip(!target, 'no restaurant in the first 12 cards')
-      for (const l of await likes(target.id)) await F.req(page, g, 'DELETE', `likes?id=eq.${l.id}`)
-      const p = g.page
-      const card = () => p.locator('.dsc-sec-all article.dsc-rc').filter({ has: p.getByRole('heading', { name: target.name, exact: true }) })
-      await card().getByRole('button', { name: `Like ${target.name}`, exact: true }).click()
-      await expect(card().getByRole('button', { name: `Remove your like from ${target.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
-      await expect.poll(async () => (await likes(target.id)).length, { message: 'a restaurant like row' }).toBe(1)
-      await p.reload()
-      await expect(card().getByRole('button', { name: `Remove your like from ${target.name}`, exact: true }), 'the like survives a reload').toBeVisible()
-      await card().getByRole('button', { name: `Remove your like from ${target.name}`, exact: true }).click()
-      await expect.poll(async () => (await likes(target.id)).length, { message: 'the like row is removed' }).toBe(0)
-    } finally {
-      if (target) for (const l of await likes(target.id)) await F.req(page, g, 'DELETE', `likes?id=eq.${l.id}`)
-      await g.close()
-    }
+  test('signed out: no Follow, like, options menu, Sponsored card or Promos / New places rail on Search (Follow lives on the restaurant page)', async ({ page }) => {
+    await openDiscover(page)
+    const zero = page.locator('.sr-zero')
+    await expect(zero.getByRole('button', { name: /^(Follow|Unfollow|Like|Remove your like) \S/ })).toHaveCount(0)
+    await expect(zero.getByRole('button', { name: 'Post options' })).toHaveCount(0)
+    await expect(zero.getByText('Sponsored', { exact: true })).toHaveCount(0)
+    for (const h of ['Promos', 'New places']) await expect(zero.getByRole('heading', { name: h, exact: true })).toHaveCount(0)
+    await expect(zero.getByRole('link', { name: /view menu/i }), 'no "View menu" link on a place row').toHaveCount(0)
+    await expect(zero.getByText(/\bfollowers?\b/), 'no follower count on a place row').toHaveCount(0)
   })
 
   test('discover() through the public API: sections, caps, ids of the active restaurants, names of reviewers, GPS and cuisine filters, errors', async ({ page }) => {
@@ -300,111 +224,122 @@ test.describe('discover tab', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   })
 })
 
-/* ================================================================ EXPLORE */
+/* ================================================================ SEARCH */
+// The typed Search page (client/src/features/search): results come from the `search` RPC (Places / Dishes in 64 px rows, the match in bold), the diet
+// filters are in the Filters sheet and the URL (?diet=vegan,spicy), a dish row opens the dish sheet over the page. The full behaviour (zero state, filters,
+// recent searches, Back, People) is in tests/ux-search.spec.js; this block keeps the data checks of the old Explore tests.
 
-test.describe('explore', { tag: ['@anon', '@consumer', '@feat'] }, () => {
-  const DISH_SELECT = 'dishes?select=id,name,price,available,is_vegan,is_vegetarian,is_gluten_free,is_spicy,review_count,restaurants!inner(name,slug)&order=review_count.desc&limit=100'
-  const cards = p => p.locator('.stagger-item')
-  const pill = (p, name) => p.getByRole('button', { name, exact: true })
+test.describe('search page', { tag: ['@anon', '@consumer', '@feat'] }, () => {
+  const field = p => p.getByRole('searchbox', { name: 'Search dishes, places and people' })
+  const dishRows = p => p.locator('.sr-results .sr-row-btn')
+  const tabBtn = (p, name) => p.getByRole('tab', { name, exact: true })
+  const search = async (page, q) => {
+    await field(page).fill(q)
+    await expect(page.locator('.sr-results, .sr-empty').first()).toBeVisible()
+    await expect.poll(() => page.locator('.sr-list').getAttribute('aria-busy'), { message: `the answer for "${q}"` }).not.toBe('true')
+  }
 
-  test('the dish grid lists the public dishes with name, restaurant and price', async ({ page, watch }) => {
-    const dishes = await (await anonApi(page)).get(DISH_SELECT)
-    expect(dishes.length, 'dishes on the preview').toBeGreaterThan(10)
+  test('typing lists the dishes the search answer holds, with name, restaurant and price; a restaurant name finds the restaurant', async ({ page, watch }) => {
+    const api = await anonApi(page)
+    const answer = (await api.rpc('search', { p_q: 'pa', p_limit: 40 })).body
+    expect(answer.dishes.length, 'dishes for "pa"').toBeGreaterThan(5)
     await page.goto(url('/explore'))
-    await expect(cards(page).first()).toBeVisible()
-    await settle(page)
-    await expect(cards(page)).toHaveCount(dishes.length)
-    const sample = dishes[0]
-    const card = cards(page).filter({ hasText: sample.name }).first()
-    await expect(card).toContainText(sample.restaurants.name)
-    await expect(card).toContainText(money(sample.price))
+    await search(page, 'pa')
+    await tabBtn(page, 'Dishes').click()
+    await expect(dishRows(page).first()).toBeVisible()
+    await expect(dishRows(page)).toHaveCount(Math.min(40, answer.dishes.length))
+    const sample = answer.dishes[0]
+    const row = dishRows(page).filter({ hasText: sample.name }).first()
+    await expect(row).toContainText(sample.restaurant.name)
+    await expect(row.locator('.sr-price')).toHaveText(money(sample.price))
+    const names = await dishRows(page).locator('.sr-name').allInnerTexts()
+    expect(new Set(names), 'the rows are the dishes of the answer').toEqual(new Set(answer.dishes.slice(0, 40).map(d => d.name)))
+    await field(page).fill('')
+    await search(page, 'sakura')
+    await tabBtn(page, 'All').click()
+    await expect(page.locator('.sr-results a.sr-row').filter({ hasText: 'Sakura House' })).toBeVisible()
     noErrors(watch)
   })
 
-  test('search matches dish names and restaurant names, ignores case, and explains an empty result', async ({ page }) => {
-    const dishes = await (await anonApi(page)).get(DISH_SELECT)
+  test('search matches dish names and restaurant names, ignores case and accents, and explains an empty result', async ({ page }) => {
+    const api = await anonApi(page)
+    const expected = (await api.rpc('search', { p_q: 'CARBONARA', p_limit: 40 })).body.dishes
+    expect(expected.length, 'a carbonara on the menu').toBeGreaterThan(0)
     await page.goto(url('/explore'))
-    const search = page.getByPlaceholder('Dishes, restaurants…')
-    await expect(cards(page).first()).toBeVisible()
-    const byDish = dishes.filter(d => d.name.toLowerCase().includes('carbonara')).length
-    await search.fill('CARBONARA')
-    await expect(cards(page)).toHaveCount(byDish)
-    await search.fill('sakura')   // a restaurant name finds the restaurant itself (a row of its own), not a card per dish of it
-    await expect(page.getByText('Sakura House').first()).toBeVisible()
-    await expect(cards(page), 'dish cards only for dishes whose own name matches').toHaveCount(dishes.filter(d => d.name.toLowerCase().includes('sakura')).length)
-    await search.fill('zzzzqq')
-    await expect(page.getByText('Nothing found')).toBeVisible()
-    await expect(page.getByText('Try a different search or filter')).toBeVisible()
-    await search.fill('')
-    await expect(cards(page)).toHaveCount(dishes.length)
+    await search(page, 'CARBONARA')
+    await tabBtn(page, 'Dishes').click()
+    await expect(dishRows(page)).toHaveCount(expected.length)
+    for (const n of await dishRows(page).locator('.sr-name').allInnerTexts()) expect(n.toLowerCase(), 'the dish name matches').toContain('carbonara')
+    await search(page, 'zzzzqq')
+    await expect(page.locator('.sr-empty-title')).toHaveText('No results for “zzzzqq”')
+    await expect(page.locator('.sr-empty-hint')).toHaveText('Check the spelling or try a dish or cuisine.')
+    await field(page).fill('')
+    await expect(page.locator('.sr-zero h2.dsc-h').first()).toBeVisible()
   })
 
-  test('every filter chip filters like the data says (All, Available, Vegan, Veggie, Gluten-free, Spicy)', async ({ page }) => {
-    const dishes = await (await anonApi(page)).get(DISH_SELECT)
+  test('the diet filters (Vegan, Vegetarian, Gluten-free, Spicy) narrow the dishes like the data says; the sheet sets them, the URL keeps them', async ({ page }) => {
+    const api = await anonApi(page)
+    const flagged = async col => new Set((await api.get(`dishes?${col}=eq.true&select=name&limit=1000`)).map(d => d.name))
     await page.goto(url('/explore'))
-    await expect(cards(page).first()).toBeVisible()
-    const expected = {
-      All: dishes.length,
-      Available: dishes.filter(d => d.available).length,
-      Vegan: dishes.filter(d => d.is_vegan).length,
-      Veggie: dishes.filter(d => d.is_vegetarian).length,
-      'Gluten-free': dishes.filter(d => d.is_gluten_free).length,
-      Spicy: dishes.filter(d => d.is_spicy).length,
+    await expect(page.locator('.sr-zero h2.dsc-h').first()).toBeVisible()
+    // the sheet: Vegan
+    await page.getByRole('button', { name: /^Filters/ }).click()
+    const fs = page.locator('.bs-root:has(.sr-fs)[data-state="open"] .bs-panel')
+    await expect(fs).toBeVisible()
+    await fs.getByRole('button', { name: 'Vegan', exact: true }).click()
+    await expect(fs.getByRole('button', { name: 'Vegan', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await fs.getByRole('button', { name: 'Show results' }).click()
+    await U.noSheet(page)
+    await expect.poll(() => new URL(page.url()).searchParams.get('diet')).toBe('vegan')
+    await expect(page.locator('.sr-active .sr-achip')).toContainText('Vegan')
+    for (const [diet, label, col] of [['vegan', 'Vegan', 'is_vegan'], ['vegetarian', 'Vegetarian', 'is_vegetarian'], ['gluten_free', 'Gluten-free', 'is_gluten_free'], ['spicy', 'Spicy', 'is_spicy']]) {
+      await page.goto(url(`/explore?diet=${diet}`))
+      await expect(page.locator('.sr-active .sr-achip')).toContainText(label)
+      await expect(page.locator('.sr-results')).toBeVisible()
+      await expect.poll(() => page.locator('.sr-list').getAttribute('aria-busy')).not.toBe('true')
+      await tabBtn(page, 'Dishes').click()
+      const want = await flagged(col)
+      if (want.size === 0) { await expect(page.locator('.sr-empty-title')).toHaveText('Nothing matches these filters'); continue }
+      await expect(dishRows(page).first(), `${label}: dishes`).toBeVisible()
+      const names = await dishRows(page).locator('.sr-name').allInnerTexts()
+      expect(names.length, `${label}: at most one page of results`).toBeLessThanOrEqual(40)
+      for (const n of names) expect(want.has(n.trim()), `${label}: "${n}" is flagged ${col} in the data`).toBe(true)
     }
-    for (const [name, count] of Object.entries(expected)) {
-      await pill(page, name).click()
-      await expect(pill(page, name)).toHaveAttribute('aria-pressed', 'true')
-      if (count === 0) await expect(page.getByText('Nothing found'), `${name}: no dish, so the empty state`).toBeVisible()
-      else await expect(cards(page), `cards for the ${name} chip`).toHaveCount(count)
-      for (const other of Object.keys(expected).filter(n => n !== name)) await expect(pill(page, other)).toHaveAttribute('aria-pressed', 'false')
-    }
-    await pill(page, 'Available').click()
-    await expect(cards(page).filter({ hasText: /sold out/i }), 'sold-out dishes under the Available chip').toHaveCount(0)
-    await page.getByPlaceholder('Dishes, restaurants…').fill('zzzzqq')   // a filter chip keeps working with a search on
-    await expect(page.getByText('Nothing found')).toBeVisible()
-    await page.getByPlaceholder('Dishes, restaurants…').fill('')
-    await pill(page, 'All').click()
-    await expect(cards(page)).toHaveCount(dishes.length)
   })
 
-  test('there is no sort control on Explore (documented): dishes come ordered by review count', async ({ page }) => {
-    const dishes = await (await anonApi(page)).get(DISH_SELECT)
+  test('there is no sort control on Search (documented): dishes come in the order of the server', async ({ page }) => {
     await page.goto(url('/explore'))
-    await expect(cards(page).first()).toBeVisible()
+    await search(page, 'pa')
     await expect(page.getByRole('combobox')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /sort/i })).toHaveCount(0)
-    // several dishes may share the top review count (the demo world adds many): the first card is any of them
-    const top = dishes.filter(d => d.review_count === dishes[0].review_count).map(d => d.name)
-    const firstText = await cards(page).first().innerText()
-    expect(top.some(n => firstText.includes(n)), `the first card is one of the most reviewed dishes (${top.slice(0, 3).join(', ')}...)`).toBe(true)
   })
 
-  test('dish sheet opens from a card and closes with the X, with Esc and by tapping the backdrop', async ({ page, watch }) => {
+  test('dish sheet opens from a row and closes with the X, with Esc and by tapping the backdrop', async ({ page, watch }) => {
     await page.goto(url('/explore'))
-    await expect(cards(page).first()).toBeVisible()
-    const first = cards(page).first()
-    const name = (await first.locator('div').filter({ hasText: /^[^\n]+$/ }).first().innerText()).split('\n')[0]
+    await search(page, 'pizza')
+    await expect(dishRows(page).first()).toBeVisible()
     for (const how of ['X button', 'Esc', 'backdrop']) {
-      await first.click()
-      await expect(page.locator('.overlay')).toBeVisible()
+      await dishRows(page).first().click()
+      await expect(sheet(page)).toBeVisible()
       await expect(sheet(page).getByText(/₼\d+\.\d\d/).first()).toBeVisible()
+      await U.settled(page.locator('.bs-root[data-state="open"] .bs-panel'))
       if (how === 'X button') await sheet(page).getByRole('button', { name: 'Close' }).click()
       else if (how === 'Esc') await page.keyboard.press('Escape')
-      else await page.locator('.overlay').click({ position: { x: 4, y: 4 } })
-      await expect(page.locator('.overlay'), `dish sheet closed by ${how}`).toHaveCount(0)
+      else await page.locator('.bs-root[data-state="open"] .bs-scrim').click({ position: { x: 4, y: 4 } })
+      await U.noSheet(page, `dish sheet closed by ${how}`)
+      await expect(page).toHaveURL(/\/explore\?q=pizza/)
     }
-    expect(name.length).toBeGreaterThan(0)
     noErrors(watch)
   })
 
-  // The Explore dish sheet only names the restaurant; neither the card nor the sheet leads to its menu.
-  test('a dish opened from Explore leads to its restaurant ("View menu")', async ({ page }) => {
+  test('a dish opened from Search leads to its restaurant (the venue in the sheet links to its menu)', async ({ page }) => {
     await page.goto(url('/explore'))
-    await expect(cards(page).first()).toBeVisible()
-    await cards(page).first().click()
-    await expect(page.locator('.overlay')).toBeVisible()
-    const link = page.locator('.overlay, .stagger-item').getByRole('link', { name: /view menu|restaurant|visit/i })
-    await expect(link, 'a link to the restaurant in the dish sheet').not.toHaveCount(0)
+    await search(page, 'pizza')
+    await dishRows(page).first().click()
+    await expect(sheet(page)).toBeVisible()
+    const link = sheet(page).locator('a.dds-venue-link')
+    await expect(link, 'a link to the restaurant in the dish sheet').toHaveCount(1)
+    await expect(link).toHaveAttribute('href', /^\/restaurant\/[\w-]+\?tab=menu$/)
   })
 })
 
@@ -479,12 +414,23 @@ test.describe('map', { tag: ['@anon', '@consumer', '@feat'] }, () => {
     noErrors(watch)
   })
 
-  test('the search bar on the map takes input', async ({ page }) => {
+  test('the map has no search field of its own; one "Open now" chip filters the markers and the chips (search lives on the Search tab)', async ({ page }) => {
     await page.goto(url('/map'))
-    await expect(page.locator('.map-search')).toBeVisible()
-    await page.locator('.map-search').click()
-    await page.keyboard.type('sakura')
-    await expect(page.locator('.map-search input, input[placeholder*="near"]'), 'the "Restaurants near you…" bar is a real field').toHaveCount(1)
+    await expect(page.locator('.leaflet-container')).toBeVisible()
+    await expect(markers(page).first()).toBeVisible()
+    await expect(page.locator('.map-search'), 'no search field on the map').toHaveCount(0)
+    await expect(page.getByPlaceholder(/near you|Search restaurants/i)).toHaveCount(0)
+    const open = page.getByRole('button', { name: 'Open now', exact: true })
+    await expect(open).toHaveAttribute('aria-pressed', 'false')
+    const all = await page.locator('.map-chip').count()
+    expect(all, 'a chip per restaurant').toBeGreaterThan(0)
+    await open.click()
+    await expect(open).toHaveAttribute('aria-pressed', 'true')
+    const some = await page.locator('.map-chip').count()
+    expect(some, 'Open now never adds restaurants').toBeLessThanOrEqual(all)
+    if (some === 0) await expect(page.getByRole('status').filter({ hasText: 'No restaurant is open right now.' })).toBeVisible()
+    await open.click()
+    await expect(page.locator('.map-chip')).toHaveCount(all)
   })
 })
 
@@ -492,34 +438,41 @@ test.describe('map', { tag: ['@anon', '@consumer', '@feat'] }, () => {
 
 test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () => {
   const tiles = p => R.rows(p)   // the printed menu's dish rows (the old .menu-card grid is gone, docs/V2-CONTRACT.md 19.2)
-  const stat = (p, label) => p.getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]')
+  const stat = (p, label) => p.locator('.rst-stat').filter({ has: p.locator('.rst-stat-l', { hasText: new RegExp(`^${label}$`) }) }).locator('.rst-stat-n')
   // The follower count is public: the page reads it through the count-only RPC (sql/55b; anon no longer has SELECT on user_follows, and a
   // signed-in guest only sees their own follow rows), so the test reads the same RPC as anon.
   const followerCount = async (api, id) => Number((await api.rpc('restaurant_follower_count', { p_restaurant_id: id })).body)
   const dishRows = (api, id) => api.get(`dishes?restaurant_id=eq.${id}&select=id,name,price,available,is_vegan,is_vegetarian,is_gluten_free,is_spicy,review_count,menu_section_id&order=sort_order`)
 
   for (const slug of SLUGS) {
-    test(`hero and stats of ${NAMES[slug]} match the data (dishes, followers, reviews, seats)`, async ({ page, watch }) => {
+    test(`hero and stats of ${NAMES[slug]} match the data (followers, reviews, free seats while open)`, async ({ page, watch }) => {
       const api = await anonApi(page)
       const [rest] = await api.get(`restaurants?slug=eq.${slug}&select=id,name,cuisine_type,address,description`)
-      const [dishes, followers, tables] = await Promise.all([
+      const [dishes, followers, tables, hours] = await Promise.all([
         dishRows(api, rest.id), followerCount(api, rest.id), api.get(`tables?restaurant_id=eq.${rest.id}&select=state,capacity`),
+        api.get(`operating_hours?restaurant_id=eq.${rest.id}&select=day_of_week,open_time,close_time,is_closed`),
       ])
       await page.goto(url(`/restaurant/${slug}`))
       await expect(heading1(page)).toHaveText(rest.name)
-      await expect(page.getByText(`${rest.cuisine_type} Restaurant`)).toBeVisible()
+      await expect(page.locator('.rst-cuisine'), 'the cuisine alone, no "Restaurant" suffix').toHaveText(rest.cuisine_type)
       await expect(page.getByText(rest.address, { exact: false }).first()).toBeVisible()
       if (rest.description) await expect(page.getByText(rest.description.slice(0, 40)).first()).toBeVisible()
       await expect(page.locator('img[alt]').or(page.getByText(/[🍝🫕🍣]/)).first()).toBeVisible()   // cover photo or the cuisine emoji
-      await expect(stat(page, 'dishes')).toHaveText(String(dishes.length))
+      const labels = await page.locator('.rst-stat-l').allInnerTexts()
+      expect(labels, 'no "dishes" stat any more').not.toContain('dishes')
+      expect(labels).toEqual(expect.arrayContaining(['followers', 'reviews']))
       await expect(stat(page, 'followers'), 'signed out, the count comes from restaurant_follower_count').toHaveText(String(followers))
       await expect(stat(page, 'reviews')).toHaveText(String(dishes.reduce((s, d) => s + (d.review_count || 0), 0)))
-      // tables change state while other QA runs use them: compare with a fresh read each time instead of the first one
-      await expect.poll(async () => {
-        const now = await api.get(`tables?restaurant_id=eq.${rest.id}&select=state,capacity`)
-        const free = now.filter(t => t.state === 'free').reduce((n, t) => n + t.capacity, 0)
-        return (await stat(page, 'seats').innerText()) === `${free}/${now.reduce((n, t) => n + t.capacity, 0)}`
-      }, 'free seats / total seats on the page equal the tables').toBe(true)
+      // free seats only show while the place is open (tables change state while other QA runs use them: compare with a fresh read each time)
+      if (openNow(hours) && tables.length) {
+        await expect.poll(async () => {
+          const now = await api.get(`tables?restaurant_id=eq.${rest.id}&select=state,capacity`)
+          const free = now.filter(t => t.state === 'free').reduce((n, t) => n + t.capacity, 0)
+          return (await stat(page, 'free').innerText().catch(() => '')) === String(free)
+        }, 'free seats on the page equal the free tables\' capacity').toBe(true)
+      } else if (!openNow(hours)) {
+        await expect(stat(page, 'free'), 'closed: no free-seats stat').toHaveCount(0)
+      }
       await R.showMenu(page)
       await expect(tiles(page), 'one row per dish of the menu').toHaveCount(dishes.length)
       noErrors(watch)
@@ -648,7 +601,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     }
   })
 
-  test('dish sheet for a guest: price, description, ingredients, allergens request, reviews list', async ({ page, watch }) => {
+  test('dish sheet for a guest: price, description, ingredients, allergens request, reviews list, footer', async ({ page, watch }) => {
     const api = await anonApi(page)
     const dishes = await dishRows(api, BELLA)
     const ing = await api.get(`dish_ingredients?select=dish_id,ingredients(name)&dish_id=in.(${dishes.map(d => d.id).join(',')})`)
@@ -658,17 +611,17 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     const allergenCalls = []
     page.on('response', r => { if (/\/rest\/v1\/dish_allergens/.test(r.url())) allergenCalls.push(r.status()) })
     await R.gotoMenu(page, 'bella-roma')
-    const open = async d => { await R.rowOpen(R.byId(page, d.id)).click(); await expect(page.locator('.overlay')).toBeVisible() }
-    const close = async () => { await page.keyboard.press('Escape'); await expect(page.locator('.overlay')).toHaveCount(0) }
+    const open = async d => { await R.rowOpen(R.byId(page, d.id)).click(); await expect(sheet(page)).toBeVisible(); await expect(sheet(page).locator('.dds-name')).toHaveText(d.name) }
+    const close = async () => { await page.keyboard.press('Escape'); await U.noSheet(page) }
 
-    await test.step('ingredients (visible to guests), price, table prompt', async () => {
+    await test.step('ingredients (visible to guests), price, the not-seated footer', async () => {
       expect(withIng, 'a dish with ingredients').toBeTruthy()
       await open(withIng)
       await expect(sheet(page)).toContainText(withIng.name)
-      await expect(sheet(page)).toContainText(money(withIng.price))
-      await expect(sheet(page)).toContainText('To order, scan the QR code on your table')   // a guest who is not seated cannot order
+      await expect(sheet(page).locator('.dds-price')).toHaveText(money(withIng.price))
+      await expect(sheet(page).getByRole('button', { name: 'Scan QR to order' }), 'a guest who is not seated cannot order: the footer asks for the table QR').toBeVisible()
       const names = ing.filter(i => i.dish_id === withIng.id).map(i => i.ingredients.name)
-      await sheet(page).getByRole('button', { name: new RegExp(`Ingredients \\(${names.length}\\)`) }).click()
+      await sheet(page).getByRole('button', { name: /Ingredients & allergens/ }).click()
       for (const n of names) await expect(sheet(page)).toContainText(n)
       await close()
     })
@@ -679,24 +632,30 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       test.info().annotations.push({ type: 'allergens', description: `${rows.length} allergen row(s) for ${withIng.name}; dish_allergens on the preview has ${(await api.get('dish_allergens?select=dish_id&limit=5')).length >= 1 ? 'data' : 'no rows at all'}` })
       if (rows.length) {
         await open(withIng)
+        await sheet(page).getByRole('button', { name: /Ingredients & allergens/ }).click()
         await expect(sheet(page).getByText('Allergens')).toBeVisible()
         for (const r of rows) await expect(sheet(page)).toContainText(new RegExp(r.allergen, 'i'))
         await close()
       }
     })
-    await test.step('reviews list: count, first three, "View all"', async () => {
+    await test.step('reviews: header with the average and the count, the first three rows, "See all N reviews"', async () => {
       expect(withReviews.review_count, 'a dish with reviews').toBeGreaterThan(0)
       const reviews = await api.get(`reviews?dish_id=eq.${withReviews.id}&is_flagged=eq.false&select=id`)
-      await open(withReviews)
-      await expect(sheet(page).getByText(`Reviews · ${reviews.length}`)).toBeVisible()
-      await expect(sheet(page).getByText(/^[★☆]{5}$/)).toHaveCount(Math.min(3, reviews.length))
       expect(withReviews.review_count, 'dishes.review_count matches the review rows').toBe(reviews.length)
+      await open(withReviews)
+      await expect(sheet(page).locator('.rv-sec-title')).toContainText(`· ${reviews.length}`)
+      await expect(sheet(page).locator('article.rv')).toHaveCount(Math.min(3, reviews.length))
+      for (const n of await sheet(page).locator('article.rv .rv-name').allInnerTexts()) expect(n.trim(), 'a real author name, never Anonymous').not.toMatch(/^(Anonymous|Rufesto guest)$/)
       if (reviews.length > 3) {
-        await sheet(page).getByRole('button', { name: new RegExp(`View all ${reviews.length} reviews`) }).click()
-        await expect(sheet(page).getByText(/^[★☆]{5}$/)).toHaveCount(Math.min(20, reviews.length))
+        await sheet(page).getByRole('button', { name: new RegExp(`See all ${reviews.length} reviews`) }).click()
+        const all = page.locator('.bs-root[data-state="open"] .bs-panel').filter({ has: page.locator('.rv-list') })
+        await expect(all.locator('article.rv').nth(Math.min(30, reviews.length) - 1)).toBeVisible()
+        await expect(all.locator('article.rv')).toHaveCount(Math.min(30, reviews.length))
+        await page.keyboard.press('Escape')
+        await expect.poll(() => U.openSheets(page).count()).toBe(1)
       } else {
-        await expect(sheet(page).getByRole('button', { name: /View all/ })).toHaveCount(0)
-        test.info().annotations.push({ type: 'note', description: `the busiest dish has only ${reviews.length} reviews: "View all" cannot be exercised` })
+        await expect(sheet(page).getByRole('button', { name: /See all/ })).toHaveCount(0)
+        test.info().annotations.push({ type: 'note', description: `the busiest dish has only ${reviews.length} reviews: "See all" cannot be exercised` })
       }
       await close()
     })
@@ -704,7 +663,8 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       if (!soldOut) return test.info().annotations.push({ type: 'note', description: 'no sold-out dish on Bella Roma right now' })
       await open(soldOut)
       await expect(sheet(page)).toContainText(/sold out/i)
-      await expect(sheet(page).getByText('To order, scan the QR code on your table')).toHaveCount(0)
+      await expect(sheet(page).getByRole('button', { name: 'Scan QR to order' })).toHaveCount(0)
+      await expect(sheet(page).locator('.dds-soldnote')).toHaveText('Sold out today')
       await close()
     })
     noErrors(watch)
@@ -810,7 +770,7 @@ test.describe('floor plan sheet', { tag: ['@anon', '@consumer', '@feat'] }, () =
       await openFloor(page)
       if (how === 'X') await floor(page).getByRole('button', { name: 'Close', exact: true }).click()
       else if (how === 'Esc') await page.keyboard.press('Escape')
-      else await page.locator('.overlay').click({ position: { x: 4, y: 4 } })
+      else await page.locator('.bs-root[data-state="open"] .bs-scrim').click({ position: { x: 4, y: 4 } })
       await expect(floor(page), `closed by ${how}`).toHaveCount(0)
     }
   })
@@ -839,17 +799,18 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
     expect(await rawKeys(page), `${label}: raw i18n keys on the page`).toEqual([])
   }
 
-  test('Home, Explore and Map in Azerbaijani', async ({ page, watch }) => {
+  test('Home, Search and Map in Azerbaijani', async ({ page, watch }) => {
+    await page.goto(url('/'))
+    await expectAz(page, [['social', 'home.tab_home'], ['social', 'home.tab_friends']], 'Home')
+    await expect(page.getByRole('tab', { name: 'Discover' }).or(page.getByRole('tab', { name: 'Kəşf et' })), 'no Discover tab, in either language').toHaveCount(0)
     await openDiscover(page)
-    await expectAz(page, [['social', 'home.tab_home'], ['social', 'home.tab_friends'], ['social', 'home.tab_discover'], ['social', 'discover.allRestaurants'], ['social', 'discover.viewMenu'], ['social', 'discover.follow']], 'Home / Discover')
-    await expect(page.getByRole('group', { name: /Mətbəx|Cuisine/ }).or(page.locator('.dsc-chips')).first(), 'the cuisine chip row').toBeVisible()
-    await page.goto(url('/explore'))
-    await expectAz(page, [['menu', 'exploreSearchPlaceholder'], ['menu', 'exploreFilterAll'], ['menu', 'exploreFilterAvailable'], ['menu', 'exploreFilterGlutenFree'], ['menu', 'exploreFilterSpicy'], ['common', 'available']], 'Explore')
-    await page.locator('input.input').fill('zzzzqq')
-    await expectAz(page, [['menu', 'nothingFound'], ['menu', 'tryDifferentSearch']], 'Explore, empty search')
+    await expectAz(page, [['search', 'placeholder'], ['search', 'popular'], ['search', 'cuisines'], ['search', 'trending'], ['search', 'topReviews'], ['search', 'allPlaces']], 'Search')
+    await expect(page.getByRole('group', { name: /Mətbəx/ }).first(), 'the cuisine chip row').toBeVisible()
+    await page.getByRole('searchbox').fill('zzzzqq')
+    await expectAz(page, [['search', 'noResultsHint']], 'Search, empty result')
     await page.goto(url('/map'))
     await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expectAz(page, [['map', 'searchPlaceholder']], 'Map')
+    await expectAz(page, [['map', 'openNow']], 'Map')
     await page.getByRole('button', { name: /Sakura House/ }).click()
     await expectAz(page, [['map', 'viewMenu']], 'Map popup')
     noErrors(watch)
@@ -858,7 +819,7 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
   test('Restaurant page, dish sheet and floor plan in Azerbaijani', async ({ page, watch }) => {
     await page.goto(url('/restaurant/bella-roma'))
     await expect(R.tabBtn(page, 'Posts').or(R.tabBtn(page, 'Paylaşımlar'))).toBeVisible()
-    await expectAz(page, [['restaurant', 'statDishes'], ['restaurant', 'statFollowers'], ['restaurant', 'statReviews'], ['restaurant', 'statSeats'], ['restaurant', 'follow'], ['bookings', 'reserve'], ['restaurant', 'tabs.posts'], ['restaurant', 'tabs.menu']], 'Restaurant')
+    await expectAz(page, [['restaurant', 'statFollowers'], ['restaurant', 'statReviews'], ['restaurant', 'follow'], ['bookings', 'reserve'], ['restaurant', 'tabs.posts'], ['restaurant', 'tabs.menu']], 'Restaurant')
     await expect(page.getByText(/Açıqdır|Bağlıdır/).first(), 'open / closed state').toBeVisible()
     // the order prompt only shows for an available dish, and the first card may be sold out right now: open an available one
     const [open] = await (await anonApi(page)).get(`dishes?restaurant_id=eq.${BELLA}&available=eq.true&select=id,name&order=name.asc&limit=1`)
@@ -866,7 +827,7 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
     await R.tabBtn(page, 'Menyu').click()
     await expect(R.rows(page).first()).toBeVisible()
     await R.rowOpen(R.byId(page, open.id)).click()
-    await expectAz(page, [['restaurant', 'dish.orderHint']], 'Dish sheet')
+    await expectAz(page, [['restaurant', 'dish.scanToOrder'], ['menu', 'dish.reserve'], ['menu', 'dish.share']], 'Dish sheet')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Zal planı' }).click()
     await expect(page.getByRole('dialog', { name: 'Zal planı' })).toBeVisible()
@@ -979,22 +940,5 @@ test.describe('signed-out gates', { tag: ['@anon', '@consumer', '@feat'] }, () =
     await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()
     await page.goto(url('/b/NOSUCHCODE'))
     await expect(page.getByText("This invite isn't valid anymore")).toBeVisible()
-  })
-
-  test('liking a listed restaurant while signed out asks to sign in instead of showing a like that vanishes', async ({ page }) => {
-    const { data } = await openDiscover(page)
-    const r = data.all_restaurants[0]
-    const card = page.locator('.dsc-sec-all article.dsc-rc').first()
-    const like = card.getByRole('button', { name: `Like ${r.name}`, exact: true })
-    await like.click()
-    await expect(page.getByRole('button', { name: /continue with email/i }).first(), 'a signed-out like opens the sign-in sheet').toBeVisible()
-    await expect(like, 'and no like is shown').toHaveAttribute('aria-pressed', 'false')
-  })
-
-  test('the options button on a listed restaurant opens a menu with Copy link', async ({ page }) => {
-    await openDiscover(page)
-    await page.locator('.dsc-sec-all article.dsc-rc').first().getByRole('button', { name: 'Post options' }).click()
-    await expect(page.getByRole('menu'), 'a menu after tapping the three dots').toBeVisible()
-    await expect(page.getByRole('menuitem', { name: /copy link/i })).toBeVisible()
   })
 })

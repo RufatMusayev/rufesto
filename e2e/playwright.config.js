@@ -7,8 +7,9 @@ const forceEnglish = url => ({ origin: new URL(url).origin, localStorage: [{ nam
 
 // Consumer specs: the app people use on phones. The `mobile` project runs exactly these (the dashboard
 // specs feat-dash-ops / feat-dash-money, staff, v2-resto, v2-tips and anon-resto are NOT in the list, so they run in the
-// desktop project only) plus the mobile-only checklist. feat-table, feat-bills, feat-home-feed, feat-friends-feed and feat-restaurant-page run in both projects.
-const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist|feat-social|feat-profile|feat-notifications|feat-notifications-v2|feat-bookings|feat-discovery|feat-table|feat-bills|feat-home-feed|feat-friends-feed|feat-restaurant-page)\.spec\.js$/
+// desktop project only) plus the mobile-only checklist. feat-table, feat-bills, feat-home-feed, feat-friends-feed, feat-restaurant-page and the ux-* specs (UX round,
+// docs/UX-PLAN-2026-10-18.md 8.4; they build their own 390x844 phone / 1280x860 desktop contexts, ux-shell skips itself in the mobile project) run in both projects.
+const CONSUMER_SPECS = /[\/]tests[\/](anon-consumer|guest|v2-social|v2-bookings|v2-bills|mobile-checklist|feat-social|feat-profile|feat-notifications|feat-notifications-v2|feat-bookings|feat-discovery|feat-table|feat-bills|feat-home-feed|feat-friends-feed|feat-restaurant-page|ux-shell|ux-sheet|ux-search|ux-reviews|ux-notifications|ux-home-popular|ux-dish-sheet)\.spec\.js$/
 
 module.exports = defineConfig({
   testDir: './tests',

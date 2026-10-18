@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { categoryEmoji, formatPrice } from '@shared/helpers'
+import { formatPrice } from '@shared/helpers'
+import DishThumb from '../components/DishThumb'
 import DishFormModal from '../components/DishFormModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { dishPhotoPath } from '../lib/storage'
@@ -226,10 +227,7 @@ function DishRow({ dish: d, canManage, toggling, onToggle, onEdit, onDelete }) {
         fontSize:'1.5rem', flexShrink:0, overflow:'hidden',
         border:'1px solid var(--border)',
       }}>
-        {d.photo
-          ? <img src={d.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-          : categoryEmoji(d.category)
-        }
+        <DishThumb size="fill" photo={d.photo} category={d.category} />
       </div>
 
       {/* Info */}

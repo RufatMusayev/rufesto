@@ -104,10 +104,13 @@ function RestaurantView({ slug }) {
     return dish ? toSheetDish(dish, lang, restaurant) : null
   }, [menu, lang, restaurant])
 
-  if (notFound) return <RestaurantNotFound />
-  if (status === 'loading' || deciding) return <PageSkeleton />
-  if (status === 'error') return <div className="rst-page"><LoadError onRetry={retry} /></div>
-  if (!restaurant) return null
+  // The dish sheet host sits next to the page in every state (skeleton included, always the second child), so "Order this"
+  // opens the sheet from the dish card in hand while the restaurant is still loading, and never remounts when the page lands.
+  const withSheet = body => (<>{body}<DishSheetHost resolve={resolveDish} /></>)
+  if (notFound) return withSheet(<RestaurantNotFound />)
+  if (status === 'loading' || deciding) return withSheet(<PageSkeleton />)
+  if (status === 'error') return withSheet(<div className="rst-page"><LoadError onRetry={retry} /></div>)
+  if (!restaurant) return withSheet(null)
 
   const stats = {
     reviews: menu ? menu.reviewCount : null,
@@ -116,7 +119,7 @@ function RestaurantView({ slug }) {
     seatsTotal: seats.total,
   }
 
-  return (
+  return withSheet(
     <div className="rst-page">
       <CartErrorBanner message={cartError} onClose={clearCartError} />
       <RestaurantHeader
@@ -162,7 +165,6 @@ function RestaurantView({ slug }) {
           }}
         />
       )}
-      <DishSheetHost resolve={resolveDish} />
       {reviewsLoaded && (
         <Suspense fallback={null}>
           <RestaurantReviewsSheet

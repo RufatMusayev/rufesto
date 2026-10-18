@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { thumb } from '../thumb'
 
 const initials = name => {
   const words = String(name || '').trim().split(/\s+/).filter(Boolean)
@@ -10,9 +11,12 @@ const initials = name => {
  * loads; the box shows --s3 until the picture fades in). `sources` is tried in order: [{ url, fit?: 'cover' | 'logo' }];
  * an image that fails to load moves on to the next one, and when none is left the box shows the initials of `name`
  * (never emoji art). Restaurant cover order: cover_photo, cover_fallback (first dish photo), logo.
+ * `size` is the box in CSS px (a number, or [width, height]): the picture is requested as a small rendition of that size
+ * (thumb.js), so a 48 px thumbnail does not download an 800 px original.
  */
-export default function CoverImage({ sources, name, eager = false }) {
-  const list = sources.filter(s => s && s.url)
+export default function CoverImage({ sources, name, eager = false, size = null }) {
+  const [w, h] = Array.isArray(size) ? size : [size, size]
+  const list = sources.filter(s => s && s.url).map(s => (w ? { ...s, url: thumb(s.url, w, h) } : s))
   const key = list.map(s => s.url).join('|')
   const [at, setAt] = useState(0)
   const [loaded, setLoaded] = useState(false)

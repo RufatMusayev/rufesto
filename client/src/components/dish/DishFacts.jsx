@@ -51,6 +51,9 @@ export default function DishFacts({ dish, summary }) {
         {avg != null && count > 0 && <span>★{avg.toFixed(1)} ({count})</span>}
         {dish.category && <span className="dds-cat">{dish.category}</span>}
       </p>
+      {!dish.description && dish.seed && (
+        <div className="dds-desc-sk" aria-hidden="true"><span className="skeleton" /><span className="skeleton" /></div>
+      )}
       {dish.description && (
         <div className="dds-desc">
           <p ref={text} className={open ? 'dds-desc-text is-open' : 'dds-desc-text'}>{dish.description}</p>

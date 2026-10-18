@@ -67,7 +67,7 @@
 /* ----------------------------------------------------------------- panels */
 .pf-panel { min-height: 220px; padding: 16px; }
 .pf-list { display: flex; flex-direction: column; gap: 8px; }
-.pf-error { color: var(--red); font-size: 0.82rem; line-height: 1.4; }
+.pf-error { color: var(--red-text); font-size: 0.82rem; line-height: 1.4; }
 
 /* own posts: edge to edge like /u/:id */
 .pf-grid { margin: 0 -16px; }
@@ -102,7 +102,7 @@
 .pf-row-text { margin-top: 4px; font-size: 0.82rem; line-height: 1.4; color: var(--t2); overflow-wrap: anywhere; }
 .pf-row-pill { margin-top: 6px; }
 .pf-stars { flex-shrink: 0; font-size: 0.78rem; letter-spacing: 1px; color: var(--gold); }
-.pf-soldout { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; color: var(--red); }
+.pf-soldout { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; color: var(--red-text); }
 .pf-saved { display: flex; align-items: center; }
 .pf-remove { flex-shrink: 0; margin-right: 4px; color: var(--t3); }
 .pf-visit-end { display: flex; align-items: center; gap: 4px; flex-shrink: 0; align-self: center; color: var(--t3); }
@@ -128,9 +128,9 @@
 .pf-set-label { flex: 1; min-width: 0; font-weight: 500; }
 .pf-set-link { cursor: pointer; }
 .pf-set-link > svg:last-child { flex-shrink: 0; color: var(--t3); }
-.pf-set-danger .pf-set-icon, .pf-set-danger .pf-set-label { color: var(--red); }
+.pf-set-danger .pf-set-icon, .pf-set-danger .pf-set-label { color: var(--red-text); }
 .pf-delete { margin-top: 18px; text-align: center; }
-.pf-delete-link { color: var(--red); }
+.pf-delete-link { color: var(--red-text); }
 .pf-delete-note { margin-top: 8px; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: 0.82rem; line-height: 1.5; color: var(--t2); }
 .pf-delete-note .btn { margin-top: 10px; }
 .pf-signout { margin-top: 20px; }
@@ -155,7 +155,7 @@
 .pf-tx-time { font-size: 0.68rem; color: var(--t3); }
 .pf-tx-delta { font-size: 0.86rem; font-weight: 700; }
 .pf-tx-delta.pos { color: var(--sage-text); }
-.pf-tx-delta.neg { color: var(--red); }
+.pf-tx-delta.neg { color: var(--red-text); }
 
 .pf-rate { display: flex; gap: 2px; }
 .pf-rate-btn { min-width: var(--tap); min-height: var(--tap); padding: 2px 4px; border: none; background: none; font-size: 1.6rem; line-height: 1; color: var(--t3); transition: color var(--t-fast), transform var(--t-fast); }
@@ -166,6 +166,8 @@
 .pf-thanks .btn { margin-top: 12px; }
 
 /* ------------------------------------------------------------- signed out */
+.pf-guest-settings { margin: 20px 16px 0; }
+.pf-guest-settings .pf-set-list { border-top: none; }
 .pf-signedout { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 16px 0; padding: 32px 24px; text-align: center; }
 .pf-signedout-icon { font-size: 2.6rem; line-height: 1; }
 .pf-signedout-title { font-size: 1.4rem; color: var(--t1); }

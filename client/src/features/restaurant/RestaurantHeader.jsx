@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { cuisineBackground, cuisineEmoji, getTodayHours, isRestaurantOpen } from '../../lib/helpers'
 import { cuisineLabel } from '../discover/cuisine'
+import { thumb } from '../discover/thumb'
 import { ReserveButton } from '../bookings/mounts'
 
 function Stat({ label, value, onClick }) {
@@ -49,7 +50,7 @@ export default function RestaurantHeader({ restaurant, stats, follow, onBack, on
         <div className="rst-id">
           <div className="rst-logo" style={{ background: bg }}>
             {restaurant.logo
-              ? <img src={restaurant.logo} alt={restaurant.name} />
+              ? <img src={thumb(restaurant.logo, 88)} alt={restaurant.name} />
               : <span aria-hidden="true">{emoji}</span>}
           </div>
           <div className="rst-stats">
@@ -108,10 +109,10 @@ export default function RestaurantHeader({ restaurant, stats, follow, onBack, on
             type="button"
             className={`rst-follow${follow.isFollowing ? ' is-on' : ''}`}
             onClick={follow.toggle}
-            disabled={follow.busy}
             aria-pressed={follow.isFollowing}
+            aria-busy={follow.busy}
           >
-            {follow.busy ? '...' : follow.isFollowing ? t('restaurant:following') : t('restaurant:follow')}
+            {follow.isFollowing ? t('restaurant:following') : t('restaurant:follow')}
           </button>
         </div>
       </div>

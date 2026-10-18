@@ -48,6 +48,7 @@ export function normaliseItem(raw) {
     latestAt: raw?.latest_at || null,
     read: !!raw?.read,
     payload,
+    payloads: [payload], // every payload of the row; collapseItems adds those of the rows it folds in
     requestIds: uuidList([payload.request_id]),
     target: raw?.target && typeof raw.target === 'object' ? raw.target : null,
   }
@@ -135,32 +136,41 @@ export function itemText(item, { t, lang, tableNumbers }) {
       }
     }
     case 'paid': {
-      // sql/66 trg_notify_bill_paid. amount = what the card was charged (food + tip). Only a card payment reaches
-      // the staff today; another method (a future producer) just loses the "by card".
+      // sql/66 trg_notify_bill_paid. amount = what the card was charged (share + tip, so it already holds the tip);
+      // tip is shown beside it, never added on top. A folded row (x2) adds up its payments.
       const has = v => v != null && v !== '' && Number.isFinite(Number(v))
-      const tip = has(p.tip) ? Number(p.tip) : 0
-      const total = has(p.amount) ? Number(p.amount) : has(p.food) ? Number(p.food) + tip : null
-      const who = table || t('v2:notifTableFallback')
-      const payer = typeof p.payer === 'string' ? p.payer.trim() : ''
-      let title
-      if (total == null) title = t('v2:notifBillPaidNoAmount', { table: who })
-      else {
-        const key = !p.method || p.method === 'card' ? 'v2:notifBillPaid' : 'v2:notifBillPaidPlain'
-        title = t(key, { table: who, amount: formatPrice(total) })
+      let total = null
+      let tip = 0
+      const payers = []
+      for (const q of item.payloads) {
+        const qTip = has(q.tip) ? Number(q.tip) : 0
+        const qTotal = has(q.amount) ? Number(q.amount) : has(q.food) ? Number(q.food) + qTip : null
+        if (qTotal != null) total = (total ?? 0) + qTotal
+        tip += qTip
+        const name = typeof q.payer === 'string' ? q.payer.trim() : ''
+        if (name && !payers.includes(name)) payers.push(name)
       }
+      const who = table || t('v2:notifTableFallback')
+      const byCard = item.payloads.every(q => !q.method || q.method === 'card')
+      const title = total == null
+        ? t('v2:notifBillPaidNoAmount', { table: who })
+        : t(byCard ? 'v2:notifBillPaid' : 'v2:notifBillPaidPlain', { table: who, amount: formatPrice(Math.round(total * 100) / 100) })
       return {
         title,
         detail: join([
-          payer ? t('v2:notifPaidBy', { name: payer }) : null,
-          tip > 0 ? t('v2:notifPaidTip', { amount: formatPrice(tip) }) : null,
+          payers.length ? t('v2:notifPaidBy', { name: payers.join(', ') }) : null,
+          tip > 0 ? t('v2:notifPaidTip', { amount: formatPrice(Math.round(tip * 100) / 100) }) : null,
         ]),
       }
     }
-    case 'waiter':
-      return {
-        title: join([table, t('v2:notifWaiterCalled')]),
-        detail: p.kind ? t(`v2:notifKind_${p.kind}`, { defaultValue: '' }) : '',
-      }
+    case 'waiter': {
+      // A folded row (x3) lists every kind asked for, oldest first: "Water · Cutlery · Cleaning".
+      const kinds = [...new Set([...item.payloads].reverse().map(q => q.kind).filter(Boolean))]
+      const detail = kinds.length > 1
+        ? join(kinds.map(k => t(`v2:notifKindShort_${k}`, { defaultValue: '' })))
+        : p.kind ? t(`v2:notifKind_${p.kind}`, { defaultValue: '' }) : ''
+      return { title: join([table, t('v2:notifWaiterCalled')]), detail }
+    }
     case 'join': {
       const name = typeof p.name === 'string' ? p.name.trim() : ''
       return {
@@ -232,6 +242,7 @@ export function collapseItems(items, windowMs = GROUP_WINDOW_MS) {
     if (group && at != null && groupAt != null && groupAt - at <= windowMs) {
       group.count += item.count
       group.ids = [...group.ids, ...item.ids.filter(id => !group.ids.includes(id))]
+      group.payloads = [...group.payloads, ...item.payloads]
       group.requestIds = [...group.requestIds, ...item.requestIds.filter(id => !group.requestIds.includes(id))]
       group.read = group.read && item.read
       continue

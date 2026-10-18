@@ -7,6 +7,28 @@ import { useLocation, useNavigate } from 'react-router-dom'
 const seeds = new Map()                          // dish id -> the dish as the opener knew it
 export const takeSeed = id => (id ? seeds.get(id) || null : null)
 
+/**
+ * Hands the dish and restaurant a card already has (a Home post's "Order this", a promo, a popular review) to the sheet
+ * BEFORE the page that hosts it exists: the sheet's first frame shows name, photo, price and venue at once, and fills
+ * the rest (description, kcal, reviews) when the row arrives. Call it right before navigating to `?dish=<id>`.
+ *   seedDish(item.dish, item.restaurant)   // dish { id, name, photo, price, category, available }, restaurant { id, name, slug }
+ */
+export function seedDish(dish, restaurant = null) {
+  if (!dish?.id) return
+  seeds.set(dish.id, {
+    id: dish.id,
+    name: dish.name || '',
+    description: null,
+    photo: dish.photo || null,
+    price: dish.price ?? null,
+    category: dish.category || null,
+    available: dish.available !== false,
+    restaurant_id: restaurant?.id || null,
+    restaurants: { name: restaurant?.name || '', slug: restaurant?.slug || '' },
+    seed: true,
+  })
+}
+
 /** A Search / Discover dish card (view-model) as the keys the dish sheet reads. */
 export function cardToDish(card) {
   const place = card.restaurant || {}

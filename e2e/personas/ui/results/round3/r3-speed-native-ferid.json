@@ -1,0 +1,357 @@
+{
+  "table": {
+    "runs": 5,
+    "ttfb": [
+      156.69999998807907,
+      158.60000002384186
+    ],
+    "fcp": [
+      324,
+      328
+    ],
+    "lcp": [
+      2552,
+      2900
+    ],
+    "homeFeedEnd": [
+      879.3000000119209,
+      1069.699999988079
+    ],
+    "firstCard": [
+      961.3000000119209,
+      1153.800000011921
+    ],
+    "firstCardPhoto": [
+      2327.5,
+      2692.899999976158
+    ],
+    "load": [
+      387.5,
+      406.10000002384186
+    ],
+    "cls": 0,
+    "kb": 298,
+    "jsKb": 255,
+    "imgKb": 17,
+    "requests": 27,
+    "longTasksLoad": 1,
+    "tbtLike": 29,
+    "scroll_avgFps": 60,
+    "scroll_p95FrameMs": 16.8,
+    "scroll_maxFrameMs": 16.8,
+    "scroll_over50": 0,
+    "scroll_longTasks": 0,
+    "scroll_longTaskMs": 0,
+    "search_to_trending": 56.10000002384186,
+    "search_to_rows": 0.19999998807907104,
+    "search_images_loaded": 347.7000000476837,
+    "sheet_open": 32.89999997615814,
+    "sheet_photo": 535.0999999642372,
+    "sheet_reviews": 535.0999999642372,
+    "sheet_back_close": 348,
+    "tab_friends_painted": 18.69999998807907,
+    "tab_friends_ready": 40,
+    "tab_home_painted": 30.5,
+    "tab_home_ready": 30.599999964237213,
+    "tab_friends_again_painted": 33.69999998807907,
+    "resto_title": 343.5999999642372,
+    "resto_first_dish_photo": 1214.0999999642372
+  },
+  "runs": [
+    {
+      "ttfb": 128.10000002384186,
+      "dcl": 146.4000000357628,
+      "load": 147.9000000357628,
+      "fcp": 152,
+      "lcp": 2364,
+      "cls": 0,
+      "firstCard": 840.6000000238419,
+      "firstCardPhoto": 2143.5,
+      "homeFeedEnd": 816.2000000476837,
+      "homeFeedDur": 635.7000000476837,
+      "requests": 36,
+      "kb": 35,
+      "jsKb": 0,
+      "imgKb": 34,
+      "longTasksLoad": 0,
+      "longTaskMsLoad": 0,
+      "tbtLike": 0,
+      "scroll": {
+        "frames": 265,
+        "avgFps": 52.8,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 400,
+        "over50": 2,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4256
+      },
+      "tabs": {
+        "toFriends": [
+          23.80000001192093,
+          50.700000047683716
+        ],
+        "toHome": [
+          38.59999996423721,
+          38.80000001192093
+        ],
+        "toFriendsAgain": [
+          34.5,
+          34.69999998807907
+        ]
+      },
+      "search": {
+        "toTrending": 63.40000003576279,
+        "toRows": 0.19999998807907104,
+        "toImagesLoaded": 412.0999999642372
+      },
+      "sheet": {
+        "toOpen": 33.5,
+        "toPhoto": 423.19999998807907,
+        "toReviews": 423.19999998807907,
+        "backCloseMs": 260
+      },
+      "restaurant": {
+        "toTitleMs": 424.69999998807907,
+        "toFirstDishPhoto": 1241.699999988079,
+        "path": "/restaurant/burger-qala"
+      }
+    },
+    {
+      "ttfb": 158.60000002384186,
+      "dcl": 344.4000000357628,
+      "load": 406.10000002384186,
+      "fcp": 324,
+      "lcp": 2580,
+      "cls": 0,
+      "firstCard": 961.3000000119209,
+      "firstCardPhoto": 2372.699999988079,
+      "homeFeedEnd": 823.6999999880791,
+      "homeFeedDur": 396.2999999523163,
+      "requests": 27,
+      "kb": 298,
+      "jsKb": 255,
+      "imgKb": 17,
+      "longTasksLoad": 1,
+      "longTaskMsLoad": 136,
+      "tbtLike": 86,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toFriends": [
+          15.400000035762787,
+          40
+        ],
+        "toHome": [
+          24,
+          24
+        ],
+        "toFriendsAgain": [
+          33.69999998807907,
+          33.89999997615814
+        ]
+      },
+      "search": {
+        "toTrending": 56.10000002384186,
+        "toRows": 0.10000002384185791,
+        "toImagesLoaded": 3597
+      },
+      "sheet": {
+        "toOpen": 36.299999952316284,
+        "toPhoto": 1773.1000000238419,
+        "toReviews": 1773.1000000238419,
+        "backCloseMs": 353
+      },
+      "restaurant": {
+        "toTitleMs": 343.5999999642372,
+        "toFirstDishPhoto": 1834.3999999761581,
+        "path": "/restaurant/burger-qala"
+      }
+    },
+    {
+      "ttfb": 156.69999998807907,
+      "dcl": 329.39999997615814,
+      "load": 390.89999997615814,
+      "fcp": 328,
+      "lcp": 2900,
+      "cls": 0,
+      "firstCard": 1153.800000011921,
+      "firstCardPhoto": 2692.899999976158,
+      "homeFeedEnd": 1069.699999988079,
+      "homeFeedDur": 708.8000000119209,
+      "requests": 27,
+      "kb": 298,
+      "jsKb": 255,
+      "imgKb": 17,
+      "longTasksLoad": 1,
+      "longTaskMsLoad": 82,
+      "tbtLike": 32,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toFriends": [
+          20.200000047683716,
+          35.6000000834465
+        ],
+        "toHome": [
+          30.5,
+          30.599999964237213
+        ],
+        "toFriendsAgain": [
+          33,
+          33.30000001192093
+        ]
+      },
+      "search": {
+        "toTrending": 47.799999952316284,
+        "toRows": 0.20000004768371582,
+        "toImagesLoaded": 329.7999999523163
+      },
+      "sheet": {
+        "toOpen": 25.600000023841858,
+        "toPhoto": 535.0999999642372,
+        "toReviews": 535.0999999642372,
+        "backCloseMs": 348
+      },
+      "restaurant": {
+        "toTitleMs": 341.30000001192093,
+        "toFirstDishPhoto": 1189.300000011921,
+        "path": "/restaurant/burger-qala"
+      }
+    },
+    {
+      "ttfb": 158.19999998807907,
+      "dcl": 324.5,
+      "load": 382.5,
+      "fcp": 324,
+      "lcp": 2196,
+      "cls": 0,
+      "firstCard": 988.5,
+      "firstCardPhoto": 1988,
+      "homeFeedEnd": 908,
+      "homeFeedDur": 553.1000000238419,
+      "requests": 27,
+      "kb": 298,
+      "jsKb": 255,
+      "imgKb": 17,
+      "longTasksLoad": 1,
+      "longTaskMsLoad": 79,
+      "tbtLike": 29,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.8,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toFriends": [
+          17.19999998807907,
+          46.89999997615814
+        ],
+        "toHome": [
+          31.5,
+          31.600000023841858
+        ],
+        "toFriendsAgain": [
+          33,
+          33.19999998807907
+        ]
+      },
+      "search": {
+        "toTrending": 61,
+        "toRows": 0.09999996423721313,
+        "toImagesLoaded": 347.7000000476837
+      },
+      "sheet": {
+        "toOpen": 32.89999997615814,
+        "toPhoto": 562.6999999880791,
+        "toReviews": 562.6999999880791,
+        "backCloseMs": 349
+      },
+      "restaurant": {
+        "toTitleMs": 289.5,
+        "toFirstDishPhoto": 991.2999999523163,
+        "path": "/restaurant/burger-qala"
+      }
+    },
+    {
+      "ttfb": 153.5,
+      "dcl": 263.30000001192093,
+      "load": 387.5,
+      "fcp": 264,
+      "lcp": 2552,
+      "cls": 0,
+      "firstCard": 953.6999999880791,
+      "firstCardPhoto": 2327.5,
+      "homeFeedEnd": 879.3000000119209,
+      "homeFeedDur": 588.6000000238419,
+      "requests": 27,
+      "kb": 298,
+      "jsKb": 255,
+      "imgKb": 17,
+      "longTasksLoad": 1,
+      "longTaskMsLoad": 71,
+      "tbtLike": 21,
+      "scroll": {
+        "frames": 301,
+        "avgFps": 60,
+        "p95FrameMs": 16.7,
+        "maxFrameMs": 16.8,
+        "over50": 0,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "scrolledPx": 4832
+      },
+      "tabs": {
+        "toFriends": [
+          18.69999998807907,
+          37.59999996423721
+        ],
+        "toHome": [
+          26.899999976158142,
+          27
+        ],
+        "toFriendsAgain": [
+          35.5,
+          35.69999998807907
+        ]
+      },
+      "search": {
+        "toTrending": 51,
+        "toRows": 0.20000004768371582,
+        "toImagesLoaded": 330.60000002384186
+      },
+      "sheet": {
+        "toOpen": 28.5,
+        "toPhoto": 532,
+        "toReviews": 532,
+        "backCloseMs": 348
+      },
+      "restaurant": {
+        "toTitleMs": 449.60000002384186,
+        "toFirstDishPhoto": 1214.0999999642372,
+        "path": "/restaurant/burger-qala"
+      }
+    }
+  ]
+}

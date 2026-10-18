@@ -6,7 +6,9 @@ import { useAuth } from '../../contexts/AuthContext'
 import { categoryEmoji } from '../../lib/helpers'
 import { timeShort } from '../../lib/timeShort'
 import { tap } from '../../lib/haptics'
+import { seedDish } from '../../components/dish/dishLink'
 import { patchFeedItem } from '../feed/feeds'
+import { useDishAvailable } from '../feed/dishAvailability'
 import { useRequireAuth, useToast } from '../social/hooks'
 import { setReviewLike } from '../social/api'
 import { guestName } from './names'
@@ -48,6 +50,11 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
   const busy = useRef(false)
   const popTimer = useRef(0)
   const own = variant === 'own'
+  // a card that opens the dish (Home's popular reviews) follows the dish's live availability (feed/dishAvailability polls every
+  // [data-dish-id] card on screen) and says so when it ran out
+  const orderable = !!onOpen && !!item.dish?.id
+  const liveAvailable = useDishAvailable(orderable ? item.dish.id : null, item.dish?.available ?? null)
+  const soldOut = orderable && liveAvailable === false
 
   useEffect(() => {
     setLiked(item.likedByMe)
@@ -100,6 +107,7 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
       {whereDish && <span className="rv-where-dish">{whereDish}</span>}
       {whereDish && wherePlace && <span className="rv-where-sep" aria-hidden="true"> · </span>}
       {wherePlace && <span className="rv-where-place">{wherePlace}</span>}
+      {soldOut && <span className="rv-where-sold">{t('soldOut')}</span>}
     </>
   ) : null
 
@@ -116,7 +124,10 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
   const verified = item.verified ? <VerifiedGlyph label={t('verified')} /> : null
 
   return (
-    <article className={`rv rv--${variant}${kicker ? ' has-kicker' : ''}${onOpen ? ' is-open-able' : ''}`} onClick={onCardClick}>
+    <article
+      className={`rv rv--${variant}${kicker ? ' has-kicker' : ''}${onOpen ? ' is-open-able' : ''}`} onClick={onCardClick}
+      data-dish-id={orderable ? item.dish.id : undefined}
+    >
       {kicker && (
         <p className="rv-kicker">{t('popular')}{reason ? ` ${reason}` : ''}</p>
       )}
@@ -137,11 +148,10 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
         <div className="rv-l1">
           {own ? (
             dishHref
-              ? <Link to={dishHref} className="rv-name">{dish?.name || place?.name}</Link>
+              ? <Link to={dishHref} className="rv-name rv-name--link">{dish?.name || place?.name}</Link>
               : <span className="rv-name">{dish?.name || place?.name}</span>
-          ) : item.user.id ? (
-            <Link to={`/u/${item.user.id}`} className="rv-name">{personName}</Link>
           ) : (
+            // not a link: the avatar next to it is the 44 px target to the profile (a second, 20 px high link would not be one)
             <span className="rv-name">{personName}</span>
           )}
           {verified}
@@ -154,7 +164,7 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
         <div className="rv-rest">
           <div className="rv-text">
             {whereNode && (dishHref
-              ? <Link to={dishHref} className="rv-where">{whereNode}</Link>
+              ? <Link to={dishHref} className="rv-where" onClick={() => seedDish(dish, place)}>{whereNode}</Link>
               : <span className="rv-where">{whereNode}</span>)}
             {item.text && <Body text={item.text} />}
             {showActions && (

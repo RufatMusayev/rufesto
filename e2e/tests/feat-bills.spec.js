@@ -4,6 +4,7 @@
 // serving over the API where that is not the thing under test, table reset in `finally`. App bugs stay failing tests (docs/qa/consumer-table.md).
 const F = require('../support/feat-table')
 const R = require('../support/restaurant')
+const U = require('../support/ux')
 const { test, expect, url, rurl, money } = F
 
 test.skip(!F.haveAccounts, 'docs/REVIEW-ACCOUNTS.md must list review1-3 and the Bella Roma manager / waiter1 / kitchen accounts')
@@ -242,7 +243,7 @@ test.describe('bills: paying', TAGS, () => {
       const picker = page.getByRole('radiogroup', { name: 'Who gets the tip?' })
       await picker.getByRole('radio').nth(1).click()   // the second waiter of the list, explicitly
       await page.getByRole('button', { name: /^Pay ₼/ }).click()
-      const sheet = page.getByRole('dialog').or(page.locator('.sheet')).last()
+      const sheet = U.sheet(page)   // the demo pay sheet is a BottomSheet (role=dialog)
       await expect(sheet.getByText('DEMO CARD •••• 4242')).toBeVisible()
       await expect(sheet.getByText('DEMO', { exact: true }).first()).toBeVisible()
       await expect(sheet).toContainText(`Your share${money(bill.modes.own)}`)
@@ -460,12 +461,11 @@ test.describe('bills: after paying', TAGS, () => {
         expect(row).toMatchObject({ rating: 4, body: text, is_verified: true })
 
         await R.gotoMenu(page, 'bella-roma')
-        await R.rowOpen(R.dishRow(page, dish.name).first()).click()
-        const sheet = page.locator('.sheet')
-        const body = sheet.getByText(text)
-        await expect(body, 'the review is listed on the dish').toBeVisible()
-        // other reviews of the dish can carry the pill too: look at the header row (previous sibling) of THIS review
-        await expect(body.locator('xpath=preceding-sibling::div[1]').getByText(/verified/i), 'the restaurant page marks the review as a verified visit').toBeVisible({ timeout: 3_000 })
+        await R.rowOpen(R.byId(page, dish.id)).click()   // by id: a name can also appear in another row's description ("espresso" in the Tiramisù text)
+        const mine = U.sheet(page).locator('article.rv').filter({ hasText: text })
+        await expect(mine, 'the review is listed on the dish').toBeVisible()
+        // the compact row marks a verified visit with a check icon (aria-label), not a pill; other reviews of the dish carry it too: look inside THIS row
+        await expect(mine.locator('[aria-label="Verified visit"]').first(), 'the restaurant page marks the review as a verified visit').toBeVisible({ timeout: 3_000 })
       } finally { await g1.del(`reviews?user_id=eq.${g1.uid}&dish_id=eq.${dish.id}`) }   // meant to keep the dish reviewable; since sql/52 a guest has no DELETE on reviews (403), so every run uses up one dish of review1 (23 at Bella Roma, the test skips when none is left)
     })
   })

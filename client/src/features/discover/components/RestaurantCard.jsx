@@ -18,7 +18,7 @@ export default function RestaurantCard({ r }) {
   const body = (
     <>
       <span className="dsc-photo">
-        <CoverImage sources={restaurantSources(r)} name={r.name} />
+        <CoverImage sources={restaurantSources(r)} name={r.name} size={[136, 85]} />
         {r.isNew && <span className="dsc-new">{t('search:newTag')}</span>}
       </span>
       <span className="dsc-pc-name">{r.name}</span>

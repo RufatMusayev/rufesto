@@ -15,6 +15,7 @@
   "popular": "Popular review",
   "popularLikes_one": "· {{count}} like",
   "popularLikes_other": "· {{count}} likes",
+  "soldOut": "Sold out",
   "popularTop": "· Top reviewer",
 
   "sectionTitle": "Reviews",

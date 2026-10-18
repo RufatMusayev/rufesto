@@ -1,0 +1,61 @@
+{
+  "sabuncu_icon_before": {
+    "label": "Use my location for nearby",
+    "pressed": "false"
+  },
+  "sabuncu_icon_ms": 2418,
+  "sabuncu_icon_after": {
+    "label": "Showing places near you",
+    "pressed": "true"
+  },
+  "sabuncu_nearby_text": [
+    "Nearby: places within 12 km",
+    "11 km",
+    "7.8 km"
+  ],
+  "sabuncu_home_km_on_cards": [
+    "11 km",
+    "11 km"
+  ],
+  "sabuncu_radius": 12,
+  "sabuncu_search_headings": [
+    "Search",
+    "Popular",
+    "Cuisines",
+    "Trending dishes",
+    "Top reviews",
+    "All places"
+  ],
+  "sabuncu_search_places": "All places",
+  "sabuncu_search_nearby_label": [],
+  "fountains_icon_before": {
+    "label": "Use my location for nearby",
+    "pressed": "false"
+  },
+  "fountains_icon_ms": 2442,
+  "fountains_icon_after": {
+    "label": "Showing places near you",
+    "pressed": "true"
+  },
+  "fountains_nearby_text": [
+    "Nearby: places within 3 km",
+    "1.1 km",
+    "0.5 km",
+    "1.3 km"
+  ],
+  "fountains_home_km_on_cards": [
+    "1.1 km",
+    "0.5 km"
+  ],
+  "fountains_radius": 3,
+  "fountains_search_headings": [
+    "Search",
+    "Popular",
+    "Cuisines",
+    "Trending dishes",
+    "Top reviews",
+    "All places"
+  ],
+  "fountains_search_places": "All places",
+  "fountains_search_nearby_label": []
+}

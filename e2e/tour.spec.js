@@ -245,7 +245,7 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await expect(sheet.getByRole('button', { name: /^Table T\d+/ }).first()).toBeVisible()
         await shot(g, '04b-floor-plan', { full: false })   // the floor plan is an overlay
         await g.getByRole('button', { name: 'Close' }).click()
-        await expect(g.locator('.overlay')).toHaveCount(0)
+        await expect(g.locator('.bs-root')).toHaveCount(0)   // the floor plan is a BottomSheet (UX round)
       })
 
       // ---- group booking wizard (merged flow: step 1 date + party + slot, step 2 "Who's coming?", step 3 confirm)
@@ -448,11 +448,11 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await shot(g, '15-receipt')
       })
 
-      await test.step('16-profile-bookings', async () => {
+      await test.step('16-profile-bookings', async () => {   // Bookings is no Profile tab any more: upcoming bookings sit on top of Visits
         await g.goto(url('/profile'))
-        await g.getByRole('tab', { name: 'Bookings', exact: true }).click()
-        await expect(g.getByRole('tab', { name: 'Bookings', exact: true })).toHaveAttribute('aria-selected', 'true')
-        await expect(g.locator('a.bk-row').first()).toBeVisible()
+        await g.getByRole('tab', { name: 'Visits', exact: true }).click()
+        await expect(g.getByRole('tab', { name: 'Visits', exact: true })).toHaveAttribute('aria-selected', 'true')
+        await expect(g.locator('a.pf-card[href^="/bookings/"]').first()).toBeVisible()
         await shot(g, '16-profile-bookings')
       })
 
@@ -469,6 +469,46 @@ test.describe('v2 tour', { tag: ['@tour'] }, () => {
         await shot(g, '16c-profile-settings-sheet', { full: false })   // the settings sheet is an overlay
         await g.getByRole('button', { name: 'Close' }).click()
         await expect(g.getByRole('dialog')).toHaveCount(0)
+      })
+
+      // ---- the UX round's screens (docs/UX-PLAN-2026-10-18.md): Search with the former Discover content, results, Filters sheet, the new dish sheet, the inbox
+      await soft('16d-search-zero-state', async () => {
+        await g.goto(url('/explore'))
+        await expect(g.locator('.sr-zero h2.dsc-h').first()).toBeVisible({ timeout: 25_000 })
+        await expect(g.locator('.sr-zero a.sr-row').first()).toBeVisible()
+        await shot(g, '16d-search-zero-state')
+      })
+
+      await soft('16e-search-results', async () => {
+        await g.getByRole('searchbox').fill('doner')
+        await expect(g.locator('.sr-results .sr-row').first()).toBeVisible()
+        await shot(g, '16e-search-results', { full: false })
+      })
+
+      await soft('16f-search-filters-sheet', async () => {
+        await g.getByRole('button', { name: 'Cancel' }).click({ timeout: 2_000 }).catch(() => {})
+        await g.getByRole('button', { name: /^Filters/ }).click()
+        await expect(g.locator('.bs-root:has(.sr-fs)[data-state="open"] .bs-panel')).toBeVisible()
+        await g.waitForTimeout(500)
+        await shot(g, '16f-search-filters-sheet', { full: false })
+        await g.keyboard.press('Escape')
+        await expect(g.locator('.bs-root')).toHaveCount(0)
+      })
+
+      await soft('16g-dish-sheet', async () => {
+        await R.gotoMenu(g, 'bella-roma')
+        await R.rowButtons(g).first().click()
+        await expect(g.locator('.bs-root.dds-root[data-state="open"] .dds-name')).toBeVisible()
+        await g.waitForTimeout(600)
+        await shot(g, '16g-dish-sheet', { full: false })
+        await g.keyboard.press('Escape')
+        await expect(g.locator('.bs-root')).toHaveCount(0)
+      })
+
+      await soft('16h-notifications', async () => {
+        await g.goto(url('/notifications'))
+        await expect(g.locator('li.ntf-li, .ntf-empty').first()).toBeVisible()
+        await shot(g, '16h-notifications')
       })
 
       await soft('20b-bills-paid', async () => {   // extra: the same bill on the dashboard once settled

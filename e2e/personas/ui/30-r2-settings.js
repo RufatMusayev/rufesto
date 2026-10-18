@@ -35,11 +35,11 @@ const flat = async (p, sel) => (await C.text(p, sel)).split('\n').join(' | ')
   console.log('manifest link:', await lp.evaluate(() => document.querySelector('link[rel=manifest]')?.href || 'none'))
   // chime switch persistence (panel)
   await lp.goto(C.RESTO + '/'); await lp.getByRole('button', { name: /^Notifications/ }).first().click(); await lp.locator('.notif-panel').waitFor()
-  const chime = lp.locator('.notif-panel').getByRole('switch'); const c0 = await chime.getAttribute('aria-checked')
+  const chime = lp.locator('.notif-panel').getByRole('button', { name: /Sound for waiter calls/ }); const c0 = await chime.getAttribute('aria-pressed')
   await chime.click(); await lp.waitForTimeout(300)
   await lp.reload(); await lp.getByRole('button', { name: /^Notifications/ }).first().click(); await lp.locator('.notif-panel').waitFor()
-  console.log('chime switch: before', c0, '-> after click + reload', await lp.locator('.notif-panel').getByRole('switch').getAttribute('aria-checked'))
-  await lp.locator('.notif-panel').getByRole('switch').click()   // back to the original state
+  console.log('chime button: before', c0, '-> after click + reload', await lp.locator('.notif-panel').getByRole('button', { name: /Sound for waiter calls/ }).getAttribute('aria-pressed'))
+  await lp.locator('.notif-panel').getByRole('button', { name: /Sound for waiter calls/ }).click()   // back to the original state
 
   // ---- Azerbaijani settings day names
   const A = await C.open(browser, 'leyla', { who: 'Leyla', lang: 'az', sink })

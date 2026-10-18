@@ -1,0 +1,98 @@
+// Round 3, part 10: round-2 open items: grouped bell badge (N2), stale food-ready / join taps (N3, N4), QR manual entry (N7),
+// cart after reload and Join timing (m11), Visits vs receipt (m10), Friends own-item share (m2), dashboard Overview icons (m6/N9).
+const L = require('./aysel-r3-lib')
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const note = (k, v) => L.log('  >>', k, v)
+async function friendLike(b, name, text) {
+  const F = await L.phone(b, name, { storage: { rufesto_home_tab: 'friends' } })
+  try {
+    await F.page.goto(L.CONSUMER + '/'); await F.page.waitForSelector('article', { timeout: 30000 }); await sleep(1500)
+    const post = F.page.locator('article').filter({ hasText: text }).first()
+    await post.scrollIntoViewIfNeeded()
+    await post.getByRole('button', { name: 'Like', exact: true }).click(); await sleep(700)
+  } catch (e) { L.log(name, 'FAILED', String(e.message).split('\n')[0]) }
+  await F.ctx.close()
+}
+;(async () => {
+  const b = await L.launch()
+  const api = await L.api('Aysel Məmmədova')
+  await L.step('N2: three friends like her new post -> bell counts the group once', async () => {
+    const A = await L.phone(b, 'Aysel Məmmədova')
+    await A.page.goto(L.CONSUMER + '/'); await A.page.waitForSelector('article'); await sleep(2000)
+    const bell = () => A.page.evaluate(() => { const e = document.querySelector('[aria-label*="otification" i]'); return e ? ((e.getAttribute('aria-label') || '') + ' | ' + (e.innerText || '').trim()) : null })
+    note('bell before', await bell())
+    for (const n of ['Könül Həsənova', 'Səbinə İbrahimova', 'Nicat Əliyev']) await friendLike(b, n, 'Third visit this week')
+    await sleep(2500)
+    note('bell after 3 likes on one post', await bell())
+    await A.page.locator('[aria-label*="otification" i]').first().click(); await A.page.waitForSelector('li.ntf-li'); await sleep(2500)
+    note('sections', JSON.stringify(await A.page.evaluate(() => [...document.querySelectorAll('h2, h3')].map(e => e.innerText.trim()).filter(t => t.length < 20))))
+    note('top 3 rows', JSON.stringify(await A.page.evaluate(() => [...document.querySelectorAll('li.ntf-li')].slice(0, 3).map(li => li.innerText.replace(/\n+/g, ' | ')))))
+    await L.shot(A.page, '14-inbox-grouped-likes')
+    await A.ctx.close()
+  })
+  await L.step('N3/N4: stale items', async () => {
+    const A = await L.phone(b, 'Aysel Məmmədova')
+    await A.page.goto(L.CONSUMER + '/notifications'); await A.page.waitForSelector('li.ntf-li'); await sleep(2200)
+    const tap = async (re, label) => {
+      await A.page.goto(L.CONSUMER + '/notifications'); await A.page.waitForSelector('li.ntf-li'); await sleep(1500)
+      const li = A.page.locator('li.ntf-li').filter({ hasText: re }).last()
+      if (!(await li.count())) { note(label, 'no such item'); return }
+      await li.click(); await sleep(2000)
+      note(label, A.page.url().replace(L.CONSUMER, '') + ' | ' + (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 120))
+    }
+    await tap(/your food is ready/, 'old "food is ready" (table session over)')
+    await tap(/join your table/, 'old "wants to join your table"')
+    await tap(/is paid/, 'old "bill is paid"')
+    await A.ctx.close()
+  })
+  await L.step('N7 + m11: QR sheet manual entry, join timing, cart after reload', async () => {
+    const mgr = await L.api('Səid Əhmədov')
+    const tables = await mgr.get('tables?restaurant_id=eq.' + L.FINCAN + '&select=id,table_number'); const codes = await mgr.get('table_access_codes?restaurant_id=eq.' + L.FINCAN + '&select=table_id,access_code')
+    const code = codes.find(c => c.table_id === tables.find(t => t.table_number === 'T2').id).access_code
+    const A = await L.phone(b, 'Aysel Məmmədova')
+    await A.page.goto(L.CONSUMER + '/'); await A.page.waitForSelector('article'); await sleep(1200)
+    await A.page.getByRole('button', { name: /Scan QR/i }).click(); await sleep(1500)
+    await L.shot(A.page, '14-qr-sheet')
+    note('QR sheet text', (await A.page.evaluate(() => (document.querySelector('.bs-panel')?.innerText || '(no sheet)'))).replace(/\n+/g, ' | ').slice(0, 220))
+    await A.page.getByRole('button', { name: 'Enter code manually' }).click(); await sleep(500)
+    const input = A.page.locator('.bs-panel input').first()
+    note('manual field placeholder', await input.getAttribute('placeholder'))
+    await input.fill(code)
+    const t0 = Date.now(); await A.page.getByRole('button', { name: /Find Table|Join/i }).first().click()
+    await A.page.waitForFunction(() => /\/table/.test(location.pathname), null, { timeout: 15000 }).catch(() => {})
+    note('landed', A.page.url().replace(L.CONSUMER, '') + ' after ' + (Date.now() - t0) + ' ms (is there a "Join this table?" confirmation? ' + /Join this table/.test(await A.page.evaluate(() => document.body.innerText)) + ')')
+    await A.page.waitForFunction(() => /Your Table/.test(document.body.innerText), null, { timeout: 20000 }).catch(() => {})
+    note('table page content visible after the tap', (Date.now() - t0) + ' ms')
+    await A.page.goto(L.CONSUMER + '/restaurant/fincan-coffee'); await sleep(3000)
+    const row = A.page.locator('.mn-row').filter({ hasText: 'Flat White' }).first()
+    await row.scrollIntoViewIfNeeded(); await row.locator('.mn-add').click(); await sleep(900)
+    note('fab before reload', JSON.stringify(await A.page.evaluate(() => document.querySelector('.cart-fab')?.innerText)))
+    await A.page.reload(); await sleep(3000)
+    note('fab after reload', JSON.stringify(await A.page.evaluate(() => document.querySelector('.cart-fab')?.innerText)))
+    await A.page.goto(L.CONSUMER + '/table'); await sleep(2200)
+    await A.page.getByRole('button', { name: 'End Session' }).click(); await sleep(1500)
+    note('after End Session', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(0, 110))
+    await A.ctx.close()
+  })
+  await L.step('m10: Visits rows vs the receipt', async () => {
+    const A = await L.phone(b, 'Aysel Məmmədova')
+    await A.page.goto(L.CONSUMER + '/profile'); await sleep(2200)
+    await A.page.getByRole('tab', { name: /Visits/ }).or(A.page.getByRole('button', { name: /Visits/ })).first().click(); await sleep(1800)
+    await L.shot(A.page, '14-visits')
+    note('Visits tab', (await A.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').slice(110, 520))
+    await A.ctx.close()
+  })
+  await L.step('m2: Friends feed own share (first 10 / 20)', async () => {
+    const f = await api.rpc('friends_feed', { p_exclude: [], p_limit: 20 })
+    const items = f.items || []
+    note('own items in the first 10 / 20', items.slice(0, 10).filter(i => i.is_mine || i.why === 'own').length + ' / ' + items.filter(i => i.is_mine || i.why === 'own').length + ' of ' + items.length)
+  })
+  await L.step('m6/N9: dashboard Overview', async () => {
+    const M = await L.desk(b, 'Səid Əhmədov')
+    await M.page.goto(L.RESTO + '/'); await M.page.waitForTimeout(3500)
+    await L.shot(M.page, '14-overview')
+    note('recent orders', (await M.page.evaluate(() => document.body.innerText)).replace(/\n+/g, ' | ').match(/RECENT ORDERS.{0,260}/)?.[0])
+    await M.ctx.close()
+  })
+  await b.close()
+})().catch(e => { console.error(e); process.exit(1) })

@@ -1,4 +1,4 @@
-// Consumer Home feed: tabs Home | Friends | Discover, the ranked Home tab (home_feed), restaurant posts as cards, location pill,
+// Consumer Home feed: tabs For you | Friends (Discover moved into the Search tab, UX round 2026-10-18), the ranked For you tab (home_feed), restaurant posts as cards, location pill,
 // feed events, promo slot. Contract: docs/V2-CONTRACT.md section 17 (sql/58_feed_schema, 59_home_feed, 59b_feed_events).
 // UI: client/src/features/feed/*, client/src/features/social/components/{HomeTabs,FeedTab,PostCard,RestaurantPostParts}.jsx,
 // texts from client/src/locales/en/social.json.
@@ -7,7 +7,8 @@
 // photo. Sakura only, never Trattoria Bella Roma. Signed in = the QA guest (QA_GUEST_* in e2e/.env). All sign-ins go through
 // the Supabase auth API. Tolerant of other data: only these two posts are asserted by name, never totals.
 // Paging is automatic (a marker 3 cards from the end loads the next page): the tests scroll, they never click "Load more".
-// Friends (friends_feed) has its own spec, tests/feat-friends-feed.spec.js; Discover is in tests/feat-discovery.spec.js.
+// Friends (friends_feed) has its own spec, tests/feat-friends-feed.spec.js; the former Discover (now Search) is in tests/feat-discovery.spec.js; popular reviews in
+// the feed (slots 4 / 11 / 18, promos at 7 / 15) are in tests/ux-home-popular.spec.js.
 // Runs in the desktop and the mobile project (the mobile project needs it in CONSUMER_SPECS, playwright.config.js).
 const crypto = require('crypto')
 const { test, expect, settle } = require('../support/fixtures')
@@ -15,6 +16,7 @@ const S = require('../support/feat-social')
 const FF = require('../support/feat-feed')
 const { creds } = require('../support/env')
 const { walker } = require('../support/mobile')
+const U = require('../support/ux')
 
 const { url } = S
 const TAG = 'qa-home'
@@ -52,10 +54,11 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
 
   // ================================================================================================ signed out
   test.describe('signed out', () => {
-    test('Home is the default tab: ranked items, no sign-in card, no coordinates sent, no console errors', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page, watch }) => {
+    test('For you is the default tab: ranked items, no sign-in card, no coordinates sent, no console errors', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page, watch }) => {
       const { body } = await openHome(page)
-      await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true')
-      for (const name of ['Friends', 'Discover']) await expect(tab(page, name)).toHaveAttribute('aria-selected', 'false')
+      await expect(tab(page, 'For you')).toHaveAttribute('aria-selected', 'true')
+      await expect(tab(page, 'Friends')).toHaveAttribute('aria-selected', 'false')
+      await expect(tab(page, 'Discover'), 'Discover is not a Home tab any more').toHaveCount(0)
       expect(body).toMatchObject({ p_exclude: [], p_limit: 20 })
       expect(body, 'no automatic location prompt: the first load has no GPS').not.toHaveProperty('p_lat')
       await expect(page.locator('.soc-signin'), 'reading Home needs no sign-in').toBeHidden()
@@ -78,8 +81,8 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
         const strip = card.locator('.soc-dish')
         await expect(strip).toContainText(fx.dish.name)
         await expect(strip.locator('.soc-dish-price')).toContainText(/\d/)
-        // with a photo the live pill sits over the photo (PhotoChips), without one it is in the strip: look on the whole card
-        await expect(card.getByText('Available now', { exact: true })).toBeVisible()
+        // an available dish carries no "Available now" pill any more (UX round: only "Sold out" is shown as the exception)
+        await expect(card.getByText('Available now', { exact: true })).toHaveCount(0)
         await expect(strip.getByRole('link', { name: 'Order this' })).toHaveAttribute('href', `${path}?dish=${fx.dish.id}&src=post:${fx.a.id}`)
       }
       if (fx.soldOut) {
@@ -89,10 +92,10 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
         await expect(strip.getByRole('link', { name: 'Order this' }), 'a sold-out dish can still be opened').toBeVisible()
       }
       await card.getByRole('button', { name: 'Like', exact: true }).click()
-      await expect(page.locator('.overlay.center'), 'like asks a signed-out viewer to sign in').toBeVisible()
+      await expect(U.authSheet(page), 'like asks a signed-out viewer to sign in').toBeVisible()
     }))
 
-    test('Friends shows the sign-in card (no All / Friends chips), Discover keeps the restaurant list, the tab is remembered', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
+    test('Friends shows the sign-in card (no All / Friends chips), the tab is remembered, an old Discover tab goes to Search', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
       await page.goto(url('/'))
       await tab(page, 'Friends').click()
       await expect(tab(page, 'Friends')).toHaveAttribute('aria-selected', 'true')
@@ -100,16 +103,17 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await expect(page.getByText('Posts from you and your friends show up here, newest first.')).toBeVisible()
       await expect(tab(page, 'All'), 'the old scope chips are gone').toHaveCount(0)
       await page.locator('.soc-signin').getByRole('button', { name: 'Sign in' }).click()
-      await expect(page.locator('.overlay.center')).toBeVisible()
+      await expect(U.authSheet(page)).toBeVisible()
       await page.reload()
       await expect(tab(page, 'Friends'), 'the last tab is remembered').toHaveAttribute('aria-selected', 'true')
-      await tab(page, 'Discover').click()
-      await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 }), 'Discover renders its sections').toBeVisible()
-      for (const [stored, want] of [['feed', 'Friends'], ['bogus', 'Home']]) {   // the old two-tab build stored 'feed'
+      for (const [stored, want] of [['feed', 'Friends'], ['bogus', 'For you']]) {   // the old two-tab build stored 'feed'
         await page.evaluate(v => localStorage.setItem('rufesto_home_tab', v), stored)
         await page.reload()
         await expect(tab(page, want), `remembered tab "${stored}"`).toHaveAttribute('aria-selected', 'true')
       }
+      await page.evaluate(() => localStorage.setItem('rufesto_home_tab', 'discover'))   // the build before the UX round had a third tab
+      await page.goto(url('/'))
+      await expect(page, 'a remembered Discover tab lands on Search').toHaveURL(url('/explore'))
     }))
 
     test('scrolling to the end pages by itself (no Load more) and reaches "You\'re all caught up": no repeats, both posts listed, no chronological tail', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
@@ -117,15 +121,15 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await openHome(page)
       const clicks = await pageUntil(page, null)
       await expect(caughtUp(page)).toBeVisible()
-      await expect(page.getByText("Browse every restaurant in Discover, or sign in to see your friends' posts.")).toBeVisible()
+      await expect(page.getByText("Find every restaurant in Search, or sign in to see your friends' posts.")).toBeVisible()
       await expect(loadMore(page)).toHaveCount(0)
       await expect(page.locator('section.soc-caught ~ article'), 'a signed-out viewer gets no tail below the end').toHaveCount(0)
       const links = await hrefsOf(commentLinks(page))
       expect(new Set(links).size, 'no post is shown twice').toBe(links.length)
       for (const p of [fx.a, fx.b]) expect(links, `post ${p.id} is on Home`).toContain(`/post/${p.id}`)
       testInfo.annotations.push({ type: 'home-pages', description: `${clicks} scroll rounds, ${links.length} posts` })
-      await page.getByRole('button', { name: 'Open Discover' }).click()
-      await expect(tab(page, 'Discover')).toHaveAttribute('aria-selected', 'true')
+      await page.getByRole('button', { name: 'Explore places' }).click()
+      await expect(page, 'the way out of the end of the list is the Search tab').toHaveURL(url('/explore'))
     }))
 
     test('impressions go out with an anon_key and the call succeeds', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
@@ -138,7 +142,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       const key = await page.evaluate(() => localStorage.getItem('rufesto_feed_anon'))
       for (const e of events) {
         expect(e.item_id).toMatch(FF.UUID)
-        expect(['post', 'promo']).toContain(e.item_type)
+        expect(['post', 'promo', 'review']).toContain(e.item_type)   // 'review' = a popular review (sql/67)
         expect(KINDS).toContain(e.event)
         expect(e.anon_key).toBe(key)
       }
@@ -176,16 +180,17 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await expect(slots(page).first()).toBeVisible()
     }))
 
-    test('promo slot: an active ad campaign shows as a Sponsored card at position 5', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
+    test('promo slot: an active ad campaign shows as a Sponsored card at position 7 (and 15): two promos per page, not four', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
       const { supa } = await openHome(page)
       const camps = (await anonRpc(page.request, supa, 'public_ad_campaigns')).data
       const live = (Array.isArray(camps) ? camps : []).filter(c => !c.dishes || c.dishes.available)
       test.skip(live.length === 0, 'no active ad_campaign with an available dish on this database')
-      test.skip(await slots(page).count() < 5, 'fewer than 5 ranked items: no promo slot yet')
-      const promo = slots(page).nth(4)   // slots 5, 10, 15, 20 (1-based) are promo slots; signed out without GPS every active promo qualifies
+      test.skip(await slots(page).count() < 7, 'fewer than 7 ranked items: no promo slot yet')
+      const promo = slots(page).nth(6)   // slots 7 and 15 (1-based) are the promo slots since sql/67 (they were 5 / 10 / 15 / 20); signed out without GPS every active promo qualifies
       await expect(promo.getByText('Sponsored', { exact: true })).toBeVisible()
       const text = await promo.innerText()
       expect(live.some(c => text.includes(c.restaurants.name)), 'the promo is one of the active campaigns').toBe(true)
+      for (const i of [4, 9]) await expect(slots(page).nth(i).getByText('Sponsored', { exact: true }), `slot ${i + 1} is no promo slot any more`).toHaveCount(0)
     }))
 
     test('home_feed and home_feed_new_count contract through the public API: mixes, radius, limits, errors, no direct feed_events read', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page }) => {
@@ -193,16 +198,16 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       const feed = args => anonRpc(page.request, supa, 'home_feed', args)
       const plain = await feed({ p_exclude: [], p_limit: 5 })
       expect(plain.ok).toBe(true)
-      expect(plain.data).toMatchObject({ mix: { nearby: 0, following: 0, discover: 10 }, radius_km: null, caught_up: false })
+      expect(plain.data).toMatchObject({ mix: { nearby: 0, following: 0, discover: 10 }, radius_km: null, caught_up: false })   // + mix.popular (sql/67)
       expect(plain.data.items.length).toBeLessThanOrEqual(5)
-      plain.data.items.forEach((it, i) => expect(it).toMatchObject({ position: i + 1, pool: expect.stringMatching(/^(discover|promo)$/) }))
+      plain.data.items.forEach((it, i) => expect(it).toMatchObject({ position: i + 1, pool: expect.stringMatching(/^(discover|promo|popular)$/) }))
       const ids = plain.data.items.map(i => i.id)
       expect(plain.data.exclude).toEqual(expect.arrayContaining(ids))
       const second = await feed({ p_exclude: plain.data.exclude, p_limit: 5 })
       expect(second.data.items.map(i => i.id).filter(id => ids.includes(id)), 'a page never repeats the excluded ids').toEqual([])
 
       const gps = await feed({ p_lat: BAKU.latitude, p_lng: BAKU.longitude, p_exclude: [], p_limit: 10 })
-      expect(gps.data.mix).toEqual({ nearby: 7, following: 0, discover: 3 })
+      expect(gps.data.mix).toMatchObject({ nearby: 7, following: 0, discover: 3 })   // + popular
       expect([3, 6, 12, 50]).toContain(Number(gps.data.radius_km))
 
       for (const [args, message] of [
@@ -228,14 +233,14 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       expect(direct.ok() ? await direct.json() : [], 'feed_events is not readable by clients').toEqual([])
     }))
 
-    test('Home fits the phone: no horizontal overflow, tabs and pill on screen, Friends and Discover too', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page, watch }) => {
+    test('Home fits the phone: no horizontal overflow, tabs and pin on screen, Friends too', async ({ browser }, testInfo) => asAnon(browser, testInfo, async ({ page, watch }) => {
       const w = walker(page, watch, testInfo)
       await openHome(page)
       await w.check('Home')
       const size = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
       expect(size.sw, 'document scrollWidth <= innerWidth').toBeLessThanOrEqual(size.iw)
       const phone = S.isPhone(page)
-      for (const name of ['Home', 'Friends', 'Discover']) {
+      for (const name of ['For you', 'Friends']) {
         await expect(tab(page, name)).toBeVisible()
         const box = await tab(page, name).boundingBox()
         expect(box.x, `${name} tab left edge`).toBeGreaterThanOrEqual(0)
@@ -247,9 +252,10 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await w.scrollThrough('Home')
       await tab(page, 'Friends').click()
       await w.check('Friends, signed out')
-      await tab(page, 'Discover').click()
-      await expect(page.getByRole('heading', { name: 'All restaurants', level: 2 })).toBeVisible()
-      await w.check('Discover')
+      await page.goto(url('/explore'))
+      await expect(page.getByRole('heading', { name: 'All places', level: 2 })).toBeVisible()
+      await w.check('Search')
+      await w.scrollThrough('Search')
     }))
   })
 
@@ -257,9 +263,9 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
   test.describe('signed in', () => {
     test.skip(!creds.guest, 'QA_GUEST_EMAIL / QA_GUEST_PASSWORD not set in e2e/.env')
 
-    test('Home loads, shows no sign-in card; Friends is a feed or an empty state without restaurant posts', async ({ browser }, testInfo) => asGuest(browser, testInfo, async ({ page, watch }) => {
+    test('For you loads, shows no sign-in card; Friends is a feed or an empty state without restaurant posts', async ({ browser }, testInfo) => asGuest(browser, testInfo, async ({ page, watch }) => {
       await openHome(page)
-      await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true')
+      await expect(tab(page, 'For you')).toHaveAttribute('aria-selected', 'true')
       await expect(page.locator('.soc-signin')).toBeHidden()
       await tab(page, 'Friends').click()
       await expect(page.locator('.soc-signin'), 'a signed-in viewer does not get the sign-in card').toBeHidden()
@@ -276,7 +282,7 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       await pageUntil(page, null)
       await expect(caughtUp(page)).toBeVisible()
       await expect(page.getByText("You've seen the latest. More from everyone, newest first:")).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Open Discover' }), 'the tail replaces the Discover shortcut').toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Explore places' }), 'the tail replaces the Search shortcut').toHaveCount(0)
       await expect(page.locator('section.soc-caught ~ [aria-busy="true"]')).toHaveCount(0)
       const ranked = await hrefsOf(commentLinks(page))
       expect(new Set(ranked).size, 'no post is shown twice').toBe(ranked.length)
@@ -294,15 +300,15 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       const u = new URL(page.url())
       expect(u.searchParams.get('dish')).toBe(fx.dish.id)
       expect(u.searchParams.get('src')).toBe(`post:${fx.a.id}`)
-      const sheet = page.locator('.overlay .sheet').last()
+      const sheet = U.sheet(page)
       await expect(sheet).toBeVisible()
-      await expect(sheet).toContainText(fx.dish.name)
+      await expect(sheet.locator('.dds-name')).toHaveText(fx.dish.name)
       const ev = bodyOf(await tapped).p_events.find(e => e.event === 'order_tap')
       expect(ev).toMatchObject({ item_type: 'post', item_id: fx.a.id })
       expect(['nearby', 'following', 'discover']).toContain(ev.pool)
       expect(Number.isInteger(ev.position) && ev.position > 0).toBe(true)
       await page.keyboard.press('Escape')
-      await expect(page.locator('.overlay')).toHaveCount(0)
+      await U.noSheet(page)
     }))
 
     test('like toggles on a restaurant post and the like count follows (card and server), logging a like event', async ({ browser }, testInfo) => asGuest(browser, testInfo, async ({ page, context, auth }) => {

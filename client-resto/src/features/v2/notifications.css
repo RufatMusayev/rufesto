@@ -25,7 +25,7 @@
   font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--notif-ring);
 }
 .notif-bell--head .notif-badge { top: 3px; right: 3px; }
-.notif-head-right { display: flex; align-items: center; gap: 0.35rem; margin-right: -0.5rem; }
+.notif-head-right { display: flex; align-items: center; flex-shrink: 0; gap: 0.35rem; margin-right: -0.5rem; }
 .notif-head-live { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--green); }
 
 /* tablet rail (60px): the restaurant badge and the bell stack */

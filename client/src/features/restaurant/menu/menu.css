@@ -150,14 +150,18 @@
 .mn-row.is-sold .mn-price, .mn-row.is-sold .mn-desc { color: var(--mn-ink-2); opacity: 0.8; }
 .mn-row.is-sold .mn-thumb { opacity: 0.5; filter: grayscale(0.6); }
 
-.mn-add {
-  position: relative; display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; margin-top: 10px;
-  border-radius: 50%; cursor: pointer; color: var(--mn-accent); background: var(--mn-tint); border: 1.5px solid var(--mn-accent);
-  transition: transform 120ms var(--ease-out), background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+.mn-add {                                                                        /* a 44 px button around a 36 px ring */
+  position: relative; display: flex; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin-top: 6px; padding: 0;
+  border: 0; background: none; cursor: pointer; color: var(--mn-accent);
+  transition: transform 120ms var(--ease-out), color 120ms var(--ease-out);
 }
-.mn-add::after { content: ''; position: absolute; inset: -4px; }
-.mn-add:active { transform: scale(0.9); background: var(--mn-accent); color: var(--mn-on-accent); }
-.mn-add svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.mn-add::before {
+  content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--mn-tint); border: 1.5px solid var(--mn-accent);
+  transition: background-color 120ms var(--ease-out);
+}
+.mn-add:active { transform: scale(0.9); color: var(--mn-on-accent); }
+.mn-add:active::before { background: var(--mn-accent); }
+.mn-add svg { position: relative; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 
 /* ---------- empty / footer / skeleton ---------- */
 .mn-empty { padding: 36px 8px 16px; text-align: center; }

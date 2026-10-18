@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Pill } from '../../../components/ui'
+import { seedDish } from '../../../components/dish/dishLink'
 import { formatPrice } from '../../../lib/helpers'
 import { useDishAvailable } from '../../feed/dishAvailability'
 import { distanceLabel } from '../lib/distance'
@@ -128,7 +129,12 @@ export function DishStrip({ item, onOrder, showPill = true }) {
       {href && (soldOut ? (
         <button type="button" className="btn btn-ghost soc-order" disabled>{t('post.soldOut')}</button>
       ) : (
-        <Link to={href} className="btn btn-primary soc-order" onClick={onOrder}>{t('post.orderThis')}</Link>
+        <Link
+          to={href} className="btn btn-primary soc-order"
+          onClick={() => { seedDish(dish, item.restaurant); onOrder?.() }}   // the sheet opens from this card at once (components/dish/dishLink)
+        >
+          {t('post.orderThis')}
+        </Link>
       ))}
     </div>
   )

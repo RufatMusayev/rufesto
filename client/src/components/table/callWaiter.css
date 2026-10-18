@@ -1,5 +1,5 @@
 /* CallWaiterSheet (components/table/CallWaiterSheet.jsx), inside a BottomSheet. */
-.cw-error { color: var(--red); font-size: 0.8rem; margin-bottom: 0.75rem; }
+.cw-error { color: var(--red-text); font-size: 0.8rem; margin-bottom: 0.75rem; }
 .cw-kinds { display: flex; flex-direction: column; gap: 8px; }
 .cw-kind {
   width: 100%; min-height: var(--tap); padding: 13px 16px; border-radius: 12px; cursor: pointer; text-align: left;

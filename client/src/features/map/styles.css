@@ -1,0 +1,208 @@
+/* Map screen (features/map, docs/MAP-PLAN-2026-10-18.md sections 3 and 4). Prefix mp-. The canvas (pins, attribution, +/-) is
+   canvas.css. App tokens only; 16 px gutters, 44 px targets (a 36 px pill inside a 44 px box where it is a chip), and the
+   page behind never scrolls: the screen is fixed between the status bar and the bottom nav. */
+
+.mp-screen {
+  --mp-safe-top: env(safe-area-inset-top, 0px);
+  --mp-land: #F3EDE3;
+  --mp-warn: #8A5410;                       /* "Closes soon" on the cream card: 5:1 */
+  position: fixed; z-index: 1; isolation: isolate; overflow: hidden; overflow: clip;
+  top: 0; left: 0; right: 0; bottom: var(--bottom-h);
+  background: var(--mp-land);
+}
+.mp-screen[data-map-theme="dark"] { --mp-land: #1E1714; }
+[data-theme="dark"] .mp-screen { --mp-warn: #E0A04A; }   /* 7:1 on --s1 (dark) */
+.mp-probe { position: absolute; top: 0; left: 0; width: 0; height: var(--mp-safe-top); visibility: hidden; pointer-events: none; }
+
+.mp-map { position: absolute; inset: 0; }
+.mp-placeholder { position: absolute; inset: 0; background: var(--mp-land); }
+
+/* ---- sheet head: count + chips ---- */
+/* handle 28 + count 20 + chips 44 + 16: the peek (116 px) ends on a clean edge, no sliver of the first row */
+.mp-head { padding: 0 0 16px; }
+.mp-count { margin: 0; padding: 0 16px; min-height: 20px; font-size: 0.8125rem; line-height: 20px; font-weight: 600; color: var(--t2); }
+.mp-chips {
+  display: flex; gap: 0; padding: 0 12px; overflow-x: auto; overflow-y: hidden;
+  overscroll-behavior-x: contain; touch-action: pan-x;
+}
+.mp-chip { flex: none; min-height: 44px; padding: 4px; border: 0; background: none; cursor: pointer; font: inherit; }
+.mp-chip-in {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 18px;
+  border: 1px solid var(--border-strong); background: var(--s2); color: var(--t1);
+  font-size: 0.8125rem; font-weight: 600; white-space: nowrap;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), border-color 150ms var(--ease-out), scale var(--dur-1) var(--ease-out);
+}
+.mp-chip:active .mp-chip-in { scale: 0.97; }
+.mp-chip.is-on .mp-chip-in { background: var(--t1); color: var(--bg); border-color: var(--t1); }
+.mp-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 22px; }
+.mp-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sage-text); }
+.mp-chip.is-on .mp-chip-dot { background: var(--sage); }
+
+/* ---- list ---- */
+.mp-list { list-style: none; margin: 0; padding: 0 0 16px; }
+.mp-li { content-visibility: auto; contain-intrinsic-size: auto 76px; }
+.mp-li--expanded { content-visibility: visible; }
+.mp-li .sr-row { min-height: 76px; }
+.mp-li .sr-thumb { width: 56px; height: 56px; border-radius: 12px; }
+.mp-li .sr-main { gap: 1px; }
+.sr-row.is-selected { background: var(--s2); }
+.mp-li.is-hover .sr-row { background: var(--s2); }
+@media (hover: hover) and (pointer: fine) { .mp-li .sr-row:hover { background: var(--s2); } }
+.mp-skel { padding: 4px 0; }
+.mp-skel-row { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 10px 16px; }
+.mp-skel-thumb { flex: none; width: 56px; height: 56px; border-radius: 12px; }
+.mp-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.mp-skel-lines .skeleton { height: 12px; width: 62%; }
+.mp-skel-lines .skeleton + .skeleton { width: 40%; }
+.mp-empty { padding: 28px 24px 24px; text-align: center; color: var(--t2); font-size: 0.9375rem; line-height: 1.4; }
+.mp-retry {
+  min-height: 44px; margin-top: 8px; padding: 0 20px; border: 1px solid var(--border-strong); border-radius: 22px;
+  background: var(--s2); color: var(--t1); font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.mp-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- locate ---- */
+.mp-locate {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid var(--border-strong); border-radius: 50%; background: var(--s1); color: var(--t1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28); cursor: pointer;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), scale var(--dur-1) var(--ease-out);
+}
+.mp-locate:active { scale: 0.94; }
+.mp-locate.is-on { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
+.mp-locate.is-denied { color: var(--t3); }
+.mp-locate:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mp-locate-spin { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent-text); animation: mpSpin 700ms linear infinite; }
+@keyframes mpSpin { to { rotate: 360deg; } }
+.mp-locate-desk { position: absolute; right: 16px; bottom: 106px; z-index: 3; }
+
+/* ---- the strip of map above the full sheet: a tap brings the sheet back to half ---- */
+.mp-strip { position: absolute; left: 0; right: 0; top: 0; height: calc(var(--mp-safe-top) + 64px); z-index: 4; padding: 0; border: 0; background: none; cursor: pointer; }
+
+/* ---- card carousel ---- */
+.mp-car-wrap {
+  position: absolute; left: 0; right: 0; bottom: 12px; z-index: 6; touch-action: pan-x;
+  transform: translate3d(0, calc(100% + 12px), 0);
+  transition: transform var(--dur-sheet-out) var(--ease-exit);
+  will-change: transform;
+}
+.mp-car-wrap[data-open] { transform: none; transition: transform 320ms var(--ease-drawer); }
+/* a mouse drag on a link or photo would start the browser's own drag-and-drop and cancel the swipe */
+.mp-car-wrap { user-select: none; -webkit-user-select: none; }
+.mp-car-wrap a, .mp-car-wrap img { -webkit-user-drag: none; user-drag: none; }
+.mp-car-float { position: absolute; right: 12px; top: -56px; }
+.mp-car {
+  list-style: none; margin: 0; display: flex; gap: 8px; align-items: flex-start;
+  padding: 0 max(24px, calc(50% - 210px));
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; touch-action: pan-x;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.mp-slide { flex: 0 0 100%; max-width: 420px; scroll-snap-align: center; }
+
+/* ---- the card ---- */
+.mp-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; height: 166px; padding: 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--r-lg); background: var(--s1); color: var(--t1);
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.5);
+}
+.mp-card.has-friends { height: 190px; }
+.mp-card--inline { height: auto; margin: 4px 12px 8px; background: var(--s2); border-color: var(--border); box-shadow: none; }
+.mp-card-main { display: flex; gap: 12px; min-width: 0; color: inherit; text-decoration: none; }
+.mp-card-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+.mp-card-cover { position: relative; flex: none; width: 84px; height: 84px; border-radius: 12px; overflow: hidden; background: var(--s3); }
+.mp-card-img { position: absolute; inset: 0; }
+.mp-card-initials { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; color: var(--accent-text); }
+.mp-card-promo {
+  position: absolute; left: 4px; top: 4px; padding: 2px 7px; border-radius: 100px; background: var(--gold); color: #1A1210;
+  font-size: 0.6875rem; line-height: 1.3; font-weight: 700; white-space: nowrap;
+}
+.mp-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mp-card-name { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; line-height: 22px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card-sub, .mp-card-stats, .mp-card-status { font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card-sub { color: var(--t3); }
+.mp-card-stats { color: var(--t2); }
+.mp-card-status { font-weight: 600; }
+.mp-card-status.is-open { color: var(--sage-text); }
+.mp-card-status.is-soon { color: var(--mp-warn); }
+.mp-card-status.is-closed { color: var(--t3); }
+.mp-card-friends { display: flex; align-items: center; gap: 8px; margin: 0; height: 20px; font-size: 13px; line-height: 18px; color: var(--t2); }
+.mp-card-friends-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card-avatars { display: inline-flex; flex: none; }
+.mp-card-avatars > * + * { margin-left: -6px; }
+.mp-card-actions { display: flex; gap: 8px; margin-top: auto; }
+.mp-act {
+  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 10px;
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s2); color: var(--t1);
+  font-size: 0.8125rem; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer;
+  transition: scale var(--dur-1) var(--ease-out), background-color 150ms var(--ease-out);
+}
+.mp-act:active { scale: 0.97; }
+.mp-act--menu { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
+.mp-act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mp-card-x {
+  position: absolute; right: 0; top: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; background: none; color: var(--t3); cursor: pointer; z-index: 1;
+}
+.mp-card-x:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 50%; }
+
+/* ---- notices ---- */
+.mp-notice {
+  position: absolute; top: calc(var(--mp-safe-top) + 44px); left: 12px; right: 12px; z-index: 7; max-width: 420px; margin: 0 auto;
+  padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--s1); color: var(--t2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); font-size: 0.8125rem; line-height: 1.4;
+}
+.mp-notice--error { color: var(--red-text); border-color: rgba(163, 45, 45, 0.4); }
+.mp-offline {
+  position: absolute; top: calc(var(--mp-safe-top) + 44px); left: 50%; translate: -50% 0; z-index: 3; width: max-content; max-width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 16px; border: 1px solid var(--border-strong); border-radius: 26px;
+  background: var(--s1); color: var(--t1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); font-size: 0.8125rem;
+}
+.mp-offline span { min-width: 0; line-height: 1.3; }
+.mp-offline .mp-retry { margin: 0; flex: none; white-space: nowrap; }
+
+/* ---- directions sheet ---- */
+.mp-dir-sub { margin: 0 0 4px; font-size: 0.875rem; color: var(--t2); }
+.mp-dir-list { list-style: none; margin: 0; padding: 0; }
+.mp-dir-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 0 4px;
+  border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--t1); font: inherit; font-size: 1rem; text-align: left; cursor: pointer;
+}
+.mp-dir-row svg { color: var(--t3); flex: none; }
+.mp-dir-row:active { background: var(--s2); }
+.mp-dir-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mp-dir-list li:last-child .mp-dir-row { border-bottom: 0; }
+.mp-clip { position: fixed; left: -9999px; top: 0; opacity: 0; }
+
+/* ---- side panel (desktop >= 1024 px) and list mode (no WebGL2) ---- */
+.mp-panel {
+  display: flex; flex-direction: column; min-height: 0; background: var(--bg); color: var(--t1);
+  border-right: 1px solid var(--border);
+}
+.mp-panel-top { flex: none; padding: 16px 0 4px; }
+.mp-panel-title { margin: 0; padding: 0 16px 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 1.375rem; font-weight: 700; }
+.mp-panel-note { margin: 4px 16px 4px; padding: 10px 12px; border-radius: var(--r-md); background: var(--s2); color: var(--t2); font-size: 0.8125rem; line-height: 1.4; }
+/* the panel is wide enough for all four chips: they wrap instead of scrolling sideways */
+.mp-panel .mp-chips { flex-wrap: wrap; overflow: visible; touch-action: auto; }
+.mp-panel-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.mp-panel--full { position: absolute; inset: 0; border-right: 0; }
+.mp-panel--full .mp-panel-top { padding-top: calc(var(--mp-safe-top) + 12px); }
+.mp-panel--full .mp-panel-scroll, .mp-panel--full .mp-panel-top { max-width: 600px; width: 100%; margin: 0 auto; }
+
+@media (min-width: 1024px) {
+  .mp-screen { left: var(--sidebar-w); bottom: 0; display: grid; grid-template-columns: 384px minmax(0, 1fr); }
+  .mp-panel { grid-column: 1; grid-row: 1; width: 384px; }
+  .mp-panel--full { position: static; }
+  .mp-map { position: relative; grid-column: 2; grid-row: 1; inset: auto; min-width: 0; }
+  .mp-screen.is-nomap { display: block; }
+  .mp-screen.is-nomap .mp-panel--full { position: absolute; width: auto; }
+}
+
+/* ---- reduced motion: fades and jumps only ---- */
+@media (prefers-reduced-motion: reduce) {
+  .mp-car-wrap { transform: none; opacity: 0; pointer-events: none; transition: opacity 120ms linear; }
+  .mp-car-wrap[data-open] { opacity: 1; pointer-events: auto; transition: opacity 120ms linear; }
+  .mp-car { scroll-behavior: auto; }
+  .mp-chip-in, .mp-act, .mp-locate { transition: none; }
+  .mp-chip:active .mp-chip-in, .mp-act:active, .mp-locate:active { scale: 1; }
+  .mp-locate-spin { animation-duration: 2s; }
+}

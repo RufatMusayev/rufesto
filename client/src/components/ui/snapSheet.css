@@ -1,0 +1,59 @@
+/* SnapSheet (components/ui/SnapSheet.jsx): a persistent, non-modal sheet that rests at snap points.
+   .ss-root fills its positioned parent and lets every touch through; only .ss-panel takes them.
+   The panel is as tall as the highest snap and is moved by translateY alone (written by SnapSheet / useSnapDrag). */
+.ss-root {
+  position: absolute; inset: 0; z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  overflow: clip;            /* clip, not a scroller: a focus() or scrollIntoView() inside must never scroll this box */
+}
+
+.ss-panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: var(--ss-full, 100%);
+  max-width: 560px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  pointer-events: auto;
+  background: var(--s1); color: var(--t1);
+  border-top: 1px solid var(--border-strong);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow: 0 -10px 36px -14px rgba(0, 0, 0, 0.45);
+  transform: translate3d(0, 100%, 0);
+  will-change: transform;
+}
+.ss-root[data-dragging] .ss-panel { cursor: grabbing; }
+
+/* head: handle + whatever the owner puts in it. The whole head is the drag zone (Pointer Events) */
+.ss-head { flex: none; position: relative; z-index: 2; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ss-grab {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 28px; padding: 0; border: 0; background: none; cursor: grab; color: inherit;
+  touch-action: none;
+}
+.ss-grab-bar { width: 36px; height: 4px; border-radius: 2px; background: var(--t4); }
+.ss-grab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sheet) var(--r-sheet) 0 0; }
+
+/* body: the list. It only scrolls at the snap the owner names (data-scrolling); anywhere else a vertical gesture on it
+   moves the sheet, so it must not scroll natively. */
+.ss-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow: hidden;
+  overflow: clip;            /* not a scroller where the list does not scroll, so a keyboard focus cannot scroll it either */
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+.ss-root[data-scrolling] .ss-body { overflow-x: hidden; overflow-y: auto; }
+
+/* a floating control (Locate) rides the panel, just above its top edge, and gives way when the sheet is full */
+.ss-float {
+  position: absolute; right: 12px; top: -56px;
+  transition: opacity var(--dur-2) var(--ease-out), visibility 0s linear 0s;
+}
+.ss-root[data-scrolling] .ss-float { opacity: 0; visibility: hidden; transition: opacity var(--dur-1) linear, visibility 0s linear var(--dur-1); }
+
+/* reduced motion: no slide; leaving is a 120 ms fade (the inline transition is dropped by !important) */
+@media (prefers-reduced-motion: reduce) {
+  .ss-panel { transition: opacity 120ms linear !important; }
+  .ss-root[data-hidden] .ss-panel { opacity: 0; }
+  .ss-float { transition: none; }
+}

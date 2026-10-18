@@ -1,10 +1,11 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCart } from '../../contexts/CartContext'
 import AuthModal from '../AuthModal'
 import { warmSearch } from '../../features/search/warm'
+import { prefetchMap, scheduleMapIdle } from '../../features/map/prefetch'
 
 // the scanner (html5-qrcode is ~100 kB) is fetched when the guest first taps the QR button
 const QRSheet = lazy(() => import('../QRSheet'))
@@ -17,6 +18,9 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const [sheet, setSheet] = useState(null)
   const { t } = useTranslation('nav')
+
+  // the map's JS in the background once the app has settled (fast connections only); the tab itself prefetches on intent
+  useEffect(() => { scheduleMapIdle() }, [])
 
   function handleQRPress() {
     if (!session) { setSheet('auth');  return }
@@ -62,7 +66,7 @@ export default function BottomNav() {
           </button>
         </div>
 
-        <NavItem to="/map" label={t('map')}>
+        <NavItem to="/map" label={t('map')} onWarm={prefetchMap}>
           {a => <MapIcon filled={a} />}
         </NavItem>
 
@@ -81,7 +85,7 @@ function NavItem({ to, label, onWarm, children }) {
   return (
     <NavLink
       to={to} end={to === '/'} aria-label={label}
-      onPointerDown={onWarm} onTouchStart={onWarm} onMouseEnter={onWarm}
+      onPointerDown={onWarm} onTouchStart={onWarm} onMouseEnter={onWarm} onFocus={onWarm}
     >
       {({ isActive }) => children(isActive)}
     </NavLink>

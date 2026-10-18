@@ -26,11 +26,14 @@ function preconnectHosts(env) {
 }
 
 // Vendor chunks: libraries that change rarely get their own long-cached files (a deploy of app code does not
-// invalidate them), and the heavy ones that only one screen needs - Leaflet (Map) and the QR scanner - stay out of
+// invalidate them), and the heavy ones that only one screen needs - the map engine (MapLibre) and the QR scanner - stay out of
 // the entry bundle. Everything else is split per route in App.jsx.
 function vendorChunk(id) {
   if (!id.includes('node_modules')) return undefined
-  if (id.includes('/leaflet/')) return 'leaflet'
+  // the map engine: MapLibre and the clustering library stay in one chunk that only the map screen reaches. The worker is
+  // imported with ?url (a string constant the entry chunk reads for its modulepreload hint, the file itself is an asset):
+  // that tiny module must not be pulled into the engine chunk, or every page would load a megabyte of map code.
+  if (/\/node_modules\/(maplibre-gl|@maplibre|supercluster|kdbush)\//.test(id) && !id.includes('maplibre-gl-worker')) return 'maplibre'
   if (id.includes('/html5-qrcode/')) return 'qr-scanner'
   if (/\/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom|@remix-run\/router)\//.test(id)) return 'react'
   if (id.includes('/node_modules/@supabase/')) return 'supabase'
@@ -48,7 +51,16 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      rollupOptions: { output: { manualChunks: vendorChunk } },
+      rollupOptions: {
+        output: {
+          manualChunks: vendorChunk,
+          // the MapLibre worker is imported with ?url and runs as a same-origin module worker: it is served as .js so every
+          // web server sends a JavaScript MIME type (module scripts are strict about it; .mjs is missing from older mime tables)
+          assetFileNames: info => (/\.mjs$/.test(info.names?.[0] ?? info.name ?? '')
+            ? 'assets/[name]-[hash].js'
+            : 'assets/[name]-[hash][extname]'),
+        },
+      },
     },
     server: {
       port: 5173,

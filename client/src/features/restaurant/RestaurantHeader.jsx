@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cuisineBackground, cuisineEmoji, getTodayHours, isRestaurantOpen } from '../../lib/helpers'
 import { cuisineLabel } from '../discover/cuisine'
@@ -34,6 +35,14 @@ export default function RestaurantHeader({ restaurant, descriptionI18n = null, s
   const emoji = cuisineEmoji(restaurant.cuisine_type)
   const bg = cuisineBackground(restaurant.cuisine_type)
   const dash = '–'
+  const addressBody = (
+    <>
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path fillRule="evenodd" d="M11.536 3.464a5 5 0 0 1 0 7.072l-3.536 3.536a.5.5 0 0 1-.707 0l-3.536-3.536a5 5 0 1 1 7.07-7.072zM8 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" clipRule="evenodd" />
+      </svg>
+      {restaurant.address}
+    </>
+  )
 
   return (
     <header className="rst-head">
@@ -83,10 +92,9 @@ export default function RestaurantHeader({ restaurant, descriptionI18n = null, s
 
         {restaurant.address && (
           <p className="rst-address">
-            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <path fillRule="evenodd" d="M11.536 3.464a5 5 0 0 1 0 7.072l-3.536 3.536a.5.5 0 0 1-.707 0l-3.536-3.536a5 5 0 1 1 7.07-7.072zM8 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" clipRule="evenodd" />
-            </svg>
-            {restaurant.address}
+            {restaurant.slug
+              ? <Link to={`/map?place=${encodeURIComponent(restaurant.slug)}`} className="rst-address-link">{addressBody}</Link>
+              : addressBody}
           </p>
         )}
 

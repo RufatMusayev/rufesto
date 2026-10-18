@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { tap as haptic } from '../../lib/haptics'
+import { SLOP, FLICK, NO_DRAG, clamp, rubberBand, pushSample, velocity } from './dragMath'
 
 // Drag-to-dismiss for BottomSheet (docs/UX-PLAN-2026-10-18.md 6.1, D4). No React state: the transform is written
 // straight to the panel on every move.
@@ -9,12 +10,7 @@ import { tap as haptic } from '../../lib/haptics'
 //    gesture is decided on the first move past 6px. Downward with the content at scrollTop 0 -> a sheet drag (a
 //    non-passive touchmove cancels native scrolling); anything else -> native scroll for the whole gesture;
 //  - release: dismiss when dy > 30% of the panel or a flick (> 0.5 px/ms and dy > 24); otherwise snap back.
-const SLOP = 6
 const DISMISS_RATIO = 0.3
-const FLICK = 0.5 // px per ms
-const SAMPLE_MS = 100
-const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n))
-const NO_DRAG = 'button, a, input, textarea, select, [role="button"], [data-bs-nodrag]'
 
 export default function useSheetDrag({ active, panelRef, rootRef, headRef, bodyRef, canDismiss, isOpen, onDismiss }) {
   useEffect(() => {
@@ -46,24 +42,13 @@ export default function useSheetDrag({ active, panelRef, rootRef, headRef, bodyR
     }
 
     function move(y, t) {
-      s.samples.push({ y, t })
-      if (s.samples.length > 12) s.samples.shift()
+      pushSample(s.samples, y, t)
       let dy = y - s.y0
-      if (dy < 0) dy = reduced.matches ? 0 : -Math.min(24, Math.pow(-dy, 0.7)) // rubber band upwards
+      if (dy < 0) dy = reduced.matches ? 0 : rubberBand(dy) // rubber band upwards
       s.dy = dy
       panel.style.transform = `translate3d(0, ${dy}px, 0)`
       root.style.setProperty('--bs-fade', String(clamp(1 - Math.max(dy, 0) / s.h, 0, 1)))
       if (!s.crossed && dy > DISMISS_RATIO * s.h) { s.crossed = true; haptic(8) }
-    }
-
-    // px/ms over the last 100 ms before the finger lifted (the end event's own time: a finger that rested before
-    // lifting has no speed)
-    function velocity(now) {
-      const recent = s.samples.filter(p => now - p.t <= SAMPLE_MS)
-      if (recent.length < 2) return 0
-      const a = recent[0]
-      const b = recent[recent.length - 1]
-      return b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0
     }
 
     function clearInline() {
@@ -84,7 +69,7 @@ export default function useSheetDrag({ active, panelRef, rootRef, headRef, bodyR
 
     function release(endT) {
       const dy = s.dy
-      const v = velocity(endT)
+      const v = velocity(s.samples, endT)
       s.mode = 'idle'
       s.pid = null
       root.removeAttribute('data-dragging')

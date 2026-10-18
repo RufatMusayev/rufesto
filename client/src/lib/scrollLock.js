@@ -10,6 +10,7 @@
 let count = 0
 let lastY = 0
 let lastDir = 0
+let guards = 0 // locks that want the document touchmove guard (a screen with horizontal scrollers opts out)
 let padded = false
 let prevPad = ''
 
@@ -54,31 +55,46 @@ function apply() {
     padded = true
   }
   html.classList.add('is-locked')
-  document.addEventListener('touchstart', onTouchStart, { passive: true })
-  document.addEventListener('touchmove', onTouchMove, { passive: false })
 }
 
 function release() {
   document.documentElement.classList.remove('is-locked')
   if (padded) { document.body.style.paddingRight = prevPad; padded = false }
+}
+
+function attachGuard() {
+  document.addEventListener('touchstart', onTouchStart, { passive: true })
+  document.addEventListener('touchmove', onTouchMove, { passive: false })
+}
+function detachGuard() {
   document.removeEventListener('touchstart', onTouchStart)
   document.removeEventListener('touchmove', onTouchMove)
 }
 
-/** Take a lock. Returns an idempotent release function. */
-export function lock() {
+/**
+ * Take a lock. Returns an idempotent release function.
+ * `touchGuard: false` keeps the html overflow lock but not the document touchmove guard: the guard cancels every gesture
+ * that is not inside a [data-bs-scroll] scroller, which would also kill a horizontal scroller (the Map's card carousel).
+ * Such a screen handles its own gestures (docs/MAP-PLAN-2026-10-18.md 4, page lock). The guard is on while any lock wants it.
+ */
+export function lock({ touchGuard = true } = {}) {
   count += 1
   if (count === 1) apply()
+  if (touchGuard) { guards += 1; if (guards === 1) attachGuard() }
   let released = false
   return () => {
     if (released) return
     released = true
-    unlock()
+    unlock(touchGuard)
   }
 }
 
-export function unlock() {
+export function unlock(touchGuard = true) {
   count = Math.max(0, count - 1)
+  if (touchGuard) {
+    guards = Math.max(0, guards - 1)
+    if (guards === 0) detachGuard()
+  }
   if (count === 0) release()
 }
 

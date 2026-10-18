@@ -21,3 +21,6 @@ supabase/*
 e2e/.env
 # Web push secrets written by scripts/push-keys.mjs (normally outside the repo)
 push*.env
+
+# map RPC fixtures captured from preview (local dev aid, not shipped)
+client/src/features/map/__fixtures__/

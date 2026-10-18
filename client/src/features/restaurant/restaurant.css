@@ -64,6 +64,10 @@ button.rst-stat--tap:focus-visible { outline: 2px solid var(--accent); outline-o
 .rst-about { margin-bottom: 6px; font-size: 0.84rem; line-height: 1.55; color: var(--t2); }
 .rst-address { display: flex; align-items: center; gap: 5px; margin-bottom: 14px; font-size: 0.78rem; color: var(--note); }
 .rst-address svg { width: 12px; height: 12px; flex: none; opacity: 0.7; }
+/* the address opens the Map on this place (/map?place=<slug>); a 44 px target without moving the lines around it */
+.rst-address-link { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin: -14px 0; color: inherit; text-decoration: none; }
+.rst-address-link:hover, .rst-address-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.rst-address-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 .rst-actions { display: flex; gap: 8px; margin-bottom: 14px; }
 .rst-floor { flex: none; gap: 6px; padding: 0 14px; border-radius: 10px; white-space: nowrap; font-size: 0.84rem; font-weight: 600; }

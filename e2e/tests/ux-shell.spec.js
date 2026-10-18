@@ -69,8 +69,7 @@ test.describe('ux shell', { tag: ['@consumer', '@feat', '@ux'] }, () => {
         await expect(page.getByRole('button', { name: /toggle theme/i })).toHaveCount(0)
         await expect(page.locator('.lang-switcher'), 'no EN | AZ outside Settings').toHaveCount(0)
         await expect(page.getByRole('button', { name: /^More$/ })).toHaveCount(0)
-        await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0)
-        await expect(page.getByRole('button', { name: 'AZ', exact: true })).toHaveCount(0)
+        await expect(page.locator('button[lang]'), 'no language buttons (EN | AZ | RU) outside Settings').toHaveCount(0)   // by lang attribute: the accessible names are "Switch to <language>"
         expect(t.watch.consoleErrors, 'console errors').toEqual([])
       } finally { await t.close() }
     })

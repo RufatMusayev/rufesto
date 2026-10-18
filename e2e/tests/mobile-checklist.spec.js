@@ -17,7 +17,7 @@ const { test, expect, settle } = require('../support/fixtures')
 const { CONSUMER_URL, creds, tableCode } = require('../support/env')
 const { signInGuest } = require('../support/guest')
 const { openAs, resetTable, rest } = require('../support/v2')
-const { walker, bottomNav, leafletStacking } = require('../support/mobile')
+const { walker, bottomNav } = require('../support/mobile')
 const R = require('../support/restaurant')
 const U = require('../support/ux')
 
@@ -113,6 +113,8 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
 
     // Filters: the button replaces Cancel once the field is blurred; the sheet is a BottomSheet with a sticky "Show results"
     await page.getByRole('button', { name: 'Cancel' }).tap()
+    // Cancel clears the query and the address follows a moment later (debounced): a Filters tap before that lands closes the sheet again (APP DEFECT D-4, docs/qa/RUN-REPORT-ux.md)
+    await expect(page).toHaveURL(url('/explore'))
     await w.tap(page.getByRole('button', { name: /^Filters/ }), 'Filters button')
     const filters = page.locator('.bs-root:has(.sr-fs)[data-state="open"] .bs-panel')
     await expect(filters).toBeVisible()
@@ -134,67 +136,68 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     await closeSheet(page, w, 'search dish sheet')
   })
 
-  test('Map: the map renders, a restaurant chip opens its popup, the popup opens the restaurant', async ({ page, watch }, testInfo) => {
+  // The Map tab (fb305b0): a MapLibre map full-bleed, a snap sheet with the place list over it (peeking at 116 px), a card carousel while a place is selected
+  // (.mp-card: Menu / Book / Directions). A list row is the selector; it is tapped through the DOM here because the peeking sheet clips it.
+  const mapRow = (page, name) => page.locator('li.mp-li').filter({ hasText: name }).first().locator('button.sr-row')
+  const mapUp = page => page.locator('.mp-screen')
+
+  test('Map: the map renders, a place can be selected, its card opens the restaurant', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     const nav = bottomNav(page)
     await page.goto(url('/'))
     await w.tap(nav.map, 'Map nav')
     await expect(page).toHaveURL(url('/map'))
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expect(page.locator('.leaflet-marker-icon').first()).toBeVisible()
+    await expect(mapUp(page)).toBeVisible()
+    await expect(page.locator('li.mp-li').first()).toBeAttached({ timeout: 25_000 })
+    if (!(await page.locator('.mp-screen.is-nomap').count())) await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 25_000 })
     await w.check('map')
 
-    const chip = page.getByRole('button', { name: /Trattoria Bella Roma/ })
-    const chips = chip.locator('xpath=..')
-    const dims = await chips.evaluate(el => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }))
-    expect.soft(dims.scrollWidth, 'the restaurant chips scroll sideways inside their strip, not the page').toBeGreaterThan(dims.clientWidth)
-    await w.tap(chip, 'Map restaurant chip')
-    await expect(page.locator('.leaflet-popup')).toBeVisible()
-    await w.tap(page.getByRole('button', { name: 'Zoom in' }), 'Map zoom in')
-    await w.check('map, popup open')
-    await w.tap(page.locator('.leaflet-popup').getByRole('link', { name: /view menu/i }), 'Map popup "View menu"')
+    await mapRow(page, 'Trattoria Bella Roma').evaluate(b => b.click())
+    const card = page.locator('.mp-card').filter({ hasText: 'Trattoria Bella Roma' }).first()
+    await expect(card).toBeVisible()
+    await page.waitForTimeout(450)   // the carousel settles
+    await w.check('map, card open')
+    await w.tap(card.locator('.mp-act--menu'), 'Map card "Menu"')
     await expect(page).toHaveURL(url(RESTAURANT))
-    await w.check('restaurant opened from the map popup')
+    await w.check('restaurant opened from the map card')
   })
 
-  // Rufat's reported glitch around the map. Two parts: (1) the Leaflet panes (z-index 200..1000) lived in the root
-  // stacking context and painted over the app shell (sheets, modals, bottom nav) - see the next test; (2) leaving the
-  // map right after tapping a restaurant chip (animated pan) throws "Cannot read properties of undefined (reading
-  // '_leaflet_pos')" from Leaflet's _move, which this test reports as a console error on the next screen.
-  test('Map: leaving the map for Home / Explore / Profile leaves no map behind', async ({ page, watch }, testInfo) => {
+  // Rufat's reported glitch around the map (an old Leaflet one: its panes painted over the shell and a pan that ran after leaving threw a console error).
+  // Kept for the MapLibre map: leaving it right after selecting a place leaves nothing of the map behind and no console error.
+  test('Map: leaving the map for Home / Search / Profile leaves no map behind', async ({ page, watch }, testInfo) => {
     const w = walker(page, watch, testInfo)
     await signIn(page)
     const nav = bottomNav(page)
     const targets = [
       ['Home', () => w.tap(nav.home, 'Home nav'), '/'],
-      ['Explore', () => w.tap(nav.explore, 'Explore nav'), '/explore'],
+      ['Search', () => w.tap(nav.explore, 'Search nav'), '/explore'],
       ['Profile', () => w.tap(nav.profile, 'Profile nav'), '/profile'],
       // (the bell is only in the Home top bar since the UX round: Notifications is reached from Home, see "Notifications: the bell opens the page")
     ]
-    const leaflet = page.locator('[class*="leaflet-"]:visible')
+    const leftovers = page.locator('.mp-screen:visible, canvas.maplibregl-canvas:visible, .maplibregl-map:visible, button.mp-pin:visible')
     for (const [name, go, path] of targets) {
       await page.goto(url('/'))
       await w.tap(nav.map, 'Map nav')
-      await expect(page.locator('.leaflet-container')).toBeVisible()
-      // use the map like a person would: tap a restaurant chip (animated pan + popup), then leave right away
-      await w.tap(page.getByRole('button', { name: /Sakura House/ }), 'Map restaurant chip')
+      await expect(mapUp(page)).toBeVisible()
+      await expect(page.locator('li.mp-li').first()).toBeAttached({ timeout: 25_000 })
+      // use the map like a person would: select a place (the camera flies to it), then leave right away
+      await mapRow(page, 'Sakura House').evaluate(b => b.click())
       await go()
       await expect(page).toHaveURL(url(path))
-      expect.soft(await page.locator('.leaflet-container:visible').count(), `a .leaflet-container is visible on ${name} right after leaving the map`).toBe(0)
-      await page.waitForTimeout(700)   // the glitch may show up after the route transition
-      expect.soft(await leaflet.count(), `Leaflet elements are visible on ${name} after leaving the map`).toBe(0)
+      expect.soft(await mapUp(page).count(), `the map screen is on ${name} right after leaving the map`).toBe(0)
+      await page.waitForTimeout(700)   // a leftover may show up after the route transition
+      expect.soft(await leftovers.count(), `map elements are visible on ${name} after leaving the map`).toBe(0)
       await w.check(`${name} after the map`)
-      if (await page.locator('.leaflet-container:visible').count()) await w.shot(`${name} with the map still visible`)
     }
 
     // and with the browser's Back button
     await page.goto(url('/'))
     await w.tap(nav.map, 'Map nav')
-    await expect(page.locator('.leaflet-container')).toBeVisible()
+    await expect(mapUp(page)).toBeVisible()
     await page.goBack()
     await expect(page).toHaveURL(url('/'))
-    expect.soft(await leaflet.count(), 'Leaflet elements are visible on Home after Back from the map').toBe(0)
+    expect.soft(await leftovers.count(), 'map elements are visible on Home after Back from the map').toBe(0)
     await w.check('Home after Back from the map')
   })
 
@@ -204,23 +207,19 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
     const nav = bottomNav(page)
     await page.goto(url('/'))
     await w.tap(nav.map, 'Map nav')
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    const chip = page.getByRole('button', { name: /Trattoria Bella Roma/ })
-    await expect(chip).toBeVisible()
+    await expect(mapUp(page)).toBeVisible()
+    await expect(page.locator('li.mp-li').first()).toBeAttached({ timeout: 25_000 })
 
     await w.tap(nav.qr, 'Scan QR button')
     await expect(heading(page, 'Scan Table QR')).toBeVisible()
     await page.waitForTimeout(500)   // sheet slide-in
-    const where = await page.evaluate(leafletStacking)
-    const box = await chip.boundingBox()
-    const top = await page.evaluate(({ x, y }) => {
-      const el = document.elementFromPoint(x, y)
-      return el ? { inLayer: !!el.closest('.bs-root, .overlay, .sheet, [role="dialog"]'), what: el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0] } : null
-    }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
+    // what is on top at the middle of the screen, over the map: the sheet, not the map or its list sheet
+    const top = await page.evaluate(() => {
+      const el = document.elementFromPoint(innerWidth / 2, innerHeight * 0.6)
+      return el ? { inLayer: !!el.closest('.bs-root, [role="dialog"]'), what: el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0] } : null
+    })
     await w.shot('map under the QR sheet')
-    expect.soft(top, 'what is on top of a map chip while the QR sheet is open').toMatchObject({ inLayer: true })
-    expect.soft(where, 'Leaflet panes (z-index 200..1000) must sit in their own stacking context: nearest context above .leaflet-container is the page root').toMatchObject({ root: false })
-    expect.soft(where?.z ?? 0, `nearest stacking context (${where?.el}) must stay below the bottom nav (z 90) and sheets (z 200)`).toBeLessThan(90)
+    expect.soft(top, 'what is on top of the map while the QR sheet is open').toMatchObject({ inLayer: true })
     await page.getByRole('button', { name: 'Cancel' }).tap()
     await expect(heading(page, 'Scan Table QR')).toHaveCount(0)
   })

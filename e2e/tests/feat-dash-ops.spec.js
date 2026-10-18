@@ -272,12 +272,12 @@ test.describe('azerbaijani', { tag: ['@staff', '@resto', '@dash-ops'] }, () => {
   test('the EN / AZ switch persists across a reload and flips every label', async ({ page }) => {
     await openDash(page, 'manager', '/orders')
     await expect(page.locator('main h1')).toHaveText('Orders')
-    await page.locator('.lang-switcher').getByRole('button', { name: 'AZ' }).click()
+    await page.locator('.lang-switcher button[lang="az"]').click()   // by lang attribute: the buttons are named in their own language (EN | AZ | RU)
     await expect(page.locator('main h1')).toHaveText(dash.ordersTitle)
     await page.reload()
     await expect(page.locator('main h1')).toHaveText(dash.ordersTitle)
     expect(await page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('az')
-    await page.locator('.lang-switcher').getByRole('button', { name: 'EN' }).click()
+    await page.locator('.lang-switcher button[lang="en"]').click()
     await expect(page.locator('main h1')).toHaveText('Orders')
   })
 })
@@ -376,7 +376,7 @@ test.describe('mobile 390px', { tag: ['@staff', '@resto', '@dash-ops', '@mobile'
     await expect(sheet).toBeVisible()
     await expect(sheet.locator('.more-sheet-role'), 'the role is translated, not the raw "waiter"').toHaveText('Waiter')
     const signOut = sheet.getByRole('button', { name: 'Sign Out' })
-    const lang = sheet.getByRole('button', { name: 'AZ', exact: true })
+    const lang = sheet.locator('button[lang="az"]')   // the buttons are named in their own language since Russian came (EN | AZ | RU)
     const theme = sheet.getByRole('button', { name: /^(Light|Dark)$/ })
     for (const [b, label] of [[signOut, 'Sign Out'], [lang, 'AZ switch'], [theme, 'theme switch']]) {
       await expect(b, `${label} visible in the sheet at 390px`).toBeVisible()
@@ -390,7 +390,7 @@ test.describe('mobile 390px', { tag: ['@staff', '@resto', '@dash-ops', '@mobile'
     await lang.click()
     await expect(sheet.getByRole('button', { name: 'Çıxış' }), 'AZ labels in the sheet').toBeVisible()
     expect(await page.evaluate(() => localStorage.getItem('rufesto_lang')), 'the language is remembered').toBe('az')
-    await sheet.getByRole('button', { name: 'EN', exact: true }).click()
+    await sheet.locator('button[lang="en"]').click()
     await page.keyboard.press('Escape')
     await expect(sheet, 'Escape closes the sheet').toHaveCount(0)
     await more.click()
@@ -481,7 +481,7 @@ function useEnv(tables, keys = [], { perTest = true } = {}) {
 // =====================================================================================================================
 test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview'] }, () => {
   test.describe.configure({ mode: 'default' })
-  const env = useEnv(['B1', 'B2'])
+  const env = useEnv(['B1', 'B2'], ['kitchen'])
 
   test('stat cards (revenue, open orders, orders, active tables, menu) agree with the database', async ({ page }) => {
     const api = await openDash(page, 'manager', '/')
@@ -542,7 +542,6 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     const active0 = parseInt(await text('Active Tables'), 10)
     const { orderId } = await env.order('B2', env.items(1, 2))
     const [o] = await api.rows(`orders?id=eq.${orderId}&select=total_amount`)
-    await expect(stat(page, 'Orders')).toHaveText(String(orders0 + 1), { timeout: 15_000 })
     await expect(stat(page, 'Open orders')).toHaveText(money(open0 + Number(o.total_amount)), { timeout: 15_000 })
     await expect(stat(page, 'Revenue'), 'an unpaid order is not revenue').toHaveText(revenue0)
     await expect(stat(page, 'Active Tables')).toHaveText(new RegExp(`^${active0 + 1}/`), { timeout: 15_000 })
@@ -552,8 +551,24 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     const banner = page.getByRole('link', { name: /in kitchen/ })
     await expect(banner).toBeVisible()
     expect(parseInt((await banner.innerText()).match(/\d+/)[0], 10), 'tickets in the kitchen alert').toBeGreaterThanOrEqual(2)
+    // Orders (restaurant_day_stats, sql/63) leaves out orders still in status "open": it follows the kitchen, so it goes up when the first ticket is started
+    // (a placed order is counted at once only after the fix of APP DEFECT D-2, see the test.fail test below)
+    const items = await env.mgr.rows(`order_items?order_id=eq.${orderId}&select=id`)
+    const [tk] = await env.s.kitchen.api.rows(`kds_tickets?order_item_id=eq.${items[0].id}&select=id`)
+    expect((await env.s.kitchen.api.patch(`kds_tickets?id=eq.${tk.id}`, { status: 'preparing' })).ok, 'kitchen -> preparing').toBe(true)
+    await expect(stat(page, 'Orders')).toHaveText(String(orders0 + 1), { timeout: 15_000 })
     await banner.click()
     await expect(page).toHaveURL(url('/kds'))
+  })
+
+  // APP DEFECT D-2 (kept as an expected failure so the suite stays green and the fix is noticed): a guest order that was just placed has status "open"
+  // until the kitchen starts it, and restaurant_day_stats leaves "open" out ("unsent drafts"), so the Overview's Orders card lags behind the order.
+  test('a placed order is counted in Orders at once, without waiting for the kitchen', async ({ page }) => {
+    test.fail(true, 'APP DEFECT D-2: Orders (restaurant_day_stats) does not count orders in status open, which is every placed order until the kitchen starts it')
+    await openDash(page, 'manager', '/')
+    const orders0 = parseInt((await stat(page, 'Orders').innerText()).trim(), 10)
+    await env.order('B2', env.items(1, 1))
+    await expect(stat(page, 'Orders')).toHaveText(String(orders0 + 1), { timeout: 15_000 })
   })
 
   test('a pending booking raises the bookings alert, which opens /bookings', async ({ page }) => {
@@ -783,8 +798,8 @@ test.describe('orders and kitchen', { tag: ['@staff', '@resto', '@dash-ops', '@d
     const settle = card.getByRole('link', { name: 'Settle on Bills', exact: true })
     await expect(settle).toBeVisible()
     await expect(settle).toHaveAttribute('href', `/bills?table=${table.id}`)
-    const [o] = await env.mgr.rows(`orders?id=eq.${orderId}&select=status`)
-    expect(o.status).toBe('served')
+    // the card says Served the moment the button is pressed; the write lands a moment later
+    await expect.poll(async () => (await env.mgr.rows(`orders?id=eq.${orderId}&select=status`))[0]?.status, { timeout: 10_000 }).toBe('served')
     await settle.click()
     await expect(page).toHaveURL(url(`/bills?table=${table.id}`))
     const scope = page.locator('.v2-table-filter')
@@ -1231,7 +1246,12 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
       await env.s.manager.page.request.delete(`${env.s.manager.who.supabase.url}/storage/v1/object/dish-photos/${F.SAKURA_ID}/${d.id}.png`, {
         headers: { apikey: env.s.manager.who.supabase.anonKey, Authorization: `Bearer ${env.s.manager.who.session.access_token}` }, failOnStatusCode: false })
       const r = await env.mgr.del(`dishes?id=eq.${d.id}`)
-      if (!r.ok) console.log(`[menu cleanup] ${d.id}: ${r.status} ${JSON.stringify(r.body)}`)
+      if (!r.ok) {
+        // a dish whose price was changed has rows in dish_price_history (FK without cascade, staff cannot delete them): it cannot be
+        // deleted from the app side. Take it off the guests' menu instead, and say so (APP DEFECT, docs/qa/RUN-REPORT-ux.md).
+        const hide = await env.mgr.patch(`dishes?id=eq.${d.id}`, { available: false })
+        console.log(`[menu cleanup] ${d.id}: ${r.status} ${JSON.stringify(r.body).slice(0, 120)} -> set unavailable: ${hide.ok}`)
+      }
     }
   })
 
@@ -1339,7 +1359,7 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
     expect(await azFields.count() + await azPlaceholder.count(), 'fields for the Azerbaijani name / description in the Add Dish form').toBeGreaterThan(0)
   })
 
-  test('availability toggle: dashboard "Off" badge, and the consumer Explore flips to SOLD OUT live and after reload', async ({ page, browser }, testInfo) => {
+  test('availability toggle: dashboard "Off" badge, and the consumer Search row says Sold out after a reload (and Available again after the next)', async ({ page, browser }, testInfo) => {
     test.setTimeout(120_000)
     await openDash(page, 'manager', '/menu')
     const name = uniq()
@@ -1347,23 +1367,50 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
     await page.reload(); await page.locator('.dash-layout').waitFor()
     const guest = await F.openAs(browser, testInfo, 'review5')
     try {
+      // the consumer Explore page became the Search page (/explore, UX round): a dish row carries "Sold out" in red when it ran out
+      const search = async () => guest.page.getByRole('searchbox').first().fill(name)
+      const tile = guest.page.locator(`.sr-row-btn[data-dish-id="${id}"]`)
       await guest.page.goto(`${CONSUMER}/explore`)
-      await guest.page.getByPlaceholder('Dishes, restaurants…').fill(name)
-      const tile = guest.page.locator('.stagger-item').filter({ hasText: name })
-      await expect(tile).toBeVisible({ timeout: 15_000 })
-      await expect(tile).toContainText('Available')
+      await search()
+      await expect(tile).toBeVisible({ timeout: 20_000 })
+      await expect(tile.locator('.sr-sold')).toHaveCount(0)
       const row = dishRow(page, name)
       await row.getByRole('button', { name: 'Mark unavailable' }).click()
       await expect(row).toContainText('Off')
       await expect(row.getByRole('button', { name: 'Mark available' })).toBeVisible()
       expect((await env.mgr.rows(`dishes?id=eq.${id}&select=available`))[0].available).toBe(false)
-      await expect(tile, 'Explore without a reload').toContainText('Sold Out', { timeout: 20_000 })
       await guest.page.reload()
-      await guest.page.getByPlaceholder('Dishes, restaurants…').fill(name)
-      await expect(guest.page.locator('.stagger-item').filter({ hasText: name })).toContainText('Sold Out')
+      await search()
+      await expect(tile.locator('.sr-sold')).toBeVisible({ timeout: 20_000 })
       await row.getByRole('button', { name: 'Mark available' }).click()
       await expect(row).not.toContainText('Off')
-      await expect(guest.page.locator('.stagger-item').filter({ hasText: name })).toContainText('Available', { timeout: 20_000 })
+      await guest.page.reload()
+      await search()
+      await expect(tile).toBeVisible({ timeout: 20_000 })
+      await expect(tile.locator('.sr-sold')).toHaveCount(0)
+    } finally { await guest.close() }
+  })
+
+  // APP DEFECT D-3 (an expected failure, so the suite stays green and the fix is noticed): the live availability poll (feed/dishAvailability.js,
+  // "wherever a card marks itself with data-dish-id") is only mounted by the Home tabs, so the dish rows of the Search page (which carry data-dish-id)
+  // keep "Available" until the page is reloaded. The old Explore page flipped to Sold Out on its own.
+  test('the open Search page flips a dish row to Sold out on its own (without a reload)', async ({ page, browser }, testInfo) => {
+    test.fail(true, 'APP DEFECT D-3: nothing polls dish availability while the Search page is open (useDishAvailabilityPoll is mounted on Home only)')
+    test.setTimeout(150_000)
+    await openDash(page, 'manager', '/menu')
+    const name = uniq()
+    const id = await makeDish(name)
+    await page.reload(); await page.locator('.dash-layout').waitFor()
+    const guest = await F.openAs(browser, testInfo, 'review5')
+    try {
+      await guest.page.goto(`${CONSUMER}/explore`)
+      await guest.page.getByRole('searchbox').first().fill(name)
+      const tile = guest.page.locator(`.sr-row-btn[data-dish-id="${id}"]`)
+      await expect(tile).toBeVisible({ timeout: 20_000 })
+      await dishRow(page, name).getByRole('button', { name: 'Mark unavailable' }).click()
+      await expect(dishRow(page, name)).toContainText('Off')
+      await expect.poll(async () => (await env.mgr.rows(`dishes?id=eq.${id}&select=available`))[0].available, 'the dish is unavailable in the database').toBe(false)
+      await expect(tile.locator('.sr-sold'), 'Sold out within the 60 s poll period, no reload').toBeVisible({ timeout: 75_000 })
     } finally { await guest.close() }
   })
 
@@ -1476,7 +1523,8 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
 // =====================================================================================================================
 const toLocalInput = d => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 const promoCard = (page, name) => lastDiv(page).filter({ hasText: name })
-const promoCards = page => lastDiv(page).filter({ hasNotText: /^No campaigns/ })   // an empty list is a single "No campaigns ..." div
+// an empty list is one `.empty` block (a "📣" icon div + "No campaigns ..." text): neither the block nor its icon is a card
+const promoCards = page => lastDiv(page).filter({ hasNotText: /No campaigns/ }).and(page.locator(':not(.empty-icon):not(.empty)'))
 
 test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }, () => {
   test.describe.configure({ mode: 'default' })
@@ -1575,6 +1623,8 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
 
   test('validation: every required field and the date order are checked with their messages', async ({ page }) => {
     api = await openDash(page, 'manager', '/promos')
+    const invalidRows = async () => (await api.rows(`ad_campaigns?name=like.${encodeURIComponent(PQA + ' invalid*')}&select=id`)).length
+    const before = await invalidRows()   // rows an earlier run left behind (campaigns can be cancelled, not deleted)
     await page.getByRole('button', { name: 'New Campaign' }).click()
     const m = modalOf(page)
     const create = () => m.getByRole('button', { name: 'Create Campaign' }).click()
@@ -1603,7 +1653,7 @@ test.describe('promos', { tag: ['@staff', '@resto', '@dash-ops', '@do-promos'] }
     await m.locator('input[type=number]').nth(0).fill('101')
     await create(); await expect(m.getByText('Enter a percentage between 1 and 100')).toBeVisible()
     await m.getByRole('button', { name: 'Cancel' }).click()
-    expect((await api.rows(`ad_campaigns?name=like.${encodeURIComponent(PQA + ' invalid*')}&select=id`)).length).toBe(0)
+    expect(await invalidRows(), 'no campaign was saved by the invalid forms').toBe(before)
   })
 
   test('status chips and counts agree with the database; an ended campaign reads Completed, not Active', async ({ page }) => {

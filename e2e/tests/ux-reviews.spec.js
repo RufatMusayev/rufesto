@@ -86,7 +86,7 @@ test.describe('ux reviews', { tag: ['@consumer', '@feat', '@ux'] }, () => {
       expect(await row.locator('.rv-av img, .rv-av [class*="avatar"]').count() + (await row.locator('.rv-av').innerText()).trim().length, 'avatar picture or initial').toBeGreaterThan(0)
       const row1 = await U.box(row.locator('.rv-l1'))
       expect(row1.height, 'row 1 is one line').toBeLessThanOrEqual(24)
-      // 24 px to look at, 44 px to hit (an ::after of -10px): a tap 20 px above / below the middle of the glyph still lands on the button
+      // round 4: the buttons are 44 px boxes themselves (they were 24 px with a 44 px ::after): a tap 20 px above / below the middle still lands on the button
       for (const sel of ['.rv-like', '.rv-act:not(.rv-like)']) {
         const btn = row.locator(sel).first()
         await btn.scrollIntoViewIfNeeded()
@@ -95,7 +95,7 @@ test.describe('ux reviews', { tag: ['@consumer', '@feat', '@ux'] }, () => {
           const on = y => { const t = document.elementFromPoint(cx, y); return !!t && (t === el || el.contains(t)) }
           return { visual: Math.round(r.height), up: on(cy - 20), down: on(cy + 20), far: on(cy + 40) }
         })
-        expect(hit.visual, `${sel} looks 24 px high`).toBe(24)
+        expect(hit.visual, `${sel} is a 44 px target`).toBeGreaterThanOrEqual(44)
         expect(hit.up && hit.down, `${sel} is hit 20 px above and below its middle (44 px target)`).toBe(true)
         expect(hit.far, `${sel} is not hit 40 px away`).toBe(false)
       }

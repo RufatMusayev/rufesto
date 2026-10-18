@@ -25,8 +25,8 @@ const openSheets = page => page.locator('.bs-root[data-state="open"]')
 const sheet = page => page.locator('.bs-root[data-state="open"] .bs-panel').last()
 /** The scroller of the top open sheet. */
 const sheetBody = page => page.locator('.bs-root[data-state="open"] .bs-body').last()
-/** The sign-in sheet (AuthModal): what the old specs called `.overlay.center`. */
-const authSheet = page => page.locator('.bs-root:has(.au-body)')
+/** The open sign-in sheet (AuthModal): what the old specs called `.overlay.center`. A sheet that is still animating out is not counted. */
+const authSheet = page => page.locator('.bs-root[data-state="open"]:has(.au-body)')
 /** Wait until no sheet is left in the DOM (the exit animation has finished and the sheet unmounted). */
 const noSheet = async (page, message = 'no sheet is open', timeout = 5_000) => expect(page.locator('.bs-root'), message).toHaveCount(0, { timeout })
 

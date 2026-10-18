@@ -113,7 +113,13 @@ The sheets of the consumer app are one `BottomSheet` (`.bs-root[data-state=open|
 the old `.overlay` / `.sheet` / `.overlay.center` are gone. `U.sheet(page)` is the panel of the top open sheet, `U.authSheet(page)` the sign-in sheet, `U.noSheet(page)` waits until none is left
 (a closing sheet stays in the DOM for ~240 ms with `data-state="closed"`). `U.phone(browser, testInfo, who)` / `U.desktop(...)` open a signed-in (auth-API session, never a typed password)
 390x844 touch / 1280x860 mouse context in either project; `U.swipe` sends CDP touch events and `U.probe` reads the page scroll and the sheet state. The bell is only in the Home top bar on a phone
-(the rail item from 1024 px): `S.bellCount` and the `openBell` of the notification specs expect to be on Home.
+(the rail item from 1024 px): `S.bellCount` answers 0 at once on a phone page without a bell, and the notification specs go Home (`onHome`) before they read it.
+`U.authSheet` is the sign-in sheet that is OPEN (a closing one is not counted), so a `toBeVisible()` is never ambiguous.
+
+Language-independent specs: the app has three languages (EN | AZ | RU). The suite forces `en` through the project's storageState (`rufesto_lang=en`); language buttons are found by the `lang` attribute
+(`button[lang="az"]`), never by their accessible name (it is the language's own name: "Switch to English" on the guest app, "English" / "Azərbaycanca" / "Русский" in the dashboard).
+
+Expected failures: a `test.fail(...)` test documents an APP DEFECT that is open (its title says so and the report lists it); when the app is fixed the test turns into an "unexpected pass" and the annotation is removed.
 
 ## Credentials (never committed)
 

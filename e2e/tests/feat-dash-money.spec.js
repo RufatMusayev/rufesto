@@ -310,7 +310,10 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
         await expect(card).toHaveClass(/v2-bill--paid/, { timeout: 20_000 })
         await expect(share.locator('.v2-demo-badge'), 'DEMO badge on the card share').toHaveCount(1)
         await expect(share.locator('.v2-pill')).toContainText('Card')
-        await expect(card.locator('.v2-bill-tip')).toContainText(`Tip ${F.fmt(tip)} → Waiter`)
+        // the tip goes to a named waiter (the waiter's own profile name: it is data, not a constant), not to the team
+        await expect(card.locator('.v2-bill-tip')).toContainText(`Tip ${F.fmt(tip)} → `)
+        await expect(card.locator('.v2-bill-tip'), 'named waiter, not the team').not.toContainText('whole team')
+        expect((await card.locator('.v2-bill-tip').innerText()).split('→')[1].trim().length, 'a waiter name follows the arrow').toBeGreaterThan(0)
         await shot(testInfo, page, 'bills-demo-card-tip')
         const row = (await F.bills(mgr)).find(b => b.table?.label === T.number && b.status === 'settled')
         expect(row, 'the settled bill is in restaurant_bills').toBeTruthy()
@@ -626,8 +629,12 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
       const want = await page.evaluate(iso => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Baku' }), twoDaysAgo)
       await expect(card.locator('.v2-bill-section'), 'tag of an older bill').toContainText(`from ${want}`)
       await showAll(page)
-      await expect(page.locator('article.v2-bill .v2-bill-section').filter({ hasText: /from / }), 'only the older bill is tagged').toHaveCount(1)
+      // every bill opened before today (Baku) carries the tag: the edited one, and any void / settled bill of an earlier day the restaurant already has
+      const bakuDay = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' })
       const rows = edit(await F.bills(mgr))
+      const olderCount = rows.filter(b => bakuDay(b.created_at) !== bakuDay(new Date().toISOString())).length
+      expect(olderCount, 'the edited bill is among the older ones').toBeGreaterThanOrEqual(1)
+      await expect(page.locator('article.v2-bill .v2-bill-section').filter({ hasText: /from / }), 'only the bills of an earlier day are tagged').toHaveCount(olderCount)
       const e = F.expectedBillStats(rows)
       await expect.poll(async () => JSON.stringify(await billsSnapshot(page)), { timeout: 15_000 }).toBe(JSON.stringify({
         active: e.active, toCollect: e.toCollect, collected: e.collected, chipActive: e.active, chipPaid: e.paid, chipAll: e.all,
@@ -738,7 +745,8 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
 
       expect(ui.total, 'Total tips').toBe(api.total)
       expect(ui.count, 'Tip count').toBe(api.count)
-      expect(ui.avg, 'Average per tip').toBeCloseTo(api.count ? api.total / api.count : 0, 2)
+      // the page shows cents: an average that lands on a half cent (0.605) is shown as either neighbour
+      expect(Math.abs(ui.avg - (api.count ? api.total / api.count : 0)), 'Average per tip').toBeLessThanOrEqual(0.0051)
       expect(ui.unassigned, 'Unassigned (team) stat').toBe(api.unassigned.total)
       expect(ui.unassignedSub).toBe(`${api.unassigned.count} ${api.unassigned.count === 1 ? 'tip' : 'tips'}`)
 
@@ -2154,7 +2162,7 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
     const loc = (lang, ns) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'client-resto', 'src', 'locales', lang, `${ns}.json`), 'utf8'))
     const EN = loc('en', 'v2'); const AZ = loc('az', 'v2')
     const placeholders = s => [...String(s).matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map(m => m[1]).sort()
-    const SAME_OK = new Set(['demoBadge', 'role_admin', 'methodDemo', 'dismiss', 'byDayItem', 'mdNoteCount', 'mdSampleDish3'])   // identical in both languages on purpose
+    const SAME_OK = new Set(['demoBadge', 'role_admin', 'methodDemo', 'dismiss', 'byDayItem', 'mdNoteCount', 'mdSampleDish3', 'notifTimeDate', 'notifTimeDateYear'])   // identical in both languages on purpose
     const asAz = async who => { await who.page.addInitScript(() => { try { localStorage.setItem('rufesto_lang', 'az') } catch { /* blocked */ } }) }
     const text = page => page.locator('.dash-content').evaluate(el => el.textContent.replace(/\s+/g, ' '))
     /** English phrases of the v2 strings (>= 12 chars, static part of the longest piece) and raw i18n keys found in an Azerbaijani page. */
@@ -2187,11 +2195,13 @@ test.describe('dashboard money (Seda)', { tag: ['@resto', '@money'] }, () => {
     })
 
     test('Bills page in Azerbaijani: title, stats, chips, card labels, pills, the confirm dialog; no English text, no raw keys', async ({ fx }, testInfo) => {
-      const mgr = await fx.open('manager'); const g4 = await fx.open('g4')
+      const mgr = await fx.open('manager'); const g4 = await fx.open('g4'); const g5 = await fx.open('g5')
       const T = pickFree(await F.sedaTables(mgr), ['T2', 'T3'])
-      fx.cleanup(() => F.freeTable(mgr, T.id, [g4]))
+      fx.cleanup(() => F.freeTable(mgr, T.id, [g4, g5]))
       const dishes = await F.cheapDishes(mgr)
-      await F.seat(g4, T.code); await F.placeOrder(g4, T.id, dishes.slice(0, 2)); const bill = await F.myBill(g4)
+      // two diners: with a single share row the card hides "Mark whole bill paid" (Mark paid on the row is the only settle action)
+      await F.seat(g4, T.code); await F.seat(g5, T.code, g4)
+      await F.placeOrder(g4, T.id, dishes.slice(0, 1)); await F.placeOrder(g5, T.id, dishes.slice(1, 2)); const bill = await F.myBill(g4)
       await g4.rpc('split_bill', { p_bill_id: bill.bill_id, p_mode: 'own', p_assignments: {} })
       await F.askReception(g4, bill.bill_id)
       await asAz(mgr)

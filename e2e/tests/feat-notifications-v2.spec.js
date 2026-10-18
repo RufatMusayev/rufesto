@@ -238,11 +238,11 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
     await F.acquireGuestLock()
     const mgr = await F.openAs(browser, testInfo, 'manager')
     const waiter = await F.openAs(browser, testInfo, 'waiter1')
-    const guest = await S.openUser(browser, testInfo, 4)
+    const guest = await S.openUser(browser, testInfo, 5)   // not the guest of the test above: call_waiter is rate-limited per guest and table (too_soon, 2 min)
     let table = null
     const staffRead = () => waiter.api.rpc('mark_notifications', { p_ids: null, p_read: true, p_seen_only: false, p_audience: 'staff' })
     try {
-      table = await F.resetTable(mgr.api, 'T3', [])
+      table = await F.resetTable(mgr.api, 'T2', [])
       await staffRead()
       expect((await guest.api.rpc('claim_table', { p_code: table.code })).ok).toBe(true)
       const p = waiter.page
@@ -266,7 +266,7 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
       if (table) {
         await mgr.api.patch(`service_requests?table_id=eq.${table.id}&status=in.(open,acknowledged)`, { status: 'resolved' })
         await guest.api.rpc('leave_table', { p_table_id: table.id })
-        await F.resetTable(mgr.api, 'T3', []).catch(() => {})
+        await F.resetTable(mgr.api, 'T2', []).catch(() => {})
       }
       await staffRead().catch(() => {})
       await readAll(guest).catch(() => {})

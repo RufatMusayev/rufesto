@@ -31,6 +31,11 @@ async function openBell(page) {
   await expect(page).toHaveURL(url('/notifications'))
 }
 
+/** Phone: the bell lives in the Home top bar only, so go Home (an in-app tap, like a guest would) before reading it; desktop has the rail item everywhere. */
+async function onHome(page) {
+  if (S.isPhone(page) && new URL(page.url()).pathname !== '/') await page.getByRole('navigation').getByRole('link', { name: 'Home', exact: true }).click()
+}
+
 /** The badge shows what the DB calls unseen for the guest inbox (notifications_badge; 9+ above nine). Opening the inbox marks rows seen, reading them is a separate step. */
 async function badgeMatchesDb(page, user) {
   const b = (await user.api.rpc('notifications_badge')).data
@@ -84,6 +89,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await openRow(page, me, 'friend_request', `${otherName} sent you a friend request.`, /\/friends(\?tab=requests)?$/)
       await page.getByRole('tab', { name: /^Requests/ }).click()
       await expect(page.locator('.soc-row').filter({ hasText: otherName }).getByRole('button', { name: 'Accept' })).toBeVisible()
+      await onHome(page)
       await expect.poll(() => badgeMatchesDb(page, me), 'the bell follows the unread count after the row was read').toBe(true)
       expect(watch.consoleErrors, 'console errors').toEqual([])
     } finally { await done(me, other) }
@@ -134,6 +140,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       const likes = (await me.api.get(`notifications?user_id=eq.${me.api.id}&type=eq.post_like&select=id,payload`)).data.filter(r => r.payload.includes(id)).length
       testInfo.annotations.push({ type: 'note', description: `like, unlike, like -> ${likes} post_like rows for the author` })
       await page.waitForTimeout(1500)   // let the bell settle after the like toggles
+      await onHome(page)
       const beforeC = await S.bellCount(page)
       await other.api.rpc('add_post_comment', { p_post_id: id, p_body: comment })
       await expect.poll(() => S.bellCount(page), { timeout: SLA }).toBeGreaterThan(beforeC)
@@ -203,6 +210,7 @@ test.describe('feat notifications', { tag: ['@guest', '@consumer', '@feat'] }, (
       await expect.poll(() => S.bellCount(page)).toBeGreaterThan(0)   // member_joined, written before the page was open
       await openRow(page, me, 'booking_member_joined', `${otherName} joined your booking.`, where)
       await expect(page.getByText(otherName).first()).toBeVisible()
+      await onHome(page)
       // staff confirm (the restaurant manager): host and member are told
       await other.page.goto(url('/'))
       await S.channelsReady(page); await S.channelsReady(other.page, 500)

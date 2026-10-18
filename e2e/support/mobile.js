@@ -1,5 +1,5 @@
 // Phone checks shared by the mobile checklist: horizontal overflow, text that spills out of its container,
-// small tap targets, console errors and the Leaflet stacking glitch. Everything uses expect.soft, so one walk
+// small tap targets, and console errors. Everything uses expect.soft, so one walk
 // reports every problem it meets instead of stopping at the first; failing screens get a PNG in test-results.
 const { expect } = require('./fixtures')
 
@@ -179,25 +179,4 @@ function bottomNav(page) {
   }
 }
 
-/** In the page: where does Leaflet's z-index 200..1000 land? Nearest ancestor of .leaflet-container that forms a stacking context. */
-function leafletStacking() {
-  const lc = document.querySelector('.leaflet-container')
-  if (!lc) return null
-  const forms = el => {
-    if (el === document.documentElement) return true
-    const s = getComputedStyle(el)
-    const flexChild = /flex|grid/.test(getComputedStyle(el.parentElement).display)
-    return (s.zIndex !== 'auto' && (s.position !== 'static' || flexChild)) || s.position === 'fixed' || s.position === 'sticky' ||
-      s.isolation === 'isolate' || +s.opacity < 1 || s.transform !== 'none' || s.filter !== 'none' || s.perspective !== 'none' ||
-      s.mixBlendMode !== 'normal' || /paint|layout|strict|content/.test(s.contain) || /transform|opacity|filter/.test(s.willChange)
-  }
-  for (let p = lc.parentElement; p; p = p.parentElement) {
-    if (forms(p)) {
-      const z = getComputedStyle(p).zIndex
-      return { root: p === document.documentElement, el: p.tagName.toLowerCase() + (typeof p.className === 'string' && p.className ? '.' + p.className.trim().split(/\s+/)[0] : ''), z: z === 'auto' ? 0 : +z }
-    }
-  }
-  return null
-}
-
-module.exports = { MIN_TAP_PX, walker, bottomNav, leafletStacking, slug }
+module.exports = { MIN_TAP_PX, walker, bottomNav, slug }

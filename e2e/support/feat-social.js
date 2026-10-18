@@ -291,7 +291,9 @@ const channelsReady = async (page, ms = 1500) => { await page.waitForLoadState('
 /** Bell badge number of the page's navigation (the phone's Home top bar bell, which exists on Home only, or the desktop rail item); 0 when none. */
 async function bellCount(page) {
   const bell = isPhone(page) ? page.getByRole('button', { name: 'Notifications' }) : page.locator('aside a[href="/notifications"]')
-  const text = (await bell.first().innerText().catch(() => '')).trim()
+  // on a phone the bell is in the Home top bar only: on any other page there is none (0), and asking must not wait for one (innerText() would sit 30 s on a missing element)
+  if (!(await bell.count())) return 0
+  const text = (await bell.first().innerText({ timeout: 2_000 }).catch(() => '')).trim()
   if (!text) return 0
   return text === '9+' ? 10 : Number(text) || 0
 }

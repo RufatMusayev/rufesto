@@ -43,7 +43,7 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
       await expect(page.getByText('No posts yet')).toBeVisible()
     } else {
       await expect(tiles.first()).toBeVisible()
-      expect((await hrefs(tiles)).slice(0, venue.length), 'tiles = the venue posts, newest first').toEqual(venue.map(p => `/post/${p.id}`))
+      await expect.poll(async () => (await hrefs(tiles)).slice(0, venue.length), { message: 'tiles = the venue posts, newest first', timeout: 15_000 }).toEqual(venue.map(p => `/post/${p.id}`))
       for (const [i, p] of venue.entries()) {
         const cls = tiles.nth(i)
         if (p.photo_url) await expect(cls, `tile ${i + 1} is a photo`).not.toHaveClass(/rst-tile--text/)
@@ -61,7 +61,8 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
     if (guestPosts.length === 0) await expect(page.getByText('No guest posts yet')).toBeVisible()
     else {
       await expect(tiles.first()).toBeVisible()
-      expect((await hrefs(tiles)).slice(0, guestPosts.length), 'tiles = the guests\' posts, newest first').toEqual(guestPosts.map(p => `/post/${p.id}`))
+      // the grid swaps from the venue's posts to the guests' (a fetch, then a render): poll, a phone is slower than a desktop
+      await expect.poll(async () => (await hrefs(tiles)).slice(0, guestPosts.length), { message: 'tiles = the guests\' posts, newest first', timeout: 15_000 }).toEqual(guestPosts.map(p => `/post/${p.id}`))
     }
     await settle(page)
     noErrors(watch)

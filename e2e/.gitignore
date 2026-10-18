@@ -8,3 +8,5 @@ personas/.world-initialised
 personas/.tokens.json
 personas/.sim-state.json
 personas/.sim-segments.json
+artifacts/
+personas/map/

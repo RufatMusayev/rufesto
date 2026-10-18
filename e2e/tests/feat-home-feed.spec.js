@@ -88,8 +88,10 @@ test.describe('feat home feed', { tag: ['@consumer', '@feat'] }, () => {
       if (fx.soldOut) {
         const cardB = await findCard(page, fx.b.caption)
         const strip = cardB.locator('.soc-dish')
-        await expect(cardB.getByText('Sold out', { exact: true })).toBeVisible()
-        await expect(strip.getByRole('link', { name: 'Order this' }), 'a sold-out dish can still be opened').toBeVisible()
+        // a dish that ran out reads "Sold out" in red next to its price and its button is a disabled "Sold out" (it replaces "Order this": persona-leyla #8)
+        await expect(cardB.locator('.soc-dish-meta .pill', { hasText: 'Sold out' })).toBeVisible()
+        await expect(strip.getByRole('button', { name: 'Sold out' })).toBeDisabled()
+        await expect(strip.getByRole('link', { name: 'Order this' }), 'no way to order a dish that ran out').toHaveCount(0)
       }
       await card.getByRole('button', { name: 'Like', exact: true }).click()
       await expect(U.authSheet(page), 'like asks a signed-out viewer to sign in').toBeVisible()

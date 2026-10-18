@@ -45,10 +45,16 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     expect(await R.rows(page).count()).toBeGreaterThanOrEqual(1)
   })
 
-  test('map page renders the map and markers', async ({ page }) => {
+  // The Map tab is a MapLibre vector map since fb305b0 (features/map/): .mp-screen, canvas.maplibregl-canvas, pins are button.mp-pin (aria-labelled) or .mp-cluster,
+  // the places are also a list (li.mp-li). Without WebGL2 the screen is the list alone (.is-nomap).
+  test('map page renders the map, its pins and the place list', async ({ page }) => {
     await page.goto(url('/map'))
-    await expect(page.locator('.leaflet-container')).toBeVisible()   // no role/label exists on Leaflet
-    await expect(page.locator('.leaflet-marker-icon').first()).toBeVisible()
+    await expect(page.locator('.mp-screen')).toBeVisible()
+    await expect(page.locator('li.mp-li').first()).toBeAttached({ timeout: 25_000 })
+    if (!(await page.locator('.mp-screen.is-nomap').count())) {
+      await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 25_000 })
+      await expect(page.locator('button.mp-pin, .mp-cluster').first()).toBeAttached({ timeout: 25_000 })
+    }
   })
 
   // One "Reserve a table" LINK on the restaurant page opens the /book/:slug wizard. Date, party size and the free
@@ -76,7 +82,11 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     await slot.click()
     const primary = page.locator('.bk-cta .btn')
     const gate = page.getByRole('heading', { name: /^welcome( back)?$|sign in to book/i }).first()
-    for (let step = 0; step < 3 && !(await gate.isVisible()); step++) await primary.click()
+    // the sign-in sheet is lazy: give it time to appear after the click instead of clicking again behind its scrim
+    for (let step = 0; step < 3 && !(await gate.isVisible()); step++) {
+      await primary.click()
+      await gate.waitFor({ timeout: 4_000 }).catch(() => {})
+    }
     await expect(gate).toBeVisible()
     await expect(page.getByRole('button', { name: /continue with email/i }).first()).toBeVisible()
     await expect(page.getByLabel('Phone number')).toHaveCount(0)   // the contact form only exists for a signed-in guest

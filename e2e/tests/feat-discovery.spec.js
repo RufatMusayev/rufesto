@@ -146,10 +146,13 @@ test.describe('search zero state', { tag: ['@anon', '@consumer', '@feat'] }, () 
     for (const [i, r] of data.top_reviews.slice(0, 3).entries()) {
       expect(r.user?.name, `review ${r.id}: reviewer name in the answer`).toBeTruthy()
       expect(r.user.name).not.toMatch(/^anonymous$/i)
-      const name = cards.nth(i).locator('a.rv-name')
+      // round 4: the name is plain text; the avatar beside it is the (44 px) link to the profile, labelled with the author's name
+      const name = cards.nth(i).locator('.rv-name')
       await expect(name).not.toHaveText(/anonymous|Rufesto guest/i)
       await expect(name).toContainText(r.user.name.split(' ')[0])
-      await expect(name).toHaveAttribute('href', `/u/${r.user.id}`)
+      const profile = cards.nth(i).locator(`a.rv-av[href="/u/${r.user.id}"]`)
+      await expect(profile, 'the avatar links to the profile').toHaveCount(1)
+      await expect(profile).toHaveAttribute('aria-label', /\S/)
     }
   })
 
@@ -345,92 +348,114 @@ test.describe('search page', { tag: ['@anon', '@consumer', '@feat'] }, () => {
 
 /* ==================================================================== MAP */
 
+// The Map tab is a MapLibre vector map (features/map/, fb305b0): a full-bleed map with pill pins (button.mp-pin, aria-label "<name>, <kind>, rated <n>, <status>"),
+// a snap sheet with the list (li.mp-li, the Search place rows) on a phone, a side panel on a desktop, a card for the selected place (.mp-card: Menu / Book / Directions)
+// and ?place=<slug> deep links. Light checks here (loads, list rows, a pin selects, deep link, filters); the full map spec is ux-map.spec.js.
 test.describe('map', { tag: ['@anon', '@consumer', '@feat'] }, () => {
-  const markers = p => p.locator('.leaflet-marker-icon')
-  const chip = (p, name) => p.getByRole('button', { name })
+  const screen = p => p.locator('.mp-screen')
+  const rows = p => p.locator('li.mp-li')
+  const rowOf = (p, name) => rows(p).filter({ hasText: name }).first()
+  const pin = (p, name) => p.locator('button.mp-pin[aria-label^="' + name + ',"]')
+  const card = (p, name) => p.locator('.mp-card').filter({ hasText: name }).first()
   // the map draws every active restaurant that has coordinates (the demo world holds about ten, so never a fixed number)
   const mapped = async page => (await (await anonApi(page)).get('restaurants?status=eq.active&select=id,name,slug,cuisine_type,latitude,longitude')).filter(r => r.latitude != null && r.longitude != null)
+  // no WebGL2 (a very old browser): the screen is the list alone (.is-nomap): the pin checks are skipped then
+  const hasMap = async page => (await page.locator('.mp-screen.is-nomap').count()) === 0
+  // a row is a selector: tap it with the DOM (on a phone the list sits in a sheet that peeks over the map and may clip the row)
+  const selectRow = (p, name) => rowOf(p, name).locator('button.sr-row').evaluate(b => b.click())
 
-  test('the map shows a marker and a chip for each active restaurant with coordinates', async ({ page, watch }) => {
+  test('the map screen loads: a list row for each restaurant with coordinates and pins on the MapLibre map; no search field of its own', async ({ page, watch }) => {
     const rests = await mapped(page)
     expect(rests.length, 'mapped restaurants on the preview').toBeGreaterThanOrEqual(3)
     await page.goto(url('/map'))
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expect(markers(page)).toHaveCount(rests.length)
-    for (const n of Object.values(NAMES)) await expect(chip(page, n).first()).toBeVisible()
-    for (const r of rests) await expect(chip(page, r.name).first(), `chip of ${r.name}`).toBeAttached()
-    const subs = await page.locator('.map-chip-sub').allInnerTexts()
-    expect(subs.map(x => x.trim()).sort(), 'one cuisine line per chip').toEqual(rests.map(r => r.cuisine_type || 'Restaurant').sort())
-    await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Zoom out' })).toBeVisible()
-    await expect.poll(() => page.locator('.leaflet-tile-loaded').count(), 'map tiles loaded').toBeGreaterThan(0)
+    await expect(screen(page)).toBeVisible()
+    await expect(rows(page).first()).toBeAttached({ timeout: 25_000 })
+    for (const n of Object.values(NAMES)) await expect(rowOf(page, n), `row of ${n}`).toBeAttached()
+    expect(await rows(page).count(), 'a row per mapped restaurant').toBeGreaterThanOrEqual(3)
+    await expect(page.getByRole('searchbox'), 'no search field on the map (search lives on the Search tab)').toHaveCount(0)
+    await expect(page.getByPlaceholder(/near you|Search restaurants/i)).toHaveCount(0)
+    if (await hasMap(page)) {
+      await expect(page.locator('canvas.maplibregl-canvas'), 'the MapLibre canvas').toBeVisible({ timeout: 25_000 })
+      await expect(page.locator('button.mp-pin, .mp-cluster').first(), 'pins (or clusters) on the map').toBeAttached({ timeout: 25_000 })
+    }
     noErrors(watch)
   })
 
   for (const slug of SLUGS) {
-    test(`chip ${NAMES[slug]} opens its popup, the popup opens the restaurant`, async ({ page, watch }) => {
-      const rests = await mapped(page)
-      await page.goto(url('/map'))
-      await expect(markers(page)).toHaveCount(rests.length)
-      await chip(page, NAMES[slug]).first().click()
-      const popup = page.locator('.leaflet-popup')
-      await expect(popup).toBeVisible()
-      await expect(popup).toContainText(NAMES[slug])
-      await expect(chip(page, NAMES[slug]).first()).toHaveClass(/is-selected/)
-      await popup.getByRole('link', { name: /view menu/i }).click()
+    test(`deep link ?place=${slug}: the card of ${NAMES[slug]} opens, its Menu link opens the restaurant`, async ({ page, watch }) => {
+      await page.goto(url(`/map?place=${slug}`))
+      await expect(screen(page)).toBeVisible()
+      const c = card(page, NAMES[slug])
+      await expect(c).toBeVisible({ timeout: 25_000 })
+      await expect(c.locator('.mp-act--menu')).toHaveAttribute('href', `/restaurant/${slug}`)
+      await expect(c.locator('.mp-act').filter({ hasText: /^Book$/ })).toHaveAttribute('href', `/book/${slug}`)
+      await expect(c.getByRole('button', { name: 'Directions' })).toBeVisible()
+      await c.locator('.mp-act--menu').click()
       await expect(page).toHaveURL(url(`/restaurant/${slug}`))
       await expect(heading1(page)).toHaveText(NAMES[slug])
       noErrors(watch)
     })
   }
 
-  test('tapping a marker opens the popup of that restaurant', async ({ page }) => {
-    const rests = await mapped(page)
+  test('a list row selects its place (the address gets ?place=<slug>), the card closes again, an unknown ?place= falls back to the plain map', async ({ page }) => {
     await page.goto(url('/map'))
-    await expect(markers(page)).toHaveCount(rests.length)
-    await chip(page, 'Sakura House').first().click()   // centres the map on a restaurant so its marker is on screen
-    await page.locator('.leaflet-popup-close-button').click()
-    await expect(page.locator('.leaflet-popup')).toHaveCount(0)
-    // several markers may be drawn (and only some are inside the map box): tap one that is on screen
-    const onScreen = await markers(page).evaluateAll(els => {
-      const c = document.querySelector('.leaflet-container').getBoundingClientRect()
-      return els.findIndex(e => { const r = e.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right && r.top >= c.top && r.bottom <= c.bottom })
-    })
-    expect(onScreen, 'a marker inside the map box after centring on Sakura House').toBeGreaterThanOrEqual(0)
-    await markers(page).nth(onScreen).click()
-    await expect(page.locator('.leaflet-popup')).toBeVisible()
+    await expect(rowOf(page, 'Sakura House')).toBeAttached({ timeout: 25_000 })
+    await selectRow(page, 'Sakura House')
+    await expect(page).toHaveURL(/\/map\?place=sakura-house$/)
+    await expect(card(page, 'Sakura House')).toBeVisible()
+    await page.keyboard.press('Escape')   // closes the card on both layouts (the phone carousel has no close button; a tap on the map or Escape dismisses it)
+    await expect(page.locator('.mp-card')).toHaveCount(0)
+    await expect(page).toHaveURL(url('/map'))
+    await page.goto(url('/map?place=no-such-place-qa'))
+    await expect(screen(page)).toBeVisible()
+    await expect(rows(page).first()).toBeAttached({ timeout: 25_000 })
+    await expect(page.locator('.mp-card'), 'no card for a place that does not exist').toHaveCount(0)
   })
 
-  test('geolocation denied: the map still works and a "my location" button explains it', async ({ page, context, watch }) => {
+  test('tapping a pin selects its place (it is centred when the page is opened on it)', async ({ page }) => {
+    await page.goto(url('/map?place=sakura-house'))
+    await expect(screen(page)).toBeVisible()
+    test.skip(!(await hasMap(page)), 'no WebGL2 here: the map is the list alone')
+    const p = pin(page, 'Sakura House')
+    await expect(p).toBeAttached({ timeout: 25_000 })
+    await expect(p, 'the selected pin is pressed').toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Escape')   // closes the card on both layouts (the phone carousel has no close button; a tap on the map or Escape dismisses it)
+    await expect(page.locator('.mp-card')).toHaveCount(0)
+    await expect(p).toHaveAttribute('aria-pressed', 'false')
+    await p.click()
+    await expect(card(page, 'Sakura House')).toBeVisible()
+    await expect(p).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('geolocation denied: the map still works and the "My location" button explains it', async ({ page, context, watch }) => {
     await context.clearPermissions()
-    const rests = await mapped(page)
     await page.goto(url('/map'))
-    await expect(markers(page)).toHaveCount(rests.length)
-    const locate = page.getByRole('button', { name: /my location|locate|near me|geolocat|current location/i })
-    expect(await locate.count(), 'a button to centre the map on the guest ("near me")').toBeGreaterThan(0)
-    await locate.first().click()
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expect(page.getByRole('alert').or(page.getByRole('status')), 'a message when location is denied').not.toHaveCount(0)
+    await expect(screen(page)).toBeVisible()
+    await expect(rows(page).first()).toBeAttached({ timeout: 25_000 })
+    const locate = page.locator('button.mp-locate:visible').first()
+    await expect(locate, 'a button to centre the map on the guest ("near me")').toBeVisible()
+    await locate.click()
+    await expect(screen(page)).toBeVisible()
+    await expect(page.locator('.mp-notice'), 'a message when location is denied').toBeVisible({ timeout: 10_000 })
+    await expect(rows(page).first()).toBeAttached()
     noErrors(watch)
   })
 
-  test('the map has no search field of its own; one "Open now" chip filters the markers and the chips (search lives on the Search tab)', async ({ page }) => {
+  test('one "Open now" chip (and the kind chips) filter the list; it never adds a place, and clearing it restores the list', async ({ page }) => {
     await page.goto(url('/map'))
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expect(markers(page).first()).toBeVisible()
-    await expect(page.locator('.map-search'), 'no search field on the map').toHaveCount(0)
-    await expect(page.getByPlaceholder(/near you|Search restaurants/i)).toHaveCount(0)
-    const open = page.getByRole('button', { name: 'Open now', exact: true })
+    await expect(rows(page).first()).toBeAttached({ timeout: 25_000 })
+    const open = page.locator('.mp-chip').filter({ hasText: 'Open now' })
     await expect(open).toHaveAttribute('aria-pressed', 'false')
-    const all = await page.locator('.map-chip').count()
-    expect(all, 'a chip per restaurant').toBeGreaterThan(0)
+    const all = await rows(page).count()
+    expect(all, 'a row per restaurant').toBeGreaterThan(0)
     await open.click()
     await expect(open).toHaveAttribute('aria-pressed', 'true')
-    const some = await page.locator('.map-chip').count()
+    const some = await rows(page).count()
     expect(some, 'Open now never adds restaurants').toBeLessThanOrEqual(all)
-    if (some === 0) await expect(page.getByRole('status').filter({ hasText: 'No restaurant is open right now.' })).toBeVisible()
+    if (some === 0) await expect(page.locator('.mp-empty'), 'the empty state says nothing matches').toBeVisible()
     await open.click()
-    await expect(page.locator('.map-chip')).toHaveCount(all)
+    await expect(open).toHaveAttribute('aria-pressed', 'false')
+    await expect(rows(page)).toHaveCount(all)
   })
 })
 
@@ -652,7 +677,9 @@ test.describe('restaurant page', { tag: ['@anon', '@consumer', '@feat'] }, () =>
         await expect(all.locator('article.rv').nth(Math.min(30, reviews.length) - 1)).toBeVisible()
         await expect(all.locator('article.rv')).toHaveCount(Math.min(30, reviews.length))
         await page.keyboard.press('Escape')
-        await expect.poll(() => U.openSheets(page).count()).toBe(1)
+        // wait until the closed sheet has left the DOM (its history entry is popped by then): a second Escape pressed in the middle of that is lost
+        await expect.poll(() => U.anySheet(page).count(), 'the reviews sheet is gone, the dish sheet stays').toBe(1)
+        await expect(U.openSheets(page)).toHaveCount(1)
       } else {
         await expect(sheet(page).getByRole('button', { name: /See all/ })).toHaveCount(0)
         test.info().annotations.push({ type: 'note', description: `the busiest dish has only ${reviews.length} reviews: "See all" cannot be exercised` })
@@ -809,10 +836,12 @@ test.describe('azerbaijani copy', { tag: ['@anon', '@consumer', '@feat'] }, () =
     await page.getByRole('searchbox').fill('zzzzqq')
     await expectAz(page, [['search', 'noResultsHint']], 'Search, empty result')
     await page.goto(url('/map'))
-    await expect(page.locator('.leaflet-container')).toBeVisible()
-    await expectAz(page, [['map', 'openNow']], 'Map')
-    await page.getByRole('button', { name: /Sakura House/ }).click()
-    await expectAz(page, [['map', 'viewMenu']], 'Map popup')
+    await expect(page.locator('.mp-screen')).toBeVisible()
+    await expect(page.locator('li.mp-li').first()).toBeAttached({ timeout: 25_000 })
+    await expectAz(page, [['map', 'chipOpen']], 'Map')
+    await page.goto(url('/map?place=sakura-house'))
+    await expect(page.locator('.mp-card').first()).toBeVisible({ timeout: 25_000 })
+    await expectAz(page, [['map', 'menu']], 'Map card')
     noErrors(watch)
   })
 

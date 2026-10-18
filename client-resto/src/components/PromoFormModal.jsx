@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { friendlyError, writeError } from '../lib/errors'
 import useDialog from '../lib/useDialog'
+import { dishName } from '../lib/dishName'
 import { composeDescription, discountProblem, DISCOUNT_KINDS, parseDiscount } from '../features/v2/promoDiscount'
 import {
   defaultWindow, FORM_STATUSES, MANAGERS_ONLY, STATUS_LABEL_KEYS, toLocalInput, TYPE_KEYS, TYPES,
@@ -49,7 +50,7 @@ function initialForm(campaign) {
 // New / edit campaign. A new campaign starts today and runs seven days. Field errors appear after the first failed
 // Save, sit under their own field, and go away as soon as that field is right (they are derived from the form).
 export default function PromoFormModal({ campaign, dishes, restaurantId, onClose, onSaved }) {
-  const { t } = useTranslation('dashboard')
+  const { t, i18n } = useTranslation('dashboard')
   const isEdit = !!campaign
   const uid = useId()
   const fid = key => `${uid}-${key}`
@@ -197,7 +198,7 @@ export default function PromoFormModal({ campaign, dishes, restaurantId, onClose
             <label className="label" htmlFor={fid('dish')}>{t('linkedDish')}</label>
             <select id={fid('dish')} className="input" value={form.dish_id} onChange={e => update('dish_id', e.target.value)}>
               <option value="">{t('none')}</option>
-              {dishes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {dishes.map(d => <option key={d.id} value={d.id}>{dishName(d, i18n.language)}</option>)}
             </select>
           </div>
 

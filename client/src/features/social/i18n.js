@@ -3,8 +3,10 @@
 import i18n from '../../lib/i18n'
 import socialEN from '../../locales/en/social.json'
 import socialAZ from '../../locales/az/social.json'
+import socialRU from '../../locales/ru/social.json'
 
 i18n.addResourceBundle('en', 'social', socialEN, true, true)
 i18n.addResourceBundle('az', 'social', socialAZ, true, true)
+i18n.addResourceBundle('ru', 'social', socialRU, true, true)
 
 export default i18n

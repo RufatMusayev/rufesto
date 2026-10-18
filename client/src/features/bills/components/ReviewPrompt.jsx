@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import DishThumb from '../../../components/DishThumb'
 import { dishReviewState, getBill, submitReview } from '../api'
 import { dishName } from '../mappers'
+import { langOf } from '../../../lib/lang'
 
 const MAX_DISHES = 3
 const MAX_BODY = 1000
@@ -38,7 +39,7 @@ function ownDishes(bill) {
  */
 export default function ReviewPrompt({ billId, bill: given }) {
   const { t, i18n } = useTranslation('bills')
-  const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
+  const lang = langOf(i18n.language)
   const { session } = useAuth()
   const uid = session?.user?.id
   const [fetched, setFetched] = useState(null)

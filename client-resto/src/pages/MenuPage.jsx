@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../lib/format'
+import { dishName } from '../lib/dishName'
 import DishThumb from '../components/DishThumb'
 import DishFormModal from '../components/DishFormModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
@@ -16,7 +17,7 @@ import '../features/v2/styles.css'
 
 export default function MenuPage() {
   const { restaurantId, isManager } = useAuth()
-  const { t } = useTranslation(['dashboard', 'common'])
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const [dishes, setDishes] = useState([])
   const [sections, setSections] = useState([])
   const [active, setActive] = useState(null)
@@ -198,7 +199,7 @@ export default function MenuPage() {
       )}
       {isManager && deleteDish && (
         <DeleteConfirmModal
-          dishName={deleteDish.name}
+          dishName={dishName(deleteDish, i18n.language)}
           loading={deleting}
           error={deleteError}
           onConfirm={() => handleDelete(deleteDish.id)}
@@ -210,7 +211,7 @@ export default function MenuPage() {
 }
 
 function DishRow({ dish: d, canManage, toggling, onToggle, onEdit, onDelete }) {
-  const { t } = useTranslation('dashboard')
+  const { t, i18n } = useTranslation('dashboard')
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:'0.85rem',
@@ -232,9 +233,10 @@ function DishRow({ dish: d, canManage, toggling, onToggle, onEdit, onDelete }) {
 
       {/* Info */}
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-          <span style={{ fontWeight:700, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {d.name}
+        {/* Wraps: with a long Russian badge ("★ Рекомендуем") beside it the name would shrink to nothing. */}
+        <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'2px 6px', marginBottom:2 }}>
+          <span style={{ fontWeight:700, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>
+            {dishName(d, i18n.language)}
           </span>
           {d.is_featured && (
             <span style={{ fontSize:'0.58rem', background:'rgba(196,154,44,0.15)', color:'var(--gold)', padding:'1px 6px', borderRadius:100, fontWeight:700, flexShrink:0 }}>
@@ -250,10 +252,10 @@ function DishRow({ dish: d, canManage, toggling, onToggle, onEdit, onDelete }) {
         <div style={{ fontSize:'0.75rem', color:'var(--t2)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
           <span style={{ fontWeight:600 }}>{formatPrice(d.price)}</span>
           {d.menu_sections?.name && <span style={{ color:'var(--t3)' }}>· {d.menu_sections.name}</span>}
-          {d.is_vegan && <span title="Vegan" style={{ fontSize:'0.75rem' }}>🌱</span>}
-          {d.is_vegetarian && !d.is_vegan && <span title="Vegetarian" style={{ fontSize:'0.75rem' }}>🥬</span>}
-          {d.is_gluten_free && <span title="Gluten-free" style={{ fontSize:'0.75rem' }}>🌾</span>}
-          {d.is_spicy && <span title="Spicy" style={{ fontSize:'0.75rem' }}>🌶️</span>}
+          {d.is_vegan && <span title={t('dietaryVegan')} style={{ fontSize:'0.75rem' }}>🌱</span>}
+          {d.is_vegetarian && !d.is_vegan && <span title={t('dietaryVegetarian')} style={{ fontSize:'0.75rem' }}>🥬</span>}
+          {d.is_gluten_free && <span title={t('dietaryGlutenFree')} style={{ fontSize:'0.75rem' }}>🌾</span>}
+          {d.is_spicy && <span title={t('dietarySpicy')} style={{ fontSize:'0.75rem' }}>🌶️</span>}
         </div>
       </div>
 

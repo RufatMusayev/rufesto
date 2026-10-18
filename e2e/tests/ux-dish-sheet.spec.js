@@ -284,4 +284,48 @@ test.describe('ux dish sheet', { tag: ['@consumer', '@feat', '@ux'] }, () => {
       await t.close()
     }
   })
+
+  // round 4 (QA round 3): the sheet opens at once from the card's own data (name, photo, price, venue) and the full row fills in the rest
+  test('opened from a Search row the sheet shows the dish at once (name, price, venue) while the full read is still on its way', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      await page.route('**/rest/v1/dishes?*', async route => {
+        if (/[?&]id=eq\./.test(route.request().url())) await new Promise(r => setTimeout(r, 3_000))   // the by-id read of the sheet host
+        await route.continue().catch(() => {})
+      })
+      await page.goto(url('/explore'))
+      const row = page.locator('.sr-zero .sr-row-btn').first()
+      await expect(row).toBeVisible({ timeout: 25_000 })
+      const name = (await row.locator('.sr-name').innerText()).trim()
+      const price = (await row.locator('.sr-price').innerText()).trim()
+      const t0 = Date.now()
+      await row.tap()
+      await expect(panelOf(page).locator('.dds-name')).toHaveText(name, { timeout: 1_500 })
+      const shownAfter = Date.now() - t0
+      await expect(panelOf(page).locator('.dds-price')).toHaveText(price)
+      await expect(panelOf(page).locator('.dds-meta')).not.toBeEmpty()
+      await expect(panelOf(page).locator('.dds-photo')).toBeVisible()
+      await expect(panelOf(page).locator('.dds-desc-sk'), 'a skeleton stands in for the description while the full read loads').toBeVisible()
+      testInfo.annotations.push({ type: 'timing', description: `tap to the seeded sheet: ${shownAfter} ms (the full read was held back 3 s)` })
+      expect(shownAfter, 'the sheet did not wait for the by-id read').toBeLessThan(2_000)
+      await expect(panelOf(page).locator('.dds-desc-sk'), 'the full read filled it in').toHaveCount(0, { timeout: 8_000 })
+      await expect(panelOf(page).locator('.dds-name')).toHaveText(name)
+    } finally { await t.close() }
+  })
+
+  test('the close button and the Like / Save / Share pills are 44 px targets (round 4: the close disc was 36 px)', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      await openByLink(page, ESPRESSO)
+      const x = await U.box(panelOf(page).locator('.dds-x'))
+      expect(x.width, 'close button width').toBeGreaterThanOrEqual(44)
+      expect(x.height, 'close button height').toBeGreaterThanOrEqual(44)
+      await expect(panelOf(page).locator('.dds-actions .dds-pill').first(), 'the Like pill has a word now').toContainText(/like/i)
+      for (const pill of await panelOf(page).locator('.dds-actions .dds-pill').all()) {
+        expect((await pill.evaluate(el => Math.round(el.getBoundingClientRect().height))), 'a pill is a 44 px box (36 px drawn inside it)').toBeGreaterThanOrEqual(44)
+      }
+    } finally { await t.close() }
+  })
 })

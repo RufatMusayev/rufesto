@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../../lib/format'
 import DemoBadge from './DemoBadge'
 import Money from './Money'
 import StatusPill from './StatusPill'

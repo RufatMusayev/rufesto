@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import CoverImage, { restaurantSources } from '../../discover/components/CoverImage'
 import { cuisineLabel } from '../../discover/cuisine'
 import { distanceLabel } from '../../social/lib/distance'
+import { formatNumber } from '../../../lib/helpers'
 import Hl from './Hl'
 
 /**
@@ -20,7 +21,7 @@ export default memo(function PlaceRow({ r, q = '', onOpen }) {
     : (r.opensAt ? t('closedOpens', { t: r.opensAt }) : null)
   const meta = [
     r.cuisine ? cuisineLabel(ts, r.cuisine) : null,
-    r.rating != null && r.reviewCount > 0 ? `★${r.rating.toFixed(1)}` : null,
+    r.rating != null && r.reviewCount > 0 ? `★${formatNumber(r.rating, 1)}` : null,
     status,
     distanceLabel(ts, r.km),
     r.priceBand ? '₼'.repeat(Math.min(3, r.priceBand)) : null,

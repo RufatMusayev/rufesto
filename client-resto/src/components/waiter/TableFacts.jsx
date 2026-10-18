@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '../../lib/format'
 import { orderStatusLabelKey, orderStatusStyle } from '../../lib/orderStatus'
 
 // The facts a waiter needs at a glance on a table card: guests, what the kitchen is doing with the order, the amount

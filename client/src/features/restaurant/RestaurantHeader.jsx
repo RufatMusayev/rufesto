@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { cuisineBackground, cuisineEmoji, getTodayHours, isRestaurantOpen } from '../../lib/helpers'
 import { cuisineLabel } from '../discover/cuisine'
+import { pickText } from '../../lib/lang'
 import { thumb } from '../discover/thumb'
 import { ReserveButton } from '../bookings/mounts'
 
@@ -22,10 +23,12 @@ function Stat({ label, value, onClick }) {
  *  stats   { reviews: number|null, followers, seatsFree, seatsTotal }: followers, reviews (tap = the reviews sheet) and
  *          the free seats, which only show while the place is open (UX plan 1.6: no "24 dishes")
  *  follow  { isFollowing, busy, toggle } from useFollow
+ *  descriptionI18n  restaurants.description_i18n { az, en, ru } from restaurant_menu (sql/69), null before it: the description in the app language
  */
-export default function RestaurantHeader({ restaurant, stats, follow, onBack, onFloor, onReviews }) {
-  const { t } = useTranslation(['restaurant', 'common'])
+export default function RestaurantHeader({ restaurant, descriptionI18n = null, stats, follow, onBack, onFloor, onReviews }) {
+  const { t, i18n } = useTranslation(['restaurant', 'common'])
   const { t: ts } = useTranslation('social')
+  const about = pickText(descriptionI18n, i18n.language, null, restaurant.description)
   const open = isRestaurantOpen(restaurant.operating_hours)
   const today = getTodayHours(restaurant.operating_hours)
   const emoji = cuisineEmoji(restaurant.cuisine_type)
@@ -76,7 +79,7 @@ export default function RestaurantHeader({ restaurant, stats, follow, onBack, on
           </span>
         </div>
 
-        {restaurant.description && <p className="rst-about">{restaurant.description}</p>}
+        {about && <p className="rst-about">{about}</p>}
 
         {restaurant.address && (
           <p className="rst-address">

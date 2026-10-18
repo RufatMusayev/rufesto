@@ -50,7 +50,7 @@ export const mapProfileReview = r => ({
     ? { id: r.restaurant.id || null, name: r.restaurant.name || '', slug: r.restaurant.slug || null, logo: r.restaurant.logo || null }
     : null,
   dish: r.dish
-    ? { id: r.dish.id || null, name: r.dish.name || '', photo: r.dish.photo || null, category: r.dish.category || null, price: null, available: null }
+    ? { id: r.dish.id || null, name: r.dish.name || '', nameI18n: r.dish.nameI18n || r.dish.name_i18n || null, photo: r.dish.photo || null, category: r.dish.category || null, price: null, available: null }
     : null,
   photoUrl: r.photoUrl || r.photo || null,
   text: r.body ?? r.text ?? null,

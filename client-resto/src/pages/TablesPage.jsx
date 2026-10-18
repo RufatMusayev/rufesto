@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '../lib/format'
+import { dishName } from '../lib/dishName'
 import { TABLE_COLORS, TABLE_STATE_TRANSITIONS } from '@shared/constants'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
@@ -61,7 +62,7 @@ export default function TablesPage() {
         .eq('restaurant_id', restaurantId).eq('is_active', true).order('table_number'),
       supabase.from('sections').select('id, name')
         .eq('restaurant_id', restaurantId).order('name'),
-      supabase.from('orders').select('id, table_id, status, total_amount, placed_at, order_items(quantity, dishes(name))')
+      supabase.from('orders').select('id, table_id, status, total_amount, placed_at, order_items(quantity, dishes(name, name_az, name_i18n))')
         .eq('restaurant_id', restaurantId)
         .not('status', 'in', '("paid","cancelled","refunded")')
         .gte('placed_at', new Date(Date.now() - ACTIVE_ORDERS_WINDOW_MS).toISOString())
@@ -201,7 +202,7 @@ export default function TablesPage() {
 }
 
 function TableCard({ table, orders, code, expanded, onToggle, onChangeState, updating, canChangeState, onShowQR }) {
-  const { t } = useTranslation(['dashboard', 'common'])
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const s = TABLE_COLORS[table.state] || TABLE_COLORS.free
   const transitions = canChangeState ? (TABLE_STATE_TRANSITIONS[table.state] || []) : []
   const totalSpend = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
@@ -295,11 +296,11 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
                   border:'1px solid var(--border)',
                 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span style={{ color:'var(--t2)' }}>{timeAgo(o.placed_at)}</span>
+                    <span style={{ color:'var(--t2)' }}>{timeAgo(o.placed_at, i18n.language)}</span>
                     <span style={{ fontWeight:700, color:'var(--t1)' }}>{formatPrice(o.total_amount)}</span>
                   </div>
                   <div style={{ fontSize:'0.68rem', color:'var(--t3)', marginTop:2 }}>
-                    {(o.order_items || []).map(i => `${i.quantity}× ${i.dishes?.name || 'item'}`).join(', ')}
+                    {(o.order_items || []).map(i => `${i.quantity}× ${dishName(i.dishes, i18n.language, t('itemFallback'))}`).join(', ')}
                   </div>
                 </div>
               ))}
@@ -319,7 +320,7 @@ function TableCard({ table, orders, code, expanded, onToggle, onChangeState, upd
                       color: ns.color, fontSize:'0.72rem', fontWeight:600,
                       cursor: updating ? 'wait' : 'pointer',
                       opacity: updating ? 0.5 : 1,
-                      fontFamily:"'DM Sans', system-ui, sans-serif",
+                      fontFamily:"'DM Sans', 'Inter', system-ui, sans-serif",
                       transition:'opacity 0.15s, transform 160ms',
                       minWidth:80,
                     }}

@@ -88,7 +88,7 @@
 .notif-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0.5rem 1rem; }
 .notif-body .v2-banner { margin: 0.5rem 0.25rem; }
 .notif-day {
-  font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--t2); padding: 1rem 0.6rem 0.3rem;
 }
 .notif-list { list-style: none; display: flex; flex-direction: column; }
@@ -191,7 +191,7 @@
 }
 .notif-device-icon svg { width: 20px; height: 20px; }
 .notif-device-copy { min-width: 0; }
-.notif-device-title { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
+.notif-device-title { font-family: 'DM Sans', 'Inter', system-ui, sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
 .notif-device-row { min-height: 44px; }
 .notif-device-state { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .notif-device-note {

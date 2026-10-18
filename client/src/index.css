@@ -651,7 +651,7 @@ body:has(.overlay, .bs-root) .cart-fab { visibility: hidden; }
   .btn, .chip, .slot-btn, input.input, select.input { min-height: var(--tap); }
 }
 
-/* EN / AZ switch (components/LanguageSwitcher, in Profile > Settings): compact on desktop, 44px on a phone */
+/* AZ · EN · RU switch (components/LanguageSwitcher, in Profile > Settings): compact on desktop, 44px on a phone */
 .lang-switcher { display: flex; gap: 4px; align-items: center; }
 .lang-btn {
   padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent;

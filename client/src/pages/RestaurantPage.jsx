@@ -124,6 +124,7 @@ function RestaurantView({ slug }) {
       <CartErrorBanner message={cartError} onClose={clearCartError} />
       <RestaurantHeader
         restaurant={restaurant}
+        descriptionI18n={menu?.descriptionI18n}
         stats={stats}
         follow={follow}
         onBack={() => (location.key === 'default' ? navigate('/') : navigate(-1))}

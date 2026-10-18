@@ -13,8 +13,9 @@ class FormError extends Error {}
 const CATEGORIES = ['starter', 'soup', 'salad', 'main', 'side', 'dessert', 'beverage', 'alcoholic', 'kids']
 
 // The localised copy lives in dishes.name_i18n / desc_i18n (what the consumer app shows in the guest's language,
-// through localizeDish) and in the older name_az / description_az columns; the form writes both. Keys of other
-// languages are kept; a patch value that is empty removes its key.
+// through localizeDish) and in the older name_az / description_az columns; the form writes both (Russian only in
+// name_i18n.ru / desc_i18n.ru). Keys of other languages are kept; a patch value that is empty removes its key.
+// The columns exist since sql/30 and the form already wrote them, so the Russian fields are always shown.
 function mergeI18n(existing, patch) {
   const out = { ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}) }
   for (const [lang, text] of Object.entries(patch)) {
@@ -41,8 +42,10 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
   const [form, setForm] = useState({
     name: dish?.name || '',
     name_az: dish?.name_az || dish?.name_i18n?.az || '',
+    name_ru: dish?.name_i18n?.ru || '',
     description: dish?.description || '',
     description_az: dish?.description_az || dish?.desc_i18n?.az || '',
+    description_ru: dish?.desc_i18n?.ru || '',
     price: dish?.price?.toString() || '',
     category: dish?.category || 'main',
     menu_section_id: dish?.menu_section_id || sections[0]?.id || '',
@@ -145,13 +148,15 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
       const description = form.description.trim()
       const nameAz = form.name_az.trim()
       const descriptionAz = form.description_az.trim()
+      const nameRu = form.name_ru.trim()
+      const descriptionRu = form.description_ru.trim()
       const row = {
         name,
         name_az: nameAz || null,
         description: description || null,
         description_az: descriptionAz || null,
-        name_i18n: mergeI18n(dish?.name_i18n, { en: name, az: nameAz }),
-        desc_i18n: mergeI18n(dish?.desc_i18n, { en: description, az: descriptionAz }),
+        name_i18n: mergeI18n(dish?.name_i18n, { en: name, az: nameAz, ru: nameRu }),
+        desc_i18n: mergeI18n(dish?.desc_i18n, { en: description, az: descriptionAz, ru: descriptionRu }),
         price: Number(form.price),
         category: form.category,
         menu_section_id: form.menu_section_id || null,
@@ -254,6 +259,13 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
               onChange={e => update('name_az', e.target.value)} placeholder={t('dishNameAzPlaceholder')} />
           </div>
 
+          {/* Name in Russian (dishes.name_i18n.ru) */}
+          <div>
+            <label className="label" htmlFor={fid('name-ru')}>{t('dishNameRu')}</label>
+            <input id={fid('name-ru')} className="input" lang="ru" value={form.name_ru}
+              onChange={e => update('name_ru', e.target.value)} placeholder={t('dishNameRuPlaceholder')} />
+          </div>
+
           {/* Price */}
           <div>
             <label className="label" htmlFor={fid('price')}>{t('priceLabel')} *</label>
@@ -301,6 +313,14 @@ export default function DishFormModal({ dish, sections, restaurantId, onClose, o
             <textarea id={fid('description-az')} className="input" lang="az" rows={2} value={form.description_az}
               onChange={e => update('description_az', e.target.value)}
               placeholder={t('dishDescriptionAzPlaceholder')} style={{ resize: 'vertical' }} />
+          </div>
+
+          {/* Description in Russian (dishes.desc_i18n.ru) */}
+          <div>
+            <label className="label" htmlFor={fid('description-ru')}>{t('dishDescriptionRu')}</label>
+            <textarea id={fid('description-ru')} className="input" lang="ru" rows={2} value={form.description_ru}
+              onChange={e => update('description_ru', e.target.value)}
+              placeholder={t('dishDescriptionRuPlaceholder')} style={{ resize: 'vertical' }} />
           </div>
 
           {/* Dietary */}

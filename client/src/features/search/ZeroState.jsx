@@ -11,6 +11,7 @@ import CompactReview from '../reviews/CompactReview'
 import PlaceRow from './rows/PlaceRow'
 import DishRow from './rows/DishRow'
 import { fold } from './fold'
+import { nameIn, langOf } from '../../lib/lang'
 
 /** Nearest first (places without a distance last, server order kept among equals). Only when the location is on. */
 export const byDistance = places => places
@@ -23,13 +24,17 @@ const TRENDING_SHOWN = 5
 const REVIEWS_SHOWN = 3
 
 /** Popular chips: the first 6 trending dish names plus the 2 biggest cuisines (a cuisine chip turns the Cuisine filter on). */
-export function popularChips(data, chips, ts) {
+export function popularChips(data, chips, ts, lang) {
   if (!data) return []
   const seen = new Set()
   const dishes = data.trendingDishes
     .filter(d => d.name && !seen.has(fold(d.name)) && seen.add(fold(d.name)))
     .slice(0, 6)
-    .map(d => ({ id: `d-${d.id}`, label: d.name, query: d.name }))
+    .map(d => {
+      const label = nameIn(d, lang) || d.name
+      // search() matches a Cyrillic query against the Russian names (sql/69e): the chip searches what it says; az / en keep the base name
+      return { id: `d-${d.id}`, label, query: langOf(lang) === 'ru' ? label : d.name }
+    })
   const cuisines = chips.slice(0, 2).map(c => ({ id: `c-${c.key}`, label: cuisineLabel(ts, c.key), cuisine: c.key }))
   return [...dishes, ...cuisines]
 }
@@ -91,9 +96,9 @@ export default function ZeroState({
   onQuery, onCuisine, onSeeAllOpen, onOpenPlace, onOpenDish,
 }) {
   const { t } = useTranslation('search')
-  const { t: ts } = useTranslation('social')
+  const { t: ts, i18n } = useTranslation('social')
   const [shown, setShown] = useState(FIRST_PLACES)
-  const popular = useMemo(() => popularChips(data, chips, ts), [data, chips, ts])
+  const popular = useMemo(() => popularChips(data, chips, ts, i18n.language), [data, chips, ts, i18n.language])
   const allPlaces = useMemo(() => {
     const list = data?.allRestaurants || []
     return geo.status === 'on' && list.some(p => p.km != null) ? byDistance(list) : list

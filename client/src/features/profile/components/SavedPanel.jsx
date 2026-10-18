@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState, MoneyText } from '../../../components/ui'
 import { categoryEmoji, dishBackground } from '../../../lib/helpers'
 import { removeSavedDish } from '../api'
+import { nameIn } from '../../../lib/lang'
 import Panel, { RowSkeletons } from './Panel'
 import { CloseIcon } from './Icons'
 
 function SavedRow({ item, busy, onRemove }) {
-  const { t } = useTranslation(['profile', 'common'])
+  const { t, i18n } = useTranslation(['profile', 'common'])
   const { dish, restaurant } = item
+  const dishName = nameIn(dish, i18n.language)
   const slug = restaurant?.slug
   const main = (
     <>
@@ -17,7 +19,7 @@ function SavedRow({ item, busy, onRemove }) {
         {categoryEmoji(dish.category)}
       </div>
       <div className="pf-row-main">
-        <div className="pf-row-title">{dish.name}</div>
+        <div className="pf-row-title">{dishName}</div>
         <div className="pf-row-meta">
           {restaurant?.name ? <span className="pf-row-sub">{restaurant.name}</span> : null}
           <MoneyText value={dish.price} size="0.78rem" strong />
@@ -33,7 +35,7 @@ function SavedRow({ item, busy, onRemove }) {
         : <div className="pf-row">{main}</div>}
       <button
         type="button" className="icon-btn pf-remove" disabled={busy}
-        aria-label={t('profile:removeSaved', { name: dish.name })} onClick={() => onRemove(item.id)}
+        aria-label={t('profile:removeSaved', { name: dishName })} onClick={() => onRemove(item.id)}
       >
         <CloseIcon size={16} />
       </button>

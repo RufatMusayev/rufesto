@@ -5,6 +5,8 @@
 // DishDetailSheet and CartContext.addDish, which read those keys. mapDish only adds what they also need
 // (restaurant_id for the cross-restaurant guard, the section name).
 
+import { nameIn, descIn } from '../../lib/lang'
+
 export const MENU_THEMES = ['classic', 'bistro', 'modern', 'cafe']
 export const MORE_KEY = '__more'
 
@@ -41,17 +43,18 @@ export function mapDish(d, restaurantId, sectionName) {
   }
 }
 
-function section(id, name, nameAz, dishes, restaurantId) {
+function section(id, name, nameAz, dishes, restaurantId, nameI18n = null) {
   return {
     key: id || MORE_KEY,
     id: id || null,
     name: name || '',
     nameAz: nameAz || null,
+    nameI18n: nameI18n && typeof nameI18n === 'object' ? nameI18n : null,
     dishes: dishes.map(d => mapDish(d, restaurantId, name)),
   }
 }
 
-function finish(restaurantId, design, sections, updatedAt, source) {
+function finish(restaurantId, design, sections, updatedAt, source, descriptionI18n = null) {
   const shown = sections.filter(s => s.dishes.length > 0)        // a printed menu has no empty headings
   const all = shown.flatMap(s => s.dishes)
   return {
@@ -62,14 +65,16 @@ function finish(restaurantId, design, sections, updatedAt, source) {
     reviewCount: all.reduce((n, d) => n + d.review_count, 0),
     updatedAt: updatedAt || null,
     source,
+    // restaurants.description_i18n { az, en, ru }: restaurant_menu carries it from sql/69 (the header read does not ask for the column)
+    descriptionI18n: descriptionI18n && typeof descriptionI18n === 'object' ? descriptionI18n : null,
   }
 }
 
 /** restaurant_menu(p_slug) answer -> menu view-model. */
 export function mapMenu(raw, restaurantId) {
   const rid = raw?.restaurant?.id || restaurantId
-  const sections = arr(raw?.sections).map(s => section(s.id, s.name, s.name_az, arr(s.dishes), rid))
-  return finish(rid, normalizeDesign(raw?.design), sections, raw?.updated_at, 'rpc')
+  const sections = arr(raw?.sections).map(s => section(s.id, s.name, s.name_az, arr(s.dishes), rid, s.name_i18n))
+  return finish(rid, normalizeDesign(raw?.design), sections, raw?.updated_at, 'rpc', raw?.restaurant?.description_i18n)
 }
 
 /**
@@ -88,21 +93,17 @@ export function mapLegacyMenu(sectionRows, dishRows, restaurantId) {
       loose.push(d)
     }
   }
-  const sections = arr(sectionRows).map(s => section(s.id, s.name, s.name_az, by.get(s.id) || [], restaurantId))
+  const sections = arr(sectionRows).map(s => section(s.id, s.name, s.name_az, by.get(s.id) || [], restaurantId, s.name_i18n))
   sections.push(section(null, 'More', 'Digər', loose, restaurantId))
   return finish(restaurantId, normalizeDesign(null), sections, null, 'legacy')
 }
 
-/** Name / description in the app language when that text exists (az), else the default text. */
+/** Name / description in the app language: name_i18n[lang] (desc_i18n), then name_az (description_az) for az, then the default text. */
 export function dishText(d, lang) {
-  const az = lang === 'az'
-  return {
-    name: (az && d.name_az) || d.name,
-    description: (az && d.description_az) || d.description || '',
-  }
+  return { name: nameIn(d, lang), description: descIn(d, lang) }
 }
 
-export const sectionTitle = (s, lang) => (lang === 'az' && s.nameAz) || s.name
+export const sectionTitle = (s, lang) => nameIn(s, lang)
 
 /** The dish object DishDetailSheet and the cart get: localized text, plus the keys the sheet reads. */
 export function toSheetDish(d, lang, restaurant) {

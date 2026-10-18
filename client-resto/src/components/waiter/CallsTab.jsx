@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '../../lib/format'
 import { useAuth } from '../../contexts/AuthContext'
 import { canAccess } from '../../lib/roles'
 import { requestKindIcon, requestKindLabelKey, isUrgent } from './waiterHelpers'

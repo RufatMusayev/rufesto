@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import DishDetailSheet from '../DishDetailSheet'
 import { useDishLink, takeSeed } from './dishLink'
 import { fetchDish } from './dishApi'
+import { nameIn } from '../../lib/lang'
 
 /**
  * Shows the dish sheet for ?dish=<id> of the current URL. `resolve(id)` hands over a dish the page already has (the
@@ -33,7 +34,11 @@ export default function DishSheetHost({ resolve }) {
 
   const full = known || (fetched?.id === dishId ? fetched : null)
   const seed = dishId && !full ? takeSeed(dishId) : null
-  const dish = useMemo(() => full || (seed && gaveUp === dishId ? { ...seed, seed: false } : seed), [full, seed, gaveUp, dishId])
+  const dish = useMemo(() => {
+    if (full) return full
+    const s = seed && gaveUp === dishId ? { ...seed, seed: false } : seed
+    return s ? { ...s, name: nameIn(s, lang) || s.name } : s          // a card's name in the app language (name_i18n) until the row arrives
+  }, [full, seed, gaveUp, dishId, lang])
   live.current = { dishId }
 
   // keep the last dish through the exit animation; a newer dish replaces it

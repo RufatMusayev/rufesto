@@ -5,6 +5,7 @@ import { Avatar, Img } from '../../components/ui'
 import { useAuth } from '../../contexts/AuthContext'
 import { categoryEmoji } from '../../lib/helpers'
 import { timeShort } from '../../lib/timeShort'
+import { nameIn } from '../../lib/lang'
 import { tap } from '../../lib/haptics'
 import { seedDish } from '../../components/dish/dishLink'
 import { patchFeedItem } from '../feed/feeds'
@@ -66,6 +67,7 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
   const rating = Math.max(0, Math.min(5, Math.round(item.rating || 0)))
   const place = item.restaurant
   const dish = item.dish
+  const dishName = dish ? nameIn(dish, i18n.language) : ''          // dishes.name_i18n in the app language
   const personName = guestName(item.user.name, t('guest'))
   const dishHref = place?.slug ? `/restaurant/${place.slug}${dish?.id ? `?dish=${dish.id}` : ''}` : null
 
@@ -100,7 +102,7 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
   }, [item.id])
 
   // row 2: "dish · venue" (the dish is cut first, the venue keeps up to 60 %), or the venue alone on the own variant
-  const whereDish = own ? null : (where !== 'none' ? dish?.name : null)
+  const whereDish = own ? null : (where !== 'none' ? dishName : null)
   const wherePlace = own ? place?.name : (where === 'full' ? place?.name : null)
   const whereNode = (whereDish || wherePlace) ? (
     <>
@@ -148,8 +150,8 @@ function CompactReview({ item, variant = 'row', where = 'full', kicker = false, 
         <div className="rv-l1">
           {own ? (
             dishHref
-              ? <Link to={dishHref} className="rv-name rv-name--link">{dish?.name || place?.name}</Link>
-              : <span className="rv-name">{dish?.name || place?.name}</span>
+              ? <Link to={dishHref} className="rv-name rv-name--link">{dishName || place?.name}</Link>
+              : <span className="rv-name">{dishName || place?.name}</span>
           ) : (
             // not a link: the avatar next to it is the 44 px target to the profile (a second, 20 px high link would not be one)
             <span className="rv-name">{personName}</span>

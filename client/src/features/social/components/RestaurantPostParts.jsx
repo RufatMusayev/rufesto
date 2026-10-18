@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Avatar, Pill } from '../../../components/ui'
 import { seedDish } from '../../../components/dish/dishLink'
 import { formatPrice } from '../../../lib/helpers'
+import { nameIn } from '../../../lib/lang'
 import { useDishAvailable } from '../../feed/dishAvailability'
 import { distanceLabel } from '../lib/distance'
 
@@ -111,7 +112,7 @@ export function TextCard({ item }) {
  * instead of "Order this" (persona-leyla #8).
  */
 export function DishStrip({ item, onOrder, showPill = true }) {
-  const { t } = useTranslation('social')
+  const { t, i18n } = useTranslation('social')
   const dish = item.dish
   const available = useDishAvailable(dish?.id, dish?.available ?? null)
   const base = restaurantPath(item)
@@ -120,7 +121,7 @@ export function DishStrip({ item, onOrder, showPill = true }) {
   return (
     <div className="soc-dish">
       <div className="soc-dish-info">
-        <span className="soc-dish-name">{dish.name}</span>
+        <span className="soc-dish-name">{nameIn(dish, i18n.language) || dish.name}</span>
         <span className="soc-dish-meta">
           {dish.price != null && <span className="soc-dish-price">{formatPrice(dish.price)}</span>}
           {showPill && soldOut && <Pill tone="red">{t('post.soldOut')}</Pill>}

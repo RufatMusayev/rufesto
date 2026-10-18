@@ -21,9 +21,12 @@ export function bakuTodayStartISO(date = new Date()) {
   return `${y}-${m}-${d}T00:00:00+04:00`
 }
 
-/** Maps an i18next language code to a locale tag for Intl/toLocale* calls. */
+/** Maps an i18next language code ('az', 'en', 'ru', or a regional 'ru-RU') to a locale tag for Intl/toLocale* calls. */
 export function localeTag(lang) {
-  return lang && lang.startsWith('az') ? 'az-AZ' : 'en-GB'
+  const code = String(lang || '').toLowerCase()
+  if (code.startsWith('az')) return 'az-AZ'
+  if (code.startsWith('ru')) return 'ru-RU'
+  return 'en-GB'
 }
 
 /** Day and month of an instant on the Baku calendar, e.g. "3 Oct" (the restaurant's clock, not the viewer's). */

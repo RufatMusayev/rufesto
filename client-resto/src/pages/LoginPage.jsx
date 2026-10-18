@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { friendlyError } from '../lib/errors'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 export default function LoginPage() {
   const { session, loading, signIn } = useAuth()
@@ -117,6 +118,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+          <LanguageSwitcher className="login-lang" />
           <button type="button" className="login-theme-btn" onClick={toggle}>
             {theme === 'dark' ? t('dashboard:navLight') : t('dashboard:navDark')}
           </button>

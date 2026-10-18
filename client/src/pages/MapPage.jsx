@@ -9,6 +9,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase } from '../lib/supabase'
 import { rsrc } from '../lib/publicSource'
 import { isRestaurantOpen } from '../lib/helpers'
+import { cuisineLabel } from '../features/discover/cuisine'
 import './MapPage.css'
 
 // Vite fingerprints/relocates these assets at build time, so Leaflet's own hardcoded
@@ -53,7 +54,7 @@ function buildPopupContent(r, t, go) {
 
   const meta = document.createElement('span')
   meta.className = 'map-popup-meta'
-  meta.textContent = `${r.cuisine_type || ''} · ${r.address || 'Baku'}`
+  meta.textContent = `${r.cuisine_type ? cuisineLabel(t, r.cuisine_type) : ''} · ${r.address || 'Baku'}`
   wrap.appendChild(meta)
   wrap.appendChild(document.createElement('br'))
 
@@ -285,7 +286,7 @@ export default function MapPage() {
               <div className={`map-dot map-dot--${cuisineKey(r)}`}>🍽</div>
               <div className="map-chip-text">
                 <div className="map-chip-name">{r.name}</div>
-                <div className="map-chip-sub">{r.cuisine_type || t('map:restaurant')}</div>
+                <div className="map-chip-sub">{r.cuisine_type ? cuisineLabel(t, r.cuisine_type) : t('map:restaurant')}</div>
               </div>
             </button>
           ))}

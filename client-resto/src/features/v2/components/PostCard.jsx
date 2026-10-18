@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { timeAgo } from '@shared/helpers'
+import { timeAgo } from '../../../lib/format'
 import { localeTag } from '../../../lib/time'
 import { bakuWhen } from '../dates'
 import { signPostPhoto } from '../postsApi'

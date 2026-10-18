@@ -74,7 +74,7 @@ test.describe('ux search', { tag: ['@consumer', '@feat', '@ux'] }, () => {
       await expect(page.getByRole('tab', { name: 'Friends', exact: true })).toBeVisible()
       await expect(page.getByRole('tab', { name: 'Discover' }), 'Home has two tabs').toHaveCount(0)
       expect(await page.getByRole('tablist', { name: 'Home view' }).getByRole('tab').count(), 'exactly two Home tabs').toBe(2)
-      await page.getByRole('navigation').getByRole('link', { name: 'Explore', exact: true }).tap()
+      await page.getByRole('navigation').getByRole('link', { name: 'Search', exact: true }).tap()
       await expect(page).toHaveURL(url('/explore'))
       await expect(page.locator('.sr-zero h2.dsc-h').first()).toBeVisible()
     } finally { await t.close() }
@@ -378,6 +378,83 @@ test.describe('ux search', { tag: ['@consumer', '@feat', '@ux'] }, () => {
       expect(labels.length).toBeGreaterThan(0)
       for (const l of labels) expect(l.trim(), 'the action of a person row').toMatch(/^(Add friend|Accept|Requested|Friends)$/)
       expect(t.watch.consoleErrors, 'console errors').toEqual([])
+    } finally { await t.close() }
+  })
+
+  // ------------------------------------------------------------------------------------------ round 4 (QA round 3, A2 / A3)
+  test('no stale rows: while a new query is in flight the rows of the previous query are gone and a progress bar runs; a slow answer that lands late never overwrites a newer one', async ({ browser }, testInfo) => {
+    test.setTimeout(60_000)
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      const delays = {}
+      await page.route('**/rest/v1/rpc/search*', async route => {
+        let q = ''
+        try { q = (route.request().postDataJSON() || {}).p_q || '' } catch { /* not JSON */ }
+        if (delays[q]) await new Promise(r => setTimeout(r, delays[q]))
+        await route.continue().catch(() => {})            // a request the page aborted meanwhile is gone: nothing to continue
+      })
+      await openZero(page)
+      const names = () => page.locator('.sr-results .sr-row .sr-name').allInnerTexts()
+      const doner = /d[öo]n[eə]r/i
+      // 1. "doner" answered, then "pizza" typed while its answer takes 2.5 s: no Döner row is shown meanwhile
+      await type(page, 'doner')
+      expect((await names()).some(n => doner.test(n)), 'the doner answer is on screen').toBe(true)
+      delays.pizza = 2_500
+      await field(page).fill('pizza')
+      await expect(page.locator('.sr-list')).toHaveAttribute('aria-busy', 'true')
+      await expect(page.locator('.sr-progress'), 'a slim progress bar runs while the answer is on its way').toBeVisible()
+      for (const n of await names()) expect(n, 'a row of the previous query while the new answer is loading').not.toMatch(doner)
+      await expect.poll(() => page.locator('.sr-list').getAttribute('aria-busy'), { timeout: 8_000 }).not.toBe('true')
+      expect((await names()).join(' | '), 'the pizza answer').toMatch(/pizza/i)
+      await expect(page.locator('.sr-progress')).toHaveCount(0)
+      // 2. out of order: "doner" is slow (3.5 s), "pizza" typed right after is fast: the late doner answer must not replace the pizza rows
+      delays.pizza = 0
+      delays.doner = 3_500
+      await field(page).fill('')
+      await field(page).fill('doner')
+      await page.waitForTimeout(500)                      // past the debounce: the doner request is in flight
+      await field(page).fill('pizza')
+      await expect.poll(() => page.locator('.sr-list').getAttribute('aria-busy'), { timeout: 8_000 }).not.toBe('true')
+      expect((await names()).join(' | ')).toMatch(/pizza/i)
+      await page.waitForTimeout(4_000)                    // the slow doner answer lands now
+      expect(await field(page).inputValue()).toBe('pizza')
+      for (const n of await names()) expect(n, 'a late answer of an older query replaced the rows').not.toMatch(doner)
+      expect((await names()).join(' | ')).toMatch(/pizza/i)
+      expect(t.watch.consoleErrors, 'console errors').toEqual([])
+    } finally { await t.close() }
+  })
+
+  test('small thumbnails: a 48 px row asks for a small rendition (Unsplash photos come as w=96), not the 800 px original', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      const photos = []
+      page.on('request', r => { if (r.resourceType() === 'image' && /images\.unsplash\.com/.test(r.url())) photos.push(r.url()) })
+      await openZero(page)
+      await expect.poll(() => page.locator('.sr-zero .sr-thumb img').count(), { message: 'thumbnails in the zero state' }).toBeGreaterThan(3)
+      await page.waitForTimeout(1_500)
+      const srcs = await page.locator('.sr-zero .sr-row .sr-thumb img').evaluateAll(els => els.map(e => e.currentSrc || e.src))
+      const unsplash = srcs.filter(s => /images\.unsplash\.com/.test(s))
+      test.skip(unsplash.length === 0, 'no Unsplash demo photo among the rows')
+      for (const s of unsplash) {
+        const w = Number(new URL(s).searchParams.get('w'))
+        expect(w, `row thumbnail ${s.slice(0, 90)} asks for a width`).toBeGreaterThan(0)
+        expect(w, `row thumbnail width (48 px box, retina: 96)`).toBeLessThanOrEqual(192)
+      }
+      expect(photos.filter(u => Number(new URL(u).searchParams.get('w')) >= 700).length, 'originals of 700+ px loaded for the thumbnails').toBe(0)
+    } finally { await t.close() }
+  })
+
+  test('the active filter chip is a 44 px target (round 4: it was 36 px)', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      await page.goto(url('/explore?cuisine=Italian'))
+      await expect(page.locator('.sr-active .sr-achip')).toBeVisible()
+      expect((await U.box(page.locator('.sr-active .sr-achip'))).height, 'chip height').toBeGreaterThanOrEqual(44)
+      await expect(filtersBtn(page)).toBeVisible()
+      expect((await U.box(filtersBtn(page))).height, 'Filters button height').toBeGreaterThanOrEqual(44)
     } finally { await t.close() }
   })
 })

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { formatPrice } from '../../../lib/helpers'
+import { nameIn } from '../../../lib/lang'
 import { Pill } from '../../../components/ui'
 import DishThumb from '../../../components/DishThumb'
 import { statusView } from '../orderStatus'
@@ -16,7 +17,7 @@ import OrderTotals from './OrderTotals'
  * for the "VAT (18%)" labels; the amounts are always the server's.
  */
 export default function OrderCard({ order, number, rates }) {
-  const { t } = useTranslation(['table', 'common'])
+  const { t, i18n } = useTranslation(['table', 'common'])
   const status = order.status || 'open'
   const view = statusView(status)
   const items = order.order_items || []
@@ -45,7 +46,7 @@ export default function OrderCard({ order, number, rates }) {
             <li key={item.id} className="dn-order-item">
               <DishThumb name={item.dishes?.name} category={item.dishes?.category} photo={item.dishes?.photo} />
               <div className="dn-order-item-main">
-                <div className="dn-order-item-name">{item.dishes?.name || t('table:dishFallback')}</div>
+                <div className="dn-order-item-name">{(item.dishes && nameIn(item.dishes, i18n.language)) || t('table:dishFallback')}</div>
                 <div className="dn-order-item-qty">{item.quantity}x {formatPrice(unit)}</div>
               </div>
               <span className="dn-money">{formatPrice(line)}</span>

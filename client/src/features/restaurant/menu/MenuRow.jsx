@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '../../../lib/helpers'
+import { formatPrice, formatNumber } from '../../../lib/helpers'
 import { dishText } from '../mappers'
 import { thumb } from '../../discover/thumb'
 
@@ -52,7 +52,7 @@ function MenuRow({ dish, lang, photos, seated, onOpen, onAdd }) {
               )}
               {dish.review_count >= 1 && (
                 <span className="mn-tag mn-tag--rate">
-                  {'★'} {dish.avg_rating.toFixed(1)} ({dish.review_count})
+                  {'★'} {formatNumber(dish.avg_rating, 1)} ({dish.review_count})
                 </span>
               )}
             </span>

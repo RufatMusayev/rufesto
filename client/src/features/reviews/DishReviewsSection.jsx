@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LoadError from '../../components/LoadError'
+import { formatNumber } from '../../lib/helpers'
 import CompactReview from './CompactReview'
 import { getDishReviews } from './api'
 import { ReviewSkeletons } from './ReviewSkeletons'
@@ -52,8 +53,8 @@ export default function DishReviewsSection({ dishId, onWrite, refreshKey, onSumm
         <h3 className="rv-sec-title" id={`rv-sec-${dishId}`}>
           {t('sectionTitle')}
           {ready && count > 0 && avg != null && (
-            <span className="rv-sec-meta" aria-label={t('average', { avg: avg.toFixed(1), count })}>
-              <span className="rv-sec-star" aria-hidden="true">★</span>{avg.toFixed(1)} · {count}
+            <span className="rv-sec-meta" aria-label={t('average', { avg: formatNumber(avg, 1), count })}>
+              <span className="rv-sec-star" aria-hidden="true">★</span>{formatNumber(avg, 1)} · {count}
             </span>
           )}
         </h3>

@@ -30,7 +30,7 @@ const ORDERS_POLL_MS = 20000
 function fetchVisitOrders(tableId, userId, startedAt) {
   let q = supabase
     .from('orders')
-    .select('*, order_items(*, dishes(name, category, price, photo))')
+    .select('*, order_items(*, dishes(name, name_i18n, category, price, photo))')
     .eq('table_id', tableId)
     .eq('user_id', userId)
     .in('status', CURRENT_VISIT_STATUSES)

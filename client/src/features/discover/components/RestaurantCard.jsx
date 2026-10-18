@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import CoverImage, { restaurantSources } from './CoverImage'
 import { distanceLabel } from '../../social/lib/distance'
+import { formatNumber } from '../../../lib/helpers'
 
 /**
  * A place in a rail: a 16:10 cover, the name and one muted line (rating, distance). The "New" tag sits on the
@@ -12,7 +13,7 @@ export default function RestaurantCard({ r }) {
   const { t: ts } = useTranslation('social')       // distanceLabel reads the social namespace
   const to = r.slug ? `/restaurant/${r.slug}` : null
   const meta = [
-    r.rating != null && r.reviewCount > 0 ? `★${r.rating.toFixed(1)}` : null,
+    r.rating != null && r.reviewCount > 0 ? `★${formatNumber(r.rating, 1)}` : null,
     distanceLabel(ts, r.km),
   ].filter(Boolean).join(' · ')
   const body = (

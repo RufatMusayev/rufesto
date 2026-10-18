@@ -20,7 +20,7 @@ import '../styles.css'
 // left for the whole team. Everything is summed server-side (tip_report).
 export default function TipsPage() {
   const { restaurantId, staffRow } = useAuth()
-  const { t } = useTranslation(['v2', 'common'])
+  const { t, i18n } = useTranslation(['v2', 'common'])
   const rangeState = useTipRange('today')
   const { range, valid } = rangeState
 
@@ -44,7 +44,7 @@ export default function TipsPage() {
       waiter: t('colWaiter'), role: t('colRole'), tips: t('colTips'), total: t('colTotal'),
       average: t('colAvg'), lastTip: t('colLast'), unassigned: t('unassignedRow'),
       roleName: r => (r ? t(`role_${r}`, { defaultValue: r }) : ''),
-    })
+    }, i18n.language)
     downloadCsv(`tips_${data.range.from}_${data.range.to}.csv`, csv)
   }
 

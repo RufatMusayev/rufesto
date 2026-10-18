@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../../lib/format'
 import { THEME_DEFAULT_ACCENT } from '../menuDesign'
 
 const ROWS = [

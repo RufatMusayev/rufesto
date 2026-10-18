@@ -8,6 +8,7 @@ import { subscribeResync } from '../lib/realtime'
 import { friendlyError, writeError } from '../lib/errors'
 import ActionBanner from '../components/ActionBanner'
 import DishThumb from '../components/DishThumb'
+import { dishName } from '../lib/dishName'
 
 // A ticket whose order is already closed is not the kitchen's any more. The database completes or cancels those
 // tickets itself (sql/53); until it has, or where that is not deployed, the board hides them as well.
@@ -57,7 +58,7 @@ export default function KDSPage() {
   async function loadTickets() {
     const { data } = await supabase
       .from('kds_tickets')
-      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, category, photo), orders(id, status, tables(table_number)))`)
+      .select(`*, order_items!order_item_id(id, quantity, special_request, created_at, dishes(name, name_az, name_i18n, category, photo), orders(id, status, tables(table_number)))`)
       .eq('restaurant_id', restaurantId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('priority', { ascending: false })
@@ -172,7 +173,7 @@ export default function KDSPage() {
 }
 
 function KDSTicket({ ticket, now, onAdvance, col, busy }) {
-  const { t } = useTranslation(['dashboard', 'common'])
+  const { t, i18n } = useTranslation(['dashboard', 'common'])
   const meta = KDS_STATUS[ticket.status]
   const item = ticket.order_items
   const table = item?.orders?.tables?.table_number || '?'
@@ -190,7 +191,7 @@ function KDSTicket({ ticket, now, onAdvance, col, busy }) {
       <div className="kds-ticket-head">
         <div className="kds-table-num">{table}</div>
         <div className="kds-elapsed" style={{ color: urgency.color }}>
-          {urgency.level === 'overdue' ? `⚠ ${elapsed}m` : `${elapsed}m`}
+          {urgency.level === 'overdue' ? `⚠ ${t('v2:notifTimeMin', { n: elapsed })}` : t('v2:notifTimeMin', { n: elapsed })}
         </div>
       </div>
       <div className="kds-ticket-body">
@@ -199,7 +200,7 @@ function KDSTicket({ ticket, now, onAdvance, col, busy }) {
             <div className="kds-item-row">
               <span className="kds-qty">{item.quantity}×</span>
               <DishThumb size="sm" photo={item.dishes?.photo} category={item.dishes?.category} />
-              <span className="kds-dish-name">{item.dishes?.name || t('unknownDish')}</span>
+              <span className="kds-dish-name">{dishName(item.dishes, i18n.language, t('unknownDish'))}</span>
             </div>
             {item.special_request && (
               <div className="kds-special">📝 {item.special_request}</div>

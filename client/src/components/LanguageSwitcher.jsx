@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import { SUPPORTED_LANGS } from '../lib/i18n'
 
-const LANG_LABELS = { en: 'EN', az: 'AZ' }
+const LANG_LABELS = { az: 'AZ', en: 'EN', ru: 'RU' }
 // each language in its own words, for the accessible name of its button
-const LANG_NAMES = { en: 'English', az: 'Azərbaycan dili' }
+const LANG_NAMES = { az: 'Azərbaycan dili', en: 'English', ru: 'Русский' }
 
 /**
- * EN / AZ switch. The choice is stored by the language detector in localStorage (rufesto_lang), so it is the same
+ * AZ · EN · RU switch. The choice is stored by the language detector in localStorage (rufesto_lang), so it is the same
  * signed in or out. Profile > Settings is its only home (docs/UX-PLAN-2026-10-18.md D10: it left the top bar and the rail).
  */
 export default function LanguageSwitcher({ className = '' }) {

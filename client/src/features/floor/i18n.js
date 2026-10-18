@@ -3,8 +3,10 @@
 import i18n from '../../lib/i18n'
 import floorEN from '../../locales/en/floor.json'
 import floorAZ from '../../locales/az/floor.json'
+import floorRU from '../../locales/ru/floor.json'
 
 i18n.addResourceBundle('en', 'floor', floorEN, true, true)
 i18n.addResourceBundle('az', 'floor', floorAZ, true, true)
+i18n.addResourceBundle('ru', 'floor', floorRU, true, true)
 
 export default i18n

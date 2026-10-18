@@ -4,8 +4,8 @@ import FiscalBlock from './FiscalBlock'
 import LoyaltyEarned from './LoyaltyEarned'
 import { cleanDisplayName, formatPrice } from '../../../lib/helpers'
 import { dishName } from '../mappers'
+import { localeTag } from '../../../lib/lang'
 
-const localeTag = lang => (lang === 'az' ? 'az-AZ' : 'en-GB')
 
 function formatWhen(iso, lang) {
   const d = iso ? new Date(iso) : null

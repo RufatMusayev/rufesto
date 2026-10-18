@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
-import { categoryEmoji, dishBackground, formatPrice } from '../lib/helpers'
+import { categoryEmoji, dishBackground, formatPrice, formatPriceShort, formatNumber } from '../lib/helpers'
+import { nameIn } from '../lib/lang'
 
 /** Sponsored campaign card — interleaved into the home feed. One label only: the pill ("Sponsored" / "Reklam"). */
 export default function PromoCard({ campaign, index, onDishClick }) {
-  const { t } = useTranslation('feed')
+  const { t, i18n } = useTranslation('feed')
   const navigate = useNavigate()
   const dish = campaign.dishes
   const restaurant = campaign.restaurants
@@ -15,7 +16,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
   const off = Number(campaign.discount_amount) > 0 ? Number(campaign.discount_amount) : null
   const badge = pct
     ? { text: '−' + pct + ' %', aria: t('discountPercentOff', { value: pct }) }
-    : off ? { text: '−₼' + (Number.isInteger(off) ? off : off.toFixed(2)), aria: t('discountAmountOff', { value: off }) } : null
+    : off ? { text: '−' + formatPriceShort(off), aria: t('discountAmountOff', { value: off }) } : null
 
   function handleClick() {
     // Fire-and-forget click tracking — never block the UI on this
@@ -67,7 +68,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
           userSelect: 'none',
         }}>
           {photo ? (
-            <img src={photo} alt={dish?.name || campaign.title || campaign.name} loading="lazy" decoding="async"
+            <img src={photo} alt={(dish && nameIn(dish, i18n.language)) || campaign.title || campaign.name} loading="lazy" decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
           ) : (
             <span style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))' }}>
@@ -87,7 +88,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
               borderRadius: 10, padding: '6px 12px',
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f5f5f5' }}>{dish.name}</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f5f5f5' }}>{nameIn(dish, i18n.language)}</span>
               <span style={{
                 fontFamily: "'DM Mono', monospace",
                 fontSize: '0.8rem', fontWeight: 700, color: 'var(--gold)',
@@ -128,7 +129,7 @@ export default function PromoCard({ campaign, index, onDishClick }) {
               fontSize: '0.7rem', color: 'var(--gold-text)',
               fontFamily: "'DM Mono', monospace",
             }}>
-              ★ {Number(dish.avg_rating || 0).toFixed(1)} ({dish.review_count})
+              ★ {formatNumber(dish.avg_rating || 0, 1)} ({dish.review_count})
             </span>
           )}
         </div>

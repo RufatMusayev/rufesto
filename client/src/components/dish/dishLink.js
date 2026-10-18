@@ -35,6 +35,8 @@ export function cardToDish(card) {
   return {
     id: card.id,
     name: card.name,
+    name_az: card.nameAz || null,
+    name_i18n: card.nameI18n || null,
     description: null,
     photo: card.photo,
     price: card.price,

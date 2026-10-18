@@ -1,6 +1,8 @@
 // Menu search and dietary filters. Text is folded (case, accents, Azerbaijani letters) so "cay" finds "Çay" and
 // "ekmek" finds "Əkmək"; every word of the query must appear in the dish name, description or section name.
 
+import { allTexts } from '../../../lib/lang'
+
 export const fold = s => String(s ?? '')
   .toLowerCase()
   .normalize('NFD')
@@ -12,7 +14,7 @@ export function buildHaystacks(menu) {
   const map = new Map()
   for (const s of menu.sections) {
     for (const d of s.dishes) {
-      map.set(d.id, fold(`${d.name} ${d.name_az || ''} ${d.description || ''} ${d.description_az || ''} ${s.name} ${s.nameAz || ''}`))
+      map.set(d.id, fold(allTexts(null, d.name, d.name_az, d.description, d.description_az, s.name, s.nameAz).concat(allTexts(d.name_i18n), allTexts(d.desc_i18n), allTexts(s.nameI18n)).join(' ')))
     }
   }
   return map

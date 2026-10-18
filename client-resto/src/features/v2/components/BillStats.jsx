@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../../lib/format'
 import { bakuTodayStartISO } from '../../../lib/time'
 import { bakuDateString } from '../dates'
 import { inDayRange } from '../historyRange'

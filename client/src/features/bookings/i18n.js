@@ -3,8 +3,10 @@
 import i18n from '../../lib/i18n'
 import bookingsEN from '../../locales/en/bookings.json'
 import bookingsAZ from '../../locales/az/bookings.json'
+import bookingsRU from '../../locales/ru/bookings.json'
 
 i18n.addResourceBundle('en', 'bookings', bookingsEN, true, true)
 i18n.addResourceBundle('az', 'bookings', bookingsAZ, true, true)
+i18n.addResourceBundle('ru', 'bookings', bookingsRU, true, true)
 
 export default i18n

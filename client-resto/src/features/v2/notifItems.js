@@ -11,7 +11,7 @@
 // review_received and stock_alert (sql/64) are read defensively (dish_name / rating, ingredient_name): a missing key
 // just drops that part of the detail line.
 
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../lib/format'
 import { bakuDateString } from './dates'
 import { bakuTimeLabel } from '../../lib/time'
 

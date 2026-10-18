@@ -1,13 +1,13 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '../../../lib/helpers'
+import { formatPrice, formatNumber } from '../../../lib/helpers'
 import { TIP_MAX, TIP_PERCENTS, tipForShare } from '../money'
 
 /** Tip chips 0 · 5% · 10% · 15% · Custom, computed on the share the guest pays (exact to the qepik: ₼0.62, not ₼0.60). */
 export default function TipPicker({ share, tipSel, customOn, valid, tip, onPercent, onCustom }) {
   const { t } = useTranslation('bills')
   const hintId = useId()
-  const max = TIP_MAX.toFixed(2)
+  const max = formatNumber(TIP_MAX, 2)
 
   return (
     <section className="bl-section" aria-labelledby="bl-tip-title">

@@ -16,7 +16,7 @@ const toCampaign = p => ({
   discount_amount: p.discountAmount,
   image_url: p.imageUrl,
   restaurants: p.restaurant ? { name: p.restaurant.name, slug: p.restaurant.slug } : null,
-  dishes: p.dish ? { id: p.dish.id, name: p.dish.name, photo: p.dish.photo, price: p.dish.price } : null,
+  dishes: p.dish ? { id: p.dish.id, name: p.dish.name, name_i18n: p.dish.nameI18n || null, photo: p.dish.photo, price: p.dish.price } : null,
 })
 
 const OPEN_GAP_MS = 800

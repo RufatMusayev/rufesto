@@ -3,8 +3,10 @@
 import i18n from '../../lib/i18n'
 import billsEN from '../../locales/en/bills.json'
 import billsAZ from '../../locales/az/bills.json'
+import billsRU from '../../locales/ru/bills.json'
 
 i18n.addResourceBundle('en', 'bills', billsEN, true, true)
 i18n.addResourceBundle('az', 'bills', billsAZ, true, true)
+i18n.addResourceBundle('ru', 'bills', billsRU, true, true)
 
 export default i18n

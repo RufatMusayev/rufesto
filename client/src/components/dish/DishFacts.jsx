@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '../../lib/helpers'
+import { formatPrice, formatNumber } from '../../lib/helpers'
 
 /**
  * The text block under the photo: name and price, one meta line (venue link, rating, category), the description
@@ -48,7 +48,7 @@ export default function DishFacts({ dish, summary }) {
         {dish.restaurants?.name && (here || !slug
           ? <span className="dds-venue">{dish.restaurants.name}</span>
           : <Link to={`/restaurant/${slug}?tab=menu`} replace className="dds-venue dds-venue-link">{dish.restaurants.name}</Link>)}
-        {avg != null && count > 0 && <span>★{avg.toFixed(1)} ({count})</span>}
+        {avg != null && count > 0 && <span>★{formatNumber(avg, 1)} ({count})</span>}
         {dish.category && <span className="dds-cat">{dish.category}</span>}
       </p>
       {!dish.description && dish.seed && (

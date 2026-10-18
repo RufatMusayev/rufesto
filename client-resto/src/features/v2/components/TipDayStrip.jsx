@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice, formatPriceWhole } from '../../../lib/format'
 import { localeTag } from '../../../lib/time'
 import { eachDay } from '../dates'
 
@@ -45,7 +45,7 @@ export default function TipDayStrip({ days, from, to }) {
   const valueText = c => {
     if (c.total <= 0) return ''
     if (cols.length <= FULL_UP_TO) return formatPrice(c.total)
-    if (cols.length <= ROUNDED_UP_TO) return `₼${Math.round(c.total)}`
+    if (cols.length <= ROUNDED_UP_TO) return formatPriceWhole(c.total)
     return c.total === max ? formatPrice(c.total) : ''
   }
 

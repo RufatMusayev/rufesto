@@ -12,6 +12,7 @@
 // a template loses its angle brackets first, so a name or a comment can never become markup.
 import { formatPrice, cleanDisplayName } from './helpers'
 import { formatBakuDate, formatBakuTime } from '../features/bookings/timeFormat'
+import { pickText } from './lang'
 
 /* ------------------------------------------------------------------ categories */
 
@@ -50,7 +51,6 @@ const enc = encodeURIComponent
 const when = (iso, lang) => (iso ? `${formatBakuDate(iso, lang)}, ${formatBakuTime(iso)}` : '')
 const str = v => (typeof v === 'string' && v.trim() ? v.trim() : '')
 const clean = v => (typeof v === 'string' ? v.replace(/[<>]/g, '') : v)
-const isAz = lang => String(lang || '').toLowerCase().startsWith('az')
 
 // an order that is older than this is no longer "at the table": its row opens the receipt or the restaurant instead
 const ORDER_FRESH_MS = 6 * 3600 * 1000
@@ -128,15 +128,16 @@ export const thumbOfItem = item => {
   return own ? toThumb(own) : thumbOf(parsePayload(item.payload))
 }
 
-const dishOf = (p, lang) => {
-  const az = isAz(lang) ? str(p.dish_name_az) : ''
-  return az || str(p.dish_name || p.dish_title || (typeof p.dish === 'string' ? p.dish : p.dish && p.dish.name))
-}
+// The dish name in the app language (docs/V2-CONTRACT.md 25.3): dish_name_i18n { az, en, ru } -> dish_name_az (az) -> en -> dish_name.
+const dishOf = (p, lang) => pickText(p.dish_name_i18n, lang, p.dish_name_az, str(p.dish_name || p.dish_title || (typeof p.dish === 'string' ? p.dish : p.dish && p.dish.name)))
 
+// order_ready: dishes (up to 3 names) with dishes_az and dishes_i18n (an array of { az, en, ru } objects), all in the same order.
 const dishNames = (p, lang) => {
-  const raw = (isAz(lang) && Array.isArray(p.dishes_az) && p.dishes_az.length ? p.dishes_az : null) || p.dishes || p.dish_names || p.items
+  const raw = p.dishes || p.dish_names || p.items
   if (!Array.isArray(raw)) return ''
-  return raw.map(d => (typeof d === 'string' ? d : d && d.name)).filter(Boolean).slice(0, 3).join(', ')
+  const i18nList = Array.isArray(p.dishes_i18n) ? p.dishes_i18n : []
+  const azList = Array.isArray(p.dishes_az) ? p.dishes_az : []
+  return raw.map((d, i) => pickText(i18nList[i], lang, azList[i], typeof d === 'string' ? d : d && d.name)).filter(Boolean).slice(0, 3).join(', ')
 }
 
 /* ------------------------------------------------------------------ templates */

@@ -126,7 +126,7 @@ export async function getOwnPosts(userId) {
 export async function getMyReviews(userId) {
   const { data, error } = await run(() => supabase
     .from('reviews')
-    .select(`*, dishes(id, name, category, price, photo, restaurant_id, ${rsrc()}(id, name, slug))`)
+    .select(`*, dishes(id, name, name_i18n, category, price, photo, restaurant_id, ${rsrc()}(id, name, slug))`)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(30))
@@ -139,7 +139,7 @@ export async function getMyReviews(userId) {
       createdAt: r.created_at,
       verified: !!r.is_verified,
       photo: r.photo || null,
-      dish: { id: r.dishes?.id || null, name: r.dishes?.name || null, category: r.dishes?.category || null, photo: r.dishes?.photo || null },
+      dish: { id: r.dishes?.id || null, name: r.dishes?.name || null, nameI18n: r.dishes?.name_i18n || null, category: r.dishes?.category || null, photo: r.dishes?.photo || null },
       restaurant: r.dishes?.restaurants ? { id: r.dishes.restaurants.id || null, name: r.dishes.restaurants.name, slug: r.dishes.restaurants.slug } : null,
     })),
     error: null,
@@ -149,7 +149,7 @@ export async function getMyReviews(userId) {
 export async function getSavedDishes(userId) {
   const { data, error } = await run(() => supabase
     .from('saved_dishes')
-    .select(`*, dishes(id, name, category, price, available, restaurant_id, ${rsrc()}(name, slug))`)
+    .select(`*, dishes(id, name, name_i18n, category, price, available, restaurant_id, ${rsrc()}(name, slug))`)
     .eq('user_id', userId)
     .order('created_at', { ascending: false }))
   if (error) return { data: null, error }
@@ -157,7 +157,7 @@ export async function getSavedDishes(userId) {
     data: (data || []).filter(s => s.dishes).map(s => ({
       id: s.id,
       dish: {
-        id: s.dishes.id, name: s.dishes.name, category: s.dishes.category,
+        id: s.dishes.id, name: s.dishes.name, nameI18n: s.dishes.name_i18n || null, category: s.dishes.category,
         price: s.dishes.price, available: !!s.dishes.available,
       },
       restaurant: s.dishes.restaurants ? { name: s.dishes.restaurants.name, slug: s.dishes.restaurants.slug } : null,

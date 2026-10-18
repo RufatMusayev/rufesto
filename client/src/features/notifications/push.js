@@ -93,8 +93,11 @@ export async function enablePush() {
       if (created) await sub.unsubscribe().catch(() => {})
       return { ok: false, error: res.error.missing ? 'unavailable' : 'save_failed' }
     }
-    // The server only pushes to guests whose prefs say so; the UI language picks the wording of the push.
-    await setPrefs({ push_enabled: true, language: String(i18n.language || 'en').slice(0, 2) })
+    // The server only pushes to guests whose prefs say so; the UI language picks the wording of the push. Before sql/69a the server
+    // takes az | en only and refuses 'ru' with invalid_language (the whole call, so push would stay off): then it is saved without.
+    const lang = String(i18n.language || 'en').slice(0, 2)
+    const first = await setPrefs({ push_enabled: true, language: lang })
+    if (first?.error && /invalid_language/.test(String(first.error.message || ''))) await setPrefs({ push_enabled: true })
     return { ok: true }
   } catch {
     if (created && sub) await sub.unsubscribe().catch(() => {})

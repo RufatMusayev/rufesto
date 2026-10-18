@@ -94,15 +94,17 @@ export function getTodayHours(hours = []) {
 const TIME_AGO_STRINGS = {
   en: { justNow: 'just now', minutes: n => `${n}m ago`, hours: n => `${n}h ago`, days: n => `${n}d ago` },
   az: { justNow: 'indicə',   minutes: n => `${n} dəq əvvəl`, hours: n => `${n} saat əvvəl`, days: n => `${n} gün əvvəl` },
+  ru: { justNow: 'только что', minutes: n => `${n} мин назад`, hours: n => `${n} ч назад`, days: n => `${n} дн назад` },
 }
 
 /** `lang` is optional so existing single-arg callers (e.g. client-resto, which has no
  *  Azerbaijani copy for this) keep their previous English-only behavior unchanged. Pass
  *  the current i18next language (e.g. `i18n.language`) from a caller that wants this
- *  localized. Falls back to English for any language other than Azerbaijani. */
+ *  localized. Falls back to English for any language other than Azerbaijani and Russian. */
 export function timeAgo(ts, lang = 'en') {
   if (!ts) return ''
-  const strings = String(lang).toLowerCase().startsWith('az') ? TIME_AGO_STRINGS.az : TIME_AGO_STRINGS.en
+  const code = String(lang).toLowerCase().slice(0, 2)
+  const strings = TIME_AGO_STRINGS[code] || TIME_AGO_STRINGS.en
   const diff = (Date.now() - new Date(ts)) / 1000
   if (diff < 60)   return strings.justNow
   if (diff < 3600) return strings.minutes(Math.floor(diff / 60))

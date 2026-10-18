@@ -11,6 +11,7 @@ import TopBar from '../components/TopBar'
 import SignInCard from '../components/SignInCard'
 import ReceiptCard from '../components/ReceiptCard'
 import ReviewPrompt from '../components/ReviewPrompt'
+import { langOf } from '../../../lib/lang'
 
 function ReceiptSkeleton() {
   return (
@@ -24,7 +25,7 @@ function ReceiptSkeleton() {
  *  carries fiscal data. Print or save with window.print(); the print rule in styles.css keeps only the paper. */
 export default function ReceiptPage() {
   const { t, i18n } = useTranslation(['bills', 'common'])
-  const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
+  const lang = langOf(i18n.language)
   const { billId } = useParams()
   const { session, loading: authLoading } = useAuth()
   const uid = session?.user?.id

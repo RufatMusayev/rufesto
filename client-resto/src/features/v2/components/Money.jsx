@@ -1,4 +1,4 @@
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../../lib/format'
 
 // Amounts always come from the server; this only formats them.
 export default function Money({ value, tone, strong = false }) {

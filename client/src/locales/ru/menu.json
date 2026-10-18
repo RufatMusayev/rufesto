@@ -1,0 +1,32 @@
+{
+  "soldOut": "Закончилось",
+  "writeReviewPlaceholder": "Напишите отзыв...",
+  "post": "Опубликовать",
+  "addPhoto": "Добавить фото",
+  "removePhoto": "Убрать фото",
+  "selectRating": "Выберите оценку",
+  "photoUploadFailed": "Не удалось загрузить фото: {{message}}",
+  "allergens": "Аллергены",
+  "kcal": "{{count}} ккал",
+  "addToOrder": "В заказ · {{price}}",
+  "enterTablePrompt": "Введите код стола на вкладке «Стол», чтобы заказать",
+  "dish": {
+    "more": "…ещё",
+    "share": "Поделиться",
+    "shareAria": "Поделиться блюдом",
+    "linkCopied": "Ссылка скопирована",
+    "prepShort": "{{count}} мин",
+    "diets": {
+      "spicy": "Острое",
+      "vegan": "Веганское",
+      "vegetarian": "Вегетарианское",
+      "glutenFree": "Без глютена"
+    },
+    "ingredientsAllergens": "Состав и аллергены",
+    "ingredients": "Состав",
+    "reserve": "Забронировать",
+    "soldOutToday": "Сегодня закончилось",
+    "writeReview": "Написать отзыв",
+    "rating": "Ваша оценка"
+  }
+}

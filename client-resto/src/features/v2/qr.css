@@ -11,7 +11,7 @@
   display: grid; overflow: hidden;
   background: #FFFFFF; color: #1A1210; border-radius: 6px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
 }
 .v2-qr-page--1 { grid-template-columns: 1fr; grid-template-rows: 1fr; --qr-size: 73cqw; --qr-resto: 3.6cqw; --qr-table: 11cqw; --qr-hint: 4.2cqw; --qr-code: 3.4cqw; }
 .v2-qr-page--4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); --qr-size: 41cqw; --qr-resto: 2.9cqw; --qr-table: 6.8cqw; --qr-hint: 2.8cqw; --qr-code: 2.3cqw; }

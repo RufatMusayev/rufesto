@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { timeAgo } from '@shared/helpers'
+import { timeAgo } from '../../../lib/format'
 import Money from './Money'
 
 // Tables whose food is served but that have no bill yet: the guest has not opened the bill, so Bills would show

@@ -4,6 +4,7 @@
 // is missing: filters only, no text, answered from the same cached discover().
 import { fold } from './fold'
 import { passesLegacy } from './api'
+import { allTexts } from '../../lib/lang'
 
 const uniq = lists => {
   const seen = new Set()
@@ -20,7 +21,7 @@ export function localMatches(discover, q, max = 6) {
     .filter(r => fold(r.name).includes(needle) || (r.cuisine && fold(r.cuisine).includes(needle)))
     .slice(0, max)
   const dishes = discover.trendingDishes
-    .filter(d => fold(d.name).includes(needle) || (d.restaurant && fold(d.restaurant.name).includes(needle)))
+    .filter(d => allTexts(d.nameI18n, d.name, d.nameAz).some(n => fold(n).includes(needle)) || (d.restaurant && fold(d.restaurant.name).includes(needle)))
     .slice(0, max)
   return { restaurants, dishes }
 }

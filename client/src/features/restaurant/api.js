@@ -133,7 +133,7 @@ export function fetchMenu(slug, restaurantId) {
 }
 
 const PATCH_KEYS = [
-  'name', 'name_az', 'description', 'description_az', 'price', 'photo', 'available', 'is_vegan', 'is_vegetarian',
+  'name', 'name_az', 'name_i18n', 'description', 'description_az', 'desc_i18n', 'price', 'photo', 'available', 'is_vegan', 'is_vegetarian',
   'is_gluten_free', 'is_spicy', 'spice_level', 'is_featured', 'avg_rating', 'review_count', 'prep_time_min', 'calories',
 ]
 

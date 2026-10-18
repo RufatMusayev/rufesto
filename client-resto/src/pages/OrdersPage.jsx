@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '../lib/format'
+import { dishName } from '../lib/dishName'
 import DishThumb from '../components/DishThumb'
 import { orderStatusStyle, orderStatusLabelKey } from '../lib/orderStatus'
 import { bakuDayLabel, bakuTimeLabel } from '../lib/time'
@@ -87,7 +88,7 @@ export default function OrdersPage() {
     const { fromISO, toISO } = rangeInstants(rangeRef.current)
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, category, price, photo))')
+      .select('*, tables(table_number), order_items(id, quantity, unit_price, line_total, status, dishes(name, name_az, name_i18n, category, price, photo))')
       .eq('restaurant_id', restaurantId)
       .gte('placed_at', fromISO)
       .lt('placed_at', toISO)
@@ -244,12 +245,13 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestNam
         </div>
 
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <span style={{ fontWeight:700, fontSize:'0.85rem' }}>
+          {/* Wraps: the Russian item count and "N мин назад" are longer than the English, and the count must not break. */}
+          <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', columnGap:6 }}>
+            <span style={{ fontWeight:700, fontSize:'0.85rem', whiteSpace:'nowrap' }}>
               {t('dashboard:itemCount', { count: items.length })}
             </span>
             <span style={{ fontSize:'0.68rem', color:'var(--t3)' }}>
-              · {time} · {timeAgo(order.placed_at)}
+              · {time} · {timeAgo(order.placed_at, i18n.language)}
             </span>
           </div>
           <div style={{ fontSize:'0.7rem', color:'var(--t3)', marginTop:2 }}>
@@ -286,7 +288,7 @@ function OrderCard({ order, expanded, onToggle, onUpdateStatus, acting, guestNam
               <DishThumb size="sm" photo={item.dishes?.photo} category={item.dishes?.category} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:'0.8rem', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {item.dishes?.name || 'Dish'}
+                  {dishName(item.dishes, i18n.language, t('unknownDish'))}
                 </div>
                 <div style={{ fontSize:'0.65rem', color:'var(--t3)' }}>
                   {item.quantity}× {formatPrice(item.unit_price)}

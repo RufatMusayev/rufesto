@@ -34,7 +34,9 @@ const mapPostPhoto = v => ({
 const num = v => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v))
 // price / available only come with home_feed and the v2 post item (live kitchen toggle); null = unknown
 const mapDish = d => (d ? {
-  id: d.id || null, name: d.name || '', photo: d.photo || null, category: d.category || null,
+  id: d.id || null, name: d.name || '', nameAz: d.name_az || null,
+  nameI18n: d.name_i18n && typeof d.name_i18n === 'object' ? d.name_i18n : null,
+  photo: d.photo || null, category: d.category || null,
   price: num(d.price), available: d.available == null ? null : !!d.available,
 } : null)
 

@@ -105,8 +105,8 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
 
   // The app follows the OS colour scheme on a first visit (the suite itself runs on dark: playwright.config.js colorScheme).
   for (const scheme of ['light', 'dark']) {
-    test(`a first visit follows the OS colour scheme (${scheme})`, async ({ browser }) => {
-      const context = await browser.newContext({ colorScheme: scheme })
+    test(`a first visit follows the OS colour scheme (${scheme})`, async ({ browser }, testInfo) => {
+      const context = await browser.newContext({ colorScheme: scheme, storageState: testInfo.project.use.storageState })   // English forced like every other context
       try {
         const page = await context.newPage()
         await page.goto(url('/'))
@@ -115,8 +115,8 @@ test.describe('anon consumer', { tag: ['@anon', '@consumer'] }, () => {
     })
   }
 
-  test('a stored theme choice wins over the OS colour scheme', async ({ browser }) => {
-    const context = await browser.newContext({ colorScheme: 'light' })
+  test('a stored theme choice wins over the OS colour scheme', async ({ browser }, testInfo) => {
+    const context = await browser.newContext({ colorScheme: 'light', storageState: testInfo.project.use.storageState })
     try {
       const page = await context.newPage()
       await page.addInitScript(() => { try { localStorage.setItem('rufesto_theme', 'dark') } catch { /* storage blocked */ } })

@@ -10,7 +10,7 @@
 // consumer app today) shows it as plain text, so it is written to be readable on its own; a consumer that wants the
 // value parses it with `parseDiscount` below (same regex). When the table gets a real column this file is the only
 // place that changes.
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../lib/format'
 
 const PREFIX = /^\s*\[discount:(percent|amount)=(\d+(?:\.\d{1,2})?)\]\s*/
 

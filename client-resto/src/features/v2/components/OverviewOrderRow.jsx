@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
-import { formatPrice, timeAgo } from '@shared/helpers'
+import { formatPrice, timeAgo } from '../../../lib/format'
 import DishThumb from '../../../components/DishThumb'
 import { orderStatusLabelKey, orderStatusStyle } from '../../../lib/orderStatus'
+import { dishName } from '../../../lib/dishName'
 
 // One line of "Recent orders". The text column is the only part that can shrink (ellipsis); the price and the
 // status never leave the row, so the page cannot grow wider than the screen (.ov-order in ops.css).
@@ -9,7 +10,7 @@ export default function OverviewOrderRow({ order }) {
   const { t, i18n } = useTranslation(['dashboard', 'common'])
   const s = orderStatusStyle(order.status)
   const items = order.order_items || []
-  const names = items.slice(0, 2).map(i => `${i.quantity}× ${i.dishes?.name || t('dashboard:itemFallback')}`).join(', ')
+  const names = items.slice(0, 2).map(i => `${i.quantity}× ${dishName(i.dishes, i18n.language, t('dashboard:itemFallback'))}`).join(', ')
   const more = items.length > 2 ? ` +${items.length - 2}` : ''
 
   return (

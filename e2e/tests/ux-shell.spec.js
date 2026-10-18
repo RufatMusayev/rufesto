@@ -4,6 +4,7 @@
 //   - no EN | AZ, no theme toggle, no dead "More" button in the rail or the top bar; the top bar exists on Home only (wordmark, "+", bell);
 //     the gold floating "+" is gone; the bell sits in the Home bar on phones and in the rail on desktop;
 //   - language and theme live in Profile > Settings (signed in or out), the theme label is fixed ("Dark mode") and the choices persist;
+//   - a signed-out guest reaches Settings on the guest Profile page (round 4: the Profile tab opens it, no sign-in sheet): Language, Dark mode, Send feedback inline;
 //   - the QR sheet's manual field asks for "Table code, e.g. FINCAN-4821" (not a UUID); sheets have no blurred scrim.
 // Read only (Settings toggles are local to the browser context).
 const { test, expect } = require('../support/fixtures')
@@ -41,7 +42,7 @@ test.describe('ux shell', { tag: ['@consumer', '@feat', '@ux'] }, () => {
           await expect(rail).toBeVisible()
           await expect(bottom).toHaveCount(0)
           await expect(rail.getByRole('link')).toHaveCount(6)
-          for (const name of ['Home', 'Explore', 'Map', 'Notifications', 'Enter table code', 'Profile']) await expect(rail.getByRole('link', { name }), `rail item ${name}`).toBeVisible()
+          for (const name of ['Home', 'Search', 'Map', 'Notifications', 'Enter table code', 'Profile']) await expect(rail.getByRole('link', { name }), `rail item ${name}`).toBeVisible()
           const r = await U.box(rail)
           expect(r.width, 'the rail is 72 px').toBeLessThanOrEqual(80)
           const out = await rail.evaluate(el => {
@@ -110,16 +111,24 @@ test.describe('ux shell', { tag: ['@consumer', '@feat', '@ux'] }, () => {
     } finally { await anon.close() }
   })
 
-  test('Settings (signed out): language EN | AZ and Dark mode live here; the theme label is fixed and the choices persist', async ({ browser }, testInfo) => {
+  test('guest Profile (signed out): the tab opens it without a sign-in sheet, Settings are inline (Language, Dark mode, Send feedback), no gear; the choices persist', async ({ browser }, testInfo) => {
     const t = await U.phone(browser, testInfo)
     try {
       const { page } = t
-      await page.goto(url('/profile'))
-      await page.getByRole('button', { name: 'Settings' }).tap()
-      const sheet = U.sheet(page)
-      await expect(sheet.getByRole('heading', { name: 'Settings' })).toBeVisible()
-      await expect(sheet.getByRole('group', { name: 'Language' }).getByRole('button')).toHaveCount(2)
-      const dark = sheet.getByRole('switch', { name: 'Dark mode' })
+      await page.goto(url('/'))
+      await page.getByRole('navigation').getByRole('link', { name: 'Profile', exact: true }).tap()
+      await expect(page).toHaveURL(url('/profile'))
+      await expect(U.authSheet(page), 'the Profile tab no longer opens the sign-in sheet').toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'Welcome to Rufesto' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Settings', exact: true }), 'no gear: the settings are on the page').toHaveCount(0)
+      const settings = page.locator('.pf-guest-settings')
+      await expect(settings.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(settings.getByRole('button', { name: 'Send feedback' })).toBeVisible()
+      // Language: EN | AZ (| RU): found by lang attribute, so a third language does not matter
+      expect(await settings.getByRole('group', { name: 'Language' }).getByRole('button').count(), 'a switch with at least EN and AZ').toBeGreaterThanOrEqual(2)
+      await expect(settings.locator('button[lang="en"]')).toHaveAttribute('aria-pressed', 'true')
+      const dark = settings.getByRole('switch', { name: 'Dark mode' })
       await expect(dark).toBeVisible()
       const html = page.locator('html')
       const theme = () => html.getAttribute('data-theme')
@@ -127,28 +136,30 @@ test.describe('ux shell', { tag: ['@consumer', '@feat', '@ux'] }, () => {
       expect(await dark.getAttribute('aria-checked'), 'the switch says what the theme is').toBe(String(start === 'dark'))
       await dark.tap()
       await expect.poll(theme).not.toBe(start)
-      await expect(sheet.getByText('Dark mode', { exact: true }), 'the label does not flip with the state').toBeVisible()
-      await expect(sheet.getByText('Light mode', { exact: true })).toHaveCount(0)
+      await expect(settings.getByText('Dark mode', { exact: true }), 'the label does not flip with the state').toBeVisible()
+      await expect(settings.getByText('Light mode', { exact: true })).toHaveCount(0)
       expect(await dark.getAttribute('aria-checked')).toBe(String(start !== 'dark'))
       const flipped = await theme()
       expect(await page.evaluate(() => localStorage.getItem('rufesto_theme'))).toBe(flipped)
       await page.reload()
       expect(await theme(), 'the theme survives a reload').toBe(flipped)
-      // language: AZ switches the sheet itself, EN switches back, both stick
-      await page.getByRole('button', { name: /^Settings$|^Ayarlar$/ }).tap()
-      await U.sheet(page).getByRole('button', { name: /Azərbaycan dili/ }).tap()
+      // language: AZ switches the page itself, EN switches back, both stick
+      await page.locator('.pf-guest-settings button[lang="az"]').tap()
       await expect.poll(() => page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('az')
-      await expect(U.sheet(page).getByRole('heading', { name: 'Ayarlar' })).toBeVisible()
+      await expect(page.locator('.pf-guest-settings').getByRole('heading', { name: 'Ayarlar' })).toBeVisible()
       await page.reload()
       expect(await page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('az')
-      await expect(page.getByRole('button', { name: 'Ayarlar' })).toBeVisible()
-      await page.getByRole('button', { name: 'Ayarlar' }).tap()
-      await U.sheet(page).getByRole('button', { name: /English/ }).tap()
+      await expect(page.locator('.pf-guest-settings').getByRole('heading', { name: 'Ayarlar' })).toBeVisible()
+      await page.locator('.pf-guest-settings button[lang="en"]').tap()
       await expect.poll(() => page.evaluate(() => localStorage.getItem('rufesto_lang'))).toBe('en')
-      await expect(U.sheet(page).getByRole('heading', { name: 'Settings' })).toBeVisible()
-      // the sheet is a sheet: its scrim is not blurred
+      await expect(page.locator('.pf-guest-settings').getByRole('heading', { name: 'Settings' })).toBeVisible()
+      // Send feedback opens the feedback sheet over the page; a sheet has no blurred scrim
+      await page.locator('.pf-guest-settings').getByRole('button', { name: 'Send feedback' }).tap()
+      await expect(U.sheet(page).getByRole('heading', { name: 'Share feedback' })).toBeVisible()
       const blur = await page.locator('.bs-root[data-state="open"] .bs-scrim').evaluate(el => getComputedStyle(el).backdropFilter)
       expect(['none', ''], 'no backdrop blur behind a sheet (it janks on Android)').toContain(blur)
+      await page.keyboard.press('Escape')
+      await U.noSheet(page)
       expect(t.watch.consoleErrors, 'console errors').toEqual([])
     } finally { await t.close() }
   })

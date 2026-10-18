@@ -34,9 +34,9 @@ const toCount = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ?
 /** The restaurant's dishes for the tag select: [{ id, name, available }], by name. */
 export async function fetchPostDishes(restaurantId) {
   // CONTRACT: the staff of a restaurant read its dishes (id, name, available) through RLS, as the Menu page does.
-  const res = await run(() => supabase.from('dishes').select('id, name, available').eq('restaurant_id', restaurantId).order('name'))
+  const res = await run(() => supabase.from('dishes').select('id, name, name_az, name_i18n, available').eq('restaurant_id', restaurantId).order('name'))
   if (res.error) return res
-  return { data: (res.data || []).map(d => ({ id: d.id, name: d.name || '', available: d.available !== false })), error: null }
+  return { data: (res.data || []).map(d => ({ id: d.id, name: d.name || '', name_az: d.name_az || null, name_i18n: d.name_i18n || null, available: d.available !== false })), error: null }
 }
 
 /**

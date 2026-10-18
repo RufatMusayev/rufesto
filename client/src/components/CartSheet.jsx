@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice, categoryEmoji, dishBackground } from '../lib/helpers'
+import { nameIn } from '../lib/lang'
 import AuthModal from './AuthModal'
 import BottomSheet, { useSheetClose, useSheetNavigate } from './ui/BottomSheet'
 import Img from './ui/Img'
@@ -11,7 +12,7 @@ import { OrderTotals, priceOrder, ratesFromAnswer, useOrderRates } from '../feat
 // The cart drawer. AppLayout mounts it while the cart is open; BottomSheet runs it in self-managed mode, so every way of
 // closing (scrim, drag, Esc, Back, X) plays the exit animation and then drops `open` in CartContext, which unmounts this.
 export default function CartSheet() {
-  const { t } = useTranslation(['cart', 'common'])
+  const { t, i18n } = useTranslation(['cart', 'common'])
   const { items, total, setOpen, remove, decrement, addDish, placeOrder, placing, tableId, restaurantId } = useCart()
   const { session } = useAuth()
   // What the order will cost (VAT and any service charge included), the rule the server applies on place_order.
@@ -103,7 +104,7 @@ export default function CartSheet() {
                   </div>
 
                   <div className="cart-info">
-                    <div className="cart-name">{dish.name}</div>
+                    <div className="cart-name">{nameIn(dish, i18n.language)}</div>
                     <div className="cart-unit">{formatPrice(dish.price)}</div>
                   </div>
 
@@ -114,7 +115,7 @@ export default function CartSheet() {
                     <button
                       type="button" className="cart-qty-btn"
                       onClick={() => decrement(dish.id)}
-                      aria-label={t('cart:decrease', { name: dish.name })}
+                      aria-label={t('cart:decrease', { name: nameIn(dish, i18n.language) })}
                     >
                       −
                     </button>
@@ -122,14 +123,14 @@ export default function CartSheet() {
                     <button
                       type="button" className="cart-qty-btn cart-qty-add"
                       onClick={() => addDish(dish)}
-                      aria-label={t('cart:increase', { name: dish.name })}
+                      aria-label={t('cart:increase', { name: nameIn(dish, i18n.language) })}
                     >
                       +
                     </button>
                     <button
                       type="button" className="cart-qty-btn cart-qty-del"
                       onClick={() => remove(dish.id)}
-                      aria-label={t('cart:remove', { name: dish.name })}
+                      aria-label={t('cart:remove', { name: nameIn(dish, i18n.language) })}
                     >
                       ✕
                     </button>

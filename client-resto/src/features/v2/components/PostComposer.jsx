@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { v2Error } from '../errors'
+import { dishName } from '../../../lib/dishName'
 import { prepareImage } from '../lib/image'
 import { createRestaurantPost, fetchPostDishes, isDefiniteRejection, removePostPhoto, uploadPostPhoto } from '../postsApi'
 import ErrorBanner from './ErrorBanner'
@@ -14,7 +15,7 @@ const DONE_MS = 3500
 // refuses the post the uploaded photo (and its 640 px copy) is removed again; after a network / unknown failure it is
 // kept (the post may exist). `onPublished()` lets the page refresh its list.
 export default function PostComposer({ restaurantId, onPublished }) {
-  const { t } = useTranslation('v2')
+  const { t, i18n } = useTranslation('v2')
   const uid = useId()
   const fileRef = useRef(null)
   const photoRef = useRef(null)
@@ -176,7 +177,7 @@ export default function PostComposer({ restaurantId, onPublished }) {
         >
           <option value="">{dishes.loading ? t('postsDishesLoading') : t('postsNoDish')}</option>
           {dishes.list.map(d => (
-            <option key={d.id} value={d.id}>{d.available ? d.name : `${d.name} · ${t('postsDishSoldOut')}`}</option>
+            <option key={d.id} value={d.id}>{d.available ? dishName(d, i18n.language) : `${dishName(d, i18n.language)} · ${t('postsDishSoldOut')}`}</option>
           ))}
         </select>
         {dishes.error ? (

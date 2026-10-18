@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPrice } from '../../../lib/helpers'
+import { formatPrice, formatNumber } from '../../../lib/helpers'
+import { nameIn } from '../../../lib/lang'
 import { useDishAvailable } from '../../feed/dishAvailability'
 import CoverImage from '../../discover/components/CoverImage'
 import Hl from './Hl'
@@ -11,19 +12,20 @@ import Hl from './Hl'
  * the page (the page pushes ?dish=<id>).
  */
 export default memo(function DishRow({ d, q = '', onOpen }) {
-  const { t } = useTranslation('search')
+  const { t, i18n } = useTranslation('search')
+  const name = nameIn(d, i18n.language) || d.name
   const available = useDishAvailable(d.id, d.available)
   const place = d.restaurant
   const meta = [
     place?.name || null,
-    d.rating != null && d.reviewCount > 0 ? `★${d.rating.toFixed(1)} (${d.reviewCount})` : null,
+    d.rating != null && d.reviewCount > 0 ? `★${formatNumber(d.rating, 1)} (${d.reviewCount})` : null,
   ].filter(Boolean).join(' · ')
   return (
     <button type="button" className="sr-row sr-row-btn" data-dish-id={d.id} onClick={() => onOpen?.(d)}>
-      <span className={`sr-thumb${available ? '' : ' is-sold'}`}><CoverImage sources={[{ url: d.photo }]} name={d.name} size={48} /></span>
+      <span className={`sr-thumb${available ? '' : ' is-sold'}`}><CoverImage sources={[{ url: d.photo }]} name={name} size={48} /></span>
       <span className="sr-main">
         <span className="sr-line">
-          <span className="sr-name"><Hl text={d.name} q={q} /></span>
+          <span className="sr-name"><Hl text={name} q={q} /></span>
           {d.price != null && <span className="sr-price">{formatPrice(d.price)}</span>}
         </span>
         <span className="sr-meta">

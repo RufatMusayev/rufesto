@@ -340,7 +340,8 @@ test.describe('feat profile', { tag: ['@guest', '@consumer', '@feat'] }, () => {
       await expect(U.authSheet(p)).toBeVisible()
       await p.keyboard.press('Escape')
       await U.noSheet(p)
-      await p.getByRole('button', { name: 'Share feedback' }).click()
+      // round 4: the guest profile carries Settings inline; "Send feedback" is one of its rows and opens the feedback sheet
+      await p.locator('.pf-guest-settings').getByRole('button', { name: 'Send feedback' }).click()
       await sheet(p).getByRole('button', { name: 'Send feedback' }).click()
       await expect(sheet(p).getByText(/Please select a rating|Name is required/)).toBeVisible()   // nothing is sent
     } finally { await anon.close() }

@@ -172,7 +172,7 @@ function bottomNav(page) {
   const nav = page.locator('nav').filter({ has: page.locator('a[href="/map"]') })
   return {
     home: nav.getByRole('link', { name: 'Home', exact: true }),
-    explore: nav.getByRole('link', { name: 'Explore', exact: true }),
+    explore: nav.getByRole('link', { name: 'Search', exact: true }),   // the tab was "Explore" until round 4 (it is the Search page, /explore)
     map: nav.getByRole('link', { name: 'Map', exact: true }),
     profile: nav.locator('a[href="/profile"]'),
     qr: nav.getByRole('button', { name: /scan qr|active table/i }),

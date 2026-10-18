@@ -56,7 +56,7 @@ export default function WaiterPage() {
     const [{ data, error }, ordersR] = await Promise.all([
       supabase.rpc('waiter_overview', { p_restaurant_id: restaurantId }),
       // Order state and age for the table cards. Not essential: when this read fails the cards simply have fewer lines.
-      supabase.from('orders').select('id, table_id, status, placed_at, total_amount, order_items(quantity, dishes(name))')
+      supabase.from('orders').select('id, table_id, status, placed_at, total_amount, order_items(quantity, dishes(name, name_az, name_i18n))')
         .eq('restaurant_id', restaurantId)
         .not('status', 'in', '("paid","cancelled","refunded")')
         .gte('placed_at', new Date(Date.now() - ORDERS_WINDOW_MS).toISOString()),

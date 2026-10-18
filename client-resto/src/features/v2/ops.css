@@ -48,6 +48,10 @@
 .ov-stat--green { --card-accent: var(--green); }
 .ov-stat--muted { --card-accent: var(--t2); }
 .ov-stat .stat-value { overflow-wrap: anywhere; }
+/* Russian money is longer ("2 864,50 ₼" against "₼2864.50"): the figure shrinks to its card instead of breaking in the
+   middle of the number. Only for ru, so the other languages keep their size. `ov-stat-text` (a date) may still wrap. */
+:lang(ru) .ov-stat { container-type: inline-size; }
+:lang(ru) .ov-stat .stat-value:not(.ov-stat-text) { white-space: nowrap; font-size: clamp(1.15rem, 15cqw, 1.75rem); }
 .ov-stat .stat-sub { line-height: 1.35; }
 .ov-stat-text { font-size: 1.15rem; padding-top: 0.3rem; }
 .ov-stat-of { font-size: 1rem; font-weight: 500; color: var(--t3); }

@@ -42,7 +42,7 @@
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--t1);
   line-height: 1.5;
@@ -64,7 +64,7 @@ a { text-decoration: none; color: inherit; }
   padding: 0.55rem 1.25rem; border-radius: 8px;
   font-weight: 600; font-size: 0.82rem; border: none;
   transition: transform 160ms var(--ease-out), opacity 160ms ease, background 150ms ease;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
 }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -96,7 +96,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--s2); border: 1px solid var(--border);
   border-radius: 8px; color: var(--t1); font-size: 1rem;
   outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
 }
 .input:focus {
   border-color: var(--accent);
@@ -145,7 +145,7 @@ a { text-decoration: none; color: inherit; }
   font-size: 1.35rem; font-weight: 700; letter-spacing: -0.3px;
 }
 .dash-section-title {
-  font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.68rem; font-weight: 700;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif; font-size: 0.68rem; font-weight: 700;
   color: var(--t3); text-transform: uppercase; letter-spacing: 1px;
 }
 
@@ -157,7 +157,7 @@ a { text-decoration: none; color: inherit; }
   background: transparent; color: var(--t2);
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
 }
 .chip:hover { background: var(--s3); color: var(--t1); }
 .chip.active { background: var(--t1); color: var(--bg); border-color: var(--t1); }
@@ -188,7 +188,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--card-accent, var(--accent));
 }
 .stat-value {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
   font-size: 1.75rem; font-weight: 900; line-height: 1.1;
   color: var(--card-accent, var(--t1));
 }
@@ -199,7 +199,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--s2); border: 1px solid var(--border); border-radius: 12px;
   padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.3rem;
 }
-.dash-stat-value { font-family: 'DM Sans', system-ui, sans-serif; font-size: 1.65rem; font-weight: 900; line-height: 1.1; }
+.dash-stat-value { font-family: 'DM Sans', 'Inter', system-ui, sans-serif; font-size: 1.65rem; font-weight: 900; line-height: 1.1; }
 .dash-stat-label { font-size: 0.72rem; font-weight: 500; color: var(--t3); }
 
 /* ── Alert Banners ── */
@@ -318,7 +318,7 @@ a { text-decoration: none; color: inherit; }
   border: none; font-weight: 700; font-size: 0.8rem;
   cursor: pointer; letter-spacing: 0.3px;
   transition: opacity 0.15s, transform 160ms var(--ease-out);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
 }
 .kds-advance-btn:active:not(:disabled) { transform: scale(0.98); }
 .kds-advance-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -448,9 +448,9 @@ a { text-decoration: none; color: inherit; }
   .dash-nav-item.active::before { display: none; }
   .dash-sidebar-foot .dash-nav-label { display: none; }
   .dash-sidebar-foot .dash-nav-item { justify-content: center; }
-  /* EN / AZ stack in the narrow rail instead of running off its right edge (it was clipped to "EN" and half an "A") */
-  .dash-sidebar-foot .lang-switcher { flex-direction: column; align-items: stretch; gap: 2px; width: 100%; }
-  .dash-sidebar-foot .lang-btn { width: 100%; padding: 6px 0; text-align: center; }
+  /* AZ / EN / RU stack in the narrow rail instead of running off its right edge (two letters used to be clipped there) */
+  .dash-sidebar-foot .lang-switcher { flex-direction: column; align-items: stretch; gap: 1px; width: 100%; }
+  .dash-sidebar-foot .lang-btn { width: 100%; padding: 4px 0; text-align: center; }
   .dash-content { margin-left: 60px; }
 }
 @media (max-width: 900px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
@@ -554,7 +554,7 @@ body.modal-open { overflow: hidden; }
   body.qr-printing .qr-print-sheet {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 0.6cm; min-height: 100vh; padding: 2cm; text-align: center;
-    background: #fff; color: #1A1210; font-family: 'DM Sans', system-ui, sans-serif;
+    background: #fff; color: #1A1210; font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
   }
   .qr-print-resto { font-size: 22pt; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
   .qr-print-table { font-size: 34pt; font-weight: 800; }
@@ -615,6 +615,7 @@ body.modal-open { overflow: hidden; }
   transition: all 0.15s;
 }
 .lang-btn.active { border-color: #C49A2C; background: rgba(196,154,44,0.15); color: #C49A2C; font-weight: 700; }
+.lang-switcher.login-lang { justify-content: center; margin-bottom: 0.35rem; }
 
 .bk-views { display: flex; gap: 0.4rem; overflow-x: auto; margin-bottom: 0.75rem; }
 .bk-load-more { width: 100%; margin-top: 0.25rem; }

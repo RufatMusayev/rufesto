@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../lib/format'
+import { dishName } from '../lib/dishName'
 import { localeTag } from '../lib/time'
 import { debounce } from '../lib/debounce'
 import { subscribeResync } from '../lib/realtime'
@@ -73,10 +74,10 @@ export default function PromosPage() {
 
   async function load() {
     const [{ data: c }, { data: d }] = await Promise.all([
-      supabase.from('ad_campaigns').select('*, dishes(name)')
+      supabase.from('ad_campaigns').select('*, dishes(name, name_az, name_i18n)')
         .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false }),
-      supabase.from('dishes').select('id, name')
+      supabase.from('dishes').select('id, name, name_az, name_i18n')
         .eq('restaurant_id', restaurantId)
         .order('name'),
     ])
@@ -259,7 +260,7 @@ function CampaignCard({ campaign: c, status, canManage, acting, onEdit, onActiva
           <span>{fmtDate(c.starts_at, i18n.language)} → {fmtDate(c.ends_at, i18n.language)}</span>
           <span>{t('dashboard:impressions', { count: c.impressions || 0 })}</span>
           <span>{t('dashboard:clicks', { count: c.clicks || 0 })}</span>
-          {c.dishes?.name && <span style={{ color: 'var(--gold)' }}>🍽 {c.dishes.name}</span>}
+          {c.dishes?.name && <span style={{ color: 'var(--gold)' }}>🍽 {dishName(c.dishes, i18n.language)}</span>}
         </div>
 
         {/* Budget bar */}

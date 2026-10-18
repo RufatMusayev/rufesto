@@ -18,7 +18,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import EmptyBlock from '../components/EmptyBlock'
 import ErrorBanner from '../components/ErrorBanner'
 import LoadError from '../components/LoadError'
-import { formatPrice } from '@shared/helpers'
+import { formatPrice } from '../../../lib/format'
 import '../styles.css'
 
 const FILTERS = ['active', 'paid', 'all']

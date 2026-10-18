@@ -231,6 +231,50 @@ test.describe('feat notifications v2', { tag: ['@guest', '@consumer', '@feat'] }
     }
   })
 
+  // round 4 (QA round 3): the open panel follows a colleague live: when the manager takes the call, the row of the waiter's open panel flips to "✓ <someone>" and leaves "Needs you"
+  test('staff panel is live: a colleague taking the call updates the open panel of the waiter without a reload', async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'dashboard bell: desktop project')
+    test.setTimeout(180_000)
+    await F.acquireGuestLock()
+    const mgr = await F.openAs(browser, testInfo, 'manager')
+    const waiter = await F.openAs(browser, testInfo, 'waiter1')
+    const guest = await S.openUser(browser, testInfo, 4)
+    let table = null
+    const staffRead = () => waiter.api.rpc('mark_notifications', { p_ids: null, p_read: true, p_seen_only: false, p_audience: 'staff' })
+    try {
+      table = await F.resetTable(mgr.api, 'T3', [])
+      await staffRead()
+      expect((await guest.api.rpc('claim_table', { p_code: table.code })).ok).toBe(true)
+      const p = waiter.page
+      await p.goto(F.RESTO_URL + '/waiter')
+      await p.locator('.dash-layout').waitFor()
+      const call = await guest.api.rpc('call_waiter', { p_table_id: table.id, p_kind: 'assist' })
+      expect(call.ok, `call_waiter ${call.status} ${JSON.stringify(call.data)}`).toBe(true)
+      await p.getByRole('button', { name: /^Notifications, \d+ new$/ }).click({ timeout: 20_000 })
+      const panel = p.getByRole('dialog')
+      const row = panel.locator('li.notif-row').filter({ hasText: 'Waiter called' }).first()
+      await expect(row.getByRole('button', { name: 'On my way' }), 'the call is open for the waiter').toBeVisible({ timeout: 15_000 })
+      // the manager (a colleague) takes it from the API
+      const [req] = await mgr.api.rows(`service_requests?table_id=eq.${table.id}&status=eq.open&select=id&order=created_at.desc&limit=1`)
+      expect(req, 'the open service request').toBeTruthy()
+      const ack = await mgr.api.rpc('ack_service_request', { p_id: req.id })
+      expect(ack.ok, `ack_service_request ${ack.status} ${JSON.stringify(ack.body)}`).toBe(true)
+      await expect(row.getByRole('button', { name: 'On my way' }), 'the button is gone without a reload').toHaveCount(0, { timeout: 20_000 })
+      await expect(row.getByText(/✓/), 'the row says someone is on the way').toBeVisible()
+      await expect(panel.getByRole('region', { name: 'Needs you' }).getByText('Waiter called'), 'it left "Needs you"').toHaveCount(0)
+    } finally {
+      if (table) {
+        await mgr.api.patch(`service_requests?table_id=eq.${table.id}&status=in.(open,acknowledged)`, { status: 'resolved' })
+        await guest.api.rpc('leave_table', { p_table_id: table.id })
+        await F.resetTable(mgr.api, 'T3', []).catch(() => {})
+      }
+      await staffRead().catch(() => {})
+      await readAll(guest).catch(() => {})
+      await guest.close(); await waiter.close(); await mgr.close()
+      F.releaseGuestLock()
+    }
+  })
+
   test('every staff role has the bell, in the sidebar head on a desktop and in the header on a phone', async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'dashboard bell: desktop project (it opens its own 1280 and 390 px contexts)')
     test.skip(!F.accounts.kitchen, 'kitchen.sakura not found')

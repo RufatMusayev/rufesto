@@ -57,10 +57,8 @@ export function useDebounced(value, delay = 300) {
   return v
 }
 
-/** BCP 47 tag for toLocaleDateString. */
-export function localeTag(lng) {
-  return String(lng || 'en').toLowerCase().startsWith('az') ? 'az-AZ' : 'en-GB'
-}
+/** BCP 47 tag for toLocaleDateString (az-AZ, en-GB, ru-RU). */
+export { localeTag } from '../../lib/lang'
 
 /** Runs `fn` when the tab becomes visible again after being hidden for at least `minHiddenMs`. */
 export function useOnVisible(fn, minHiddenMs = 30000) {

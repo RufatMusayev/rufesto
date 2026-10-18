@@ -18,6 +18,7 @@ import DemoPaySheet from '../components/DemoPaySheet'
 import SettledPanel from '../components/SettledPanel'
 import ReceptionPanel from '../components/ReceptionPanel'
 import WaitingList from '../components/WaitingList'
+import { langOf } from '../../../lib/lang'
 
 const ACTIVE = ['open', 'requested', 'paying']
 
@@ -29,7 +30,7 @@ const ACTIVE = ['open', 'requested', 'paying']
  */
 export default function BillView({ bill, tableId, tableEnded, reload, onPaid, onOpenBill, canOpenBill = false }) {
   const { t, i18n } = useTranslation(['bills', 'common'])
-  const lang = i18n.language?.startsWith('az') ? 'az' : 'en'
+  const lang = langOf(i18n.language)
   const navigate = useNavigate()
   const cart = useCart()
   const plan = usePayPlan(bill, tableId, reload)

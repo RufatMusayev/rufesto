@@ -20,7 +20,7 @@ function GoRow({ to, icon, label }) {
 /**
  * The rows of Settings, shared by the Settings sheet (signed in) and the guest profile page (signed out):
  * Language, Dark mode, Notifications (signed in only: it needs an account), Send feedback.
- * The only home of EN | AZ and the theme (docs/UX-PLAN-2026-10-18.md D10).
+ * The only home of AZ | EN | RU and the theme (docs/UX-PLAN-2026-10-18.md D10).
  */
 export default function SettingsRows({ onFeedback, inSheet = false }) {
   const { t } = useTranslation(['profile', 'nav'])

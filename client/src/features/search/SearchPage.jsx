@@ -54,7 +54,7 @@ function useScrollMemory(key, restoreWhen) {
  */
 export default function SearchPage() {
   const { t } = useTranslation('search')
-  const { t: ts } = useTranslation('social')
+  const { t: ts, i18n } = useTranslation('social')
   const location = useLocation()
   const [params, setParams] = useSearchParams()
   const { session, loading: authLoading } = useAuth()
@@ -113,7 +113,7 @@ export default function SearchPage() {
   const search = useSearch({ q: text, filters, coords: geo.coords, discover })
   const people = usePeople({ q: text, enabled: !!session })
   const chips = store.chips
-  const popular = useMemo(() => popularChips(discover, chips, ts), [discover, chips, ts])
+  const popular = useMemo(() => popularChips(discover, chips, ts, i18n.language), [discover, chips, ts, i18n.language])
 
   const showResults = search.mode !== 'zero'
   useScrollMemory(location.key, showResults ? !search.loading : !!discover || entry?.status === 'error')

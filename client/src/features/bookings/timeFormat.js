@@ -1,9 +1,11 @@
 // Display helpers. Booking times are Asia/Baku wall-clock whatever the browser timezone is, so every
 // formatter works on the Baku calendar date / clock; calendar-date maths comes from lib/bookingSlots.js.
 //
-// Azerbaijani names come from the small tables below instead of Intl: several browser builds ship without
-// complete az locale data and print "M10 2, Fri", which would show up on the main language of the app.
+// Azerbaijani and Russian names come from the small tables below instead of Intl: several browser builds ship without
+// complete az locale data and print "M10 2, Fri", which would show up on the main language of the app; ru gets the same
+// tables so a date is the same everywhere (genitive month after a day: "2 окт", "пятница, 3 октября").
 import { bakuDateString, weekdayOf } from '../../lib/bookingSlots'
+import { langOf } from '../../lib/lang'
 
 const TZ = 'Asia/Baku'
 
@@ -15,7 +17,14 @@ const AZ = {
   daysShort: ['baz', 'b.e.', 'ç.a.', 'çər', 'c.a.', 'cümə', 'şən'],
 }
 
-const isAz = lng => String(lng || 'en').toLowerCase().startsWith('az')
+const RU = {
+  monthsLong: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+  monthsShort: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+  daysLong: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
+  daysShort: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
+}
+
+const TABLES = { az: AZ, ru: RU }
 
 /** 'HH:MM' of an instant on the Baku clock. */
 export function formatBakuTime(value) {
@@ -27,22 +36,23 @@ export function bakuDateOf(value) {
   return bakuDateString(new Date(value))
 }
 
-/** A 'YYYY-MM-DD' calendar date formatted with Intl options (en) or the tables above (az). Timezone independent. */
+/** A 'YYYY-MM-DD' calendar date formatted with Intl options (en) or the tables above (az, ru). Timezone independent. */
 function styled(dateStr, lng, opts) {
   const [y, m, d] = dateStr.split('-').map(Number)
-  if (!isAz(lng)) {
+  const tbl = TABLES[langOf(lng)]
+  if (!tbl) {
     return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-GB', { timeZone: 'UTC', ...opts })
   }
   const wd = weekdayOf(dateStr)
-  const month = opts.month === 'long' ? AZ.monthsLong[m - 1] : AZ.monthsShort[m - 1]
-  const weekday = opts.weekday === 'long' ? AZ.daysLong[wd] : AZ.daysShort[wd]
+  const month = opts.month === 'long' ? tbl.monthsLong[m - 1] : tbl.monthsShort[m - 1]
+  const weekday = opts.weekday === 'long' ? tbl.daysLong[wd] : tbl.daysShort[wd]
   if (opts.month && !opts.day) return month
   if (opts.weekday && !opts.day) return weekday
   const date = `${d} ${month}${opts.year ? ` ${y}` : ''}`
   return opts.weekday ? `${weekday}, ${date}` : date
 }
 
-/** "Fri 2 Oct" / "cümə, 2 okt" of an instant on the Baku calendar. */
+/** "Fri 2 Oct" / "cümə, 2 okt" / "пт, 2 окт" of an instant on the Baku calendar. */
 export function formatBakuDate(value, lng) {
   return styled(bakuDateOf(value), lng, { weekday: 'short', day: 'numeric', month: 'short' })
 }

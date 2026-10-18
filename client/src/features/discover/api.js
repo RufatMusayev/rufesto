@@ -37,6 +37,8 @@ export const mapRestaurantCard = r => ({
 export const mapDishCard = d => ({
   id: d.id,
   name: d.name || '',
+  nameAz: d.name_az || null,
+  nameI18n: d.name_i18n && typeof d.name_i18n === 'object' ? d.name_i18n : null,   // { az, en, ru }; null until the database sends it
   photo: d.photo || null,
   price: num(d.price),
   category: d.category || null,

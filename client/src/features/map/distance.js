@@ -1,6 +1,6 @@
 // Distances of the map: computed on the phone from the viewer's 3-decimal position (docs/MAP-PLAN-2026-10-18.md 4,
 // "List order"). Nothing here leaves the device.
-import { decimalMark } from '../../lib/lang'
+import { decimal } from './format'
 
 const R_KM = 6371.0088
 const rad = d => (d * Math.PI) / 180
@@ -21,8 +21,8 @@ export function distanceText(t, km, lang) {
     return t('meters', { n: m })
   }
   const tenth = Math.round(km * 10) / 10
-  const shown = tenth < 10 ? tenth.toFixed(1) : String(Math.round(km))
-  return t('km', { n: shown.replace('.', decimalMark(lang)) })
+  const shown = tenth < 10 ? decimal(tenth, 1, lang) : String(Math.round(km))
+  return t('km', { n: shown })
 }
 
 /** Walking minutes along streets: straight line x 1.3 at 80 m/min. Only worth saying up to 25 minutes. */

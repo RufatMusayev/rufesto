@@ -41,8 +41,6 @@
   "walk_one": "{{count}} min walk",
   "walk_other": "{{count}} min walk",
   "friendsOne": "{{name}} has been here",
-  "friendsMany_one": "{{name}} and {{count}} other friend have been here",
-  "friendsMany_other": "{{name}} and {{count}} other friends have been here",
   "menu": "Menu",
   "book": "Book",
   "directions": "Directions",

@@ -168,6 +168,13 @@ export function buildLayers(p, lang) {
       },
     },
     {
+      // the darker edge: the footprint outline at ground level, drawn BEFORE the extruded copy so the copy covers it and only
+      // the rim around the walls stays visible (a 2D line drawn after an extrusion shows through it)
+      id: 'sel-building-edge', type: 'line', source: HIGHLIGHT_SOURCE, minzoom: 15,
+      filter: ['==', ['get', 'kind'], 'building'],
+      paint: { 'line-color': p.highlightEdge, 'line-width': 2, 'line-opacity': 0.9 },
+    },
+    {
       id: 'sel-building-3d', type: 'fill-extrusion', source: HIGHLIGHT_SOURCE, minzoom: 15,
       filter: ['==', ['get', 'kind'], 'building'],
       paint: {
@@ -191,15 +198,16 @@ export function buildLayers(p, lang) {
 
     // ---- labels ----
     {
-      // House numbers show from z17. The layer's own minzoom must stay below 16: this source stops at z14, and MapLibre builds no
-      // symbols for a layer whose minzoom is 16 or more on its overzoomed tiles (measured: nothing renders). The opacity does
-      // the gating, and the numbers never take space from the street names.
+      // House numbers show from z17.5, small and light, never over each other (collision on) and never under a pin (the
+      // controller masks the numbers within a pin's footprint with a `within` filter). The layer's own minzoom must stay below
+      // 16: this source stops at z14, and MapLibre builds no symbols for a layer whose minzoom is 16 or more on its overzoomed
+      // tiles (measured: nothing renders). The opacity does the gating, and the numbers never take space from street names.
       id: 'housenumber', type: 'symbol', source: SRC, 'source-layer': 'housenumber', minzoom: 15,
       layout: {
-        'text-field': ['get', 'housenumber'], 'text-font': FONT, 'text-size': lin(17, 9.5, 19, 11), 'text-padding': 3,
+        'text-field': ['get', 'housenumber'], 'text-font': FONT, 'text-size': lin(17.5, 8.5, 19.5, 10), 'text-padding': 8,
         'text-ignore-placement': true,
       },
-      paint: { 'text-color': p.houseNumber, 'text-halo-color': p.halo, 'text-halo-width': 1, 'text-opacity': lin(16.8, 0, 17.2, 1) },
+      paint: { 'text-color': p.houseNumber, 'text-halo-color': p.halo, 'text-halo-width': 1, 'text-opacity': lin(17.3, 0, 17.5, 1) },
     },
     {
       id: 'water_name_point_label', type: 'symbol', source: SRC, 'source-layer': 'water_name', filter: isPoint,

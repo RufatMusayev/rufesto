@@ -13,12 +13,12 @@
 import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
 import { MAX_BOUNDS, MAX_ZOOM, MIN_ZOOM, WORKER_URL } from './mapConfig.js'
 import {
-  CLUSTER_MAX_ZOOM, DETAIL_PITCH, DETAIL_ZOOM, FAR_SELECT_KM, FIT_MAX_ZOOM, FIT_MIN_ZOOM, LOCATE_EASE_MAX_M, LOCATE_ZOOM, MAX_PITCH, MS,
+  CLUSTER_MAX_ZOOM, DETAIL_PITCH, DETAIL_ZOOM, FAR_SELECT_KM, FIT_MAX_ZOOM, FIT_MIN_ZOOM, LOCATE_EASE_MAX_M, LOCATE_ZOOM, MAX_PITCH, ME_FIT_KM, MS,
   REVEAL_FALLBACK_MS, cubic, quint,
 } from './mapTuning.js'
 import { buildStyle } from './style/buildStyle.js'
 import { LABEL_LAYERS, labelExpr } from './style/layers.js'
-import { boundsOfPoints, centreOffset, denseCore, fitPadding, flyMs, insideRect, metersBetween, safeRect } from './camera.js'
+import { boundsOfPoints, centreOffset, chooseFit, denseCore, fitPadding, flyMs, insideRect, metersBetween, safeRect } from './camera.js'
 import { createDetail } from './detail.js'
 import { createPinLayer } from './pins/pinLayer.js'
 import { createMeDot } from './MeDot.js'
@@ -36,6 +36,7 @@ const htmlTheme = () => {
  * @param {HTMLElement} o.root       the .mp-canvas element (theme / ready / lost classes go here)
  * @param {HTMLElement} o.container  the empty element MapLibre draws into
  * @param {object} o.camera          { center:[lng,lat], zoom, exact? } | { bounds:[[w,s],[e,n]], minZoom?, maxZoom? }
+ *                                   | { fit:{ points, anchor?, nearest?, minZoom?, maxZoom? } } (the largest subset that fits, see chooseFit)
  *                                   without `exact` a centre is shown in the middle of the VISIBLE area (above the sheet)
  * @param {'light'|'dark'} o.theme
  * @param {'az'|'en'|'ru'} o.lang
@@ -83,13 +84,15 @@ export function createController(o) {
   // ---- map -------------------------------------------------------------------------------------------------------
   const spec = o.camera
   const boundsCentre = spec.bounds && [(spec.bounds[0][0] + spec.bounds[1][0]) / 2, (spec.bounds[0][1] + spec.bounds[1][1]) / 2]
+  const fitFrom = spec.fit && (spec.fit.anchor || spec.fit.points?.[0])
+  const fitCentre = fitFrom && [fitFrom.lng, fitFrom.lat]
 
   let map
   try {
     map = new MapLibreMap({
       container,
       style: buildStyle({ theme, lang, tilejson, animateTheme: !reduced }),
-      center: spec.center || boundsCentre,
+      center: spec.center || boundsCentre || fitCentre || [49.838, 40.371],
       zoom: spec.zoom ?? 12,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
@@ -122,7 +125,12 @@ export function createController(o) {
    * visible area unless `exact` (a restored camera is the literal map centre). */
   function applyInitialCamera() {
     const offset = centreOffset(size(), overlay)
-    if (spec.bounds) {
+    if (spec.fit) {
+      const r = chooseFit(map, spec.fit.points || [], {
+        anchor: spec.fit.anchor, nearest: spec.fit.nearest, padding: fitPadding(overlay), minZoom: spec.fit.minZoom, maxZoom: spec.fit.maxZoom ?? FIT_MAX_ZOOM,
+      })
+      if (r) map.jumpTo({ center: r.center, zoom: r.zoom }) // the centre from cameraForBounds already includes the padding
+    } else if (spec.bounds) {
       const maxZoom = spec.maxZoom ?? FIT_MAX_ZOOM
       const minZoom = spec.minZoom ?? 0
       const cam = map.cameraForBounds(spec.bounds, { padding: fitPadding(overlay), maxZoom })
@@ -144,7 +152,8 @@ export function createController(o) {
       onCluster: b => expandCluster(b),
     },
   })
-  detail = createDetail({ map, onChange: st => cb.onDetail(st), reduced: () => reduced, ease })
+  detail = createDetail({ map, root, getPlaces: () => places, onChange: st => cb.onDetail(st), reduced: () => reduced, ease })
+  detail.sync() // an arrival at z >= 15 (deep link, Back) offers 2D / 3D at once, not only after the first move
 
   // ---- load / reveal / errors ---------------------------------------------------------------------------------------
   function reveal() {
@@ -164,6 +173,7 @@ export function createController(o) {
     loaded = true
     cb.onLoad()
     applyLang()
+    detail.sync()
     // the canvas fades in at `load` plus the first `idle`, or after 600 ms at the latest
     revealTimer = later(reveal, REVEAL_FALLBACK_MS)
     map.once('idle', reveal)
@@ -253,9 +263,11 @@ export function createController(o) {
     const widened = prevIds && prevIds.size < now.size && [...prevIds].every(id => now.has(id))
     if (widened) return false
     const core = denseCore(ps)
+    // the guest's own dot belongs to the picture when it is near the results (a fit that drops it loses the guest)
+    const withMe = me && core.some(p => metersBetween([me.lng, me.lat], [p.lng, p.lat]) <= ME_FIT_KM * 1000) ? [...core, { lng: me.lng, lat: me.lat }] : core
     const rect = safeRect(size(), overlay)
-    if (core.every(p => insideRect(map.project([p.lng, p.lat]), rect))) return false
-    const cam = map.cameraForBounds(boundsOfPoints(core), { padding: fitPadding(overlay), maxZoom: FIT_MAX_ZOOM })
+    if (withMe.every(p => insideRect(map.project([p.lng, p.lat]), rect))) return false
+    const cam = map.cameraForBounds(boundsOfPoints(withMe), { padding: fitPadding(overlay), maxZoom: FIT_MAX_ZOOM })
     if (!cam) return false
     const duration = animate ? animateMs(MS.fit) : 0
     if (duration) animating = true
@@ -282,7 +294,8 @@ export function createController(o) {
 
   function expandCluster(b) {
     // one tap always ends on pins: at least one level in and past the clustering zoom
-    const target = Math.min(FIT_MAX_ZOOM, Math.max(pins.expansionZoom(b.id), map.getZoom() + 1, CLUSTER_MAX_ZOOM + 1))
+    const split = b.expandTo ?? pins.expansionZoom(b.id)
+    const target = Math.min(FIT_MAX_ZOOM, Math.max(split, map.getZoom() + 1, CLUSTER_MAX_ZOOM + 1))
     pins.markFlyOrigin([b.lng, b.lat])
     const offset = centreOffset(size(), overlay)
     if (reduced) map.easeTo({ center: [b.lng, b.lat], zoom: target, offset, duration: 0 })
@@ -313,6 +326,7 @@ export function createController(o) {
       prevIds = curIds
       curIds = new Set(byId.keys())
       pins.setPlaces(places)
+      detail.placesChanged()
       if (selectedId) detail.setSelected(byId.get(selectedId) || null) // the selection may have arrived before its place
     },
     /**

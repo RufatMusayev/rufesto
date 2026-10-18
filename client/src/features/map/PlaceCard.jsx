@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Img } from '../../components/ui'
 import { thumb } from '../discover/thumb'
-import { formatNumber } from '../../lib/helpers'
+import { decimal } from './format'
 import { langOf } from '../../lib/lang'
 import { openState } from '../../lib/openState'
 import { distanceText, walkMinutes } from './distance'
 import { kindWords, shortAddress } from './kind'
+import { friendsLine } from './rowMeta'
 import { statusLabel } from './status'
 
 const initials = name => {
@@ -20,7 +21,7 @@ function promoText(t, promo) {
   const pct = promo.discount_percent
   const amt = promo.discount_amount
   if (pct > 0) return `${t('promo')} −${Math.round(pct)}%`
-  if (amt > 0) return `${t('promo')} −${formatNumber(amt, amt % 1 ? 2 : 0)} ₼`
+  if (amt > 0) return `${t('promo')} −${decimal(amt, amt % 1 ? 2 : 0)} ₼`
   return t('promo')
 }
 
@@ -40,17 +41,16 @@ export default memo(function PlaceCard({ place, nowMin, km, onDirections, onShow
   const price = place.price_band ? '₼'.repeat(place.price_band) : null
   const sub = [kindWords(t, place), price].filter(Boolean).join(' · ')
   const walk = walkMinutes(km)
-  const where = km != null ? distanceText(t, km, lang) : shortAddress(place.address)
+  const street = shortAddress(place.address)
+  // a card in a set where some have friends keeps one more row: friends, or else the street (never a blank band); where the
+  // street has its own row it leaves the stats line
+  const where = km != null ? distanceText(t, km, lang) : (tall && !(place.friends?.count > 0) ? null : street)
   const stats = [
-    place.rating != null && place.review_count > 0 ? `★${formatNumber(place.rating, 1)} (${place.review_count})` : null,
+    place.rating != null && place.review_count > 0 ? `★${decimal(place.rating, 1, lang)} (${place.review_count})` : null,
     where,
     walk != null ? t('walk', { count: walk }) : null,
   ].filter(Boolean).join(' · ')
-  const fr = place.friends && place.friends.count > 0 ? place.friends : null
-  const frName = fr?.top?.[0]?.name || ''
-  const frText = fr
-    ? (fr.count === 1 || !frName ? t('friendsOne', { name: frName }) : t('friendsMany', { name: frName, count: fr.count - 1 }))
-    : null
+  const fr = friendsLine(t, place.friends)
 
   const coverBody = (
     <>
@@ -98,11 +98,22 @@ export default memo(function PlaceCard({ place, nowMin, km, onDirections, onShow
       {fr ? (
         <p className="mp-card-friends">
           <span className="mp-card-avatars" aria-hidden="true">
-            {fr.top.slice(0, 3).map((f, i) => <Avatar key={f.id || i} name={f.name} src={f.profile_photo} size={20} />)}
+            {fr.people.map((f, i) => <Avatar key={f.id || i} name={f.name} src={f.photo} size={20} />)}
           </span>
-          <span className="mp-card-friends-text">{frText}</span>
+          <span className="mp-card-friends-text">{fr.text}</span>
         </p>
-      ) : tall ? <span className="mp-card-friends mp-card-spacer" aria-hidden="true" /> : null}
+      ) : tall ? (
+        <p className="mp-card-friends mp-card-street">
+          {street && (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.4" />
+              </svg>
+              <span className="mp-card-friends-text">{street}</span>
+            </>
+          )}
+        </p>
+      ) : null}
       <div className="mp-card-actions">
         {to && <Link to={to} className="mp-act mp-act--menu">{t('menu')}</Link>}
         {to && <Link to={`/book/${place.slug}`} className="mp-act">{t('book')}</Link>}

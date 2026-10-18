@@ -82,10 +82,12 @@ export default function SearchPage() {
   useDishAvailabilityPoll()   // a dish row flips to "Sold out" on its own (QA D-3)
 
   // ---- URL <-> state -----------------------------------------------------------------------------------------
-  // `update` must keep its identity for good: setParams changes whenever the location does, and a sheet that opens (it pushes a
-  // history entry on this very URL) would re-run the debounced sync below with the OLD settled text and rewrite the address
-  // (QA D-4: Filters tapped just after Cancel closed itself). The write also carries the location state along (the open
-  // sheet's history entry), so even a rewrite cannot make a sheet look "gone".
+  // Two rules keep the Filters sheet and the address apart (QA D-4, B-R2-1). The sheet pushes a history entry on this very URL.
+  //  - `update` keeps its identity for good (setParams changes whenever the location does): otherwise the sheet opening would
+  //    re-run the debounced sync below with the OLD settled text and rewrite the address, closing the sheet again (D-4);
+  //  - the sync does not run while the sheet is open, and a write made FROM the sheet ("Show results") replaces the sheet's own
+  //    entry WITHOUT its history state, so the sheet sees its entry replaced (not popped) and the filter stays (B-R2-1: carrying
+  //    the state along made closing the sheet pop the entry that held the filter).
   const paramsRef = useRef(params)
   paramsRef.current = params
   const setParamsRef = useRef(setParams)
@@ -93,18 +95,17 @@ export default function SearchPage() {
   const update = useCallback(mutate => {
     const next = new URLSearchParams(paramsRef.current)
     mutate(next)
-    if (next.toString() !== paramsRef.current.toString()) {
-      setParamsRef.current(next, { replace: true, state: window.history.state?.usr ?? undefined })
-    }
+    if (next.toString() !== paramsRef.current.toString()) setParamsRef.current(next, { replace: true })
   }, [])
 
   const settledText = useDebounced(typed, 300)
   useEffect(() => {
+    if (filtersOpen) return
     update(p => {
       if (settledText) p.set('q', settledText); else p.delete('q')
       if (!settledText && !activeCount(readFilters(p))) p.delete('tab')
     })
-  }, [settledText, update])
+  }, [settledText, filtersOpen, update])
 
   const setFilters = useCallback(next => update(p => writeFilters(p, next)), [update])
   const setTab = useCallback(id => update(p => { if (id === 'all') p.delete('tab'); else p.set('tab', id) }), [update])

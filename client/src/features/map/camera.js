@@ -29,9 +29,9 @@ export function centreOffset(size, overlay) {
   return [0, Math.round((v.top + v.bottom) / 2 - size.height / 2)]
 }
 
-/** fit padding: top 72, bottom overlay + 24, sides 48 (half a pill is 33 px, round 2: a pill must not touch the edge). */
+/** fit padding: top 72, bottom overlay + 24, sides 56 (round 3: half a pill is 31 px + its shadow, so a pill at the edge of a fit is whole). */
 export function fitPadding(overlay) {
-  return { top: 72 + Math.max(0, overlay?.top || 0), bottom: 24 + Math.max(0, overlay?.bottom || 0), left: 48, right: 48 }
+  return { top: 72 + Math.max(0, overlay?.top || 0), bottom: 24 + Math.max(0, overlay?.bottom || 0), left: 56, right: 56 }
 }
 
 /** Great-circle distance in metres between two [lng, lat] points. */
@@ -81,3 +81,32 @@ export function denseCore(points, km = 4) {
 
 /** Duration of a far camera move: grows with the distance, capped at 1.2 s. */
 export const flyMs = km => Math.round(Math.min(1200, Math.max(700, 600 + km * 70)))
+
+/**
+ * The camera of an opening fit (round 3): the LARGEST subset of `points` whose bounds fit the padded visible area at zoom >=
+ * minZoom, so nothing is cut at the edge and the view never drops below the floor. Subsets are ordered by distance from the
+ * `anchor` (the guest: always kept, only the `nearest` points around it count), or from the median of the points when there is
+ * no anchor, so an outlier is the first to go. Without an anchor at least two points stay.
+ * @param {import('maplibre-gl').Map} map
+ * @param {Array<{lng:number, lat:number}>} points
+ * @returns {{ center: [number, number], zoom: number } | null}
+ */
+export function chooseFit(map, points, { anchor = null, nearest = Infinity, padding, minZoom = 0, maxZoom = 15 }) {
+  if (!points.length && !anchor) return null
+  const from = anchor ? [anchor.lng, anchor.lat] : [median(points.map(p => p.lng)), median(points.map(p => p.lat))]
+  const ordered = points.slice().sort((a, b) => metersBetween(from, [a.lng, a.lat]) - metersBetween(from, [b.lng, b.lat]))
+  const pool = anchor ? ordered.slice(0, Math.max(0, nearest)) : ordered
+  const fewest = anchor ? 0 : Math.min(2, pool.length)
+  let smallest = null
+  for (let n = pool.length; n >= fewest; n--) {
+    const subset = anchor ? [anchor, ...pool.slice(0, n)] : pool.slice(0, n)
+    const b = boundsOfPoints(subset)
+    const cam = map.cameraForBounds(b, { padding, maxZoom })
+    smallest = { b, cam }
+    if (cam && cam.zoom >= minZoom) return { center: [cam.center.lng, cam.center.lat], zoom: cam.zoom }
+  }
+  // nothing fits at the floor: the smallest subset, at the floor zoom
+  if (!smallest) return null
+  const c = smallest.cam ? [smallest.cam.center.lng, smallest.cam.center.lat] : [(smallest.b[0][0] + smallest.b[1][0]) / 2, (smallest.b[0][1] + smallest.b[1][1]) / 2]
+  return { center: c, zoom: minZoom }
+}

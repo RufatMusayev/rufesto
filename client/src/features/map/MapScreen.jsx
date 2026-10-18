@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useNavigationType } from 'react-router-dom'
+import { useLocation, useNavigationType } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import SnapSheet from '../../components/ui/SnapSheet'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -36,6 +36,7 @@ const MapCanvas = lazy(() => import('./MapCanvas.jsx'))
 // opening into the card in place. The list renders from the store before the map exists: the map (and its heavy chunk) is
 // mounted only after the rows have been painted.
 const PEEK_PX = 116
+const HALF_RATIO = 0.44       // a first visit opens a little lower than half: more of the map shows above the list
 const STRIP_PX = 64          // the map strip above the full sheet (plus the status bar)
 const NOTICE_MS = 6000
 const MAP_AFTER_ROWS_MS = 400  // safety: the map starts this long after the rows even if no frame is drawn (a hidden tab)
@@ -46,6 +47,7 @@ export default function MapScreen() {
   const lang = langOf(i18n.language)
   const theme = useTheme()?.theme === 'light' ? 'light' : 'dark'
   const navType = useNavigationType()
+  const location = useLocation()
   const reduced = useReducedMotion()
   const desktop = useMedia('(min-width: 1024px)')
   const nowMin = useBakuMinute()
@@ -61,6 +63,13 @@ export default function MapScreen() {
   const canvasRef = useRef(null)
   const mountedAt = useRef(Date.now())
   const savedCamera = useRef(mapStore.get().camera)
+  // The saved view comes back on Back, on a reload and on a plain /map. A pasted /map?place= link (a fresh document: react-router
+  // calls it POP, but its location key is still "default") always reveals that place, whatever view was saved in the last 30 min.
+  const restoreRef = useRef(null)
+  if (restoreRef.current === null) {
+    restoreRef.current = !new URLSearchParams(location.search).has('place') || (navType === 'POP' && location.key !== 'default')
+  }
+  const restoreView = restoreRef.current
   const [webgl] = useState(() => hasWebGL2())
   const [mapErr, setMapErr] = useState(null)       // 'nowebgl' | 'offline'
   const [mapOn, setMapOn] = useState(false)        // the map mounts after the rows are painted
@@ -82,7 +91,7 @@ export default function MapScreen() {
   const [safeTop, setSafeTop] = useState(0)
   useLayoutEffect(() => { setSafeTop(probeRef.current?.offsetHeight || 0) }, [H])
   const snaps = useMemo(() => {
-    const half = Math.max(PEEK_PX + 48, Math.round(H * 0.5))
+    const half = Math.max(PEEK_PX + 48, Math.round(H * HALF_RATIO))
     return [PEEK_PX, half, Math.max(half + 48, H - (safeTop + STRIP_PX))]
   }, [H, safeTop])
 
@@ -93,9 +102,9 @@ export default function MapScreen() {
   // coming back, from where the map was left; both known before the first row is drawn, so the rows never reorder after they
   // appear (that was a layout shift). Later the centre of the map each time the sheet rises from peek.
   const restoredOrigin = useMemo(() => {
-    const c = savedCamera.current && (navType === 'POP' || !new URLSearchParams(window.location.search).has('place')) ? savedCamera.current.center : null
+    const c = savedCamera.current && restoreView ? savedCamera.current.center : null
     return c ? { lat: c[1], lng: c[0] } : null
-  }, [navType])
+  }, [restoreView])
   const coreOrigin = useMemo(() => {
     if (!places || !places.length) return null
     const c = centerOfBounds(boundsOfPoints(denseCore(places)))
@@ -173,10 +182,9 @@ export default function MapScreen() {
 
   // ---- where the map opens ----
   // a deep link is revealed on arrival; coming Back to the screen keeps the camera exactly where it was
-  const arrival = useRef(navType === 'POP' ? null : nav.placeParam)
-  const restore = navType === 'POP' || !nav.placeParam
+  const arrival = useRef(navType === 'POP' && restoreView ? null : nav.placeParam)
   const initCam = useInitialCamera({
-    savedCamera: restore ? savedCamera.current : null,
+    savedCamera: restoreView ? savedCamera.current : null,
     placeKey: nav.placeParam,
     places: all.length ? all : places,
     status,
@@ -257,6 +265,7 @@ export default function MapScreen() {
   }, [])
   useEffect(() => () => clearTimeout(noticeTimer.current), [])
   const pendingLocate = useRef(false)
+  const pendingDistances = useRef(false)
   const onLocate = useCallback(() => {
     if (!loc.supported) { showNotice('locateUnsupported', 'error'); return }
     if (loc.status === 'denied') { showNotice('locateDenied', 'error'); return }
@@ -266,14 +275,22 @@ export default function MapScreen() {
     loc.request()
   }, [loc, showNotice])
   useEffect(() => {
-    if (!pendingLocate.current) return
-    if (loc.status === 'denied') { pendingLocate.current = false; showNotice('locateDenied', 'error') }
-    else if (loc.status === 'error') { pendingLocate.current = false; showNotice('locateFailed', 'error') }
-    else if (loc.status === 'on' && me) { pendingLocate.current = false; canvasRef.current?.easeToMe({ animate: true }) }
+    if (!pendingLocate.current && !pendingDistances.current) return
+    if (loc.status === 'denied') { pendingLocate.current = false; pendingDistances.current = false; showNotice('locateDenied', 'error') }
+    else if (loc.status === 'error') { pendingLocate.current = false; pendingDistances.current = false; showNotice('locateFailed', 'error') }
+    else if (loc.status === 'on') {
+      pendingDistances.current = false
+      if (pendingLocate.current && me) { pendingLocate.current = false; canvasRef.current?.easeToMe({ animate: true }) }
+    }
   }, [loc.status, me, showNotice])
-  // "See distances": asks for the location without moving the map (the list gets distances, the map its dot)
-  const seeDistances = useCallback(() => { loc.request() }, [loc])
-  const canAsk = !coords && loc.supported && (loc.status === 'off' || loc.status === 'error')
+  // "See distances": asks for the location without moving the map (the list gets distances, the map its dot). It stays while
+  // the browser blocks location and then says why (the same notice as Locate), instead of vanishing.
+  const seeDistances = useCallback(() => {
+    if (loc.status === 'denied') { showNotice('locateDenied', 'error'); return }
+    pendingDistances.current = true
+    loc.request()
+  }, [loc, showNotice])
+  const canAsk = !coords && loc.supported && loc.status !== 'asking'
   const dirCount = useRef(0)
   const openDirections = useCallback(p => { dirCount.current += 1; setDir({ place: p, key: dirCount.current }) }, [])
   const closeDirections = useCallback(key => setDir(d => (d && d.key === key ? null : d)), [])

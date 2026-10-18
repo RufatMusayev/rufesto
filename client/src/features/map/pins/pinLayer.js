@@ -1,5 +1,6 @@
 // The venue pins on the map: imperative DOM markers diffed by place id (docs/MAP-PLAN-2026-10-18.md M7, section 2, 4).
-//  - at zoom <= CLUSTER_MAX_ZOOM places that sit close together are count bubbles (supercluster), above it every place is a
+//  - at zoom <= CLUSTER_MAX_ZOOM places that sit close together are count bubbles (supercluster; with few venues only below
+//    z12.5 and only the ones that overlap on screen, see cluster.js), above it every place is a
 //    pin; the selected place is always a pin;
 //  - a pin is a pill, or a dot when the greedy collision (collide.js, on zoomend) finds it would overlap a better ranked pill;
 //  - state classes live on the <button> inside the marker element (pinElement.js), never on the element MapLibre moves;
@@ -99,7 +100,7 @@ export function createPinLayer({ map, cb, text, reduced }) {
   // ---- the view (what is a pin, what is a bubble) ---------------------------------------------------------------------
   function sync({ stagger = false } = {}) {
     if (!revealed || dead) return
-    const view = index.view(map.getZoom())
+    const view = index.view(map.getZoom(), { project: ll => map.project(ll), selectedId })
     const wantIds = new Set(view.pins)
     if (selectedId && places.some(p => p.id === selectedId)) wantIds.add(selectedId)
 
@@ -123,7 +124,12 @@ export function createPinLayer({ map, cb, text, reduced }) {
       const key = `c${data.id}`
       seen.add(key)
       const b = bubbles.get(key)
-      if (b) { b.data = data; patchBubble(b, data, labels.cluster(data.count)) } else enterBubble(createBubble(data))
+      if (b) {
+        // an on-screen group's centre moves with its members
+        if (b.data.lng !== data.lng || b.data.lat !== data.lat) b.marker.setLngLat([data.lng, data.lat])
+        b.data = data
+        patchBubble(b, data, labels.cluster(data.count))
+      } else enterBubble(createBubble(data))
     }
     for (const [key, b] of [...bubbles]) {
       if (seen.has(key)) continue

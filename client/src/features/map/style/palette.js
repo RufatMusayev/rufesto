@@ -25,8 +25,9 @@ export const PALETTES = {
     label: '#6B5F57',
     halo: '#F5F0E8',
     minorLabel: '#74675F',
-    houseNumber: '#665A52',
-    highlight: '#8B2D42',
+    houseNumber: '#8C7F76',
+    highlight: '#B5586D',        // a lighter tint than the selected pin's accent, so the pin keeps its edge on the building
+    highlightEdge: '#6E1F31',
   },
   dark: {
     land: '#1E1714',
@@ -48,8 +49,9 @@ export const PALETTES = {
     label: '#B0A097',
     halo: '#1A1210',
     minorLabel: '#9A8C84',
-    houseNumber: '#9A8C83',
-    highlight: '#A33550',
+    houseNumber: '#85776E',
+    highlight: '#B8506A',
+    highlightEdge: '#E8A5B7',
   },
 }
 

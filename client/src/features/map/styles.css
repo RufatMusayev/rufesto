@@ -49,8 +49,8 @@
 .mp-chip.is-on .mp-chip-dot { background: var(--sage); }
 
 /* ---- list ---- */
-/* the floating QR button of the nav overhangs the bottom of the screen by about 28 px: the last row ends above it */
-.mp-list { list-style: none; margin: 0; padding: 0 0 48px; }
+/* the floating QR button of the nav overhangs the bottom of the screen by about 28 px: the last row ends well above it */
+.mp-list { list-style: none; margin: 0; padding: 0 0 80px; }
 .mp-li .sr-row { min-height: 76px; }
 .mp-li .sr-thumb { width: 56px; height: 56px; border-radius: 12px; }
 .mp-li .sr-main { gap: 1px; }
@@ -151,11 +151,12 @@
 .mp-card-status.is-closed { color: var(--t3); }
 .mp-card-friends { display: flex; align-items: center; gap: 8px; margin: 0; height: 20px; font-size: 13px; line-height: 18px; color: var(--t2); }
 .mp-card-friends-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card-street svg { flex: none; color: var(--t3); }
 .mp-card-avatars { display: inline-flex; flex: none; }
 .mp-card-avatars > * + * { margin-left: -6px; }
 .mp-card-actions { display: flex; gap: 8px; margin-top: auto; }
 .mp-act {
-  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 10px;
+  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; padding: 0 10px;
   border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s2); color: var(--t1);
   font-size: 0.8125rem; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer;
   transition: scale var(--dur-1) var(--ease-out), background-color 150ms var(--ease-out);
@@ -217,10 +218,11 @@
 .mp-panel--full .mp-panel-top { padding-top: calc(var(--mp-safe-top) + 12px); }
 .mp-panel--full .mp-panel-scroll, .mp-panel--full .mp-panel-top { max-width: 600px; width: 100%; margin: 0 auto; }
 
-/* the list fades into the nav: a row cut by the screen edge reads as "more below", not as something the QR button hides */
+/* the list ends in a bar the colour of the sheet (30 px solid under a 26 px fade): the floating QR button of the nav overhangs the
+   screen by about 28 px and now sits on that bar, never on text; a row cut by it reads as "more below" */
 .mp-screen[data-sheet]::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 28px; z-index: 5; pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--s1));
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 56px; z-index: 5; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--s1) 26px);
 }
 
 @media (min-width: 1024px) {

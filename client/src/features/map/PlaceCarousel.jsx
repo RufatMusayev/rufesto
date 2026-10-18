@@ -48,8 +48,9 @@ export default function PlaceCarousel({
   const wrap = useRef(null)
   const scroller = useRef(null)
   const live = useRef({})
-  live.current = { places, selectedId, onSelect, onDismiss, reduced }
-  const sync = useRef({ programmatic: false, timer: 0, first: true })
+  live.current = { places, selectedId, onSelect, onDismiss, reduced, open }
+  // programmatic: we are scrolling to the selected card; touching / userUntil: a finger, wheel or key is (or just was) driving it
+  const sync = useRef({ programmatic: false, timer: 0, first: true, touching: false, userUntil: 0 })
   const tall = places.some(p => p.friends && p.friends.count > 0)
 
   // ---- selection -> scroll position ----
@@ -80,8 +81,12 @@ export default function PlaceCarousel({
     const sc = scroller.current
     if (!mounted || !sc) return undefined
     let debounce = 0
+    const userActive = () => sync.current.touching || Date.now() <= sync.current.userUntil
     const settle = () => {
       if (sync.current.programmatic) { sync.current.programmatic = false; return }
+      // Only a guest's own scroll selects, and only while a card is up: a carousel that is closing (or being positioned) scrolls
+      // too, and its settling must never select again (QA B-R2-2: the closed card came back)
+      if (!live.current.open || live.current.selectedId == null || !userActive()) return
       const mid = sc.scrollLeft + sc.clientWidth / 2
       let best = null
       let bestD = Infinity
@@ -93,16 +98,31 @@ export default function PlaceCarousel({
       const place = id && live.current.places.find(p => p.id === id)
       if (place && place.id !== live.current.selectedId) live.current.onSelect(place)
     }
-    const onScroll = () => { clearTimeout(debounce); debounce = setTimeout(settle, HAS_SCROLLEND ? SCROLL_SAFETY_MS : SCROLL_FALLBACK_MS) }
-    const onTouch = () => { sync.current.programmatic = false }
+    const onScroll = () => {
+      if (userActive()) sync.current.userUntil = Math.max(sync.current.userUntil, Date.now() + 800)
+      clearTimeout(debounce)
+      debounce = setTimeout(settle, HAS_SCROLLEND ? SCROLL_SAFETY_MS : SCROLL_FALLBACK_MS)
+    }
+    const down = () => { sync.current.programmatic = false; sync.current.touching = true }
+    const up = () => { sync.current.touching = false; sync.current.userUntil = Date.now() + 1500 }
+    const nudge = () => { sync.current.userUntil = Date.now() + 1500 }
     if (HAS_SCROLLEND) sc.addEventListener('scrollend', settle)
     sc.addEventListener('scroll', onScroll, { passive: true })
-    sc.addEventListener('pointerdown', onTouch, { passive: true })
+    sc.addEventListener('touchstart', down, { passive: true })
+    sc.addEventListener('pointerdown', down, { passive: true })
+    for (const t of ['touchend', 'touchcancel', 'pointerup', 'pointercancel']) sc.addEventListener(t, up, { passive: true })
+    sc.addEventListener('wheel', nudge, { passive: true })
+    sc.addEventListener('keydown', nudge)
     return () => {
       clearTimeout(debounce)
+      sync.current.touching = false
       sc.removeEventListener('scrollend', settle)
       sc.removeEventListener('scroll', onScroll)
-      sc.removeEventListener('pointerdown', onTouch)
+      sc.removeEventListener('touchstart', down)
+      sc.removeEventListener('pointerdown', down)
+      for (const t of ['touchend', 'touchcancel', 'pointerup', 'pointercancel']) sc.removeEventListener(t, up)
+      sc.removeEventListener('wheel', nudge)
+      sc.removeEventListener('keydown', nudge)
     }
   }, [mounted])
 

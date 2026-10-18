@@ -2,23 +2,29 @@
 // zoom 15.5 the selected venue's building is drawn in the accent colour (its footprint extruded, or a soft circle when the tile
 // data has no building there). Tilt exists only here: there are no pitch gestures, the pitch is set by the toggle or by "show on
 // map" and goes back to 0 when the guest zooms out below 15 or deselects.
+// Round 3: availability is computed on arrival too (creation, load, idle), not only after a move; the root carries `data-detail`
+// from zoom 15.5 (CSS rings the selected pin against its building); house numbers under a pin are masked.
 //
-// Nothing here runs per frame: state is recomputed on zoomend / pitchend / moveend, the building is looked up once the map is
-// idle after a change.
+// Nothing here runs per frame: state is recomputed on zoomend / pitchend / moveend / idle, the building is looked up once the
+// map is idle after a change.
 import { HIGHLIGHT_SOURCE } from './style/layers.js'
-import { EMPTY, highlightFor, pickBuilding } from './buildings.js'
-import { DETAIL_PITCH, HIGHLIGHT_MIN_ZOOM, TILT_MIN_ZOOM, MS, cubic } from './mapTuning.js'
+import { EMPTY, circleRing, highlightFor, pickBuilding } from './buildings.js'
+import { metersPerPixel } from './camera.js'
+import { DETAIL_PITCH, HIGHLIGHT_MIN_ZOOM, HOUSENUMBER_ZOOM, TILT_MIN_ZOOM, MS, cubic } from './mapTuning.js'
 
 const TILTED_AT = 5 // degrees: above this the map counts as tilted
+const PIN_MASK_PX = 46 // radius, in screen px, around a venue's point in which no house number is drawn (the pill sits there)
 
 /**
  * @param {object} o
  * @param {import('maplibre-gl').Map} o.map
+ * @param {HTMLElement} o.root                the .mp-canvas element (gets data-detail)
+ * @param {() => object[]} o.getPlaces        the venues on the map (their pins hide the house numbers under them)
  * @param {(state:{available:boolean, tilted:boolean}) => void} o.onChange
  * @param {() => boolean} o.reduced
  * @param {(opts:object) => void} o.ease  the controller's easeTo wrapper (marks the camera as animating)
  */
-export function createDetail({ map, onChange, reduced, ease }) {
+export function createDetail({ map, root, getPlaces, onChange, reduced, ease }) {
   let selected = null
   let needs = false
   let drawn = '' // what the highlight source shows now: '<id>:building' | '<id>:circle' | ''
@@ -26,6 +32,7 @@ export function createDetail({ map, onChange, reduced, ease }) {
   let tilted = false
   let dead = false
   let flattenTimer = 0
+  let maskKey = '' // what the house-number filter was built for
 
   const source = () => map.getSource(HIGHLIGHT_SOURCE)
 
@@ -50,15 +57,36 @@ export function createDetail({ map, onChange, reduced, ease }) {
     src.setData(highlightFor(hit, pt))
   }
 
-  const sync = () => {
+  // house numbers hide under the pins: the layer's filter excludes the points within a pin's footprint
+  function mask() {
+    if (dead || !map.getLayer('housenumber')) return
+    const z = map.getZoom()
+    let key = ''
+    let polys = []
+    if (z >= HOUSENUMBER_ZOOM - 0.4) {
+      const b = map.getBounds()
+      const near = getPlaces().filter(p => b.contains([p.lng, p.lat]))
+      key = `${z.toFixed(1)}|${near.map(p => p.id).join(',')}`
+      if (key === maskKey) return
+      polys = near.map(p => [circleRing([p.lng, p.lat], PIN_MASK_PX * metersPerPixel(p.lat, z), 12)])
+    }
+    if (key === maskKey) return
+    maskKey = key
+    map.setFilter('housenumber', polys.length ? ['!', ['within', { type: 'MultiPolygon', coordinates: polys }]] : null)
+  }
+
+  function sync() {
     if (dead) return
-    const a = map.getZoom() >= TILT_MIN_ZOOM
+    const z = map.getZoom()
+    const a = z >= TILT_MIN_ZOOM
     const t = map.getPitch() > TILTED_AT
     if (a !== available || t !== tilted) {
       available = a
       tilted = t
       onChange({ available, tilted })
     }
+    if (z >= HIGHLIGHT_MIN_ZOOM) root.setAttribute('data-detail', '')
+    else root.removeAttribute('data-detail')
     // zoomed out of detail: the tilt goes with it (a tick later: easeTo must not run inside the map's own end-of-move event)
     if (!a && map.getPitch() > 0 && !flattenTimer) {
       flattenTimer = setTimeout(() => {
@@ -69,7 +97,11 @@ export function createDetail({ map, onChange, reduced, ease }) {
   }
 
   const onMoveEnd = () => { needs = true; sync() }
-  const onIdle = () => { if (needs) { needs = false; compute() } }
+  const onIdle = () => {
+    sync() // a jump or an arrival that no zoom / move event reported
+    mask()
+    if (needs) { needs = false; compute() }
+  }
   map.on('zoomend', onMoveEnd)
   map.on('pitchend', sync)
   map.on('moveend', onMoveEnd)
@@ -92,7 +124,11 @@ export function createDetail({ map, onChange, reduced, ease }) {
       if (map.isStyleLoaded() && !map.isMoving()) onIdle()
     },
     /** The style was swapped (theme): the highlight source is empty again, draw it anew once idle. */
-    refresh() { drawn = ''; needs = true },
+    refresh() { drawn = ''; needs = true; maskKey = '' },
+    /** The list of venues changed: the house-number mask is rebuilt at the next idle. */
+    placesChanged() { maskKey = '' },
+    /** Recompute availability now (arrival, load). */
+    sync,
     /** 2D <-> 3D at the current centre and zoom. False when detail mode is not available (zoom < 15). */
     toggleTilt() {
       if (dead || map.getZoom() < TILT_MIN_ZOOM) return false

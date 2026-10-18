@@ -29,6 +29,7 @@
   --mp-fg: #F5F0E8;
   --mp-closed-bg: #FFFFFF;
   --mp-closed-fg: #665A52;
+  --mp-closed-ring: #8A7C72;   /* round 3: the outline of a closed pill / dot: 3.5:1 on the cream land */
   --mp-star: var(--gold);
   --mp-star-closed: #8A7C72;
   --mp-me: #3B82F6;
@@ -47,7 +48,8 @@
   --mp-bg: #F5F0E8;            /* pill, on the dark map */
   --mp-fg: #1A1210;
   --mp-closed-bg: #3A2E29;
-  --mp-closed-fg: #A89890;
+  --mp-closed-fg: #D8CAC1;     /* 8:1 on the pill */
+  --mp-closed-ring: #9A8A80;   /* round 3: 5:1 on the dark land (the pill alone was 1.4:1) */
   --mp-star: #7A5C0E;
   --mp-star-closed: #A89890;
   --mp-me: #60A5FA;
@@ -85,7 +87,13 @@
 }
 /* hit area >= 44 px: 10 px above and 8 px to the sides, none below the tail tip, so a dot sitting just under a pill stays tappable */
 .mp-pin::before { content: ""; position: absolute; inset: -10px -8px 0 -8px; }
-.mp-pin.is-closed { --mp-pin-bg: var(--mp-closed-bg); --mp-pin-fg: var(--mp-closed-fg); --mp-pin-star: var(--mp-star-closed); }
+.mp-pin.is-closed {
+  --mp-pin-bg: var(--mp-closed-bg);
+  --mp-pin-fg: var(--mp-closed-fg);
+  --mp-pin-star: var(--mp-star-closed);
+  --mp-pin-tail: var(--mp-closed-ring);
+  --mp-inset: inset 0 0 0 1.5px var(--mp-closed-ring);
+}
 .mp-pin.is-selected { --mp-pin-bg: var(--accent); --mp-pin-fg: #F5F0E8; --mp-pin-star: #F5F0E8; }
 
 .mp-pin__body {
@@ -105,7 +113,7 @@
   border-radius: 14px;
   background: var(--mp-pin-bg);
   color: var(--mp-pin-fg);
-  box-shadow: var(--mp-shadow);
+  box-shadow: var(--mp-inset, 0 0 0 0 transparent), var(--mp-shadow);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), box-shadow 120ms var(--ease-out);
@@ -119,21 +127,26 @@
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 6px solid var(--mp-pin-bg);
+  border-top: 6px solid var(--mp-pin-tail, var(--mp-pin-bg));
   transition: border-top-color 150ms var(--ease-out);
 }
 /* followed (and no friends): a subtle accent ring */
-.mp-pin.has-ring .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow); }
+.mp-pin.has-ring .mp-pin__pill { box-shadow: var(--mp-inset, 0 0 0 0 transparent), 0 0 0 1.5px var(--accent-text), var(--mp-shadow); }
 
 .mp-pin.is-selected .mp-pin__body { scale: 1.12; }
+/* round 3, detail mode (zoom >= 15.5, the building is highlighted): the selected pill gets a white ring and the tail a white edge */
+.mp-canvas[data-detail] .mp-pin.is-selected .mp-pin__pill {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(26, 18, 16, 0.28), 0 4px 12px rgba(26, 18, 16, 0.35);
+}
+.mp-canvas[data-detail] .mp-pin.is-selected .mp-pin__tail { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
 /* hover (desktop): the screen drives .is-hover so a row and its pin light up together; :hover covers a pin on its own */
 .mp-pin.is-hover .mp-pin__body { translate: 0 -2px; }
-.mp-pin.is-hover .mp-pin__pill { box-shadow: var(--mp-shadow-up); }
-.mp-pin.is-hover.has-ring .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
+.mp-pin.is-hover .mp-pin__pill { box-shadow: var(--mp-inset, 0 0 0 0 transparent), var(--mp-shadow-up); }
+.mp-pin.is-hover.has-ring .mp-pin__pill { box-shadow: var(--mp-inset, 0 0 0 0 transparent), 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
 @media (hover: hover) {
   .mp-pin:not(.is-dot):hover .mp-pin__body { translate: 0 -2px; }
-  .mp-pin:not(.is-dot):hover .mp-pin__pill { box-shadow: var(--mp-shadow-up); }
-  .mp-pin:not(.is-dot).has-ring:hover .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
+  .mp-pin:not(.is-dot):hover .mp-pin__pill { box-shadow: var(--mp-inset, 0 0 0 0 transparent), var(--mp-shadow-up); }
+  .mp-pin:not(.is-dot).has-ring:hover .mp-pin__pill { box-shadow: var(--mp-inset, 0 0 0 0 transparent), 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
 }
 
 /* dot: 12 px, shown instead of the pill when the pill would collide; the dot's centre is the point */
@@ -153,7 +166,7 @@
   pointer-events: none;
   transition: opacity 150ms var(--ease-out), scale 150ms var(--ease-out);
 }
-.mp-pin.is-closed .mp-pin__dot { border-color: var(--t4); }
+.mp-pin.is-closed .mp-pin__dot { border-color: var(--mp-closed-ring); }
 .mp-pin__dot::before { content: ""; position: absolute; inset: -12px; }       /* hit area 36 px */
 .mp-pin.is-dot { pointer-events: none; }
 .mp-pin.is-dot .mp-pin__body { opacity: 0; scale: 0.6; }
@@ -209,7 +222,7 @@
 .mp-cluster.is-leave { pointer-events: none; animation: mp-leave 160ms var(--ease-exit) forwards; }
 
 /* you are here: 14 px dot + 3 px white ring, pulse, accuracy halo */
-.mp-me { pointer-events: none; }
+.mp-me { pointer-events: none; z-index: 2000; }   /* above every pin and dot (their z-index tops out at 1000) */
 .mp-me__dot, .mp-me__pulse { position: absolute; box-sizing: content-box; left: -10px; top: -10px; width: 14px; height: 14px; border-radius: 50%; }
 .mp-me__dot { background: var(--mp-me); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(26, 18, 16, 0.35); }
 .mp-me__pulse { left: -7px; top: -7px; background: var(--mp-me); opacity: 0.35; animation: mp-pulse 2s ease-out infinite; }

@@ -67,22 +67,26 @@ const polygonsOf = geometry => {
 }
 
 /**
- * The building of a venue: the polygon that contains its point (the largest when several do, tiles can cut a building in
- * pieces), else the nearest within `maxM` metres (a venue geocoded onto the street in front of the door).
+ * The building of a venue: the polygon that contains its point, else the nearest within `maxM` metres (a venue geocoded onto
+ * the street in front of the door). Point-in-polygon always comes first. When several polygons contain the point (a building
+ * outline and its parts, or the same building from two tiles) the most specific wins: a part before an outline that OpenMapTiles
+ * marks `hide_3d`, then the smallest.
  * @param {Array<{geometry:object, properties:object}>} features features of the `building` layer
  * @returns {{ rings:number[][][], props:object } | null}
  */
 export function pickBuilding(features, pt, maxM = 25) {
   let inside = null
-  let insideArea = -1
+  let insideKey = Infinity
   let near = null
   let nearD = Infinity
   for (const f of features) {
     for (const rings of polygonsOf(f.geometry)) {
       if (!rings[0] || !bboxNear(rings[0], pt, 0.0004)) continue
       if (inRing(pt, rings[0]) && !rings.slice(1).some(h => inRing(pt, h))) {
-        const a = ringArea(rings[0])
-        if (a > insideArea) { inside = { rings, props: f.properties || {} }; insideArea = a }
+        const props = f.properties || {}
+        // outlines (hide_3d) sort after parts; within a kind the smaller polygon is the more specific one
+        const key = (props.hide_3d === true || props.hide_3d === 'true' || props.hide_3d === 1 ? 1e12 : 0) + ringArea(rings[0])
+        if (key < insideKey) { inside = { rings, props }; insideKey = key }
       } else if (!inside) {
         const d = distToRingM(pt, rings[0])
         if (d < nearD) { near = { rings, props: f.properties || {} }; nearD = d }

@@ -41,8 +41,6 @@
   "walk_one": "{{count}} dəq piyada",
   "walk_other": "{{count}} dəq piyada",
   "friendsOne": "{{name}} burada olub",
-  "friendsMany_one": "{{name}} və daha {{count}} dost burada olub",
-  "friendsMany_other": "{{name}} və daha {{count}} dost burada olub",
   "menu": "Menyu",
   "book": "Masa ayır",
   "directions": "Marşrut",

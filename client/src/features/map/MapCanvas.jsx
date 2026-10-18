@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { decimalMark, langOf } from '../../lib/lang'
+import { langOf } from '../../lib/lang'
+import { decimal } from './format'
 import AttributionChip from './AttributionChip'
 import { PMTILES_URL } from './mapConfig'
 import { LOAD_TIMEOUT_MS } from './mapTuning'
@@ -26,7 +27,7 @@ const prefersReduced = () => typeof window !== 'undefined' && !!window.matchMedi
 
 /** Texts the pins carry (aria-labels, rating format), rebuilt when the language or `t` changes. */
 function makeText(t, lang, labelFor) {
-  const fmt = r => Number(r).toFixed(1).replace('.', decimalMark(lang))
+  const fmt = r => decimal(r, 1, lang)
   const kind = k => t(`map:kindOne.${k}`, { defaultValue: KIND_DEFAULT[k] || KIND_DEFAULT.restaurant })
   return {
     rating: fmt,
@@ -129,9 +130,9 @@ const MapCanvas = forwardRef(function MapCanvas(props, ref) {
           onDeselect: () => propsRef.current.onDeselect?.(),
           onCamera: c => propsRef.current.onCamera?.(c),
           onHover: id => propsRef.current.onHoverPlace?.(id),
-          // leaving a pin clears the highlight only if the screen still has THIS pin hovered: a list row that took over
-          // (pointer moved from the pin onto a row) has already set its own id
-          onHoverEnd: id => { const cur = propsRef.current.hoveredId; if (cur === id || cur == null) propsRef.current.onHoverPlace?.(null) },
+          // leaving a pin: the screen decides (onHover(null, pinId) clears only if that pin is still the hovered one; a list row
+          // that took over in the same task keeps its highlight)
+          onHoverEnd: id => propsRef.current.onHoverPlace?.(null, id),
           onDetail: st => propsRef.current.onDetail?.(st),
           onLoad: () => cancelAnimationFrame(loadTimer),
           onReady: () => propsRef.current.onReady?.(),

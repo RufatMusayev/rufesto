@@ -40,3 +40,13 @@ export const HIGHLIGHT_MIN_ZOOM = 15.5
 export const DETAIL_ZOOM = 17.5
 export const DETAIL_PITCH = 55
 export const MAX_PITCH = 60
+
+// ---- round 3 ----
+/** A filter fit includes the guest's dot when it is within this many km of the results. */
+export const ME_FIT_KM = 4
+/** Below this zoom, venues that overlap on screen are grouped into count bubbles even when there are few of them. */
+export const GROUP_BELOW_ZOOM = 12.5
+/** Two venues closer than this many screen px (at the current zoom) are one bubble below GROUP_BELOW_ZOOM. */
+export const GROUP_PX = 28
+/** House numbers (and the selected pin's 3D ring) belong to the detail zoom. */
+export const HOUSENUMBER_ZOOM = 17.5

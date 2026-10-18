@@ -6,6 +6,7 @@
 //     button.mp-pin                    state classes, aria-label, aria-pressed, roving tabindex, 44 px hit area (::before)
 //       span.mp-pin__body              enter / leave / hover / selected motion (scale, translate, opacity)
 //         span.mp-pin__pill            28 px tall pill: kind icon + star + rating   (icon-only circle without rating)
+//           span.mp-pin__fr            friends badge (round 2): the top friend's 16 px avatar on the pill's top-left corner
 //         span.mp-pin__tail            6 px tail, its tip is the anchor
 //       span.mp-pin__dot               12 px dot, shown instead of the body when the pill would collide (36 px hit area)
 //
@@ -55,19 +56,46 @@ export function makePin(place, text) {
   return { el, btn, refs }
 }
 
-/** Brings the content of a pin up to date; cheap when nothing changed. Class state (open, ring) is always refreshed. */
+const safePhoto = url => (typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '')
+
+/** The friends badge: the top friend's photo, or their first letter when there is none (or it does not load). */
+function friendBadge(top) {
+  const badge = document.createElement('span')
+  badge.className = 'mp-pin__fr'
+  badge.setAttribute('aria-hidden', 'true')
+  const letter = () => { badge.textContent = (String(top?.name || '').trim()[0] || '\u2605').toUpperCase() }
+  const photo = safePhoto(top?.profile_photo)
+  if (photo) {
+    const img = document.createElement('img')
+    img.alt = ''
+    img.decoding = 'async'
+    img.addEventListener('error', () => { img.remove(); letter() }, { once: true })
+    img.src = photo
+    badge.append(img)
+  } else letter()
+  return badge
+}
+
+/**
+ * Brings the content of a pin up to date; cheap when nothing changed. Class state is always refreshed. One decoration at most
+ * (round 2): friends have been here -> the avatar badge; followed only -> a subtle accent ring; both -> the badge.
+ */
 export function patchPin(entry, place, text) {
   const { btn, refs } = entry
   const rating = place.rating != null ? text.rating(place.rating) : ''
-  const sig = `${place.kind}|${rating}`
+  const friends = (place.friends?.count || 0) > 0
+  const top = friends ? place.friends.top?.[0] : null
+  const sig = `${place.kind}|${rating}|${friends ? `${top?.profile_photo || ''}|${top?.name || ''}` : ''}`
   if (sig !== refs.sig) {
     refs.sig = sig
     refs.pill.innerHTML = iconOf(place.kind) + (rating ? `<span class="mp-pin__rating">${STAR}<span class="mp-pin__num"></span></span>` : '')
     if (rating) refs.pill.querySelector('.mp-pin__num').textContent = rating
+    if (friends) refs.pill.append(friendBadge(top))
     btn.classList.toggle('mp-pin--icon', !rating)
   }
   btn.classList.toggle('is-closed', !place.open_now)
-  btn.classList.toggle('has-ring', place.followed === true || (place.friends?.count || 0) > 0)
+  btn.classList.toggle('has-friends', friends)
+  btn.classList.toggle('has-ring', place.followed === true && !friends)
 }
 
 export function makeBubble(data, label) {

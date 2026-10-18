@@ -1,9 +1,11 @@
 // Map prefetch (docs/MAP-PLAN-2026-10-18.md section 7). This file is imported by BottomNav and Sidebar, so it lives in the
 // ENTRY chunk: it must stay tiny and must never import maplibre-gl (the library is reached only through the dynamic
 // import of mapController.js).
-//   prefetchMap()     on intent (pointerdown / hover / focus of the Map tab): the controller chunk (maplibre + our map
-//                     code), a modulepreload of the self-hosted worker, a preconnect to the tile host, the TileJSON, and
-//                     the places request of the screen (api.js, when it exports prefetchPlaces).
+//   prefetchMap()     on intent (pointerdown / hover / focus of the Map tab): the route chunk of the screen, the places
+//                     request (api.js, when it exports prefetchPlaces), a modulepreload of the self-hosted worker, a preconnect
+//                     to the tile host, the TileJSON - and the controller chunk (maplibre + our map code) only AFTER the places
+//                     have answered and a frame has passed (700 ms at most): evaluating a megabyte of JS must not land on the
+//                     main thread right when the list rows are rendered (round 2, rows <= 800 ms).
 //   scheduleMapIdle() on idle, 4 s after the app is up, only on a fast, un-metered connection: the JS only.
 //   hasWebGL2()       the capability check; without WebGL2 nothing of the map is ever downloaded.
 import { PMTILES_URL, TILEJSON_URL, TILES_ORIGIN, WORKER_URL } from './mapEndpoints.js'
@@ -61,9 +63,6 @@ function link(rel, href, crossorigin) {
   document.head.appendChild(el)
 }
 
-// the places request lives in the screen's api module; it is optional, so a missing file never breaks the build
-const apiModules = import.meta.glob('./api.js')
-
 let started = false
 
 /** Everything the Map tab needs, started as soon as the guest shows intent. Safe to call on every pointer event. */
@@ -73,8 +72,11 @@ export function prefetchMap() {
   link('preconnect', TILES_ORIGIN, true)
   link('modulepreload', WORKER_URL)
   getTileJSON()
-  loadMapController().catch(() => {})
-  apiModules['./api.js']?.().then(m => m.prefetchPlaces?.()).catch(() => {})
+  import('../../pages/MapPage').catch(() => {}) // the route chunk App.jsx lazy-loads (same module id, one chunk)
+  let engine = false
+  const startEngine = () => { if (!engine) { engine = true; loadMapController().catch(() => {}) } }
+  setTimeout(startEngine, 700)
+  import('./api.js').then(m => m.prefetchPlaces()).catch(() => {}).then(() => requestAnimationFrame(() => setTimeout(startEngine, 0)))
 }
 
 let idled = false

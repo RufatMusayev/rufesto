@@ -4,9 +4,8 @@ import { SLOP, FLICK, clamp, rubberBand, pushSample, velocity } from './dragMath
 
 // Drag between snap points for SnapSheet (docs/MAP-PLAN-2026-10-18.md 4, "Sheet drag" / "Sheet release"). No React
 // state while dragging: the transform is written straight to the panel on every move.
-//  - the head (handle, count, chips) is dragged with Pointer Events (touch-action:none; the pointer is captured lazily,
-//    after the slop, so a tap on a chip still clicks);
-//  - the body (the list) is dragged with Touch Events, decided on the first move past 6 px: at a snap where the list
+//  - a finger drags the head (handle, count, chips) and the body (the list) with Touch Events, decided on the first move
+//    past 6 px (a mouse drags the head with Pointer Events, captured lazily so a click on a chip still works): at a snap where the list
 //    does not scroll (every snap but the last) any vertical gesture moves the sheet; at the scrolling snap only a pull
 //    down with the list at scrollTop 0 does, everything else is a native scroll for the whole gesture;
 //  - release: projected = y + v * 200 ms, nearest snap to the projection; a flick (> 0.5 px/ms) moves at least one snap and
@@ -92,9 +91,12 @@ export default function useSnapDrag({ rootRef, headRef, bodyRef, api }) {
       if (target !== start) setTimeout(() => haptic(8), dur)
     }
 
-    // ---- head: Pointer Events ----
-    // a mouse has no implicit capture: once the button is down, moves and the release are followed on the window, or a
-    // fast drag that leaves the head would never end
+    // ---- mouse / pen (head only): Pointer Events ----
+    // A finger is NOT handled here. A touch drag that moves with Pointer Events alone (touch-action:none, capture) leaves the
+    // browser believing a pan started: the touchmoves turn uncancelable and the next tap is swallowed as the tap that stops a
+    // fling (QA MAP-01). A finger is driven by Touch Events with preventDefault on the first vertical move, like the list.
+    // A mouse has no implicit capture: once the button is down, moves and the release are followed on the window, or a
+    // fast drag that leaves the head would never end.
     function track(on) {
       const f = on ? window.addEventListener : window.removeEventListener
       f.call(window, 'pointermove', onPointerMove)
@@ -102,6 +104,7 @@ export default function useSnapDrag({ rootRef, headRef, bodyRef, api }) {
       f.call(window, 'pointercancel', onPointerEnd)
     }
     function onPointerDown(e) {
+      if (e.pointerType === 'touch') return
       if (!api.enabled() || s.mode === 'drag') return
       if (e.pointerType === 'mouse' && e.button !== 0) return
       if (e.target instanceof Element && e.target.closest(NO_DRAG)) return
@@ -129,7 +132,7 @@ export default function useSnapDrag({ rootRef, headRef, bodyRef, api }) {
       else { s.mode = 'idle'; s.pid = null }
     }
 
-    // ---- body: Touch Events ----
+    // ---- finger (head and body): Touch Events ----
     function insideScrolled(target) {
       let el = target instanceof Element ? target : null
       while (el && el !== body) {
@@ -143,11 +146,15 @@ export default function useSnapDrag({ rootRef, headRef, bodyRef, api }) {
     }
     function onTouchStart(e) {
       if (!api.enabled() || e.touches.length !== 1) { s.mode = 'idle'; return }
+      const fromHead = !!head && head.contains(e.target)
+      if (fromHead && e.target instanceof Element && e.target.closest(NO_DRAG)) { s.mode = 'idle'; return }
       const t = e.touches[0]
       s.mode = 'pending'
       begin(t.clientX, t.clientY, e.timeStamp)
-      s.scrollTop0 = body.scrollTop
-      if (insideScrolled(e.target)) s.scrollTop0 = 1
+      // the head never scrolls: any vertical gesture on it moves the sheet
+      s.canScroll = !fromHead && s.canScroll
+      s.scrollTop0 = fromHead ? 0 : body.scrollTop
+      if (!fromHead && insideScrolled(e.target)) s.scrollTop0 = 1
     }
     function onTouchMove(e) {
       if (s.mode !== 'pending' && s.mode !== 'drag') return
@@ -171,17 +178,23 @@ export default function useSnapDrag({ rootRef, headRef, bodyRef, api }) {
     }
 
     head?.addEventListener('pointerdown', onPointerDown)
-    body.addEventListener('touchstart', onTouchStart, { passive: true })
-    body.addEventListener('touchmove', onTouchMove, { passive: false })
-    body.addEventListener('touchend', onTouchEnd)
-    body.addEventListener('touchcancel', onTouchEnd)
+    for (const el of [head, body]) {
+      if (!el) continue
+      el.addEventListener('touchstart', onTouchStart, { passive: true })
+      el.addEventListener('touchmove', onTouchMove, { passive: false })
+      el.addEventListener('touchend', onTouchEnd)
+      el.addEventListener('touchcancel', onTouchEnd)
+    }
     return () => {
       head?.removeEventListener('pointerdown', onPointerDown)
       track(false)
-      body.removeEventListener('touchstart', onTouchStart)
-      body.removeEventListener('touchmove', onTouchMove)
-      body.removeEventListener('touchend', onTouchEnd)
-      body.removeEventListener('touchcancel', onTouchEnd)
+      for (const el of [head, body]) {
+        if (!el) continue
+        el.removeEventListener('touchstart', onTouchStart)
+        el.removeEventListener('touchmove', onTouchMove)
+        el.removeEventListener('touchend', onTouchEnd)
+        el.removeEventListener('touchcancel', onTouchEnd)
+      }
     }
   }, [rootRef, headRef, bodyRef, api])
 }

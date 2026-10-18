@@ -39,6 +39,6 @@ export default function useMapPlaces() {
     return () => { clearInterval(every); document.removeEventListener('visibilitychange', onVisible) }
   }, [uid, authLoading])
 
-  const reload = useCallback(() => loadPlaces({ uid }), [uid])
+  const reload = useCallback(() => loadPlaces({ uid, fresh: true }), [uid])
   return { places, status, reload }
 }

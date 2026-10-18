@@ -1,7 +1,8 @@
 // Count bubbles for zoom <= CLUSTER_MAX_ZOOM (docs/MAP-PLAN-2026-10-18.md M7), on supercluster. The index is rebuilt when
 // the list of places changes; a view is "which places are still single pins, which groups are bubbles" at a zoom.
+// Round 2: below CLUSTER_MIN_PLACES venues there are no bubbles at all (the pill / dot collision copes with overlap).
 import Supercluster from 'supercluster'
-import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS } from '../mapTuning.js'
+import { CLUSTER_MAX_ZOOM, CLUSTER_MIN_PLACES, CLUSTER_RADIUS } from '../mapTuning.js'
 
 const WORLD = [-180, -85, 180, 85]
 
@@ -23,7 +24,7 @@ export function createClusterIndex(places) {
   return {
     /** @returns {{ pins: Set<string>, bubbles: Array<{id:number, lng:number, lat:number, count:number, idx:number}> }} */
     view(zoom) {
-      if (zoom > CLUSTER_MAX_ZOOM) return { pins: new Set(places.map(p => p.id)), bubbles: [] }
+      if (zoom > CLUSTER_MAX_ZOOM || places.length < CLUSTER_MIN_PLACES) return { pins: new Set(places.map(p => p.id)), bubbles: [] }
       const pins = new Set()
       const bubbles = []
       for (const f of index.getClusters(WORLD, Math.max(0, Math.floor(zoom)))) {

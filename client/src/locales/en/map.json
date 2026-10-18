@@ -67,5 +67,10 @@
   "locating": "Finding your location…",
   "locateDenied": "Location is turned off for this site. Allow it in your browser settings to see where you are.",
   "locateFailed": "Couldn't find your location. Try again in a moment.",
-  "locateUnsupported": "This browser can't share your location."
+  "locateUnsupported": "This browser can't share your location.",
+  "seeDistances": "See distances",
+  "showOnMap": "Show on map",
+  "view3d": "3D view",
+  "view2d": "2D view",
+  "friendsRowMany": "{{name}} +{{count}} have been here"
 }

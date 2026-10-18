@@ -58,18 +58,31 @@ export async function refreshDishAvailability() {
   }
 }
 
-/** Mount once on Home: ticks every 60 s while the page is visible and again when the window gets focus. */
+// One timer and one pair of listeners however many screens mount the poll (Home, Search): a screen that is not on show
+// is not mounted, and refreshDishAvailability itself does nothing while the browser tab is hidden.
+let users = 0
+let stop = null
+function startPoll() {
+  const id = setInterval(refreshDishAvailability, POLL_MS)
+  const onFocus = () => refreshDishAvailability()
+  const onVisible = () => { if (document.visibilityState === 'visible') refreshDishAvailability() }
+  window.addEventListener('focus', onFocus)
+  document.addEventListener('visibilitychange', onVisible)
+  return () => {
+    clearInterval(id)
+    window.removeEventListener('focus', onFocus)
+    document.removeEventListener('visibilitychange', onVisible)
+  }
+}
+
+/** Mount on a screen with dish cards or rows (Home, Search): ticks every 60 s while the page is visible and again when the window gets focus. */
 export function useDishAvailabilityPoll() {
   useEffect(() => {
-    const id = setInterval(refreshDishAvailability, POLL_MS)
-    const onFocus = () => refreshDishAvailability()
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshDishAvailability() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisible)
+    users += 1
+    if (users === 1) stop = startPoll()
     return () => {
-      clearInterval(id)
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisible)
+      users -= 1
+      if (users === 0 && stop) { stop(); stop = null }
     }
   }, [])
 }

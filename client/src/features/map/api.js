@@ -78,25 +78,32 @@ async function request() {
   }
 }
 
-// prefetch.js starts the request when the guest shows intent on the Map tab (pointerdown / hover); the screen takes the
-// answer if it is still fresh. It may have gone out before the session was restored, so the caller checks signedIn.
+// One shared request: prefetch.js starts it when the guest shows intent on the Map tab (pointerdown / hover) and the screen
+// takes the same answer instead of asking twice; a direct load of /map asks once too. A failed answer is never handed out
+// again ("Try again" must ask at once), and the answer may have left before the session was restored, so the caller checks
+// signedIn.
 const WARM_MS = 10000
-let warm = null
+let shared = null // { at, failed, promise }
+
+function start() {
+  const entry = { at: Date.now(), failed: false, promise: null }
+  entry.promise = request().then(res => {
+    if (res.error || !res.data) entry.failed = true
+    return res
+  })
+  shared = entry
+  return entry.promise
+}
+const usable = () => !!shared && !shared.failed && Date.now() - shared.at <= WARM_MS
 
 /** Called by prefetch.js (prefetchMap). */
 export function prefetchPlaces() {
-  if (!warm || Date.now() - warm.at > WARM_MS) warm = { at: Date.now(), promise: request() }
+  if (!usable()) start()
 }
 
-/** -> { data: { places, signedIn, generatedAt }, error: null } | { data: null, error }; { fresh: true } skips a warm answer. */
+/** -> { data: { places, signedIn, generatedAt }, error: null } | { data: null, error }; { fresh: true } always asks again. */
 export function fetchMapPlaces({ fresh = false } = {}) {
-  if (!fresh && warm && Date.now() - warm.at <= WARM_MS) {
-    const p = warm.promise
-    warm = null
-    return p
-  }
-  warm = null
-  return request()
+  return !fresh && usable() ? shared.promise : start()
 }
 
 /** The social fields belong to one person: a snapshot kept for another uid (or for nobody) loses them. */

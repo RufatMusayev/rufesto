@@ -7,7 +7,7 @@
 // Nothing here runs per frame: sync() is called on data, selection, zoomend and language changes.
 import { Marker } from 'maplibre-gl'
 import { createClusterIndex } from './cluster.js'
-import { resolveDots, rankOf } from './collide.js'
+import { compareRank, resolveDots } from './collide.js'
 import { makeBubble, makePin, patchBubble, patchPin } from './pinElement.js'
 
 const LEAVE_MS = 160
@@ -20,7 +20,7 @@ const cubicOut = 'cubic-bezier(0.215, 0.61, 0.355, 1)'
 /**
  * @param {object} o
  * @param {import('maplibre-gl').Map} o.map
- * @param {{ onSelect(id:string):void, onCluster(b:object):void, onHover(id:string|null):void }} o.cb
+ * @param {{ onSelect(id:string):void, onCluster(b:object):void, onHover(id:string):void, onHoverEnd(id:string):void }} o.cb
  * @param {{ place(p:object):string, cluster(n:number):string, rating(r:number):string }} o.text
  * @param {boolean} o.reduced
  */
@@ -55,7 +55,7 @@ export function createPinLayer({ map, cb, text, reduced }) {
     btn.addEventListener('keydown', e => onKey(e, id))
     btn.addEventListener('focus', () => { rovingId = id; applyRoving() })
     btn.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') cb.onHover(id) })
-    btn.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') cb.onHover(null) })
+    btn.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') cb.onHoverEnd(id) })
   }
 
   function createPin(place) {
@@ -148,7 +148,7 @@ export function createPinLayer({ map, cb, text, reduced }) {
       return { place: e.place, x: pt.x, y: pt.y }
     })
     const dots = resolveDots(items, selectedId)
-    const ranked = live.map(e => e).sort((a, b) => rankOf(a.place, selectedId) - rankOf(b.place, selectedId))
+    const ranked = live.slice().sort((a, b) => compareRank(b.place, a.place, selectedId)) // worst first: the best ends on top
     ranked.forEach((e, i) => {
       const dot = dots.has(e.place.id)
       e.dot = dot

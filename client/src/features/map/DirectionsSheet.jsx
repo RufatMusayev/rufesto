@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { BottomSheet, useSheetClose } from '../../components/ui'
 
 // "Open in": hands the trip over to a navigation app (docs/MAP-PLAN-2026-10-18.md 4, Directions). No turn-by-turn here.
-// Walking mode up to 1.5 km when the distance is known, driving otherwise. The app used last moves to the top.
+// Walking mode up to 1.5 km when the distance is known, driving beyond, no mode at all when it is not known. The app used last
+// moves to the top.
 const KEY = 'rufesto_nav_app'
 const WALK_KM = 1.5
 
@@ -20,20 +21,22 @@ const isApple = () => {
 const readLast = () => { try { return localStorage.getItem(KEY) } catch { return null } }
 const writeLast = id => { try { localStorage.setItem(KEY, id) } catch { /* storage blocked */ } }
 
+// `mode` is 'walk' | 'drive' when the distance is known, null when it is not: the link then names no travel mode and the maps app
+// chooses (it knows where the guest is; a café 200 m away must not open in driving mode).
 const APPS = {
-  google: { label: 'Google Maps', url: (ll, walk) => `https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=${walk ? 'walking' : 'driving'}` },
+  google: { label: 'Google Maps', url: (ll, mode) => `https://www.google.com/maps/dir/?api=1&destination=${ll}${mode ? `&travelmode=${mode === 'walk' ? 'walking' : 'driving'}` : ''}` },
   waze: { label: 'Waze', url: ll => `https://waze.com/ul?ll=${ll}&navigate=yes` },
-  yandex: { labelKey: 'yandex', url: (ll, walk) => `https://yandex.com/maps/?rtext=~${ll}&rtt=${walk ? 'pd' : 'auto'}` },
-  apple: { label: 'Apple Maps', url: (ll, walk) => `https://maps.apple.com/?daddr=${ll}&dirflg=${walk ? 'w' : 'd'}` },
+  yandex: { labelKey: 'yandex', url: (ll, mode) => `https://yandex.com/maps/?rtext=~${ll}${mode ? `&rtt=${mode === 'walk' ? 'pd' : 'auto'}` : ''}` },
+  apple: { label: 'Apple Maps', url: (ll, mode) => `https://maps.apple.com/?daddr=${ll}${mode ? `&dirflg=${mode === 'walk' ? 'w' : 'd'}` : ''}` },
 }
 
 /** Exported for tests: the destination links in the order they are listed. */
 export function directionLinks(place, km, apple = isApple(), last = readLast()) {
   const ll = `${place.lat},${place.lng}`
-  const walk = km != null && km <= WALK_KM
+  const mode = km == null ? null : km <= WALK_KM ? 'walk' : 'drive'
   const ids = ['google', 'waze', 'yandex', ...(apple ? ['apple'] : [])]
   if (last && ids.includes(last)) ids.splice(0, 0, ...ids.splice(ids.indexOf(last), 1))
-  return ids.map(id => ({ id, labelKey: APPS[id].labelKey, label: APPS[id].label, href: APPS[id].url(ll, walk) }))
+  return ids.map(id => ({ id, labelKey: APPS[id].labelKey, label: APPS[id].label, href: APPS[id].url(ll, mode) }))
 }
 
 function Rows({ place, km, onCopied }) {

@@ -67,5 +67,10 @@
   "locating": "Yeriniz müəyyən edilir…",
   "locateDenied": "Bu sayt üçün məkan icazəsi bağlıdır. Harada olduğunuzu görmək üçün brauzer ayarlarında icazə verin.",
   "locateFailed": "Yeriniz müəyyən edilmədi. Bir az sonra yenidən cəhd edin.",
-  "locateUnsupported": "Bu brauzer məkanınızı paylaşa bilmir."
+  "locateUnsupported": "Bu brauzer məkanınızı paylaşa bilmir.",
+  "seeDistances": "Məsafələri göstər",
+  "showOnMap": "Xəritədə göstər",
+  "view3d": "3D görünüş",
+  "view2d": "2D görünüş",
+  "friendsRowMany": "{{name}} +{{count}} burada olub"
 }

@@ -122,17 +122,18 @@
   border-top: 6px solid var(--mp-pin-bg);
   transition: border-top-color 150ms var(--ease-out);
 }
-.mp-pin.has-ring .mp-pin__pill { box-shadow: 0 0 0 2px var(--accent-text), var(--mp-shadow); }
+/* followed (and no friends): a subtle accent ring */
+.mp-pin.has-ring .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow); }
 
 .mp-pin.is-selected .mp-pin__body { scale: 1.12; }
 /* hover (desktop): the screen drives .is-hover so a row and its pin light up together; :hover covers a pin on its own */
 .mp-pin.is-hover .mp-pin__body { translate: 0 -2px; }
 .mp-pin.is-hover .mp-pin__pill { box-shadow: var(--mp-shadow-up); }
-.mp-pin.is-hover.has-ring .mp-pin__pill { box-shadow: 0 0 0 2px var(--accent-text), var(--mp-shadow-up); }
+.mp-pin.is-hover.has-ring .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
 @media (hover: hover) {
   .mp-pin:not(.is-dot):hover .mp-pin__body { translate: 0 -2px; }
   .mp-pin:not(.is-dot):hover .mp-pin__pill { box-shadow: var(--mp-shadow-up); }
-  .mp-pin:not(.is-dot).has-ring:hover .mp-pin__pill { box-shadow: 0 0 0 2px var(--accent-text), var(--mp-shadow-up); }
+  .mp-pin:not(.is-dot).has-ring:hover .mp-pin__pill { box-shadow: 0 0 0 1.5px var(--accent-text), var(--mp-shadow-up); }
 }
 
 /* dot: 12 px, shown instead of the pill when the pill would collide; the dot's centre is the point */
@@ -278,3 +279,52 @@
 .mp-canvas[data-reduced] .mp-cluster.is-leave { animation: mp-fade-out 120ms linear forwards; }
 .mp-canvas[data-reduced] .mp-cluster.is-enter { animation: mp-fade-in 120ms linear backwards; }
 .mp-canvas[data-reduced] .mp-me__pulse { animation: none; scale: 2.2; opacity: 0.2; }
+
+/* ---- round 2: friends badge, 2D / 3D button ---------------------------------------------------------------------------------- */
+/* friends have been here: the top friend's avatar on the pill's top-left corner (16 px photo + 2 px white border); it replaces
+   the ring, one decoration at most. A followed-only place keeps the subtle accent ring. */
+.mp-pin__pill { position: relative; }
+.mp-pin__fr {
+  position: absolute;
+  top: -9px;
+  left: -8px;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #F5F0E8;
+  font: 700 9px/1 'DM Sans', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(26, 18, 16, 0.35);
+}
+.mp-pin__fr img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* a friends' place that lost the collision stays recognisable: an accent dot with a white edge */
+.mp-pin.has-friends .mp-pin__dot { background: var(--accent); border-color: #fff; box-shadow: 0 0 0 1px rgba(26, 18, 16, 0.25); }
+
+.mp-tilt {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--s1);
+  color: var(--t1);
+  font: 700 13px/1 'DM Sans', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), scale var(--dur-1) var(--ease-out);
+}
+.mp-tilt::before { content: ""; position: absolute; inset: -2px; }               /* hit area 44 px */
+.mp-tilt:active { scale: 0.94; }
+.mp-tilt.is-on { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
+.mp-tilt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .mp-tilt { transition: none; } .mp-tilt:active { scale: 1; } }

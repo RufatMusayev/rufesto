@@ -3,7 +3,7 @@
 // - when prefetch.js has already got it - the TileJSON content, so the source needs no extra round trip.
 import { GLYPHS_URL, PMTILES_URL, TILEJSON_URL } from '../mapConfig.js'
 import { paletteOf } from './palette.js'
-import { buildLayers } from './layers.js'
+import { HIGHLIGHT_SOURCE, buildLayers } from './layers.js'
 
 /** The vector source: inline tiles when the TileJSON is known, else the TileJSON url (or a self-hosted pmtiles file). */
 function vectorSource(tilejson) {
@@ -30,7 +30,12 @@ export function buildStyle({ theme, lang, tilejson = null, animateTheme = true }
     name: `rufesto-${theme}`,
     glyphs: GLYPHS_URL,
     transition: { duration: animateTheme ? 300 : 0, delay: 0 },
-    sources: { openmaptiles: vectorSource(tilejson) },
+    // style-level light: the faces of the 3D buildings (detail mode) shade softly; one directional light, nothing per feature
+    light: { anchor: 'viewport', color: '#ffffff', intensity: theme === 'dark' ? 0.32 : 0.3, position: [1.5, 210, 38] },
+    sources: {
+      openmaptiles: vectorSource(tilejson),
+      [HIGHLIGHT_SOURCE]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    },
     layers: buildLayers(paletteOf(theme), lang),
   }
 }

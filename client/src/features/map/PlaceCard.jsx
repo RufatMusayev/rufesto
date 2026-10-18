@@ -2,13 +2,12 @@ import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Img } from '../../components/ui'
-import { cuisineLabel } from '../discover/cuisine'
 import { thumb } from '../discover/thumb'
 import { formatNumber } from '../../lib/helpers'
 import { langOf } from '../../lib/lang'
 import { openState } from '../../lib/openState'
 import { distanceText, walkMinutes } from './distance'
-import { kindOneKey } from './kind'
+import { kindWords, shortAddress } from './kind'
 import { statusLabel } from './status'
 
 const initials = name => {
@@ -26,22 +25,25 @@ function promoText(t, promo) {
 }
 
 /**
- * The place card (docs/MAP-PLAN-2026-10-18.md 3): cover 84, name (Playfair), kind · cuisine · price band, rating (count) ·
- * distance · walk (distance only with a location), open state, offer badge, friends who have been here, and the three
- * actions Menu / Book / Directions. The cover, name and text are one link to the restaurant page.
+ * The place card (docs/MAP-PLAN-2026-10-18.md 3): cover 84, name (Playfair), what it is (kind, cuisine only where it says more)
+ * and price band, rating (count) with the distance and walk (with a location) or the street (without one), open state,
+ * offer badge, friends who have been here, and the three actions Menu / Book / Directions.
+ * The name and text are one link to the restaurant page; the cover, where the map can answer (onShowDetail), shows the place
+ * on the map in detail instead.
  *  variant "carousel" (a slide: fixed width, same height in the whole set) | "inline" (desktop panel, fills the panel, with a close button: onClose)
  */
-export default memo(function PlaceCard({ place, nowMin, km, onDirections, onClose, variant = 'carousel', tall = false }) {
+export default memo(function PlaceCard({ place, nowMin, km, onDirections, onShowDetail, onClose, variant = 'carousel', tall = false }) {
   const { t, i18n } = useTranslation('map')
   const lang = langOf(i18n.language)
   const st = openState(place, nowMin)
   const to = place.slug ? `/restaurant/${place.slug}` : null
   const price = place.price_band ? '₼'.repeat(place.price_band) : null
-  const sub = [t(kindOneKey(place.kind)), place.cuisine_type ? cuisineLabel(t, place.cuisine_type) : null, price].filter(Boolean).join(' · ')
+  const sub = [kindWords(t, place), price].filter(Boolean).join(' · ')
   const walk = walkMinutes(km)
+  const where = km != null ? distanceText(t, km, lang) : shortAddress(place.address)
   const stats = [
     place.rating != null && place.review_count > 0 ? `★${formatNumber(place.rating, 1)} (${place.review_count})` : null,
-    distanceText(t, km, lang),
+    where,
     walk != null ? t('walk', { count: walk }) : null,
   ].filter(Boolean).join(' · ')
   const fr = place.friends && place.friends.count > 0 ? place.friends : null
@@ -50,22 +52,22 @@ export default memo(function PlaceCard({ place, nowMin, km, onDirections, onClos
     ? (fr.count === 1 || !frName ? t('friendsOne', { name: frName }) : t('friendsMany', { name: frName, count: fr.count - 1 }))
     : null
 
-  const cover = (
-    <span className="mp-card-cover">
+  const coverBody = (
+    <>
       <Img
         src={thumb(place.cover, 84)} alt="" className="mp-card-img"
         fallback={<span className="mp-card-initials" aria-hidden="true">{initials(place.name)}</span>}
       />
       {place.promo && <span className="mp-card-promo">{promoText(t, place.promo)}</span>}
-    </span>
+    </>
   )
   const text = (
-    <span className="mp-card-text">
+    <>
       <span className="mp-card-name">{place.name}</span>
       {sub && <span className="mp-card-sub">{sub}</span>}
       {stats && <span className="mp-card-stats">{stats}</span>}
       <span className={`mp-card-status is-${st.state}`}>{statusLabel(t, st)}</span>
-    </span>
+    </>
   )
 
   return (
@@ -79,7 +81,20 @@ export default memo(function PlaceCard({ place, nowMin, km, onDirections, onClos
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       )}
-      {to ? <Link to={to} className="mp-card-main">{cover}{text}</Link> : <div className="mp-card-main">{cover}{text}</div>}
+      {onShowDetail ? (
+        <div className="mp-card-main">
+          <button type="button" className="mp-card-cover mp-card-cover--btn" onClick={() => onShowDetail(place)} aria-label={t('showOnMap')}>
+            {coverBody}
+          </button>
+          {to
+            ? <Link to={to} className="mp-card-text">{text}</Link>
+            : <div className="mp-card-text">{text}</div>}
+        </div>
+      ) : (
+        to
+          ? <Link to={to} className="mp-card-main"><span className="mp-card-cover">{coverBody}</span><span className="mp-card-text">{text}</span></Link>
+          : <div className="mp-card-main"><span className="mp-card-cover">{coverBody}</span><span className="mp-card-text">{text}</span></div>
+      )}
       {fr ? (
         <p className="mp-card-friends">
           <span className="mp-card-avatars" aria-hidden="true">

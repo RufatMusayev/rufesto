@@ -4,18 +4,22 @@
 //
 // Rules kept here:
 //  - coordinates are [lng, lat] everywhere;
-//  - camera moves are decided here: a selected place moves the camera only when it is outside the safe rect (camera.js);
+//  - camera moves are decided here: a selected place moves the camera only when it is outside the safe rect (camera.js), and
+//    every move lands in the part of the map the sheet / carousel leave visible (overlay offsets), never under it;
+//  - detail mode (detail.js): tilt only through the 2D / 3D toggle or "show on map", the selected building in the accent colour;
 //  - reduced motion: jumps and fades only, no easeTo / flyTo with a duration, no stagger;
 //  - teardown: stop() before remove(), every listener and observer released (the old Leaflet page died of a timer that
 //    outlived its map).
-import { LngLatBounds, Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
+import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
 import { MAX_BOUNDS, MAX_ZOOM, MIN_ZOOM, WORKER_URL } from './mapConfig.js'
 import {
-  FIT_MAX_ZOOM, LOCATE_EASE_MAX_M, LOCATE_ZOOM, MS, REVEAL_FALLBACK_MS, cubic, quint,
+  CLUSTER_MAX_ZOOM, DETAIL_PITCH, DETAIL_ZOOM, FAR_SELECT_KM, FIT_MAX_ZOOM, FIT_MIN_ZOOM, LOCATE_EASE_MAX_M, LOCATE_ZOOM, MAX_PITCH, MS,
+  REVEAL_FALLBACK_MS, cubic, quint,
 } from './mapTuning.js'
 import { buildStyle } from './style/buildStyle.js'
 import { LABEL_LAYERS, labelExpr } from './style/layers.js'
-import { centreOffset, fitPadding, insideRect, metersBetween, safeRect } from './camera.js'
+import { boundsOfPoints, centreOffset, denseCore, fitPadding, flyMs, insideRect, metersBetween, safeRect } from './camera.js'
+import { createDetail } from './detail.js'
 import { createPinLayer } from './pins/pinLayer.js'
 import { createMeDot } from './MeDot.js'
 
@@ -31,14 +35,15 @@ const htmlTheme = () => {
  * @param {object} o
  * @param {HTMLElement} o.root       the .mp-canvas element (theme / ready / lost classes go here)
  * @param {HTMLElement} o.container  the empty element MapLibre draws into
- * @param {object} o.camera          { center:[lng,lat], zoom } | { bounds:[[w,s],[e,n]] }
+ * @param {object} o.camera          { center:[lng,lat], zoom, exact? } | { bounds:[[w,s],[e,n]], minZoom?, maxZoom? }
+ *                                   without `exact` a centre is shown in the middle of the VISIBLE area (above the sheet)
  * @param {'light'|'dark'} o.theme
  * @param {'az'|'en'|'ru'} o.lang
  * @param {boolean} o.reduced
  * @param {{tiles:string[],minzoom?:number,maxzoom?:number}|null} o.tilejson
  * @param {{top:number,bottom:number}} o.overlay
  * @param {object} o.text            labels for the pins (see pinLayer)
- * @param {object} o.cb              { onSelect, onDeselect, onCamera, onHover, onLoad, onReady, onError }
+ * @param {object} o.cb              { onSelect, onDeselect, onCamera, onHover, onHoverEnd, onDetail, onLoad, onReady, onError }
  */
 export function createController(o) {
   const { root, container, cb, tilejson } = o
@@ -48,6 +53,8 @@ export function createController(o) {
   let overlay = { top: o.overlay?.top || 0, bottom: o.overlay?.bottom || 0 }
   let places = []
   let byId = new Map()
+  let prevIds = null // ids of the places before the last setPlaces (a filter that WIDENS the set never moves the camera)
+  let curIds = new Set()
   let selectedId = null
   let me = null
   let loaded = false
@@ -59,6 +66,7 @@ export function createController(o) {
   let revealTimer = 0
   let pins = null
   let meDot = null
+  let detail = null
   const timers = new Set()
 
   const later = (fn, ms) => {
@@ -73,25 +81,26 @@ export function createController(o) {
   root.dataset.mapTheme = theme
 
   // ---- map -------------------------------------------------------------------------------------------------------
-  const camera = o.camera.bounds
-    ? { bounds: o.camera.bounds, fitBoundsOptions: { padding: fitPadding(overlay), maxZoom: FIT_MAX_ZOOM, animate: false } }
-    : { center: o.camera.center, zoom: o.camera.zoom }
+  const spec = o.camera
+  const boundsCentre = spec.bounds && [(spec.bounds[0][0] + spec.bounds[1][0]) / 2, (spec.bounds[0][1] + spec.bounds[1][1]) / 2]
 
   let map
   try {
     map = new MapLibreMap({
       container,
       style: buildStyle({ theme, lang, tilejson, animateTheme: !reduced }),
-      ...camera,
+      center: spec.center || boundsCentre,
+      zoom: spec.zoom ?? 12,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       maxBounds: MAX_BOUNDS,
       renderWorldCopies: false,
-      // north-up, flat: no rotation and no pitch by hand, keyboard or touch
+      // north-up, and no rotation or tilt by hand, keyboard or touch: the pitch is only ever set by detail mode (maxPitch lets
+      // the toggle / "show on map" tilt programmatically)
       dragRotate: false,
       touchPitch: false,
       pitchWithRotate: false,
-      maxPitch: 0,
+      maxPitch: MAX_PITCH,
       boxZoom: false,
       attributionControl: false,
       fadeDuration: 200,
@@ -107,6 +116,22 @@ export function createController(o) {
   }
   map.touchZoomRotate.disableRotation()
   map.keyboard.disableRotation()
+  applyInitialCamera()
+
+  /** Sets the first camera before any frame: bounds fit with the zoom clamped to [minZoom, maxZoom], a centre placed in the
+   * visible area unless `exact` (a restored camera is the literal map centre). */
+  function applyInitialCamera() {
+    const offset = centreOffset(size(), overlay)
+    if (spec.bounds) {
+      const maxZoom = spec.maxZoom ?? FIT_MAX_ZOOM
+      const minZoom = spec.minZoom ?? 0
+      const cam = map.cameraForBounds(spec.bounds, { padding: fitPadding(overlay), maxZoom })
+      if (cam && cam.zoom >= minZoom) map.jumpTo(cam)
+      else map.easeTo({ center: boundsCentre, zoom: Math.min(maxZoom, Math.max(minZoom, cam?.zoom ?? minZoom)), offset, duration: 0 })
+    } else if (!spec.exact) {
+      map.easeTo({ center: spec.center, zoom: spec.zoom, offset, duration: 0 })
+    }
+  }
 
   pins = createPinLayer({
     map,
@@ -115,9 +140,11 @@ export function createController(o) {
     cb: {
       onSelect: id => cb.onSelect(id),
       onHover: id => cb.onHover(id),
+      onHoverEnd: id => cb.onHoverEnd(id),
       onCluster: b => expandCluster(b),
     },
   })
+  detail = createDetail({ map, onChange: st => cb.onDetail(st), reduced: () => reduced, ease })
 
   // ---- load / reveal / errors ---------------------------------------------------------------------------------------
   function reveal() {
@@ -165,10 +192,11 @@ export function createController(o) {
   function emitCamera(user) {
     if (dead || !map) return
     const c = map.getCenter()
-    cb.onCamera({ center: [c.lng, c.lat], zoom: map.getZoom(), user })
+    cb.onCamera({ center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), user })
   }
   map.on('moveend', e => { animating = false; emitCamera(!!e.originalEvent) })
   map.on('zoomend', () => pins.onZoomEnd())
+  map.on('pitchend', () => pins.onZoomEnd()) // a tilt moves every pin on screen: pill / dot is decided again
   map.on('click', e => {
     if (e.originalEvent?.target?.closest?.('.mp-marker')) return
     cb.onDeselect()
@@ -190,10 +218,17 @@ export function createController(o) {
     map.easeTo(opts)
   }
 
-  function moveToPlace(place, animate) {
-    const duration = animate ? animateMs(MS.select) : 0
-    if (duration) animating = true
-    map.easeTo({ center: [place.lng, place.lat], offset: centreOffset(size(), overlay), duration, easing: quint })
+  /** The camera to a place, centred in the visible area. Near: an ease. Farther than 3 km: a fly (out and back in) whose
+   * duration grows with the distance, so a far select reads as a journey and not as a blur. `extra`: zoom / pitch. */
+  function moveToPlace(place, animate, extra = {}) {
+    const to = [place.lng, place.lat]
+    const offset = centreOffset(size(), overlay)
+    const c = map.getCenter()
+    const km = metersBetween([c.lng, c.lat], to) / 1000
+    if (!animate || reduced) { map.easeTo({ center: to, offset, duration: 0, ...extra }); return }
+    animating = true
+    if (km > FAR_SELECT_KM) map.flyTo({ center: to, offset, duration: flyMs(km), curve: 1.42, essential: false, ...extra })
+    else map.easeTo({ center: to, offset, duration: extra.zoom || extra.pitch ? MS.detail : MS.select, easing: quint, ...extra })
   }
 
   /** Brings a place into the safe rect when it is outside; returns true when the camera moved. */
@@ -205,17 +240,26 @@ export function createController(o) {
     return true
   }
 
+  /**
+   * A filter changed: bring the results into view. Never for a set that only grew (a chip cleared); the dense core of the
+   * results is what is fitted (one outlier does not drag the view out to sea, never below z12); nothing moves while the core is
+   * already inside the safe rect.
+   */
   function fitPlaces(ids, { animate = true } = {}) {
     if (dead) return false
     const ps = (ids || []).map(id => byId.get(id)).filter(Boolean)
     if (!ps.length) return false
+    const now = new Set(ps.map(p => p.id))
+    const widened = prevIds && prevIds.size < now.size && [...prevIds].every(id => now.has(id))
+    if (widened) return false
+    const core = denseCore(ps)
     const rect = safeRect(size(), overlay)
-    if (ps.every(p => insideRect(map.project([p.lng, p.lat]), rect))) return false
-    const b = new LngLatBounds()
-    for (const p of ps) b.extend([p.lng, p.lat])
+    if (core.every(p => insideRect(map.project([p.lng, p.lat]), rect))) return false
+    const cam = map.cameraForBounds(boundsOfPoints(core), { padding: fitPadding(overlay), maxZoom: FIT_MAX_ZOOM })
+    if (!cam) return false
     const duration = animate ? animateMs(MS.fit) : 0
     if (duration) animating = true
-    map.fitBounds(b, { padding: fitPadding(overlay), maxZoom: FIT_MAX_ZOOM, duration, easing: cubic })
+    map.easeTo({ center: cam.center, zoom: Math.max(cam.zoom, FIT_MIN_ZOOM), duration, easing: cubic })
     return true
   }
 
@@ -237,7 +281,8 @@ export function createController(o) {
   }
 
   function expandCluster(b) {
-    const target = Math.min(FIT_MAX_ZOOM, Math.max(pins.expansionZoom(b.id), map.getZoom() + 1))
+    // one tap always ends on pins: at least one level in and past the clustering zoom
+    const target = Math.min(FIT_MAX_ZOOM, Math.max(pins.expansionZoom(b.id), map.getZoom() + 1, CLUSTER_MAX_ZOOM + 1))
     pins.markFlyOrigin([b.lng, b.lat])
     const offset = centreOffset(size(), overlay)
     if (reduced) map.easeTo({ center: [b.lng, b.lat], zoom: target, offset, duration: 0 })
@@ -250,6 +295,7 @@ export function createController(o) {
     theme = next
     root.dataset.mapTheme = next
     map.setStyle(buildStyle({ theme, lang, tilejson, animateTheme: !reduced }), { diff: true })
+    detail?.refresh()
   }
 
   function applyLang() {
@@ -264,14 +310,31 @@ export function createController(o) {
       if (dead) return
       places = next || []
       byId = new Map(places.map(p => [p.id, p]))
+      prevIds = curIds
+      curIds = new Set(byId.keys())
       pins.setPlaces(places)
+      if (selectedId) detail.setSelected(byId.get(selectedId) || null) // the selection may have arrived before its place
     },
-    /** Selection moves the camera only when the place is outside the safe rect. */
+    /**
+     * Selection moves the camera only when the place is outside the safe rect. Deselecting: when the place that was selected
+     * is on screen but now under the returning sheet, it is brought back above it; the tilt goes back to flat.
+     */
     setSelected(id, { camera: moveCamera = true } = {}) {
       if (dead) return
+      const prev = selectedId
       selectedId = id || null
       pins.setSelected(selectedId)
+      detail.setSelected(selectedId ? byId.get(selectedId) || null : null)
       if (selectedId && moveCamera) revealPlace(selectedId, { animate: true })
+      else if (!selectedId && prev && moveCamera) {
+        const place = byId.get(prev)
+        if (place) {
+          const pt = map.project([place.lng, place.lat])
+          const sz = size()
+          const onScreen = pt.x >= 0 && pt.x <= sz.width && pt.y >= 0 && pt.y <= sz.height
+          if (onScreen) revealPlace(prev, { animate: true })
+        }
+      }
     },
     setHovered: id => pins?.setHovered(id || null),
     setMe(next) {
@@ -302,6 +365,14 @@ export function createController(o) {
     revealPlace,
     fitPlaces,
     easeToMe,
+    /** "Show on map": the place in 3D (zoom 17.5, pitch 55), centred in the visible area. */
+    showPlaceDetail(id) {
+      const place = byId.get(id)
+      if (!place || dead) return false
+      moveToPlace(place, true, { zoom: DETAIL_ZOOM, pitch: DETAIL_PITCH })
+      return true
+    },
+    toggleTilt: () => detail.toggleTilt(),
     zoomBy(delta) {
       if (dead) return
       const duration = animateMs(200)
@@ -316,7 +387,7 @@ export function createController(o) {
     getCamera() {
       if (dead) return null
       const c = map.getCenter()
-      return { center: [c.lng, c.lat], zoom: map.getZoom() }
+      return { center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch() }
     },
     destroy() {
       if (dead) return
@@ -330,6 +401,7 @@ export function createController(o) {
       // an animation that outlives its map is what broke the Leaflet page: stop first, then remove
       try { map.stop() } catch { /* half-built map */ }
       pins.destroy()
+      detail?.destroy()
       meDot?.destroy()
       map.remove()
     },
@@ -341,7 +413,7 @@ function inertController() {
   const noop = () => {}
   return {
     setPlaces: noop, setSelected: noop, setHovered: noop, setMe: noop, setOverlay: noop, setTheme: noop, setLang: noop,
-    setText: noop, setReduced: noop, revealPlace: () => false, fitPlaces: () => false, easeToMe: () => false, zoomBy: noop,
+    setText: noop, setReduced: noop, revealPlace: () => false, fitPlaces: () => false, easeToMe: () => false, showPlaceDetail: () => false, toggleTilt: () => false, zoomBy: noop,
     getCenter: () => null, getCamera: () => null, destroy: noop,
   }
 }

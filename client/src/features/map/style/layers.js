@@ -4,9 +4,14 @@
 //            (tunnel and bridge variants keep the road colours), main railway, water / road / place labels
 //   removed: boundaries, aeroways, airport, road shields, transit and service rails, state / country labels, ice, piers
 // No sprite and one font stack, so no icon-image anywhere and no italic / bold faces to download.
+// Round 2 (detail mode, 2GIS-style): 3D buildings from z15.5 (fill-extrusion of the OpenMapTiles building layer, rising out of
+// the ground between z15.5 and z16.5), house numbers from z17, and three layers that draw the selected venue's building in the
+// accent colour (an extruded copy of its polygon, or a soft footprint circle when the data has no building there).
 import { FONT_STACK } from '../mapConfig.js'
 
 const SRC = 'openmaptiles'
+/** GeoJSON source the controller fills with the selected venue's building (or footprint circle); empty by default. */
+export const HIGHLIGHT_SOURCE = 'sel-building'
 const FONT = FONT_STACK
 
 const isLine = ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false]
@@ -16,6 +21,8 @@ const MINOR = ['minor', 'service', 'track']
 const cls = list => ['match', ['get', 'class'], list, true, false]
 const exp = (base, ...stops) => ['interpolate', ['exponential', base], ['zoom'], ...stops]
 const lin = (...stops) => ['interpolate', ['linear'], ['zoom'], ...stops]
+/** A building height that grows from 0 at z15.5 to the real value at z16.5 (cheap: no translucent extrusion pass). */
+const rise = (prop, fallback) => lin(15.5, 0, 16.5, ['coalesce', ['get', prop], fallback])
 
 /**
  * `text-field` expression of the label language. Language change = setLayoutProperty(id, 'text-field', labelExpr(lang))
@@ -57,7 +64,7 @@ export function buildLayers(p, lang) {
     {
       id: 'water', type: 'fill', source: SRC, 'source-layer': 'water',
       filter: ['!=', ['get', 'brunnel'], 'tunnel'],
-      paint: { 'fill-color': p.water, 'fill-antialias': true },
+      paint: { 'fill-color': p.water, 'fill-antialias': true, 'fill-outline-color': p.waterEdge },
     },
     {
       id: 'waterway', type: 'line', source: SRC, 'source-layer': 'waterway', minzoom: 12, filter: isLine,
@@ -148,7 +155,52 @@ export function buildLayers(p, lang) {
       paint: { 'line-color': p.motorway, 'line-width': exp(1.4, 4, 2, 6, 1.3, 20, 30) },
     }),
 
+    // ---- 3D buildings and the selected building (over every flat layer, under the labels) ----
+    {
+      id: 'building-3d', type: 'fill-extrusion', source: SRC, 'source-layer': 'building', minzoom: 15.5,
+      filter: ['!=', ['get', 'hide_3d'], true],
+      paint: {
+        'fill-extrusion-color': p.building3d,
+        'fill-extrusion-height': rise('render_height', 6),
+        'fill-extrusion-base': rise('render_min_height', 0),
+        'fill-extrusion-opacity': 1,
+        'fill-extrusion-vertical-gradient': true,
+      },
+    },
+    {
+      id: 'sel-building-3d', type: 'fill-extrusion', source: HIGHLIGHT_SOURCE, minzoom: 15,
+      filter: ['==', ['get', 'kind'], 'building'],
+      paint: {
+        'fill-extrusion-color': p.highlight,
+        'fill-extrusion-height': ['+', ['get', 'h'], 0.6],
+        'fill-extrusion-base': ['get', 'b'],
+        'fill-extrusion-opacity': 1,
+        'fill-extrusion-vertical-gradient': true,
+      },
+    },
+    {
+      id: 'sel-footprint-fill', type: 'fill', source: HIGHLIGHT_SOURCE, minzoom: 15,
+      filter: ['==', ['get', 'kind'], 'circle'],
+      paint: { 'fill-color': p.highlight, 'fill-opacity': 0.22 },
+    },
+    {
+      id: 'sel-footprint-line', type: 'line', source: HIGHLIGHT_SOURCE, minzoom: 15,
+      filter: ['==', ['get', 'kind'], 'circle'],
+      paint: { 'line-color': p.highlight, 'line-width': 1.5, 'line-opacity': 0.7 },
+    },
+
     // ---- labels ----
+    {
+      // House numbers show from z17. The layer's own minzoom must stay below 16: this source stops at z14, and MapLibre builds no
+      // symbols for a layer whose minzoom is 16 or more on its overzoomed tiles (measured: nothing renders). The opacity does
+      // the gating, and the numbers never take space from the street names.
+      id: 'housenumber', type: 'symbol', source: SRC, 'source-layer': 'housenumber', minzoom: 15,
+      layout: {
+        'text-field': ['get', 'housenumber'], 'text-font': FONT, 'text-size': lin(17, 9.5, 19, 11), 'text-padding': 3,
+        'text-ignore-placement': true,
+      },
+      paint: { 'text-color': p.houseNumber, 'text-halo-color': p.halo, 'text-halo-width': 1, 'text-opacity': lin(16.8, 0, 17.2, 1) },
+    },
     {
       id: 'water_name_point_label', type: 'symbol', source: SRC, 'source-layer': 'water_name', filter: isPoint,
       layout: { 'text-field': text, 'text-font': FONT, 'text-letter-spacing': 0.1, 'text-max-width': 5, 'text-size': lin(0, 10, 8, 13) },

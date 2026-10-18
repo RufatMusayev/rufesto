@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useRequireAuth, useDebounced } from '../social/hooks'
 import { useStore } from '../feed/store'
 import { useViewerLocation } from '../feed/useViewerLocation'
+import { useDishAvailabilityPoll } from '../feed/dishAvailability'
 import { discoverStore, discoverKey, ensureDiscover, reloadDiscover, currentViewer } from '../discover/discoverStore'
 import DishSheetHost from '../../components/dish/DishSheetHost'
 import { useDishLink } from '../../components/dish/dishLink'
@@ -78,15 +79,24 @@ export default function SearchPage() {
   const filterCount = activeCount(filters)
 
   useEffect(() => { prefetchDishSheet() }, [])
+  useDishAvailabilityPoll()   // a dish row flips to "Sold out" on its own (QA D-3)
 
   // ---- URL <-> state -----------------------------------------------------------------------------------------
+  // `update` must keep its identity for good: setParams changes whenever the location does, and a sheet that opens (it pushes a
+  // history entry on this very URL) would re-run the debounced sync below with the OLD settled text and rewrite the address
+  // (QA D-4: Filters tapped just after Cancel closed itself). The write also carries the location state along (the open
+  // sheet's history entry), so even a rewrite cannot make a sheet look "gone".
   const paramsRef = useRef(params)
   paramsRef.current = params
+  const setParamsRef = useRef(setParams)
+  setParamsRef.current = setParams
   const update = useCallback(mutate => {
     const next = new URLSearchParams(paramsRef.current)
     mutate(next)
-    if (next.toString() !== paramsRef.current.toString()) setParams(next, { replace: true })
-  }, [setParams])
+    if (next.toString() !== paramsRef.current.toString()) {
+      setParamsRef.current(next, { replace: true, state: window.history.state?.usr ?? undefined })
+    }
+  }, [])
 
   const settledText = useDebounced(typed, 300)
   useEffect(() => {

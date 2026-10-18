@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Avatar } from '../../components/ui'
 import PlaceRow from '../search/rows/PlaceRow'
 import '../discover/styles.css'
 import '../search/styles.css'
@@ -10,18 +11,36 @@ const asCard = p => ({
   openNow: p.open_now, opensAt: null, isNew: false,
 })
 
-const sameLines = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
+/**
+ * One row. `meta` is { key, line1, state, status, tail, fr }: the second line is the open state in its colour plus the distance
+ * (or, without a location, the street), the third line (only where friends have been) a tiny avatar stack and a short
+ * "Nicat has been here". `key` changes whenever any of it does, so the row is only re-rendered then.
+ */
 const Row = memo(function Row({ place, selected, hovered, tab, meta, onSelect, onHover, onFocusRow }) {
+  const lines = [
+    meta.line1,
+    <span key="st" className="mp-st-line"><span className={`mp-st is-${meta.state}`}>{meta.status}</span>{meta.tail ? ` · ${meta.tail}` : ''}</span>,
+  ]
+  if (meta.fr) {
+    lines.push(
+      <span key="fr" className="mp-row-fr">
+        <span className="mp-row-av" aria-hidden="true">
+          {meta.fr.people.map((f, i) => <Avatar key={i} name={f.name} src={f.photo} size={16} />)}
+        </span>
+        <span className="mp-row-frt">{meta.fr.text}</span>
+      </span>,
+    )
+  }
   return (
     <li
-      className={`mp-li${selected ? ' is-selected' : ''}${hovered ? ' is-hover' : ''}`}
+      className={`mp-li${selected ? ' is-selected' : ''}${hovered ? ' is-hover' : ''}${meta.state === 'closed' ? ' is-closed' : ''}`}
       data-id={place.id}
       onPointerEnter={onHover ? e => { if (e.pointerType === 'mouse') onHover(place.id) } : undefined}
-      onPointerLeave={onHover ? e => { if (e.pointerType === 'mouse') onHover(null) } : undefined}
+      onPointerLeave={onHover ? e => { if (e.pointerType === 'mouse') onHover(null, place.id) } : undefined}
     >
       <PlaceRow
         r={asCard(place)}
-        meta={meta}
+        meta={lines}
         selected={selected}
         onSelect={() => onSelect(place)}
         rowProps={{ tabIndex: tab ? 0 : -1, onFocus: e => onFocusRow(place.id, e) }}
@@ -29,14 +48,14 @@ const Row = memo(function Row({ place, selected, hovered, tab, meta, onSelect, o
     </li>
   )
 }, (a, b) => a.place === b.place && a.selected === b.selected && a.hovered === b.hovered && a.tab === b.tab && a.onSelect === b.onSelect
-  && a.onHover === b.onHover && sameLines(a.meta, b.meta))
+  && a.onHover === b.onHover && a.meta.key === b.meta.key)
 
 /**
  * The list of places: the screen-reader alternative to the map (docs/MAP-PLAN-2026-10-18.md 8, a11y). The rows are the
  * Search rows (PlaceRow) used as selectors. One tab stop for the whole list; ArrowUp / ArrowDown / Home / End move
  * between rows, Enter or Space selects, Escape deselects (roving tabindex, in list order).
  *   places      already filtered and ordered
- *   metaFor     (place) -> string[] the muted lines of its row
+ *   metaFor     (place) -> the row's meta (see Row)
  *   onHover     desktop: the row lifts its pin and the pin lifts the row
  *   onKeyFocus  a row got keyboard focus (phone: raise the sheet so the row can be seen)
  *   expanded    desktop: { id, node } the selected row is replaced in place by this card

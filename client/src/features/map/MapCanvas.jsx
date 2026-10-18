@@ -12,9 +12,12 @@ import './canvas.css'
 // controller in mapController.js, a lazy chunk that carries maplibre-gl and is reached only after the WebGL2 check, so a
 // device without WebGL2 never downloads it. Props are forwarded with effects; nothing re-renders per frame.
 //
-// Props: places, selectedId, me, theme, lang, reducedMotion, initialCamera (constructor only), overlay {top,bottom},
-//   onSelect, onDeselect, onCamera, onReady, onError('nowebgl'|'offline'), plus hoveredId / onHoverPlace / labelFor.
-// Ref: revealPlace(id,{animate}), fitPlaces(ids,{animate}), easeToMe({animate}), getCenter(), getCamera(), zoomBy(delta).
+// Props: places, selectedId, me, theme, lang, reducedMotion, overlay {top,bottom}, initialCamera (constructor only:
+//   {center, zoom, exact?} | {bounds, minZoom?, maxZoom?}; a centre without `exact` is shown in the visible area above the sheet),
+//   onSelect, onDeselect, onCamera({center,zoom,pitch,user}), onReady, onError('nowebgl'|'offline'), onDetail({available,tilted}),
+//   plus hoveredId / onHoverPlace / labelFor.
+// Ref: revealPlace(id,{animate}), fitPlaces(ids,{animate}), easeToMe({animate}), getCenter(), getCamera(), zoomBy(delta),
+//   showPlaceDetail(id) (zoom 17.5, pitch 55), toggleTilt(). The 2D / 3D button itself is TiltButton.jsx, placed by the screen.
 
 const KIND_DEFAULT = { coffee: 'Café', quick: 'Quick bite', restaurant: 'Restaurant' }
 const TILEJSON_WAIT_MS = 1500
@@ -126,6 +129,10 @@ const MapCanvas = forwardRef(function MapCanvas(props, ref) {
           onDeselect: () => propsRef.current.onDeselect?.(),
           onCamera: c => propsRef.current.onCamera?.(c),
           onHover: id => propsRef.current.onHoverPlace?.(id),
+          // leaving a pin clears the highlight only if the screen still has THIS pin hovered: a list row that took over
+          // (pointer moved from the pin onto a row) has already set its own id
+          onHoverEnd: id => { const cur = propsRef.current.hoveredId; if (cur === id || cur == null) propsRef.current.onHoverPlace?.(null) },
+          onDetail: st => propsRef.current.onDetail?.(st),
           onLoad: () => cancelAnimationFrame(loadTimer),
           onReady: () => propsRef.current.onReady?.(),
           onError: fail,
@@ -186,6 +193,8 @@ const MapCanvas = forwardRef(function MapCanvas(props, ref) {
     getCenter: () => ctrlRef.current?.getCenter() ?? null,
     getCamera: () => ctrlRef.current?.getCamera() ?? null,
     zoomBy: d => ctrlRef.current?.zoomBy(d),
+    showPlaceDetail: id => ctrlRef.current?.showPlaceDetail(id) ?? false,
+    toggleTilt: () => ctrlRef.current?.toggleTilt() ?? false,
   }), [])
 
   return (

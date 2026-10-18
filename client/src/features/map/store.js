@@ -39,10 +39,10 @@ mapStore.subscribe(() => {
 let inflight = null
 
 /** Fetches map_places. Keeps what is on screen while it runs; an unchanged answer replaces nothing (no re-render, no pin diff). */
-export function loadPlaces({ uid = null } = {}) {
+export function loadPlaces({ uid = null, fresh = false } = {}) {
   if (inflight) return inflight
   if (!mapStore.get().places) mapStore.set({ status: 'loading' })
-  inflight = fetchMapPlaces().then(res => {
+  inflight = fetchMapPlaces({ fresh }).then(res => {
     // an answer that left before the session was restored is anonymous: ask again once, for the social fields
     return uid && res.data && !res.data.signedIn ? fetchMapPlaces({ fresh: true }) : res
   }).then(({ data, error }) => {

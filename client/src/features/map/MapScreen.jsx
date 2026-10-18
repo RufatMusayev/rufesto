@@ -4,12 +4,10 @@ import { useTranslation } from 'react-i18next'
 import SnapSheet from '../../components/ui/SnapSheet'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useViewerLocation } from '../feed/useViewerLocation'
-import { cuisineLabel } from '../discover/cuisine'
 import useSheetHistory from '../../lib/useSheetHistory'
 import { lock } from '../../lib/scrollLock'
 import { langOf } from '../../lib/lang'
-import { formatNumber } from '../../lib/helpers'
-import { isOpenNow, openState } from '../../lib/openState'
+import { isOpenNow } from '../../lib/openState'
 import DirectionsSheet from './DirectionsSheet'
 import ListHead from './ListHead'
 import LocateButton from './LocateButton'
@@ -17,12 +15,13 @@ import PlaceCard from './PlaceCard'
 import PlaceCarousel from './PlaceCarousel'
 import PlaceList from './PlaceList'
 import PlacePanel from './PlacePanel'
-import { distanceText, haversineKm } from './distance'
+import TiltButton from './TiltButton'
+import { haversineKm } from './distance'
 import { useAfterMount, useBakuMinute, useBoxSize, useMapState, useMedia, useReducedMotion } from './hooks'
+import { boundsOfPoints, denseCore } from './camera'
 import useInitialCamera, { centerOfBounds } from './initialCamera'
-import { kindOneKey } from './kind'
 import { hasWebGL2, prefetchMap } from './prefetch'
-import { statusLabel } from './status'
+import { rowMeta } from './rowMeta'
 import { DEFAULT_FILTERS, FULL, HALF, PEEK, mapStore, setCamera, setFilters, setSnap } from './store'
 import useMapNav, { placeKey } from './useMapNav'
 import useMapPlaces from './useMapPlaces'
@@ -34,10 +33,13 @@ const MapCanvas = lazy(() => import('./MapCanvas.jsx'))
 // The map screen: layout and orchestration (docs/MAP-PLAN-2026-10-18.md 3, 4, 6). Phone and tablet (< 1024 px): the map
 // full-bleed, a persistent snap sheet with the list, and the card carousel that replaces the sheet while a place is
 // selected. Desktop (>= 1024 px) and list mode (no WebGL2): a side panel / the whole screen as a list, the selected row
-// opening into the card in place. The list renders from the store before the map exists.
+// opening into the card in place. The list renders from the store before the map exists: the map (and its heavy chunk) is
+// mounted only after the rows have been painted.
 const PEEK_PX = 116
 const STRIP_PX = 64          // the map strip above the full sheet (plus the status bar)
 const NOTICE_MS = 6000
+const MAP_AFTER_ROWS_MS = 400  // safety: the map starts this long after the rows even if no frame is drawn (a hidden tab)
+const MAP_WITHOUT_ROWS_MS = 1500
 
 export default function MapScreen() {
   const { t, i18n } = useTranslation('map')
@@ -61,19 +63,19 @@ export default function MapScreen() {
   const savedCamera = useRef(mapStore.get().camera)
   const [webgl] = useState(() => hasWebGL2())
   const [mapErr, setMapErr] = useState(null)       // 'nowebgl' | 'offline'
-  const [mapReady, setMapReady] = useState(false)
+  const [mapOn, setMapOn] = useState(false)        // the map mounts after the rows are painted
   const [canvasKey, setCanvasKey] = useState(0)
   const [hoverId, setHoverId] = useState(null)
-  const [dirPlace, setDirPlace] = useState(null)
+  const [dir, setDir] = useState(null)             // { place, key } of the open Directions sheet
   const [notice, setNotice] = useState(null)
   const [carH, setCarH] = useState(0)
-  const [captured, setCaptured] = useState(null)   // map centre when the sheet last rose from peek (the list order origin)
+  const [detail, setDetail] = useState({ available: false, tilted: false })
+  const [captured, setCaptured] = useState(null)   // map centre when the sheet last rose from peek (see the order below)
   const noMap = !webgl || mapErr === 'nowebgl'
   const panelMode = desktop || noMap
 
   // ---- page lock: nothing on this screen scrolls the page; the carousel needs its horizontal gestures ----
   useEffect(() => lock({ touchGuard: false }), [])
-  useEffect(() => { prefetchMap() }, [])
 
   // ---- sizes: the screen ends where the bottom nav begins ----
   const { h: H } = useBoxSize(screenRef)
@@ -87,7 +89,21 @@ export default function MapScreen() {
   // ---- the venues: ordered by distance (frozen while visible), filtered on the device ----
   const coords = loc.coords
   const idsKey = useMemo(() => (places ? places.map(p => p.id).join('|') : ''), [places])
-  const origin = coords || captured
+  // Without a location the rows are ordered from the centre of the DENSE CORE of the venues (the Old City, not the outliers) or,
+  // coming back, from where the map was left; both known before the first row is drawn, so the rows never reorder after they
+  // appear (that was a layout shift). Later the centre of the map each time the sheet rises from peek.
+  const restoredOrigin = useMemo(() => {
+    const c = savedCamera.current && (navType === 'POP' || !new URLSearchParams(window.location.search).has('place')) ? savedCamera.current.center : null
+    return c ? { lat: c[1], lng: c[0] } : null
+  }, [navType])
+  const coreOrigin = useMemo(() => {
+    if (!places || !places.length) return null
+    const c = centerOfBounds(boundsOfPoints(denseCore(places)))
+    return { lat: c[1], lng: c[0] }
+  // the set of venues decides it, not their open state or rating
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey])
+  const origin = coords || captured || restoredOrigin || coreOrigin
   const originKey = origin ? `${origin.lat.toFixed(4)},${origin.lng.toFixed(4)}` : ''
   const order = useMemo(() => {
     if (!places) return []
@@ -139,16 +155,21 @@ export default function MapScreen() {
   const carouselOpen = !!selected && !panelMode
   const freshData = fetchedAt > mountedAt.current
 
+  // a card that is there because of the address (a deep link, or Back from a restaurant) shows at once; one the guest asks
+  // for slides up (plan 4: "Return / deep link 0 ms")
+  const arrivalCard = useRef(!!nav.placeParam)
+  const selectPlace = useCallback(place => {
+    arrivalCard.current = false
+    if (!visibleRef.current.some(p => p.id === place.id)) setFilters(DEFAULT_FILTERS)
+    navSelect(place)
+  }, [navSelect])
+  const deselect = useCallback(() => { arrivalCard.current = false; navDeselect() }, [navDeselect])
+  const onPinSelect = useCallback(id => { const p = byIdRef.current.get(id); if (p) selectPlace(p) }, [selectPlace])
+
   // a deep link to a place the saved filters hide: the guest asked for this one
   useEffect(() => { if (nav.selected && !selected && filtersOn) setFilters(DEFAULT_FILTERS) }, [nav.selected, selected, filtersOn])
   // an unknown or vanished place: back to the plain map
   useEffect(() => { if (nav.selectedKey && freshData && !nav.selected) navDeselect() }, [nav.selectedKey, nav.selected, freshData, navDeselect])
-
-  const selectPlace = useCallback(place => {
-    if (!visibleRef.current.some(p => p.id === place.id)) setFilters(DEFAULT_FILTERS)
-    navSelect(place)
-  }, [navSelect])
-  const onPinSelect = useCallback(id => { const p = byIdRef.current.get(id); if (p) selectPlace(p) }, [selectPlace])
 
   // ---- where the map opens ----
   // a deep link is revealed on arrival; coming Back to the screen keeps the camera exactly where it was
@@ -162,14 +183,20 @@ export default function MapScreen() {
     coords,
     locationPending: loc.pending,
   })
+  // ---- the map starts after the rows are on screen ----
+  const rowsReady = places != null || status === 'error'
   useEffect(() => {
-    if (captured || !initCam) return
-    const c = initCam.center || (initCam.bounds && centerOfBounds(initCam.bounds))
-    if (c) setCaptured({ lat: c[1], lng: c[0] })
-  }, [initCam, captured])
+    if (mapOn || noMap) return undefined
+    let r1 = 0
+    let r2 = 0
+    const go = () => setMapOn(true)
+    const timer = setTimeout(go, rowsReady ? MAP_AFTER_ROWS_MS : MAP_WITHOUT_ROWS_MS)
+    if (rowsReady) r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(go) })
+    return () => { clearTimeout(timer); cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [mapOn, noMap, rowsReady])
+  useEffect(() => { if (mapOn && status !== 'error') prefetchMap() }, [mapOn, status])
 
   const onReady = useCallback(() => {
-    setMapReady(true)
     if (arrival.current) {
       const p = [...byIdRef.current.values()].find(x => placeKey(x) === arrival.current)
       if (p) canvasRef.current?.revealPlace(p.id, { animate: false })
@@ -178,14 +205,24 @@ export default function MapScreen() {
   }, [])
   const onCamera = useCallback(c => setCamera({ center: c.center, zoom: c.zoom }), [])
   const onMapError = useCallback(kind => { setMapErr(kind) }, [])
-  const retryMap = useCallback(() => { setMapErr(null); setMapReady(false); setCanvasKey(k => k + 1) }, [])
+  const retryMap = useCallback(() => { setMapErr(null); setCanvasKey(k => k + 1) }, [])
+  const onDetail = useCallback(d => setDetail(d), [])
+  const showDetail = useCallback(p => canvasRef.current?.showPlaceDetail(p.id), [])
+  const toggleTilt = useCallback(() => canvasRef.current?.toggleTilt(), [])
 
-  // a filter changed: bring the results into view when some are outside it (MapCanvas decides)
+  // a filter that NARROWS the set brings the results into view (MapCanvas moves only if some are outside it); clearing or
+  // widening never moves the camera: the guest's own view stays
+  const lastIds = useRef(null)
   const firstFilter = useRef(true)
   useEffect(() => {
     if (firstFilter.current) { firstFilter.current = false; return }
-    if (visibleRef.current.length) canvasRef.current?.fitPlaces(visibleRef.current.map(p => p.id), { animate: true })
+    const prev = lastIds.current
+    const now = visibleRef.current
+    if (prev && now.length && now.length < prev.size && now.every(p => prev.has(p.id))) {
+      canvasRef.current?.fitPlaces(now.map(p => p.id), { animate: true })
+    }
   }, [filters])
+  useEffect(() => { lastIds.current = new Set(visible.map(p => p.id)) }, [visible])
 
   // ---- sheet ----
   const onSnap = useCallback(i => {
@@ -234,44 +271,55 @@ export default function MapScreen() {
     else if (loc.status === 'error') { pendingLocate.current = false; showNotice('locateFailed', 'error') }
     else if (loc.status === 'on' && me) { pendingLocate.current = false; canvasRef.current?.easeToMe({ animate: true }) }
   }, [loc.status, me, showNotice])
-  const openDirections = useCallback(p => setDirPlace(p), [])
+  // "See distances": asks for the location without moving the map (the list gets distances, the map its dot)
+  const seeDistances = useCallback(() => { loc.request() }, [loc])
+  const canAsk = !coords && loc.supported && (loc.status === 'off' || loc.status === 'error')
+  const dirCount = useRef(0)
+  const openDirections = useCallback(p => { dirCount.current += 1; setDir({ place: p, key: dirCount.current }) }, [])
+  const closeDirections = useCallback(key => setDir(d => (d && d.key === key ? null : d)), [])
 
   // Esc: close the card; at the full list, back to half (the Directions sheet takes its own Esc first)
   useEffect(() => {
     const onKey = e => {
       if (e.key !== 'Escape' || document.querySelector('.bs-root')) return
-      if (nav.selectedKey) navDeselect()
+      if (nav.selectedKey) deselect()
       else if (mapStore.get().snap === FULL) setSnap(HALF)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [nav])
+  }, [nav.selectedKey, deselect])
 
-  // ---- text of a row ----
-  const metaFor = useCallback(p => {
-    const st = openState(p, nowMin)
-    const rating = p.rating != null && p.review_count > 0 ? `★${formatNumber(p.rating, 1)} (${p.review_count})` : null
-    const price = p.price_band ? '₼'.repeat(p.price_band) : null
-    return [
-      [p.cuisine_type ? cuisineLabel(t, p.cuisine_type) : t(kindOneKey(p.kind)), rating, price].filter(Boolean).join(' · '),
-      [statusLabel(t, st), distanceText(t, kmFor(p), lang)].filter(Boolean).join(' · '),
-    ]
-  }, [nowMin, kmFor, t, lang])
+  // ---- what the rows say; a pin and its row light up together on a desktop ----
+  const metaFor = useCallback(p => rowMeta({ place: p, t, lang, nowMin, km: kmFor(p) }), [t, lang, nowMin, kmFor])
+  // a row that is left clears the highlight only if it is still the row (or pin) that lit it
+  const onHover = useCallback((id, from) => setHoverId(h => (id ? id : from && h !== from ? h : null)), [])
 
   const head = {
-    total: visible.length, open: openCount, loading: !places && status !== 'error', filters, onToggleOpen: toggleOpen, onToggleKind: toggleKind,
+    total: visible.length, open: openCount, loading: !places && status !== 'error', filters,
+    onToggleOpen: toggleOpen, onToggleKind: toggleKind, onSeeDistances: canAsk ? seeDistances : undefined,
   }
   const list = {
-    places: visible, status, hoveredId: desktop ? hoverId : null, metaFor, onSelect: selectPlace, onHover: desktop ? setHoverId : undefined, onEscape: navDeselect, onKeyFocus: panelMode ? undefined : raiseForKeyboard,
-    filtersOn, onClearFilters: clearFilters, onRetry: reload,
+    places: visible, status, hoveredId: desktop ? hoverId : null, metaFor, onSelect: selectPlace, onHover: desktop ? onHover : undefined,
+    onEscape: deselect, onKeyFocus: panelMode ? undefined : raiseForKeyboard, filtersOn, onClearFilters: clearFilters, onRetry: reload,
   }
+  const mapUp = !noMap
   const expanded = panelMode && selected
     ? {
       id: selected.id,
-      node: <PlaceCard variant="inline" place={selected} nowMin={nowMin} km={kmFor(selected)} onDirections={openDirections} onClose={navDeselect} />,
+      node: (
+        <PlaceCard
+          variant="inline" place={selected} nowMin={nowMin} km={kmFor(selected)} onDirections={openDirections}
+          onShowDetail={mapUp ? showDetail : undefined} onClose={deselect}
+        />
+      ),
     }
     : null
-  const locate = <LocateButton status={loc.status} onClick={onLocate} />
+  const floats = (
+    <>
+      {detail.available && <TiltButton tilted={detail.tilted} onClick={toggleTilt} />}
+      <LocateButton status={loc.status} onClick={onLocate} />
+    </>
+  )
 
   return (
     <div
@@ -279,17 +327,18 @@ export default function MapScreen() {
       className={`mp-screen${desktop ? ' is-desktop' : ''}${noMap ? ' is-nomap' : ''}`}
       data-map-theme={theme}
       data-snap={snap}
+      data-sheet={!panelMode && !carouselOpen ? '' : undefined}
     >
       <h1 className="sr-only">{t('mapLabel')}</h1>
       <div ref={probeRef} className="mp-probe" aria-hidden="true" />
 
       {panelMode && (
-        <PlacePanel full={!desktop} list={list} head={head} selectedId={selected?.id ?? null} expanded={expanded} notice={noMap ? t('noMap') : null} />
+        <PlacePanel full={noMap} list={list} head={head} selectedId={selected?.id ?? null} expanded={expanded} notice={noMap ? t('noMap') : null} />
       )}
 
       {!noMap && (
         <div className="mp-map">
-          {initCam ? (
+          {initCam && mapOn ? (
             <Suspense fallback={<div className="mp-placeholder" />}>
               <MapCanvas
                 key={canvasKey}
@@ -303,12 +352,13 @@ export default function MapScreen() {
                 initialCamera={initCam}
                 overlay={overlay}
                 hoveredId={desktop ? hoverId : null}
-                onHoverPlace={desktop ? setHoverId : undefined}
+                onHoverPlace={desktop ? onHover : undefined}
                 onSelect={onPinSelect}
-                onDeselect={navDeselect}
+                onDeselect={deselect}
                 onCamera={onCamera}
                 onReady={onReady}
                 onError={onMapError}
+                onDetail={onDetail}
               />
             </Suspense>
           ) : <div className="mp-placeholder" />}
@@ -319,7 +369,7 @@ export default function MapScreen() {
               <button type="button" className="mp-retry" onClick={retryMap}>{t('retry')}</button>
             </div>
           )}
-          {desktop && <div className="mp-locate-desk">{locate}</div>}
+          {desktop && <div className="mp-locate-desk">{floats}</div>}
           {!desktop && snap === FULL && !carouselOpen && (
             <button type="button" className="mp-strip" onClick={() => setSnap(HALF)} aria-label={t('hideList')} />
           )}
@@ -335,7 +385,7 @@ export default function MapScreen() {
           label={t('listLabel')}
           handle={{ show: t('showList'), hide: t('hideList') }}
           head={<ListHead {...head} />}
-          float={carouselOpen ? null : locate}
+          float={carouselOpen ? null : floats}
         >
           <PlaceList {...list} selectedId={selected?.id ?? null} />
         </SnapSheet>
@@ -343,14 +393,16 @@ export default function MapScreen() {
       {!panelMode && (
         <PlaceCarousel
           open={carouselOpen}
+          instant={arrivalCard.current}
           places={visible}
           selectedId={selected?.id ?? null}
           onSelect={selectPlace}
-          onDismiss={navDeselect}
+          onDismiss={deselect}
           onDirections={openDirections}
+          onShowDetail={showDetail}
           nowMin={nowMin}
           kmFor={kmFor}
-          float={locate}
+          float={floats}
           onHeight={setCarH}
           reduced={reduced}
         />
@@ -361,8 +413,10 @@ export default function MapScreen() {
       )}
       <div className="sr-only" role="status" aria-live="polite">{selected ? t('selected', { name: selected.name }) : ''}</div>
 
-      {dirPlace && (
-        <DirectionsSheet place={dirPlace} km={kmFor(dirPlace)} onClose={() => setDirPlace(null)} onCopied={() => showNotice('copied')} />
+      {dir && (
+        <DirectionsSheet
+          key={dir.key} place={dir.place} km={kmFor(dir.place)} onClose={() => closeDirections(dir.key)} onCopied={() => showNotice('copied')}
+        />
       )}
     </div>
   )

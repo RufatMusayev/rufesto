@@ -44,12 +44,12 @@
   background: var(--mp-land);   /* the placeholder until the canvas fades in */
 }
 .mp-canvas[data-map-theme="dark"] {
-  --mp-land: #1E1714;
+  --mp-land: #2F2723;
   --mp-bg: #F5F0E8;            /* pill, on the dark map */
   --mp-fg: #1A1210;
-  --mp-closed-bg: #3A2E29;
+  --mp-closed-bg: #463A34;
   --mp-closed-fg: #D8CAC1;     /* 8:1 on the pill */
-  --mp-closed-ring: #9A8A80;   /* round 3: 5:1 on the dark land (the pill alone was 1.4:1) */
+  --mp-closed-ring: #A39389;   /* ~5:1 on the lifted dark land (2026-10-19) */
   --mp-star: #7A5C0E;
   --mp-star-closed: #A89890;
   --mp-me: #60A5FA;

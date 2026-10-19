@@ -4,6 +4,8 @@
 // Round 2: the dark water is lifted a clear step from the land (it was almost the same brown-black) and gets a faint edge, the
 // dark roads one step lighter, the water / minor label colours reach 4.5:1 against what they sit on, and the detail-mode colours
 // are added (3D building, house numbers, the selected building).
+// 2026-10-19 (Rufat: "the dark mode map is too dark"): the whole Ember palette lifted about two steps (land #1E1714 -> #2F2723);
+// labels stay >= 4.5:1 on the land, the closed-pin ring ~5:1.
 export const PALETTES = {
   light: {
     land: '#F3EDE3',
@@ -30,28 +32,28 @@ export const PALETTES = {
     highlightEdge: '#6E1F31',
   },
   dark: {
-    land: '#1E1714',
-    residential: '#241B17',
-    park: '#222B1F',
-    water: '#1C323C',
-    waterEdge: '#34505D',
-    waterLabel: '#8FAAB6',
-    building: '#2D231F',
-    building3d: '#41352F',
-    roadMinor: '#3A2F2A',
-    roadMinorCasing: '#17100E',
-    roadMajor: '#4B3D36',
-    roadMajorCasing: '#17100E',
-    motorway: '#5A473C',
-    motorwayCasing: '#17100E',
-    rail: '#4B3D36',
-    path: '#4B3D36',
-    label: '#B0A097',
-    halo: '#1A1210',
-    minorLabel: '#9A8C84',
-    houseNumber: '#85776E',
-    highlight: '#B8506A',
-    highlightEdge: '#E8A5B7',
+    land: '#2F2723',
+    residential: '#342B26',
+    park: '#2E3A29',
+    water: '#28434F',
+    waterEdge: '#436574',
+    waterLabel: '#A3BDC8',
+    building: '#3C312C',
+    building3d: '#504239',
+    roadMinor: '#483C35',
+    roadMinorCasing: '#261E1B',
+    roadMajor: '#5A4B42',
+    roadMajorCasing: '#261E1B',
+    motorway: '#6B5647',
+    motorwayCasing: '#261E1B',
+    rail: '#5A4B42',
+    path: '#5A4B42',
+    label: '#C9BAB1',
+    halo: '#261E1B',
+    minorLabel: '#AE9F96',
+    houseNumber: '#9A8B82',
+    highlight: '#C25A73',
+    highlightEdge: '#F0B3C3',
   },
 }
 

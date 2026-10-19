@@ -10,7 +10,7 @@
   top: 0; left: 0; right: 0; bottom: var(--bottom-h);
   background: var(--mp-land);
 }
-.mp-screen[data-map-theme="dark"] { --mp-land: #1E1714; }
+.mp-screen[data-map-theme="dark"] { --mp-land: #2F2723; }
 [data-theme="dark"] .mp-screen { --mp-warn: #E0A04A; }   /* 7:1 on --s1 (dark) */
 .mp-probe { position: absolute; top: 0; left: 0; width: 0; height: var(--mp-safe-top); visibility: hidden; pointer-events: none; }
 

@@ -222,7 +222,9 @@
 .mp-cluster.is-leave { pointer-events: none; animation: mp-leave 160ms var(--ease-exit) forwards; }
 
 /* you are here: 14 px dot + 3 px white ring, pulse, accuracy halo */
-.mp-me { pointer-events: none; z-index: 2000; }   /* above every pin and dot (their z-index tops out at 1000) */
+/* the me dot sits above the normal pins, dots and bubbles (their z-index is 40-400) and under the hovered (900) and the selected (1000)
+   pin: a guest standing at the venue must still read the selected pill */
+.mp-me { pointer-events: none; z-index: 800; }
 .mp-me__dot, .mp-me__pulse { position: absolute; box-sizing: content-box; left: -10px; top: -10px; width: 14px; height: 14px; border-radius: 50%; }
 .mp-me__dot { background: var(--mp-me); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(26, 18, 16, 0.35); }
 .mp-me__pulse { left: -7px; top: -7px; background: var(--mp-me); opacity: 0.35; animation: mp-pulse 2s ease-out infinite; }

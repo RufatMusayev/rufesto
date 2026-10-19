@@ -14,6 +14,7 @@ import { DETAIL_PITCH, HIGHLIGHT_MIN_ZOOM, HOUSENUMBER_ZOOM, TILT_MIN_ZOOM, MS, 
 
 const TILTED_AT = 5 // degrees: above this the map counts as tilted
 const PIN_MASK_PX = 46 // radius, in screen px, around a venue's point in which no house number is drawn (the pill sits there)
+const PITCH_FOCUS_M = 180 // while tilted, house numbers show only this close to the focus (the selected venue, else the map centre)
 
 /**
  * @param {object} o
@@ -33,6 +34,7 @@ export function createDetail({ map, root, getPlaces, onChange, reduced, ease }) 
   let dead = false
   let flattenTimer = 0
   let maskKey = '' // what the house-number filter was built for
+  let padding = 8 // text-padding of the house numbers now (thinned while tilted)
 
   const source = () => map.getSource(HIGHLIGHT_SOURCE)
 
@@ -62,17 +64,26 @@ export function createDetail({ map, root, getPlaces, onChange, reduced, ease }) 
     if (dead || !map.getLayer('housenumber')) return
     const z = map.getZoom()
     let key = ''
-    let polys = []
+    let filter = null
+    let pad = 8
     if (z >= HOUSENUMBER_ZOOM - 0.4) {
       const b = map.getBounds()
       const near = getPlaces().filter(p => b.contains([p.lng, p.lat]))
-      key = `${z.toFixed(1)}|${near.map(p => p.id).join(',')}`
+      // tilted: the far half of the view is a wall of numbers, so only the ones near the focus are kept, and thinner
+      const tiltedNow = map.getPitch() > TILTED_AT
+      const c = selected ? { lng: selected.lng, lat: selected.lat } : map.getCenter()
+      key = `${z.toFixed(1)}|${tiltedNow ? `t${selected ? selected.id : `${c.lng.toFixed(3)},${c.lat.toFixed(3)}`}` : 'f'}|${near.map(p => p.id).join(',')}`
       if (key === maskKey) return
-      polys = near.map(p => [circleRing([p.lng, p.lat], PIN_MASK_PX * metersPerPixel(p.lat, z), 12)])
+      const polys = near.map(p => [circleRing([p.lng, p.lat], PIN_MASK_PX * metersPerPixel(p.lat, z), 12)])
+      const hide = polys.length ? ['!', ['within', { type: 'MultiPolygon', coordinates: polys }]] : null
+      const focus = tiltedNow ? ['within', { type: 'Polygon', coordinates: [circleRing([c.lng, c.lat], PITCH_FOCUS_M, 24)] }] : null
+      filter = focus && hide ? ['all', focus, hide] : focus || hide
+      pad = tiltedNow ? 16 : 8
     }
     if (key === maskKey) return
     maskKey = key
-    map.setFilter('housenumber', polys.length ? ['!', ['within', { type: 'MultiPolygon', coordinates: polys }]] : null)
+    map.setFilter('housenumber', filter)
+    if (pad !== padding) { padding = pad; map.setLayoutProperty('housenumber', 'text-padding', pad) }
   }
 
   function sync() {

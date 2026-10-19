@@ -684,8 +684,8 @@ test.describe('phone (Pixel 7, 390x844, touch) @consumer @feat @ux @map', () => 
     await M.expectClean(page, w)
   })
 
-  test('ENV-SUSPECT (GPU run): a hard right swipe on the first card is not a Back gesture, the card stays', async ({ browser }) => {
-    test.fail(!!process.env.QA_MAP_GPU, 'Chrome in the new headless mode (QA_MAP_GPU) performs its overscroll history navigation on this swipe (a user-initiated "traverse", no app call) although html, .mp-car and .mp-car-wrap have overscroll-behavior-x: none (4da787f); a non-passive touchmove preventDefault at the left edge stops it (probe). The SwiftShader headless shell does not navigate. Check on an Android phone.')
+  // E-R3-1: Chrome took this swipe as its Back gesture until the carousel swallowed the outward move at its edge (58641d3)
+  test('a hard right swipe on the first card is not a Back gesture, the card stays', async ({ browser }) => {
     const { page, cdp } = await M.openMap(browser, { seed: PEEK_SEED })
     await M.gotoMap(page)
     await M.mapReady(page)

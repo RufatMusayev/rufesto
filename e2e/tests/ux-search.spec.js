@@ -256,6 +256,60 @@ test.describe('ux search', { tag: ['@consumer', '@feat', '@ux'] }, () => {
     } finally { await t.close() }
   })
 
+  // B-R2-1 (map round 2 broke it, round 3 f98cd32 fixed it): "Show results" writes the filters once the sheet has closed, they stay, and Back
+  // returns to the plain /explore (the next Back leaves Search)
+  test('Filters sheet: Show results writes ?cuisine and ?diet once the sheet closes, they stay, Back returns to /explore', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      await page.goto(url('/'))
+      await openZero(page)
+      await filtersBtn(page).tap()
+      await expect(filtersSheet(page)).toBeVisible()
+      await filtersSheet(page).getByRole('radio', { name: 'Italian', exact: true }).tap()
+      await filtersSheet(page).getByRole('button', { name: 'Vegan', exact: true }).tap()
+      await filtersSheet(page).getByRole('button', { name: 'Show results' }).tap()
+      await U.noSheet(page)
+      const params = () => { const q = new URL(page.url()).searchParams; return { cuisine: (q.get('cuisine') || '').toLowerCase(), diet: q.get('diet') } }
+      await expect.poll(params, { message: 'both filters are in the URL' }).toEqual({ cuisine: 'italian', diet: 'vegan' })
+      await page.waitForTimeout(1200)   // longer than the sheet's exit and the 300 ms debounce
+      expect(params(), 'and stay there').toEqual({ cuisine: 'italian', diet: 'vegan' })
+      await expect(page.locator('.sr-active .sr-achip')).toHaveText(['Italian', 'Vegan'])
+      await page.goBack()
+      await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/explore')
+      await expect(page.locator('.sr-active .sr-achip')).toHaveCount(0)
+      await page.goBack()
+      await expect.poll(() => new URL(page.url()).pathname, { message: 'the next Back leaves Search' }).toBe('/')
+    } finally { await t.close() }
+  })
+
+  // D-4: the debounced address update must never close a Filters sheet that opened in between
+  test('Filters sheet stays open: right after Cancel, and when opened inside the 300 ms typing debounce', async ({ browser }, testInfo) => {
+    const t = await U.phone(browser, testInfo)
+    try {
+      const { page } = t
+      await openZero(page)
+      await field(page).tap()
+      await field(page).fill('pizza')
+      await expect(page.locator('.sr-results')).toBeVisible()
+      await page.getByRole('button', { name: 'Cancel' }).tap()
+      await filtersBtn(page).tap()   // at once: the address still holds ?q=pizza for up to 300 ms
+      await expect(filtersSheet(page)).toBeVisible()
+      await page.waitForTimeout(900)
+      await expect(filtersSheet(page), 'Cancel -> Filters: the sheet stays open').toBeVisible()
+      await filtersSheet(page).getByRole('button', { name: 'Show results' }).tap()
+      await U.noSheet(page)
+      // typing, then Filters before the 300 ms debounce has written ?q=
+      await field(page).tap()
+      await field(page).pressSequentially('pas', { delay: 30 })
+      await field(page).evaluate(el => el.blur())
+      await filtersBtn(page).tap()
+      await expect(filtersSheet(page)).toBeVisible()
+      await page.waitForTimeout(900)
+      await expect(filtersSheet(page), 'typing -> Filters inside the debounce: the sheet stays open').toBeVisible()
+    } finally { await t.close() }
+  })
+
   // ----------------------------------------------------------------------------------------------------- recent
   test('recent searches: saved on Enter, kept after a reload, one can be removed, Clear empties the list; they never leave the browser', async ({ browser }, testInfo) => {
     const t = await U.phone(browser, testInfo)

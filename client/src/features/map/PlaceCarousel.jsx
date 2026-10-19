@@ -106,6 +106,19 @@ export default function PlaceCarousel({
     const down = () => { sync.current.programmatic = false; sync.current.touching = true }
     const up = () => { sync.current.touching = false; sync.current.userUntil = Date.now() + 1500 }
     const nudge = () => { sync.current.userUntil = Date.now() + 1500 }
+    // At the first / last card a horizontal pull outward has nothing to scroll, and Chrome took it as its own Back / Forward
+    // swipe, which closed the card (QA E-R3-1; overscroll-behavior alone did not stop it). Swallow only that outward move.
+    let sx = 0
+    let sy = 0
+    const edgeStart = e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY }
+    const edgeMove = e => {
+      const dx = e.touches[0].clientX - sx
+      if (!e.cancelable || Math.abs(dx) <= Math.abs(e.touches[0].clientY - sy)) return
+      const max = sc.scrollWidth - sc.clientWidth
+      if ((dx > 0 && sc.scrollLeft <= 0) || (dx < 0 && sc.scrollLeft >= max - 1)) e.preventDefault()
+    }
+    sc.addEventListener('touchstart', edgeStart, { passive: true })
+    sc.addEventListener('touchmove', edgeMove, { passive: false })
     if (HAS_SCROLLEND) sc.addEventListener('scrollend', settle)
     sc.addEventListener('scroll', onScroll, { passive: true })
     sc.addEventListener('touchstart', down, { passive: true })
@@ -123,6 +136,8 @@ export default function PlaceCarousel({
       for (const t of ['touchend', 'touchcancel', 'pointerup', 'pointercancel']) sc.removeEventListener(t, up)
       sc.removeEventListener('wheel', nudge)
       sc.removeEventListener('keydown', nudge)
+      sc.removeEventListener('touchstart', edgeStart)
+      sc.removeEventListener('touchmove', edgeMove)
     }
   }, [mounted])
 

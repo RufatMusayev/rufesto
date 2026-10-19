@@ -113,8 +113,7 @@ test.describe('mobile checklist', { tag: ['@mobile', '@consumer'] }, () => {
 
     // Filters: the button replaces Cancel once the field is blurred; the sheet is a BottomSheet with a sticky "Show results"
     await page.getByRole('button', { name: 'Cancel' }).tap()
-    // Cancel clears the query and the address follows a moment later (debounced): a Filters tap before that lands closes the sheet again (APP DEFECT D-4, docs/qa/RUN-REPORT-ux.md)
-    await expect(page).toHaveURL(url('/explore'))
+    // Filters straight after Cancel (D-4 fixed: the debounced address update no longer closes the sheet that opened in between)
     await w.tap(page.getByRole('button', { name: /^Filters/ }), 'Filters button')
     const filters = page.locator('.bs-root:has(.sr-fs)[data-state="open"] .bs-panel')
     await expect(filters).toBeVisible()

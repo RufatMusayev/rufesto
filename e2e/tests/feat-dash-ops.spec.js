@@ -551,8 +551,7 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     const banner = page.getByRole('link', { name: /in kitchen/ })
     await expect(banner).toBeVisible()
     expect(parseInt((await banner.innerText()).match(/\d+/)[0], 10), 'tickets in the kitchen alert').toBeGreaterThanOrEqual(2)
-    // Orders (restaurant_day_stats, sql/63) leaves out orders still in status "open": it follows the kitchen, so it goes up when the first ticket is started
-    // (a placed order is counted at once only after the fix of APP DEFECT D-2, see the test.fail test below)
+    // Orders (restaurant_day_stats) counts a placed order at once since sql/71 (D-2, see the next test); starting the kitchen ticket keeps it at +1
     const items = await env.mgr.rows(`order_items?order_id=eq.${orderId}&select=id`)
     const [tk] = await env.s.kitchen.api.rows(`kds_tickets?order_item_id=eq.${items[0].id}&select=id`)
     expect((await env.s.kitchen.api.patch(`kds_tickets?id=eq.${tk.id}`, { status: 'preparing' })).ok, 'kitchen -> preparing').toBe(true)
@@ -561,10 +560,9 @@ test.describe('overview', { tag: ['@staff', '@resto', '@dash-ops', '@do-overview
     await expect(page).toHaveURL(url('/kds'))
   })
 
-  // APP DEFECT D-2 (kept as an expected failure so the suite stays green and the fix is noticed): a guest order that was just placed has status "open"
-  // until the kitchen starts it, and restaurant_day_stats leaves "open" out ("unsent drafts"), so the Overview's Orders card lags behind the order.
+  // D-2 (fixed by sql/71): a guest order that was just placed has status "open" until the kitchen starts it; restaurant_day_stats used to leave "open"
+  // out, so the Overview's Orders card lagged behind the order. It counts placed orders now.
   test('a placed order is counted in Orders at once, without waiting for the kitchen', async ({ page }) => {
-    test.fail(true, 'APP DEFECT D-2: Orders (restaurant_day_stats) does not count orders in status open, which is every placed order until the kitchen starts it')
     await openDash(page, 'manager', '/')
     const orders0 = parseInt((await stat(page, 'Orders').innerText()).trim(), 10)
     await env.order('B2', env.items(1, 1))
@@ -1391,11 +1389,9 @@ test.describe('menu', { tag: ['@staff', '@resto', '@dash-ops', '@do-menu'] }, ()
     } finally { await guest.close() }
   })
 
-  // APP DEFECT D-3 (an expected failure, so the suite stays green and the fix is noticed): the live availability poll (feed/dishAvailability.js,
-  // "wherever a card marks itself with data-dish-id") is only mounted by the Home tabs, so the dish rows of the Search page (which carry data-dish-id)
-  // keep "Available" until the page is reloaded. The old Explore page flipped to Sold Out on its own.
+  // D-3 (fixed in 7f03631): the live availability poll (feed/dishAvailability.js, "wherever a card marks itself with data-dish-id") used to be
+  // mounted by the Home tabs only, so the dish rows of the Search page kept "Available" until a reload. The Search page polls too now.
   test('the open Search page flips a dish row to Sold out on its own (without a reload)', async ({ page, browser }, testInfo) => {
-    test.fail(true, 'APP DEFECT D-3: nothing polls dish availability while the Search page is open (useDishAvailabilityPoll is mounted on Home only)')
     test.setTimeout(150_000)
     await openDash(page, 'manager', '/menu')
     const name = uniq()

@@ -99,9 +99,12 @@ test.describe('wizard', { tag: TAGS }, () => {
     await expect(page.locator('.bk-day:disabled'), 'day chips are never disabled (closure is known only after tapping)').toHaveCount(0)
 
     expect(closedDow.length, 'Bella Roma has a weekly closed day').toBeGreaterThan(0)
-    const i = Array.from({ length: 30 }, (_, k) => k).find(k => closedDow.includes(F.weekdayOf(bakuDate(k))))
+    // the first closed day AFTER today: on a closed weekday "Today" is already selected and its answer came on load, so tapping it again
+    // would not ask again (this failed only on Bella Roma's closed weekday)
+    const i = Array.from({ length: 30 }, (_, k) => k).find(k => k > 0 && closedDow.includes(F.weekdayOf(bakuDate(k))))
     const answer = page.waitForResponse(r => /get_available_slots/.test(r.url()) && r.request().postDataJSON().p_date === bakuDate(i))
     await chips.nth(i).click()
+    await expect(chips.nth(i)).toHaveAttribute('aria-pressed', 'true')
     expect(await (await answer).json(), 'get_available_slots answers [] on a closed day').toEqual([])
     await expect(page.getByText('The restaurant is closed on this date.')).toBeVisible()
     await expect(page.locator('.slot-btn')).toHaveCount(0)

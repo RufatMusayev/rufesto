@@ -20,6 +20,9 @@ const { CONSUMER_URL } = require('./env')
 const { signInGuest } = require('./guest')
 
 const ART = path.join(__dirname, '..', 'artifacts', 'map')
+/** Round 2 / round 3 screenshots for Rufat (docs/qa/RUN-REPORT-map.md, "Round 2", "Round 3"). */
+const ART_R2 = path.join(__dirname, '..', 'artifacts', 'map-r2')
+const ART_R3 = path.join(__dirname, '..', 'artifacts', 'map-r3')
 const ORIGIN = new URL(CONSUMER_URL).origin
 const TILE_HOST = /tiles\.openfreemap\.org/
 const SUPABASE = /supabase|\/(rest|auth|storage|realtime)\/v1\//i
@@ -63,9 +66,11 @@ function ayselAccount() {
 async function openMap(browser, o = {}) {
   const {
     phone = true, lang = 'en', theme = 'dark', seed = null, noWebGL = false, workerLog = false, who = null,
-    colorScheme = theme, reducedMotion, permissions = [], frameLog = false, perf = false,
+    colorScheme = theme, reducedMotion, permissions = [], frameLog = false, perf = false, geoOk = false,
   } = o
   const local = [{ name: 'rufesto_lang', value: lang }]
+  // a guest who allowed the location before: the app then takes it silently on load (useViewerLocation, 'rufesto_geo_ok')
+  if (geoOk) local.push({ name: 'rufesto_geo_ok', value: '1' })
   if (theme) local.push({ name: 'rufesto_theme', value: theme })
   const ctx = await browser.newContext({
     ...(phone ? PHONE : DESK),
@@ -95,7 +100,7 @@ async function openMap(browser, o = {}) {
     if (opts.workerLog && typeof Worker === 'function') {
       const post = Worker.prototype.postMessage
       Worker.prototype.postMessage = function (m, ...rest) {
-        try { if (m && (m.type === 'SL' || m.type === 'UL')) qa.msgs.push({ type: m.type, at: performance.now(), json: JSON.stringify(m.data) }) } catch { /* not serialisable */ }
+        try { if (m && (m.type === 'SL' || m.type === 'UL' || m.type === 'LD')) qa.msgs.push({ type: m.type, at: performance.now(), json: JSON.stringify(m.data) }) } catch { /* not serialisable */ }
         return post.call(this, m, ...rest)
       }
     }
@@ -104,14 +109,15 @@ async function openMap(browser, o = {}) {
       const reset = t => { qa.marks = {}; qa.t0 = t }
       document.addEventListener('pointerdown', e => { if (e.target.closest?.('a[href="/map"]')) reset(e.timeStamp) }, true)
       window.addEventListener('popstate', () => reset(performance.now()), true)
-      qa.cls = 0
+      qa.shifts = []   // every layout shift: { t, v, input }; CLS after a press = the sum of v with t > qa.t0 and no recent input
       try {
-        new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) qa.cls += e.value })
+        new PerformanceObserver(list => { for (const e of list.getEntries()) qa.shifts.push({ t: e.startTime, v: e.value, input: e.hadRecentInput }) })
           .observe({ type: 'layout-shift', buffered: true })
       } catch { /* not supported */ }
     }
     // the last finger / button release (page clock): settle times are measured from it
-    for (const t of ['pointerup', 'touchend']) document.addEventListener(t, e => { qa.lastUp = e.timeStamp }, true)
+    // (the time the page handles the release, not the event's own timestamp: under load CDP input lands late)
+    for (const t of ['pointerup', 'touchend']) document.addEventListener(t, () => { qa.lastUp = performance.now() }, true)
     // pin entry motion seen on the buttons: 'is-enter' (spring pop), '--mp-d' (stagger delay), 'is-enter-fade' (reduced motion)
     qa.anim = { enter: 0, stagger: 0, fade: 0 }
     // first time each part of the screen is in the DOM (performance.now(), page clock)
@@ -334,11 +340,15 @@ function tappablePins(page, { top = 56, bottom } = {}) {
   }, { top, bottom })
 }
 
-/** Scrolls the carousel to a place's card at once (as a finger would end) and waits for the selection to follow. */
+/**
+ * Scrolls the carousel to a place's card at once (as a finger would end) and waits for the selection to follow. Round 3: the
+ * carousel selects only from a scroll the guest started, so a wheel input on it comes first (a plain scrollTo selects nothing).
+ */
 async function carouselTo(page, id) {
   await page.evaluate(id => {
     const sc = document.querySelector('.mp-car')
     const el = sc.querySelector(`[data-id="${CSS.escape(id)}"]`)
+    sc.dispatchEvent(new WheelEvent('wheel', { deltaX: 1, bubbles: true }))
     sc.scrollTo({ left: el.offsetLeft - (sc.clientWidth - el.offsetWidth) / 2, behavior: 'auto' })
   }, id)
   await expect.poll(async () => (await state(page)).url, { timeout: 4_000 }).toContain('?place=')
@@ -447,11 +457,11 @@ const settleTime = (page, y, timeout = 1500) => page.evaluate(({ y, timeout }) =
 }), { y, timeout })
 
 // ------------------------------------------------------------------------------------------------------------ files
-async function shot(page, name, opts = {}) {
-  fs.mkdirSync(ART, { recursive: true })
+async function shot(page, name, { dir = ART, ...opts } = {}) {
+  fs.mkdirSync(dir, { recursive: true })
   // photos on screen have loaded (or failed): a blank thumbnail in a screenshot is then a real finding, not timing
   await page.waitForFunction(() => [...document.images].filter(i => { const r = i.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.width > 0 }).every(i => i.complete), null, { timeout: 4_000 }).catch(() => {})
-  const file = path.join(ART, `${name}.png`)
+  const file = path.join(dir, `${name}.png`)
   await page.screenshot({ path: file, ...opts })
   return file
 }
@@ -463,7 +473,7 @@ function writeJson(name, data) {
 }
 
 module.exports = {
-  ART, PHONE, DESK, CENTRE_CAM, TILE_HOST, wait, url,
+  ART, ART_R2, ART_R3, PHONE, DESK, CENTRE_CAM, TILE_HOST, wait, url,
   ayselAccount, openMap, closeAll, watch, expectClean,
   gotoMap, placesResponse, mapReady, camera, cameraStill, sameCam, centrePx, state, expectPageStill, pinPoint, emptyMapPoint,
   tappablePins, carouselTo, cameraTrace, frameStart, frameStop, touchPath, line, swipe, tapAt, pinch, panelY, settleTime, shot, writeJson,
